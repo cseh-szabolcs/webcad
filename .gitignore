@@ -2,6 +2,7 @@
 /.idea
 /local
 /public/local
+/todo
 ###< symfony/framework-bundle ###
 
 ###> symfony/framework-bundle ###
@@ -23,3 +24,8 @@
 /public/assets/
 /assets/vendor/
 ###< symfony/asset-mapper ###
+
+###> phpunit/phpunit ###
+/phpunit.xml
+/.phpunit.cache/
+###< phpunit/phpunit ###
