@@ -10,6 +10,13 @@ export default defineConfig({
         strictPort: true,
         host: true,
         origin: "http://0.0.0.0:8081",
+        proxy: {
+            // Same-origin API in dev; set API_PROXY_TARGET=http://localhost:8080 when running on the host
+            '/api': {
+                target: process.env.API_PROXY_TARGET ?? 'http://nginx',
+                changeOrigin: true,
+            },
+        },
     },
     resolve: {
         alias: {

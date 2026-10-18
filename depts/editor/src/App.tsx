@@ -1,122 +1,59 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useEffect, useRef, useState } from 'react';
+import { CadEditor } from 'app/cad/editor/CadEditor';
+import { CadApiClient } from 'app/cad/persistence/CadApiClient';
+import type { Viewport } from 'app/cad/renderer/Viewport';
+import { CadCanvas, type CadCanvasHandle } from 'app/ui/CadCanvas';
+import { EditorToolbar } from 'app/ui/EditorToolbar';
+import './App.css';
+
+/** Plan served from the backend fixtures; used in dev when no ?plan= is given. */
+const DEV_PLAN_ID = '01994f4e-6f3a-7c2d-9b1e-5a3c2d1e0f42';
+
+const api = new CadApiClient();
+
+type LoadState =
+    | { status: 'loading' }
+    | { status: 'error'; message: string }
+    | { status: 'loaded'; editor: CadEditor };
 
 function App() {
-  const [count, setCount] = useState(0)
+    const planId = new URLSearchParams(window.location.search).get('plan') ?? (import.meta.env.DEV ? DEV_PLAN_ID : null);
+    const canvasRef = useRef<CadCanvasHandle>(null);
+    const [viewport, setViewport] = useState<Viewport | null>(null);
+    const [state, setState] = useState<LoadState>({ status: 'loading' });
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    useEffect(() => {
+        if (planId === null) {
+            return;
+        }
+        const controller = new AbortController();
+        api.loadPlanDocument(planId, controller.signal).then(
+            ({ document }) => setState({ status: 'loaded', editor: new CadEditor(document) }),
+            (error: Error) => {
+                if (!controller.signal.aborted) {
+                    setState({ status: 'error', message: error.message });
+                }
+            },
+        );
+        return () => controller.abort();
+    }, [planId]);
 
-      <div className="ticks"></div>
+    if (planId === null) {
+        return <p className="app-message">No plan selected.</p>;
+    }
+    if (state.status === 'loading') {
+        return <p className="app-message">Loading plan…</p>;
+    }
+    if (state.status === 'error') {
+        return <p className="app-message app-message-error">{state.message}</p>;
+    }
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+    return (
+        <div className="app">
+            <EditorToolbar editor={state.editor} viewport={viewport} onFit={() => canvasRef.current?.fit()} />
+            <CadCanvas ref={canvasRef} editor={state.editor} onViewportChange={setViewport} />
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+    );
 }
 
-export default App
+export default App;

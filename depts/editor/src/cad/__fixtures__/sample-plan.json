@@ -1,0 +1,50 @@
+{
+    "id": "01994f4e-6f3a-7c2d-9b1e-5a3c2d1e0f42",
+    "name": "Sample room",
+    "schemaVersion": 1,
+    "unit": "mm",
+    "vertices": [
+        { "id": "w-o1", "x": 0, "y": 0 },
+        { "id": "w-o2", "x": 6000, "y": 0 },
+        { "id": "w-o3", "x": 6000, "y": 4000 },
+        { "id": "w-o4", "x": 0, "y": 4000 },
+        { "id": "w-i1", "x": 240, "y": 240 },
+        { "id": "w-i2", "x": 5760, "y": 240 },
+        { "id": "w-i3", "x": 5760, "y": 3760 },
+        { "id": "w-i4", "x": 240, "y": 3760 },
+        { "id": "d-hinge", "x": 1000, "y": 240 },
+        { "id": "d-closed", "x": 1900, "y": 240 },
+        { "id": "d-open", "x": 1000, "y": 1140 },
+        { "id": "win-1", "x": 3500, "y": 3880 },
+        { "id": "win-2", "x": 5000, "y": 3880 },
+        { "id": "t-center", "x": 4000, "y": 1800 },
+        { "id": "s-1", "x": 600, "y": 2600 },
+        { "id": "s-2", "x": 2600, "y": 2600 },
+        { "id": "s-3", "x": 2600, "y": 3500 },
+        { "id": "s-4", "x": 600, "y": 3500 }
+    ],
+    "layers": [
+        { "id": "walls", "name": "Walls", "visible": true, "locked": false },
+        { "id": "openings", "name": "Doors & windows", "visible": true, "locked": false },
+        { "id": "furniture", "name": "Furniture", "visible": true, "locked": false }
+    ],
+    "groups": [
+        { "id": "door-d1", "name": "Door D1" }
+    ],
+    "styles": [
+        { "id": "wall", "name": "Wall", "strokeColor": "#1f2937", "strokeWidth": 2, "dashPattern": [], "fillColor": null },
+        { "id": "thin", "name": "Thin", "strokeColor": "#374151", "strokeWidth": 1, "dashPattern": [], "fillColor": null },
+        { "id": "hidden", "name": "Hidden", "strokeColor": "#6b7280", "strokeWidth": 1, "dashPattern": [8, 4], "fillColor": null },
+        { "id": "furniture", "name": "Furniture", "strokeColor": "#2563eb", "strokeWidth": 1, "dashPattern": [], "fillColor": "#dbeafe" }
+    ],
+    "elements": [
+        { "id": "wall-outer", "type": "polyline", "layerId": "walls", "groupId": null, "styleId": "wall", "vertexIds": ["w-o1", "w-o2", "w-o3", "w-o4"], "closed": true },
+        { "id": "wall-inner", "type": "polyline", "layerId": "walls", "groupId": null, "styleId": "wall", "vertexIds": ["w-i1", "w-i2", "w-i3", "w-i4"], "closed": true },
+        { "id": "door-leaf", "type": "line", "layerId": "openings", "groupId": "door-d1", "styleId": "thin", "startVertexId": "d-hinge", "endVertexId": "d-open" },
+        { "id": "door-swing", "type": "bezier", "layerId": "openings", "groupId": "door-d1", "styleId": "hidden", "startVertexId": "d-closed", "endVertexId": "d-open", "startControl": { "x": 0, "y": 497.056 }, "endControl": { "x": 497.056, "y": 0 } },
+        { "id": "window", "type": "line", "layerId": "openings", "groupId": null, "styleId": "thin", "startVertexId": "win-1", "endVertexId": "win-2" },
+        { "id": "table", "type": "circle", "layerId": "furniture", "groupId": null, "styleId": "furniture", "centerVertexId": "t-center", "radius": 600 },
+        { "id": "sofa", "type": "polyline", "layerId": "furniture", "groupId": null, "styleId": "furniture", "vertexIds": ["s-1", "s-2", "s-3", "s-4"], "closed": true },
+        { "id": "axis", "type": "line", "layerId": null, "groupId": null, "styleId": null, "startVertexId": "w-o1", "endVertexId": "w-i1" }
+    ]
+}
