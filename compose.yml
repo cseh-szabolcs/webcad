@@ -1,0 +1,77 @@
+services:
+
+  db:
+    container_name: ${COMPOSE_PROJECT_NAME}_db
+    image: mysql:8.0
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=app
+      - MYSQL_USER=app
+      - MYSQL_PASSWORD=app
+      - TZ=Europe/Zurich
+    volumes:
+      - db-data:/var/lib/mysql
+
+  php:
+    container_name: ${COMPOSE_PROJECT_NAME}_php
+    build:
+      context: ./docker
+      dockerfile: build/php.Dockerfile
+    environment:
+      - SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock
+    volumes:
+      - './:/app'
+      - depts-data:/app/depts
+      - ./docker/map/php.custom.ini:/usr/local/etc/php/conf.d/zzz-custom.ini:ro
+      - /run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock
+    depends_on:
+      - db
+
+  editor:
+    container_name: ${COMPOSE_PROJECT_NAME}_editor
+    image: node:alpine
+    entrypoint: ["npm", "run", "dev:init"]
+    working_dir: /app
+    volumes:
+      - './depts/editor:/app'
+    ports:
+      - "8081:8081"
+
+  nginx:
+    container_name: ${COMPOSE_PROJECT_NAME}_nginx
+    image: nginx:stable-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - './:/app'
+      - ./docker/map/nginx.default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - php
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit
+    ports:
+      - "8025:8025"   # Web-UI
+      - "1025:1025"   # SMTP
+    restart: unless-stopped
+
+  phpmyadmin:
+    container_name: ${COMPOSE_PROJECT_NAME}_phpmyadmin
+    image: phpmyadmin:latest
+    restart: always
+    ports:
+      - "8210:80"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_PASSWORD=root
+      - MYSQL_DATABASE=app
+      - PMA_USER=root
+      - PMA_PASSWORD=root
+      - PMA_ARBITRARY=1
+    depends_on:
+      - db
+
+volumes:
+  db-data:
+  depts-data:
