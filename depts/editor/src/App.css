@@ -51,3 +51,14 @@
 .app-message-error {
     color: #b91c1c;
 }
+
+.statusbar {
+    display: flex;
+    gap: 18px;
+    padding: 4px 12px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    font-variant-numeric: tabular-nums;
+    white-space: pre;
+    overflow: hidden;
+}

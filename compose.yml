@@ -34,8 +34,20 @@ services:
     working_dir: /app
     volumes:
       - './depts/editor:/app'
+      - editor-node-modules:/app/node_modules
     ports:
       - "8081:8081"
+
+  editor-old:
+    container_name: ${COMPOSE_PROJECT_NAME}_editor-old
+    image: node:alpine
+    entrypoint: ["npm", "run", "dev:init"]
+    working_dir: /app
+    volumes:
+      - './depts/editor-old:/app'
+      - editor-old-node-modules:/app/node_modules
+    ports:
+      - "8082:8082"
 
   nginx:
     container_name: ${COMPOSE_PROJECT_NAME}_nginx
@@ -75,3 +87,5 @@ services:
 volumes:
   db-data:
   depts-data:
+  editor-node-modules:
+  editor-old-node-modules:

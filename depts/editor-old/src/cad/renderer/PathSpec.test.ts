@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { CubicBezierElement, EllipseElement } from '../model/CadElement';
+import type { CircleElement, CubicBezierElement, EllipseElement } from '../model/CadElement';
 import { indexDocument } from '../model/DocumentIndex';
 import { parseDocument } from '../persistence/CadSerializer';
 import samplePlan from '../__fixtures__/sample-plan.json';
@@ -51,6 +51,12 @@ describe('buildPathSpec', () => {
             { x: 3400, y: 1800 },
             { x: 4000, y: 1200 },
         ]);
+    });
+
+    it('builds a circle like an ellipse with equal radii', () => {
+        const { radiusX: _rx, radiusY: _ry, ...rest } = element(E.table) as EllipseElement;
+        const circle: CircleElement = { ...rest, type: 'circle', radius: 600 };
+        expect(buildPathSpec(circle, index)).toEqual(buildPathSpec(element(E.table), index));
     });
 
     it('scales the bezier handles per axis for unequal radii', () => {

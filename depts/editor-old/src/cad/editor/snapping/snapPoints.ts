@@ -85,7 +85,8 @@ function derivedPoints(element: CadElement, index: DocumentIndex): SnapPoint[] {
             const mid = arcMidpoint(at(element.centerVertexId), at(element.startVertexId), at(element.endVertexId), element.clockwise);
             return [{ kind: 'midpoint', ...mid, elementId: element.id, segment: 0 }];
         }
-        case 'ellipse': {
+        case 'ellipse':
+        case 'circle': {
             const center = at(element.centerVertexId);
             return SIDES.map((side) => ({
                 kind: 'quadrant' as const,

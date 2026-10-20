@@ -16,10 +16,33 @@ apps in one repo:
   AssetMapper and Stimulus are installed. Today it is still mostly skeleton
   (`IndexController` at `/index` plus one test).
 - **CAD editor frontend** in `depts/editor/`: Vite + React 19 + TypeScript, with
-  Paper.js for rendering and geometry and Redux Toolkit for state (Redux not used yet).
-  Phase 1 viewer exists: document model, serializer, `PaperRenderer`, zoom/pan. It loads
-  the plan via `CadApiClient` from `GET /api/plans/{id}/document` (`?plan=<uuid>`, dev
-  default is the fixture plan).
+  Paper.js for rendering and Redux Toolkit installed (unused). **The editor is being
+  rebuilt from scratch, closer to AutoCAD behaviour.** Everything is rebuilt in small
+  steps. So far it loads a plan through the API and only displays it (wheel zoom,
+  middle/Space+drag pan, status line with cursor position and zoom); there is no
+  selection, snapping or editing yet.
+
+### Reference material (read, don't copy)
+
+- **`depts/editor-old/`**: the previous implementation (viewer, `CadEditor`,
+  commands, selection, handles, `PaperRenderer`, serializer, `CadApiClient`, tests).
+  It is for comparison only and is never imported. Parts that fit the new editor may be
+  adopted into `depts/editor/` (reviewed, trimmed to the current step, with their tests),
+  but not wholesale: its interaction model (selection, handles, tools) differs from
+  AutoCAD. Already adopted: the document model (with `circle`), serializer, API client,
+  `Viewport`, `PathSpec`, arc geometry and the view-only `PaperRenderer`. Once adopted,
+  the code in `depts/editor/` is the reference.
+- **`depts/demo1/`** (git-ignored): a plain-JS object snap (OSNAP) reference with tests.
+  `Snap-Spezifikation.md` is the detailed snap/tracking/MOVE spec (German, AutoCAD
+  behaviour). Run with `npm run demo:dev` in `depts/demo1/`, then open
+  http://localhost:3000/demo/. Use it to cross-check our logic, not as a template; ideas
+  like the `rbush` spatial index may be adopted. It is for comparison only: the editor is
+  TypeScript, so re-implement ideas as typed code in our structure and never copy or
+  import demo1's JS files.
+- **`docs/`**: `docs/todo/setup.md` (architecture concept, German),
+  `docs/milestones/phase*.md` (reports of the old implementation),
+  `docs/editor-bedienung.md` (controls of the old editor), `docs/architecture/cqrs.md`.
+  The editor docs describe the old editor and are background only.
 
 ## Running it (Docker)
 
@@ -39,6 +62,7 @@ docker compose exec -T php vendor/bin/mate tools:list # AI Mate diagnostics; alw
 |------------|---------------------------------------------------------------------|
 | App        | http://localhost:8080 (nginx → php-fpm, document root `public/`)     |
 | Editor dev | http://localhost:8081 (Vite; the `editor` container runs `npm run dev:init`) |
+| Old editor | http://localhost:8082 (`editor-old` container, reference only)         |
 | Mailpit    | http://localhost:8025 (SMTP on 1025)                                 |
 | phpMyAdmin | http://localhost:8210                                               |
 
@@ -51,35 +75,7 @@ deprecation fails the suite.
 
 Editor commands (from `depts/editor/`): `npm run dev`, `npm run build` (`tsc -b && vite build`),
 `npm run lint` (oxlint), `npm test` (Vitest; `*.test.ts` next to sources, pure code
-only, no canvas). Model coordinates are **mm with Y up**; `Viewport` flips Y.
-
-**Editor core** (`src/cad/editor/`):
-- **`CadEditor`** owns the immutable `CadDocument`, the `CommandManager`, the
-  `SelectionManager` and the active tool. It has no React or Paper dependencies and talks
-  to rendering only through `EditorView` (`PaperEditorView` = `PaperRenderer` +
-  `SelectionOverlay`).
-- **Commands** are pure: `execute(doc)`/`undo(doc)` return a new document plus
-  `changedElementIds`, which feed `PaperRenderer.updateElements`. They never mutate their
-  input.
-- **React** reads `CadEditor.getSnapshot()` via `useEditorSnapshot` (`useSyncExternalStore`).
-  Redux is not used.
-- **Input:** `CanvasInputController` owns canvas input. The wheel zooms. Middle drag or
-  Space + left drag pans. Everything else goes to the editor/tool: left click selects,
-  Shift toggles, Delete/Backspace deletes, Esc clears, Cmd/Ctrl+Z undoes, Cmd/Ctrl+Shift+Z
-  or Ctrl+Y redoes. Dragging a selected element moves the selection, and dragging a vertex
-  handle moves that vertex.
-- **Drags** use `editor.preview(command)` on every pointer move. The command is applied to
-  the committed document without touching history. On release, `commitPreview()` executes
-  it as one undo step; `cancelPreview()` (Esc) discards it. Undo/redo/load/delete abort a
-  drag in progress via `Tool.onCancel`. New handle types (Phase 3: circle radius, Bézier
-  controls) should follow this pattern.
-- **Handles** are the vertices of the selected elements (`selectionHandles`), 8 px squares
-  drawn by `SelectionOverlay`. Hit-testing happens in the tool via
-  `ToolPointerEvent.pixelSize` (6 px radius) and takes priority over elements.
-- **Deleting** elements also removes vertices that no remaining element references. Shared
-  vertices stay.
-- **Moving** a vertex moves it for every element that references it, so shared vertices
-  act as connections. Rules for detaching them are a Phase 3 decision.
+only, no canvas). Model coordinates are **mm with Y up**; the viewport flips Y for the screen.
 
 Vite proxies `/api` to `http://nginx` (same origin, no CORS). When running `npm run dev`
 on the host, set `API_PROXY_TARGET=http://localhost:8080`.
@@ -89,15 +85,27 @@ For now `GetPlanDocumentHandler` reads `fixtures/plans/{uuid}.json` instead of t
 only that handler gets replaced once `PlanVersion` exists. The same sample plan exists
 twice, as `fixtures/plans/01994f4e-….json` (backend) and
 `depts/editor/src/cad/__fixtures__/sample-plan.json` (frontend unit tests), because the
-`php` container cannot see `depts/`. Keep them identical.
+`php` container cannot see `depts/`. Keep them byte-identical. Ids are numbered fixture
+UUIDs `00000000-0000-7000-8000-000000000NNN` (vertices 001+, elements 101+, layers 201+,
+groups 301+, styles 401+); readable names live in `name` and in `sampleIds.ts`. The plan
+contains every element type (line, polyline, arc, circle, ellipse, bezier).
 
-The `php` container mounts a named volume over `/app/depts`, so the editor sources are not visible from inside `php`. Run Node tooling on the host
-or in the `editor` container.
+The `php` container mounts a named volume over `/app/depts`, so the editor sources are not
+visible from inside `php`.
+
+**Node tooling runs on the host** (`npm install`, `npm test`, `npm run lint|build`, run
+inside `depts/editor/` or `depts/editor-old/`). The `editor`/`editor-old` containers only
+serve Vite. Each container has its own named volume over `/app/node_modules`, because
+rolldown, Vitest and oxlint ship platform-specific native bindings (macOS on the host,
+Linux musl in the container). After a dependency change, run `npm install` on the host
+and `docker compose restart editor`. Each editor has an `.npmrc` with
+`cache=node_modules/.npm-cache`, so npm writes nothing to `~/.npm`; never install
+packages globally.
 
 ## Architecture
 
-The design concept is in `todo/setup.md` (German, git-ignored, so it may be missing
-from a fresh clone). Its main decisions:
+The design concept is in `docs/todo/setup.md` (German, not committed yet). Its main
+decisions (still valid for the rebuild):
 
 - **The persisted CAD document is independent of Paper.js, React and the editor tools.**
   A custom TypeScript model (vertices, elements, layers, groups, styles) is the source

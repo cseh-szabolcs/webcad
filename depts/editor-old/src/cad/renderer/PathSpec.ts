@@ -30,6 +30,8 @@ export function buildPathSpec(element: CadElement, index: DocumentIndex): PathSp
             };
         case 'ellipse':
             return ellipse(requireVertex(index, element.centerVertexId), element.radiusX, element.radiusY);
+        case 'circle':
+            return ellipse(requireVertex(index, element.centerVertexId), element.radius, element.radius);
         case 'arc':
             return {
                 segments: arcSegments(

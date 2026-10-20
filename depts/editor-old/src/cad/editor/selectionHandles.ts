@@ -1,5 +1,5 @@
 import type { CadDocument } from '../model/CadDocument';
-import { vertexRefs, type EllipseElement } from '../model/CadElement';
+import { vertexRefs, type CircleElement, type EllipseElement } from '../model/CadElement';
 import type { Id, Point } from '../model/Point';
 
 /** Which quadrant point of an ellipse a radius handle sits on. */
@@ -52,16 +52,18 @@ export function selectionHandles(doc: CadDocument, selected: ReadonlySet<Id>): H
     return handles;
 }
 
-/** Quadrant point of an ellipse on the given side; also a snap point. */
-export function radiusHandlePoint(element: EllipseElement, center: Point, side: RadiusSide): Point {
+/** Quadrant point of an ellipse or circle on the given side; also a snap point. */
+export function radiusHandlePoint(element: EllipseElement | CircleElement, center: Point, side: RadiusSide): Point {
+    const radiusX = element.type === 'circle' ? element.radius : element.radiusX;
+    const radiusY = element.type === 'circle' ? element.radius : element.radiusY;
     switch (side) {
         case 'right':
-            return { x: center.x + element.radiusX, y: center.y };
+            return { x: center.x + radiusX, y: center.y };
         case 'top':
-            return { x: center.x, y: center.y + element.radiusY };
+            return { x: center.x, y: center.y + radiusY };
         case 'left':
-            return { x: center.x - element.radiusX, y: center.y };
+            return { x: center.x - radiusX, y: center.y };
         case 'bottom':
-            return { x: center.x, y: center.y - element.radiusY };
+            return { x: center.x, y: center.y - radiusY };
     }
 }

@@ -33,6 +33,14 @@ describe('CadSerializer', () => {
         expect(doc.elements[1]).not.toHaveProperty('name');
     });
 
+    it('parses a circle', () => {
+        const data = sample();
+        const { radiusX, radiusY, ...table } = data.elements[5];
+        data.elements[5] = { ...table, type: 'circle', radius: radiusX };
+        expect(parseDocument(data).elements[5]).toEqual({ ...table, type: 'circle', radius: 600 });
+        expect(radiusY).toBe(600);
+    });
+
     it.each([
         ['invalid JSON', () => '{', '$'],
         ['a wrong schema version', (d: any) => ({ ...d, schemaVersion: 2 }), '$.schemaVersion'],
@@ -45,6 +53,7 @@ describe('CadSerializer', () => {
         ['a duplicate vertex id', (d: any) => { d.vertices[1].id = d.vertices[0].id; return d; }, '$.vertices[1].id'],
         ['a duplicate element id', (d: any) => { d.elements[1].id = d.elements[0].id; return d; }, '$.elements[1].id'],
         ['a non-positive radius', (d: any) => { d.elements[5].radiusY = 0; return d; }, '$.elements[5].radiusY'],
+        ['a circle without radius', (d: any) => { d.elements[5].type = 'circle'; return d; }, '$.elements[5].radius'],
         ['an arc without direction', (d: any) => { delete d.elements[3].clockwise; return d; }, '$.elements[3].clockwise'],
         ['a readable id', (d: any) => { d.vertices[0].id = 'w-o1'; return d; }, '$.vertices[0].id'],
         ['an uppercase uuid', (d: any) => { d.elements[0].id = '0000000A-0000-7000-8000-000000000101'; return d; }, '$.elements[0].id'],

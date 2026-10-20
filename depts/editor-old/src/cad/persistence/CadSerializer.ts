@@ -126,6 +126,13 @@ function parseElement(value: unknown, path: string): CadElement {
                 radiusX: positive(r.radiusX, `${path}.radiusX`),
                 radiusY: positive(r.radiusY, `${path}.radiusY`),
             };
+        case 'circle':
+            return {
+                ...base,
+                type,
+                centerVertexId: string(r.centerVertexId, `${path}.centerVertexId`),
+                radius: positive(r.radius, `${path}.radius`),
+            };
         case 'arc':
             return {
                 ...base,

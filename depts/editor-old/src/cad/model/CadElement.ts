@@ -15,12 +15,18 @@ export interface LineElement extends BaseElement {
     endVertexId: Id;
 }
 
-/** Axis-aligned ellipse; a circle has equal radii. */
+/** Axis-aligned ellipse. */
 export interface EllipseElement extends BaseElement {
     type: 'ellipse';
     centerVertexId: Id;
     radiusX: number;
     radiusY: number;
+}
+
+export interface CircleElement extends BaseElement {
+    type: 'circle';
+    centerVertexId: Id;
+    radius: number;
 }
 
 /**
@@ -54,6 +60,7 @@ export interface PolylineElement extends BaseElement {
 export type CadElement =
     | LineElement
     | EllipseElement
+    | CircleElement
     | ArcElement
     | CubicBezierElement
     | PolylineElement;
@@ -67,6 +74,7 @@ export function vertexRefs(element: CadElement): Id[] {
         case 'bezier':
             return [element.startVertexId, element.endVertexId];
         case 'ellipse':
+        case 'circle':
             return [element.centerVertexId];
         case 'arc':
             return [element.centerVertexId, element.startVertexId, element.endVertexId];
