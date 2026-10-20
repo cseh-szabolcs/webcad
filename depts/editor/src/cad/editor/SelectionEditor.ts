@@ -72,12 +72,12 @@ type State =
  * click ends the command (the result becomes the "previous" selection, nothing stays
  * highlighted) and Esc cancels it.
  *
- * In both, a click into empty space starts a rectangle and the next click ends it; pressing
- * into empty space and dragging spans it too and ends it on release. To the right it
- * selects by window, to the left by crossing. With Alt held on the press, dragging draws a
- * lasso instead, which ends on release; its start direction picks window or crossing and
- * Space toggles between them. With Shift the found elements are removed instead. Esc or
- * Enter drop just the rectangle or lasso.
+ * In both, pressing into empty space and dragging spans a rectangle that ends on release
+ * (like AutoCAD with PICKDRAG 1); a plain click into empty space does nothing. To the right
+ * it selects by window, to the left by crossing. With Alt held on the press, dragging draws
+ * a lasso instead; its start direction picks window or crossing and Space toggles between
+ * them. With Shift the found elements are removed instead. Esc or Enter drop just the
+ * rectangle or lasso.
  *
  * Picking a grouped element picks its whole group, also by window, crossing or lasso when
  * only one member qualifies. Never persisted.
@@ -94,10 +94,10 @@ export class SelectionEditor {
     private message: string | null = null;
     private area: SelectionArea | null = null;
     /**
-     * Press into empty space that started the rectangle, while the button is held: where it
-     * went down (view px), whether Alt was held and whether it travelled past the threshold.
+     * Press into empty space while the button is held: where it went down (view px and
+     * model) and whether Alt was held. Dragging it past the threshold opens the area.
      */
-    private press: { viewPoint: Point; alt: boolean; dragged: boolean } | null = null;
+    private press: { viewPoint: Point; modelPoint: Point; alt: boolean } | null = null;
     /** Elements the open area would pick, computed once per area. */
     private areaPreview: { area: SelectionArea; ids: Id[] } | null = null;
     private current: SelectionSnapshot;
@@ -146,21 +146,13 @@ export class SelectionEditor {
             }
             return;
         }
-        if (event.button !== 0) {
-            return;
-        }
-        if (this.area?.shape === 'lasso') {
-            return;
-        }
-        if (this.area !== null) {
-            this.finishRect(this.area.first, event.modelPoint, event.shiftKey);
+        if (event.button !== 0 || this.press !== null || this.area !== null) {
             return;
         }
         const id = this.pick(event);
         if (id === null) {
-            this.area = { shape: 'rect', mode: 'window', first: event.modelPoint, second: event.modelPoint };
-            this.press = { viewPoint: event.viewPoint, alt: event.altKey, dragged: false };
-            this.changed();
+            // Becomes a rectangle or lasso only once dragged; a plain click does nothing
+            this.press = { viewPoint: event.viewPoint, modelPoint: event.modelPoint, alt: event.altKey };
             return;
         }
         this.applyPicked([id], event.shiftKey);
@@ -168,20 +160,20 @@ export class SelectionEditor {
 
     pointerMove(event: EditorPointerEvent): void {
         this.underCursor = this.pick(event);
+        const press = this.press;
         const area = this.area;
-        if (area?.shape === 'rect') {
-            const press = this.press;
-            const dx = press ? event.viewPoint.x - press.viewPoint.x : 0;
-            const dy = press ? event.viewPoint.y - press.viewPoint.y : 0;
-            if (press && !press.dragged && Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) {
-                press.dragged = true;
+        if (press !== null && area === null) {
+            const dx = event.viewPoint.x - press.viewPoint.x;
+            const dy = event.viewPoint.y - press.viewPoint.y;
+            if (Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) {
+                const first = press.modelPoint;
+                const second = event.modelPoint;
+                this.area = press.alt
+                    ? { shape: 'lasso', mode: dx >= 0 ? 'window' : 'crossing', points: [first, second] }
+                    : { shape: 'rect', mode: areaMode(first, second), first, second };
             }
-            if (press?.dragged && press.alt) {
-                const mode = dx >= 0 ? 'window' : 'crossing';
-                this.area = { shape: 'lasso', mode, points: [area.first, event.modelPoint] };
-            } else {
-                this.area = { ...area, mode: areaMode(area.first, event.modelPoint), second: event.modelPoint };
-            }
+        } else if (area?.shape === 'rect') {
+            this.area = { ...area, mode: areaMode(area.first, event.modelPoint), second: event.modelPoint };
         } else if (area?.shape === 'lasso') {
             const last = area.points[area.points.length - 1];
             const distance = Math.hypot(event.modelPoint.x - last.x, event.modelPoint.y - last.y);
@@ -192,15 +184,14 @@ export class SelectionEditor {
         this.changed();
     }
 
-    /** Ends a lasso or a dragged rectangle; a clicked rectangle stays open for its second click. */
+    /** Ends the rectangle or lasso being dragged. */
     pointerUp(event: EditorPointerEvent): void {
         if (event.button !== 0) {
             return;
         }
-        const press = this.press;
         this.press = null;
         const area = this.area;
-        if (area?.shape === 'rect' && press?.dragged) {
+        if (area?.shape === 'rect') {
             this.finishRect(area.first, event.modelPoint, event.shiftKey);
             return;
         }
@@ -216,14 +207,10 @@ export class SelectionEditor {
         this.applyPicked(pickLasso(this.shapes, polygon, area.mode), event.shiftKey);
     }
 
-    /**
-     * The browser aborted the press: drops a lasso or dragged rectangle without selecting;
-     * a clicked rectangle stays open.
-     */
+    /** The browser aborted the press: drops a rectangle or lasso without selecting. */
     pointerCancel(): void {
-        const dragged = this.press?.dragged ?? false;
         this.press = null;
-        if (this.area?.shape === 'lasso' || (this.area !== null && dragged)) {
+        if (this.area !== null) {
             this.area = null;
             this.changed();
         }

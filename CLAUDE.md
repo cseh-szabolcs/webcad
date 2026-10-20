@@ -157,14 +157,14 @@ Work in small, well-scoped increments that follow existing conventions (e.g. "bu
 
 ## Editor: current state
 
-Object selection follows AutoCAD, with one deliberate deviation: **press + drag in empty
-space spans a rectangle** (like AutoCAD with `PICKDRAG=2` and the lasso turned off); the
+Object selection follows AutoCAD, with these settings deliberately chosen: **a rectangle
+only comes from press + drag in empty space and ends on release; a plain click into empty
+space does nothing** (like AutoCAD with `PICKDRAG=1` and the lasso turned off). The
 **lasso needs Alt (⌥) held on the press**. Otherwise:
 
 - No command active (noun-verb): click adds to the pickfirst selection (highlight +
-  grips), Shift removes, Esc clears. Clicking empty space without dragging also opens a
-  rectangle that the next click ends. Rectangle to the right = window (completely
-  inside), to the left = crossing (touches); lasso direction picks the mode, Space toggles.
+  grips), Shift removes, Esc clears. Rectangle to the right = window (completely inside),
+  to the left = crossing (touches); lasso direction picks the mode, Space toggles.
 - Toolbar tool "Auswahl" starts the `AUSWAHL` command (verb-noun): takes over the
   pickfirst selection, grips disappear, the command line shows AutoCAD-style prompts and
   counts ("1 gefunden, 2 gesamt"). Enter or right click ends it (result kept as

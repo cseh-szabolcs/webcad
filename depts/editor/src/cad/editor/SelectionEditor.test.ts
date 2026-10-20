@@ -207,55 +207,62 @@ describe('SelectionEditor AUSWAHL command (verb-noun)', () => {
     });
 });
 
-describe('SelectionEditor window and crossing rectangles', () => {
+describe('SelectionEditor rectangle (press + drag)', () => {
     /** Around the table; the rug (x 3000–5000, y 1100–2500) sticks out of it. */
     const LOWER_LEFT = { x: 3300, y: 1100 };
     const UPPER_RIGHT = { x: 4700, y: 2500 };
 
-    it('starts a rectangle on a click into empty space and follows the cursor', () => {
+    it('does nothing on a plain click into empty space', () => {
         const editor = create();
-        click(editor, LOWER_LEFT);
-        expect(editor.snapshot.prompt).toBe('Entgegengesetzte Ecke angeben:');
+        click(editor, WALL);
+        click(editor, EMPTY);
+        editor.pointerMove(at(UPPER_RIGHT));
+        expect(editor.snapshot.area).toBeNull();
+        expect(editor.snapshot.prompt).toBe('Befehl:');
+        expect(ids(editor.snapshot.highlighted)).toEqual([E['wall-outer']]);
+    });
+
+    it('opens the rectangle only once the press is dragged past the threshold', () => {
+        const editor = create();
+        editor.pointerDown(at(LOWER_LEFT));
+        expect(editor.snapshot.area).toBeNull();
+        // 2 px, still within the 3 px threshold
+        editor.pointerMove(at({ x: 3304, y: 1100 }));
+        expect(editor.snapshot.area).toBeNull();
         editor.pointerMove(at(UPPER_RIGHT));
         expect(editor.snapshot.area).toEqual({ shape: 'rect', mode: 'window', first: LOWER_LEFT, second: UPPER_RIGHT });
+        expect(editor.snapshot.prompt).toBe('Entgegengesetzte Ecke angeben:');
         editor.pointerMove(at({ x: 3000, y: 1000 }));
         expect(editor.snapshot.area?.mode).toBe('crossing');
     });
 
-    it('selects by window when spanned to the right', () => {
+    it('selects by window on release to the right', () => {
         const editor = create();
-        click(editor, LOWER_LEFT);
-        editor.pointerMove(at(UPPER_RIGHT));
-        click(editor, UPPER_RIGHT);
+        drag(editor, [LOWER_LEFT, UPPER_RIGHT]);
         expect(editor.snapshot.area).toBeNull();
         expect(editor.snapshot.prompt).toBe('Befehl:');
         expect(ids(editor.snapshot.highlighted)).toEqual([E.table]);
         expect(editor.snapshot.grips).toHaveLength(5);
     });
 
-    it('selects by crossing when spanned to the left', () => {
+    it('selects by crossing on release to the left', () => {
         const editor = create();
-        click(editor, UPPER_RIGHT);
-        editor.pointerMove(at(LOWER_LEFT));
-        click(editor, LOWER_LEFT);
+        drag(editor, [UPPER_RIGHT, { x: 4000, y: 1800 }, LOWER_LEFT]);
         expect(ids(editor.snapshot.highlighted)).toEqual([E.table, E.rug]);
     });
 
-    it('ends the rectangle with the next click even on an element', () => {
+    it('ends on release even over an element, without picking it', () => {
         const editor = create();
-        click(editor, { x: 4700, y: 1000 });
-        // On the table outline: ends a crossing rectangle that cuts table and rug
-        click(editor, TABLE);
-        expect(editor.snapshot.area).toBeNull();
+        // Crossing from (4700, 1000) to the table outline cuts table and rug
+        drag(editor, [{ x: 4700, y: 1000 }, TABLE]);
         expect(ids(editor.snapshot.highlighted)).toEqual([E.table, E.rug]);
     });
 
-    it('removes the found elements with Shift', () => {
+    it('removes the found elements with Shift on release', () => {
         const editor = create();
         click(editor, WALL);
         click(editor, TABLE);
-        click(editor, UPPER_RIGHT);
-        click(editor, LOWER_LEFT, { shiftKey: true });
+        drag(editor, [UPPER_RIGHT, LOWER_LEFT], { shiftKey: true });
         expect(ids(editor.snapshot.highlighted)).toEqual([E['wall-outer']]);
     });
 
@@ -263,42 +270,56 @@ describe('SelectionEditor window and crossing rectangles', () => {
         const editor = create();
         editor.startSelectCommand();
         click(editor, TABLE);
-        click(editor, UPPER_RIGHT);
-        click(editor, LOWER_LEFT);
+        drag(editor, [UPPER_RIGHT, LOWER_LEFT]);
         expect(editor.snapshot.message).toBe('2 gefunden (1 doppelt), 2 gesamt');
         expect(editor.snapshot.prompt).toBe('AUSWAHL Objekte wählen:');
-        click(editor, UPPER_RIGHT);
-        click(editor, LOWER_LEFT, { shiftKey: true });
+        drag(editor, [UPPER_RIGHT, LOWER_LEFT], { shiftKey: true });
         expect(editor.snapshot.message).toBe('2 gefunden, 2 entfernt, 0 gesamt');
     });
 
-    it('drops just the rectangle with Escape or Enter', () => {
+    it('drops just the rectangle with Escape or Enter; the release then does nothing', () => {
         const editor = create();
         editor.startSelectCommand();
         click(editor, TABLE);
-        click(editor, EMPTY);
-        expect(editor.keyDown({ key: 'Escape' })).toBe(true);
-        expect(editor.snapshot).toMatchObject({ command: 'AUSWAHL', area: null, prompt: 'AUSWAHL Objekte wählen:' });
-        expect(ids(editor.snapshot.highlighted)).toEqual([E.table]);
-        click(editor, EMPTY);
-        expect(editor.keyDown({ key: 'Enter' })).toBe(true);
-        expect(editor.snapshot.command).toBe('AUSWAHL');
+        for (const key of ['Escape', 'Enter']) {
+            editor.pointerDown(at(UPPER_RIGHT));
+            editor.pointerMove(at(LOWER_LEFT));
+            expect(editor.keyDown({ key })).toBe(true);
+            expect(editor.snapshot).toMatchObject({ command: 'AUSWAHL', area: null, prompt: 'AUSWAHL Objekte wählen:' });
+            editor.pointerMove(at(UPPER_RIGHT));
+            editor.pointerUp(at(UPPER_RIGHT));
+            expect(editor.snapshot.area).toBeNull();
+            expect(ids(editor.snapshot.highlighted)).toEqual([E.table]);
+        }
     });
 
-    it('ignores a right click while the rectangle is open', () => {
+    it('ignores a right click while dragging', () => {
         const editor = create();
         editor.startSelectCommand();
-        click(editor, EMPTY);
-        click(editor, EMPTY, { button: 2 });
+        editor.pointerDown(at(UPPER_RIGHT));
+        editor.pointerMove(at(LOWER_LEFT));
+        editor.pointerDown(at(LOWER_LEFT, { button: 2 }));
         expect(editor.snapshot.command).toBe('AUSWAHL');
         expect(editor.snapshot.area).not.toBeNull();
     });
 
-    it('shows no rollover while the rectangle is open', () => {
+    it('shows no rollover while dragging', () => {
         const editor = create();
-        click(editor, EMPTY);
+        editor.pointerDown(at(EMPTY));
         editor.pointerMove(at(WALL));
+        expect(editor.snapshot.area).not.toBeNull();
         expect(editor.snapshot.hovered.size).toBe(0);
+    });
+
+    it('drops the rectangle without selecting when the browser cancels the press', () => {
+        const editor = create();
+        editor.pointerDown(at(LOWER_LEFT));
+        editor.pointerMove(at(UPPER_RIGHT));
+        editor.pointerCancel();
+        expect(editor.snapshot.area).toBeNull();
+        expect(editor.snapshot.highlighted.size).toBe(0);
+        editor.pointerMove(at({ x: 4800, y: 2600 }));
+        expect(editor.snapshot.area).toBeNull();
     });
 });
 
@@ -319,21 +340,17 @@ describe('SelectionEditor lasso (Alt + drag)', () => {
         editor.pointerDown(at(AROUND_TABLE[0], ALT));
         // 2 px, still within the 3 px threshold
         editor.pointerMove(at({ x: 3304, y: 1100 }));
-        expect(editor.snapshot.area?.shape).toBe('rect');
+        expect(editor.snapshot.area).toBeNull();
         editor.pointerMove(at(AROUND_TABLE[1]));
         expect(editor.snapshot.area).toMatchObject({ shape: 'lasso', mode: 'window' });
         expect(editor.snapshot.prompt).toBe('Lasso – Leertaste wechselt Fenster/Kreuzen');
     });
 
-    it('keeps a rectangle open when the press is released without dragging', () => {
+    it('does nothing for an Alt click without dragging', () => {
         const editor = create();
-        editor.pointerDown(at(AROUND_TABLE[0], ALT));
-        editor.pointerMove(at({ x: 3302, y: 1102 }));
-        editor.pointerUp(at({ x: 3302, y: 1102 }));
-        expect(editor.snapshot.area?.shape).toBe('rect');
-        // Moving afterwards spans the rectangle, it does not start a lasso
+        click(editor, AROUND_TABLE[0], ALT);
         editor.pointerMove(at(AROUND_TABLE[2]));
-        expect(editor.snapshot.area?.shape).toBe('rect');
+        expect(editor.snapshot.area).toBeNull();
     });
 
     it('selects by window when started to the right', () => {
@@ -429,58 +446,6 @@ describe('SelectionEditor lasso (Alt + drag)', () => {
     });
 });
 
-describe('SelectionEditor dragged rectangle', () => {
-    const LOWER_LEFT = { x: 3300, y: 1100 };
-    const UPPER_RIGHT = { x: 4700, y: 2500 };
-
-    it('spans a rectangle while dragging and selects by window on release to the right', () => {
-        const editor = create();
-        editor.pointerDown(at(LOWER_LEFT));
-        editor.pointerMove(at(UPPER_RIGHT));
-        expect(editor.snapshot.area).toMatchObject({ shape: 'rect', mode: 'window' });
-        editor.pointerUp(at(UPPER_RIGHT));
-        expect(editor.snapshot.area).toBeNull();
-        expect(ids(editor.snapshot.highlighted)).toEqual([E.table]);
-    });
-
-    it('selects by crossing on release to the left', () => {
-        const editor = create();
-        drag(editor, [UPPER_RIGHT, { x: 4000, y: 1800 }, LOWER_LEFT]);
-        expect(ids(editor.snapshot.highlighted)).toEqual([E.table, E.rug]);
-    });
-
-    it('removes the found elements with Shift on release', () => {
-        const editor = create();
-        click(editor, WALL);
-        click(editor, TABLE);
-        drag(editor, [LOWER_LEFT, UPPER_RIGHT], { shiftKey: true });
-        expect(ids(editor.snapshot.highlighted)).toEqual([E['wall-outer']]);
-    });
-
-    it('reports the counts while AUSWAHL runs', () => {
-        const editor = create();
-        editor.startSelectCommand();
-        drag(editor, [UPPER_RIGHT, LOWER_LEFT]);
-        expect(editor.snapshot.message).toBe('2 gefunden, 2 gesamt');
-    });
-
-    it('drops a dragged rectangle when the browser cancels the press', () => {
-        const editor = create();
-        editor.pointerDown(at(LOWER_LEFT));
-        editor.pointerMove(at(UPPER_RIGHT));
-        editor.pointerCancel();
-        expect(editor.snapshot.area).toBeNull();
-        expect(editor.snapshot.highlighted.size).toBe(0);
-    });
-
-    it('keeps a clicked rectangle open when the browser cancels a later press', () => {
-        const editor = create();
-        click(editor, LOWER_LEFT);
-        editor.pointerCancel();
-        expect(editor.snapshot.area?.shape).toBe('rect');
-    });
-});
-
 describe('SelectionEditor group selection', () => {
     /** Middle of the door leaf (x 1000, y 240–1140); door leaf and swing form group Door D1. */
     const DOOR_LEAF = { x: 1000, y: 690 };
@@ -547,16 +512,6 @@ describe('SelectionEditor selection preview', () => {
         // Crossing to the left (x 3200–3300) only cuts the rug; the table starts at x 3400
         editor.pointerMove(at({ x: 3200, y: 2500 }));
         expect(ids(editor.snapshot.hovered)).toEqual([E.rug]);
-    });
-
-    it('previews the rectangle of a click too, until the second click', () => {
-        const editor = create();
-        click(editor, UPPER_RIGHT);
-        editor.pointerMove(at(LOWER_LEFT));
-        expect(ids(editor.snapshot.hovered)).toEqual([E.table, E.rug]);
-        click(editor, LOWER_LEFT);
-        expect(editor.snapshot.hovered.size).toBe(0);
-        expect(ids(editor.snapshot.highlighted)).toEqual([E.table, E.rug]);
     });
 
     it('previews a lasso and follows Space', () => {
