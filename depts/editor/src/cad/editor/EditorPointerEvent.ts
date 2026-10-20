@@ -11,6 +11,8 @@ export interface EditorPointerEvent {
     /** 0 left, 2 right; the middle button never reaches the editor (it pans). */
     button: number;
     shiftKey: boolean;
+    /** Option on macOS. */
+    altKey: boolean;
 }
 
 export interface EditorKeyEvent {

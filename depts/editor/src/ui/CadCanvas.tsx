@@ -1,6 +1,6 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import { SelectionOverlay } from 'app/cad/editor/overlays/SelectionOverlay';
-import { SelectionEditor } from 'app/cad/editor/SelectionEditor';
+import { SelectionEditor, type SelectionSnapshot } from 'app/cad/editor/SelectionEditor';
 import type { CadDocument } from 'app/cad/model/CadDocument';
 import type { Point } from 'app/cad/model/Point';
 import { PaperRenderer } from 'app/cad/renderer/PaperRenderer';
@@ -9,6 +9,8 @@ import { attachCanvasInput } from './canvasInput';
 
 export interface CadCanvasHandle {
     fit(): void;
+    /** Starts the AUSWAHL command, taking over the current pickfirst selection. */
+    startSelectCommand(): void;
 }
 
 interface CadCanvasProps {
@@ -16,13 +18,16 @@ interface CadCanvasProps {
     onViewportChange?: (viewport: Viewport) => void;
     /** Pointer position in view px, or null when the pointer left the canvas. */
     onPointerChange?: (viewPoint: Point | null) => void;
+    /** Selection and command state, e.g. for the command line; also sent once on start. */
+    onSelectionChange?: (snapshot: SelectionSnapshot) => void;
     ref?: Ref<CadCanvasHandle>;
 }
 
-export function CadCanvas({ document, onViewportChange, onPointerChange, ref }: CadCanvasProps) {
+export function CadCanvas({ document, onViewportChange, onPointerChange, onSelectionChange, ref }: CadCanvasProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const rendererRef = useRef<PaperRenderer | null>(null);
+    const editorRef = useRef<SelectionEditor | null>(null);
     const viewportRef = useRef(new Viewport());
     const sizeRef = useRef<Size | null>(null);
     const needsFitRef = useRef(true);
@@ -30,9 +35,11 @@ export function CadCanvas({ document, onViewportChange, onPointerChange, ref }: 
     const refreshOverlayRef = useRef<(() => void) | null>(null);
     const onViewportChangeRef = useRef(onViewportChange);
     const onPointerChangeRef = useRef(onPointerChange);
+    const onSelectionChangeRef = useRef(onSelectionChange);
     useEffect(() => {
         onViewportChangeRef.current = onViewportChange;
         onPointerChangeRef.current = onPointerChange;
+        onSelectionChangeRef.current = onSelectionChange;
     });
 
     const applyViewport = (viewport: Viewport) => {
@@ -56,7 +63,7 @@ export function CadCanvas({ document, onViewportChange, onPointerChange, ref }: 
         }
     };
 
-    useImperativeHandle(ref, () => ({ fit }));
+    useImperativeHandle(ref, () => ({ fit, startSelectCommand: () => editorRef.current?.startSelectCommand() }));
 
     useEffect(() => {
         const container = containerRef.current!;
@@ -67,9 +74,14 @@ export function CadCanvas({ document, onViewportChange, onPointerChange, ref }: 
         renderer.setDocument(document);
         const editor = new SelectionEditor(document);
         const overlay = new SelectionOverlay(renderer);
+        editorRef.current = editor;
         const refreshOverlay = () => overlay.render(editor.snapshot);
         refreshOverlayRef.current = refreshOverlay;
-        const unsubscribe = editor.subscribe(refreshOverlay);
+        const unsubscribe = editor.subscribe(() => {
+            refreshOverlay();
+            onSelectionChangeRef.current?.(editor.snapshot);
+        });
+        onSelectionChangeRef.current?.(editor.snapshot);
 
         const observer = new ResizeObserver(([entry]) => {
             const size = { width: entry.contentRect.width, height: entry.contentRect.height };
@@ -96,6 +108,7 @@ export function CadCanvas({ document, onViewportChange, onPointerChange, ref }: 
             detachInput();
             unsubscribe();
             refreshOverlayRef.current = null;
+            editorRef.current = null;
             observer.disconnect();
             renderer.dispose();
             rendererRef.current = null;

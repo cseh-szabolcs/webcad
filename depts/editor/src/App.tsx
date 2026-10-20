@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import type { SelectionSnapshot } from 'app/cad/editor/SelectionEditor';
 import type { CadDocument } from 'app/cad/model/CadDocument';
 import type { Point } from 'app/cad/model/Point';
 import { CadApiClient } from 'app/cad/persistence/CadApiClient';
 import type { Viewport } from 'app/cad/renderer/Viewport';
 import { CadCanvas, type CadCanvasHandle } from 'app/ui/CadCanvas';
+import { CommandLine } from 'app/ui/CommandLine';
 import { StatusBar } from 'app/ui/StatusBar';
 import './App.css';
 
@@ -22,6 +24,7 @@ function App() {
     const canvasRef = useRef<CadCanvasHandle>(null);
     const [viewport, setViewport] = useState<Viewport | null>(null);
     const [pointer, setPointer] = useState<Point | null>(null);
+    const [selection, setSelection] = useState<SelectionSnapshot | null>(null);
     const [state, setState] = useState<LoadState>({ status: 'loading' });
 
     useEffect(() => {
@@ -53,6 +56,16 @@ function App() {
     return (
         <div className="app">
             <header className="toolbar">
+                <div className="toolbar-tools" role="toolbar" aria-label="Werkzeuge">
+                    <button
+                        type="button"
+                        aria-pressed={selection?.command === 'AUSWAHL'}
+                        onClick={() => canvasRef.current?.startSelectCommand()}
+                        title="Objekte wählen (AUSWAHL)"
+                    >
+                        Auswahl
+                    </button>
+                </div>
                 <span className="toolbar-title">{state.document.name}</span>
                 <button type="button" onClick={() => canvasRef.current?.fit()} title="Alles zeigen">
                     Zoom Grenzen
@@ -63,7 +76,9 @@ function App() {
                 document={state.document}
                 onViewportChange={setViewport}
                 onPointerChange={setPointer}
+                onSelectionChange={setSelection}
             />
+            {selection && <CommandLine prompt={selection.prompt} message={selection.message} />}
             <StatusBar viewport={viewport} pointer={pointer} />
         </div>
     );

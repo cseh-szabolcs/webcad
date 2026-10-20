@@ -19,6 +19,13 @@
     color: var(--bg);
 }
 
+.toolbar-tools {
+    display: flex;
+    gap: 4px;
+    padding-right: 12px;
+    border-right: 1px solid var(--border);
+}
+
 .toolbar-title {
     font-weight: 600;
 }
@@ -50,6 +57,19 @@
 
 .app-message-error {
     color: #b91c1c;
+}
+
+.commandline {
+    padding: 4px 12px;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    font: 13px/1.4 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    white-space: pre;
+    overflow: hidden;
+}
+
+.commandline-history {
+    color: #6b7280;
 }
 
 .statusbar {

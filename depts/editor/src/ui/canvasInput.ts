@@ -9,6 +9,9 @@ const LINE_HEIGHT_PX = 16;
 export interface InputTarget {
     pointerDown(event: EditorPointerEvent): void;
     pointerMove(event: EditorPointerEvent): void;
+    pointerUp(event: EditorPointerEvent): void;
+    /** The browser aborted a press, e.g. to start a native drag. */
+    pointerCancel(): void;
     pointerLeave(): void;
     /** Returns true if the key was handled. */
     keyDown(event: EditorKeyEvent): boolean;
@@ -25,13 +28,16 @@ export interface CanvasInputOptions {
 
 /**
  * Single owner of canvas input. Wheel zooms around the cursor; middle drag or Space + left
- * drag pans; other pointer input goes to the target. Returns a function that removes all
- * listeners.
+ * drag pans; other pointer input goes to the target. Keys go to the target first; Space
+ * only pans if the target does not use it (e.g. to toggle a lasso). Returns a function
+ * that removes all listeners.
  */
 export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInputOptions): () => void {
     const { getViewport, onViewportChange, target, onPointerMove, onPointerLeave } = options;
     let spaceHeld = false;
     let panning: { pointerId: number; x: number; y: number } | null = null;
+    /** Pointer whose left press went to the target and whose release is still due. */
+    let pressedPointer: number | null = null;
 
     const updateCursor = () => {
         const cursor = panning ? 'grabbing' : spaceHeld ? 'grab' : 'crosshair';
@@ -54,6 +60,7 @@ export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInpu
             pixelSize: 1 / viewport.scale,
             button: event.button,
             shiftKey: event.shiftKey,
+            altKey: event.altKey,
         };
     };
 
@@ -76,6 +83,13 @@ export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInpu
             updateCursor();
             return;
         }
+        // No text selection or native drag, which would abort the press
+        event.preventDefault();
+        // Keeps a lasso receiving moves and the release outside the canvas
+        canvas.setPointerCapture(event.pointerId);
+        if (event.button === 0) {
+            pressedPointer = event.pointerId;
+        }
         target.pointerDown(toEditorEvent(event));
     };
 
@@ -86,22 +100,52 @@ export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInpu
             panning = { ...panning, x: event.clientX, y: event.clientY };
             onViewportChange(getViewport().panBy(dx, dy));
         } else if (!panning) {
+            // The release got lost (e.g. outside the window): end the press before moving on
+            if (pressedPointer === event.pointerId && (event.buttons & 1) === 0) {
+                pressedPointer = null;
+                target.pointerUp({ ...toEditorEvent(event), button: 0 });
+            }
             target.pointerMove(toEditorEvent(event));
         }
         onPointerMove?.(toViewPoint(event));
     };
 
+    const isInside = (event: PointerEvent) => {
+        const { x, y } = toViewPoint(event);
+        return x >= 0 && y >= 0 && x <= canvas.clientWidth && y <= canvas.clientHeight;
+    };
+
     const onPointerUp = (event: PointerEvent) => {
+        if (panning) {
+            if (panning.pointerId === event.pointerId) {
+                panning = null;
+                updateCursor();
+                // The pointer may have been released outside, where no pointerleave follows any more
+                if (isInside(event)) {
+                    target.pointerMove(toEditorEvent(event));
+                } else {
+                    onPointerLeave?.();
+                }
+            }
+            return;
+        }
+        if (event.button === 0) {
+            pressedPointer = null;
+        }
+        target.pointerUp(toEditorEvent(event));
+        if (!isInside(event)) {
+            target.pointerLeave();
+            onPointerLeave?.();
+        }
+    };
+
+    const onPointerCancel = (event: PointerEvent) => {
         if (panning?.pointerId === event.pointerId) {
             panning = null;
             updateCursor();
-            // The pointer may have been released outside, where no pointerleave follows any more
-            const { x, y } = toViewPoint(event);
-            if (x >= 0 && y >= 0 && x <= canvas.clientWidth && y <= canvas.clientHeight) {
-                target.pointerMove(toEditorEvent(event));
-            } else {
-                onPointerLeave?.();
-            }
+        } else if (pressedPointer === event.pointerId) {
+            pressedPointer = null;
+            target.pointerCancel();
         }
     };
 
@@ -122,8 +166,11 @@ export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInpu
         if (event.code === 'Space') {
             // Also keeps a focused toolbar button from being activated
             event.preventDefault();
-            spaceHeld = true;
-            updateCursor();
+            // A held key repeats; only the first press counts
+            if (!event.repeat && !target.keyDown({ key: ' ' })) {
+                spaceHeld = true;
+                updateCursor();
+            }
             return;
         }
         if (target.keyDown({ key: event.key })) {
@@ -160,7 +207,7 @@ export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInpu
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointermove', onPointerMoveEvent);
     canvas.addEventListener('pointerup', onPointerUp);
-    canvas.addEventListener('pointercancel', onPointerUp);
+    canvas.addEventListener('pointercancel', onPointerCancel);
     canvas.addEventListener('pointerleave', onPointerLeaveEvent);
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
@@ -174,7 +221,7 @@ export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInpu
         canvas.removeEventListener('pointerdown', onPointerDown);
         canvas.removeEventListener('pointermove', onPointerMoveEvent);
         canvas.removeEventListener('pointerup', onPointerUp);
-        canvas.removeEventListener('pointercancel', onPointerUp);
+        canvas.removeEventListener('pointercancel', onPointerCancel);
         canvas.removeEventListener('pointerleave', onPointerLeaveEvent);
         window.removeEventListener('keydown', onKeyDown);
         window.removeEventListener('keyup', onKeyUp);
