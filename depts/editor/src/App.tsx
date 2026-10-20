@@ -7,12 +7,19 @@ import type { Viewport } from 'app/cad/renderer/Viewport';
 import { CadCanvas, type CadCanvasHandle } from 'app/ui/CadCanvas';
 import { CommandLine } from 'app/ui/CommandLine';
 import { StatusBar } from 'app/ui/StatusBar';
+import { useTheme, type ThemePreference } from 'app/ui/theme';
 import './App.css';
 
 /** Plan served from the backend fixtures; used in dev when no ?plan= is given. */
 const DEV_PLAN_ID = '01994f4e-6f3a-7c2d-9b1e-5a3c2d1e0f42';
 
 const api = new CadApiClient();
+
+const THEME_OPTIONS: { value: ThemePreference; label: string; title: string }[] = [
+    { value: 'light', label: 'Hell', title: 'Heller Hintergrund' },
+    { value: 'dark', label: 'Dunkel', title: 'Dunkler Hintergrund' },
+    { value: 'system', label: 'System', title: 'Wie die Systemeinstellung' },
+];
 
 type LoadState =
     | { status: 'loading' }
@@ -26,6 +33,7 @@ function App() {
     const [pointer, setPointer] = useState<Point | null>(null);
     const [selection, setSelection] = useState<SelectionSnapshot | null>(null);
     const [state, setState] = useState<LoadState>({ status: 'loading' });
+    const { preference, setPreference, theme } = useTheme();
 
     useEffect(() => {
         if (planId === null) {
@@ -70,10 +78,25 @@ function App() {
                 <button type="button" onClick={() => canvasRef.current?.fit()} title="Alles zeigen">
                     Zoom Grenzen
                 </button>
+                <div className="toolbar-theme" role="group" aria-label="Darstellung">
+                    <span className="toolbar-theme-label">Darstellung</span>
+                    {THEME_OPTIONS.map((option) => (
+                        <button
+                            key={option.value}
+                            type="button"
+                            aria-pressed={preference === option.value}
+                            onClick={() => setPreference(option.value)}
+                            title={option.title}
+                        >
+                            {option.label}
+                        </button>
+                    ))}
+                </div>
             </header>
             <CadCanvas
                 ref={canvasRef}
                 document={state.document}
+                theme={theme}
                 onViewportChange={setViewport}
                 onPointerChange={setPointer}
                 onSelectionChange={setSelection}

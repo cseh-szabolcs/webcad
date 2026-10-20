@@ -3,6 +3,7 @@ import { SelectionOverlay } from 'app/cad/editor/overlays/SelectionOverlay';
 import { SelectionEditor, type SelectionSnapshot } from 'app/cad/editor/SelectionEditor';
 import type { CadDocument } from 'app/cad/model/CadDocument';
 import type { Point } from 'app/cad/model/Point';
+import type { DisplayTheme } from 'app/cad/renderer/displayColor';
 import { PaperRenderer } from 'app/cad/renderer/PaperRenderer';
 import { Viewport, type Size } from 'app/cad/renderer/Viewport';
 import { attachCanvasInput } from './canvasInput';
@@ -15,6 +16,8 @@ export interface CadCanvasHandle {
 
 interface CadCanvasProps {
     document: CadDocument;
+    /** Background the drawing is shown on; drawing and overlay colours follow it. */
+    theme: DisplayTheme;
     onViewportChange?: (viewport: Viewport) => void;
     /** Pointer position in view px, or null when the pointer left the canvas. */
     onPointerChange?: (viewPoint: Point | null) => void;
@@ -23,11 +26,13 @@ interface CadCanvasProps {
     ref?: Ref<CadCanvasHandle>;
 }
 
-export function CadCanvas({ document, onViewportChange, onPointerChange, onSelectionChange, ref }: CadCanvasProps) {
+export function CadCanvas({ document, theme, onViewportChange, onPointerChange, onSelectionChange, ref }: CadCanvasProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const rendererRef = useRef<PaperRenderer | null>(null);
     const editorRef = useRef<SelectionEditor | null>(null);
+    const overlayRef = useRef<SelectionOverlay | null>(null);
+    const themeRef = useRef(theme);
     const viewportRef = useRef(new Viewport());
     const sizeRef = useRef<Size | null>(null);
     const needsFitRef = useRef(true);
@@ -71,9 +76,12 @@ export function CadCanvas({ document, onViewportChange, onPointerChange, onSelec
         const renderer = new PaperRenderer(canvas);
         rendererRef.current = renderer;
         renderer.setViewport(viewportRef.current);
+        renderer.setTheme(themeRef.current);
         renderer.setDocument(document);
         const editor = new SelectionEditor(document);
         const overlay = new SelectionOverlay(renderer);
+        overlay.setTheme(themeRef.current);
+        overlayRef.current = overlay;
         editorRef.current = editor;
         const refreshOverlay = () => overlay.render(editor.snapshot);
         refreshOverlayRef.current = refreshOverlay;
@@ -109,6 +117,7 @@ export function CadCanvas({ document, onViewportChange, onPointerChange, onSelec
             unsubscribe();
             refreshOverlayRef.current = null;
             editorRef.current = null;
+            overlayRef.current = null;
             observer.disconnect();
             renderer.dispose();
             rendererRef.current = null;
@@ -117,6 +126,13 @@ export function CadCanvas({ document, onViewportChange, onPointerChange, onSelec
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- callbacks read refs
     }, [document]);
+
+    useEffect(() => {
+        themeRef.current = theme;
+        rendererRef.current?.setTheme(theme);
+        overlayRef.current?.setTheme(theme);
+        refreshOverlayRef.current?.();
+    }, [theme]);
 
     return (
         <div ref={containerRef} className="cad-canvas">

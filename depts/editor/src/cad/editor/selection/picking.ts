@@ -6,40 +6,41 @@ import {
 } from '../../geometry/selectionGeometry';
 import type { Id, Point } from '../../model/Point';
 import type { Rect } from '../../renderer/Viewport';
-import type { ElementShape } from './ElementShapes';
+import type { ShapeIndex } from './ShapeIndex';
 
 /**
  * Element whose outline passes within `tolerance` (mm) of `point`; if several do, the one
- * drawn on top. `shapes` must be in drawing order (see buildElementShapes).
+ * drawn on top.
  */
-export function pickAt(shapes: readonly ElementShape[], point: Point, tolerance: number): Id | null {
-    for (let i = shapes.length - 1; i >= 0; i--) {
-        const { id, points, bounds } = shapes[i];
-        if (
-            point.x < bounds.x - tolerance ||
-            point.x > bounds.x + bounds.width + tolerance ||
-            point.y < bounds.y - tolerance ||
-            point.y > bounds.y + bounds.height + tolerance
-        ) {
-            continue;
-        }
-        if (distanceToPolyline(point, points) <= tolerance) {
-            return id;
+export function pickAt(index: ShapeIndex, point: Point, tolerance: number): Id | null {
+    const candidates = index.search({
+        x: point.x - tolerance,
+        y: point.y - tolerance,
+        width: 2 * tolerance,
+        height: 2 * tolerance,
+    });
+    for (let i = candidates.length - 1; i >= 0; i--) {
+        if (distanceToPolyline(point, candidates[i].points) <= tolerance) {
+            return candidates[i].id;
         }
     }
     return null;
 }
 
 /** Window selection: elements lying completely inside `rect`, in drawing order. */
-export function pickWindow(shapes: readonly ElementShape[], rect: Rect): Id[] {
+export function pickWindow(index: ShapeIndex, rect: Rect): Id[] {
     // The bounds are those of the outline points, so they lie inside exactly when all points do
-    return shapes.filter(({ bounds }) => rectContains(rect, bounds)).map(({ id }) => id);
+    return index
+        .search(rect)
+        .filter(({ bounds }) => rectContains(rect, bounds))
+        .map(({ id }) => id);
 }
 
 /** Crossing selection: elements inside `rect` or crossing its edges, in drawing order. */
-export function pickCrossing(shapes: readonly ElementShape[], rect: Rect): Id[] {
-    return shapes
-        .filter(({ points, bounds }) => rectsOverlap(rect, bounds) && polylineTouchesRect(points, rect))
+export function pickCrossing(index: ShapeIndex, rect: Rect): Id[] {
+    return index
+        .search(rect)
+        .filter(({ points }) => polylineTouchesRect(points, rect))
         .map(({ id }) => id);
 }
 
@@ -47,7 +48,7 @@ export function pickCrossing(shapes: readonly ElementShape[], rect: Rect): Id[] 
  * Lasso selection with a closed (possibly concave) polygon: by window only elements lying
  * completely inside, by crossing also those it cuts. In drawing order.
  */
-export function pickLasso(shapes: readonly ElementShape[], polygon: readonly Point[], mode: 'window' | 'crossing'): Id[] {
+export function pickLasso(index: ShapeIndex, polygon: readonly Point[], mode: 'window' | 'crossing'): Id[] {
     if (polygon.length < 3) {
         return [];
     }
@@ -56,11 +57,12 @@ export function pickLasso(shapes: readonly ElementShape[], polygon: readonly Poi
     const x = Math.min(...xs);
     const y = Math.min(...ys);
     const bounds = { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
-    return shapes
+    return index
+        .search(bounds)
         .filter(({ points, bounds: shapeBounds }) =>
             mode === 'window'
                 ? rectContains(bounds, shapeBounds) && polylineInsidePolygon(points, polygon)
-                : rectsOverlap(bounds, shapeBounds) && polylineTouchesPolygon(points, polygon),
+                : polylineTouchesPolygon(points, polygon),
         )
         .map(({ id }) => id);
 }
@@ -72,8 +74,4 @@ function rectContains(outer: Rect, inner: Rect): boolean {
         inner.x + inner.width <= outer.x + outer.width &&
         inner.y + inner.height <= outer.y + outer.height
     );
-}
-
-function rectsOverlap(a: Rect, b: Rect): boolean {
-    return a.x <= b.x + b.width && b.x <= a.x + a.width && a.y <= b.y + b.height && b.y <= a.y + a.height;
 }

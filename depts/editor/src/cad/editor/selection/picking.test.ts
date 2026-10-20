@@ -6,11 +6,13 @@ import { sampleIds } from '../../__fixtures__/sampleIds';
 import { buildElementShapes } from './ElementShapes';
 import { rectFromCorners } from '../../geometry/selectionGeometry';
 import { pickAt, pickCrossing, pickLasso, pickWindow } from './picking';
+import { ShapeIndex } from './ShapeIndex';
 
 const { element: E, layer: L } = sampleIds;
 
 const doc = parseDocument(samplePlan);
 const shapes = buildElementShapes(doc);
+const index = new ShapeIndex(shapes);
 const withLayer = (layerId: string, change: { visible?: boolean; locked?: boolean }): CadDocument => ({
     ...doc,
     layers: doc.layers.map((layer) => (layer.id === layerId ? { ...layer, ...change } : layer)),
@@ -42,27 +44,27 @@ describe('buildElementShapes', () => {
 
 describe('pickAt', () => {
     it('picks an outline within the tolerance', () => {
-        expect(pickAt(shapes, { x: 3000, y: 4 }, 5)).toBe(E['wall-outer']);
-        expect(pickAt(shapes, { x: 3000, y: 10 }, 5)).toBeNull();
+        expect(pickAt(index, { x: 3000, y: 4 }, 5)).toBe(E['wall-outer']);
+        expect(pickAt(index, { x: 3000, y: 10 }, 5)).toBeNull();
     });
 
     it('picks curves on their outline but not inside a filled shape', () => {
-        expect(pickAt(shapes, { x: 4600, y: 1802 }, 5)).toBe(E.table);
-        expect(pickAt(shapes, { x: 4000, y: 2000 }, 5)).toBeNull();
-        expect(pickAt(shapes, { x: 1600, y: 2600 }, 5)).toBe(E.sofa);
-        expect(pickAt(shapes, { x: 1600, y: 3000 }, 5)).toBeNull();
+        expect(pickAt(index, { x: 4600, y: 1802 }, 5)).toBe(E.table);
+        expect(pickAt(index, { x: 4000, y: 2000 }, 5)).toBeNull();
+        expect(pickAt(index, { x: 1600, y: 2600 }, 5)).toBe(E.sofa);
+        expect(pickAt(index, { x: 1600, y: 3000 }, 5)).toBeNull();
     });
 
     it('prefers the element drawn on top', () => {
         // Shared end point of door leaf and door swing
-        expect(pickAt(shapes, { x: 1000, y: 1140 }, 5)).toBe(E['door-swing']);
+        expect(pickAt(index, { x: 1000, y: 1140 }, 5)).toBe(E['door-swing']);
         // The axis (no layer) lies below the wall at the origin
-        expect(pickAt(shapes, { x: 0, y: 0 }, 5)).toBe(E['wall-outer']);
-        expect(pickAt(shapes, { x: 120, y: 120 }, 5)).toBe(E.axis);
+        expect(pickAt(index, { x: 0, y: 0 }, 5)).toBe(E['wall-outer']);
+        expect(pickAt(index, { x: 120, y: 120 }, 5)).toBe(E.axis);
     });
 
     it('does not pick elements on locked layers', () => {
-        const locked = buildElementShapes(withLayer(L.furniture, { locked: true }));
+        const locked = new ShapeIndex(buildElementShapes(withLayer(L.furniture, { locked: true })));
         expect(pickAt(locked, { x: 4600, y: 1800 }, 5)).toBeNull();
     });
 });
@@ -71,20 +73,20 @@ describe('pickWindow and pickCrossing', () => {
     const rect = (x1: number, y1: number, x2: number, y2: number) => rectFromCorners({ x: x1, y: y1 }, { x: x2, y: y2 });
 
     it('window-selects everything inside, in drawing order', () => {
-        expect(pickWindow(shapes, rect(-100, -100, 6100, 4100))).toEqual(shapes.map((shape) => shape.id));
+        expect(pickWindow(index, rect(-100, -100, 6100, 4100))).toEqual(shapes.map((shape) => shape.id));
     });
 
     it('window-selects only elements lying completely inside', () => {
         // Around the table; the rug (x 3000–5000, y 1100–2500) sticks out
-        expect(pickWindow(shapes, rect(3300, 1100, 4700, 2500))).toEqual([E.table]);
+        expect(pickWindow(index, rect(3300, 1100, 4700, 2500))).toEqual([E.table]);
     });
 
     it('cross-selects elements that are inside or cut', () => {
-        expect(pickCrossing(shapes, rect(3300, 1100, 4700, 2500))).toEqual([E.table, E.rug]);
+        expect(pickCrossing(index, rect(3300, 1100, 4700, 2500))).toEqual([E.table, E.rug]);
     });
 
     it('does not cross-select outlines that only surround the rectangle', () => {
-        expect(pickCrossing(shapes, rect(3900, 1700, 4100, 1900))).toEqual([]);
+        expect(pickCrossing(index, rect(3900, 1700, 4100, 1900))).toEqual([]);
     });
 });
 
@@ -109,20 +111,20 @@ describe('pickLasso', () => {
 
     it('window-selects only elements completely inside the polygon', () => {
         // The triangle is too narrow at the top for the whole circle
-        expect(pickLasso(shapes, triangle, 'window')).toEqual([]);
-        expect(pickLasso(shapes, arch, 'window')).toEqual([E.window, E.curtain]);
+        expect(pickLasso(index, triangle, 'window')).toEqual([]);
+        expect(pickLasso(index, arch, 'window')).toEqual([E.window, E.curtain]);
     });
 
     it('cross-selects elements the polygon cuts', () => {
-        expect(pickLasso(shapes, triangle, 'crossing')).toEqual([E.table, E.rug]);
+        expect(pickLasso(index, triangle, 'crossing')).toEqual([E.table, E.rug]);
     });
 
     it('cross-selects what a concave lasso cuts', () => {
         // Inner wall, window and curtain run through the top bar; table and rug are cut by the arms
-        expect(pickLasso(shapes, arch, 'crossing')).toEqual([E['wall-inner'], E.window, E.curtain, E.table, E.rug]);
+        expect(pickLasso(index, arch, 'crossing')).toEqual([E['wall-inner'], E.window, E.curtain, E.table, E.rug]);
     });
 
     it('selects nothing with fewer than three points', () => {
-        expect(pickLasso(shapes, triangle.slice(0, 2), 'crossing')).toEqual([]);
+        expect(pickLasso(index, triangle.slice(0, 2), 'crossing')).toEqual([]);
     });
 });

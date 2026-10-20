@@ -3,9 +3,11 @@ import { indexDocument, type DocumentIndex } from '../model/DocumentIndex';
 import type { Id, Point } from '../model/Point';
 import { rectFromCorners } from '../geometry/selectionGeometry';
 import type { EditorKeyEvent, EditorPointerEvent } from './EditorPointerEvent';
-import { buildElementShapes, type ElementShape } from './selection/ElementShapes';
+import { buildElementShapes } from './selection/ElementShapes';
 import { selectionGrips } from './selection/grips';
+import { buildSelectionUnits, expandToUnits } from './selection/grouping';
 import { pickAt, pickCrossing, pickLasso, pickWindow } from './selection/picking';
+import { ShapeIndex } from './selection/ShapeIndex';
 
 /** Half size of the pick box in screen pixels. */
 export const PICK_TOLERANCE_PX = 5;
@@ -41,7 +43,11 @@ export interface SelectionSnapshot {
     prompt: string;
     /** Last command line message, e.g. "1 gefunden, 2 gesamt". */
     message: string | null;
-    /** Element under the cursor that a click would pick, unless it is already selected. */
+    /**
+     * Selection preview, drawn in the hover style: what a click at the cursor would pick, or
+     * while a rectangle or lasso is open, what it would pick now. Groups included, already
+     * selected elements left out.
+     */
     hovered: ReadonlySet<Id>;
     /** Elements drawn as selected: the pickfirst selection, or the command's selection. */
     highlighted: ReadonlySet<Id>;
@@ -71,11 +77,16 @@ type State =
  * selects by window, to the left by crossing. With Alt held on the press, dragging draws a
  * lasso instead, which ends on release; its start direction picks window or crossing and
  * Space toggles between them. With Shift the found elements are removed instead. Esc or
- * Enter drop just the rectangle or lasso. Never persisted.
+ * Enter drop just the rectangle or lasso.
+ *
+ * Picking a grouped element picks its whole group, also by window, crossing or lasso when
+ * only one member qualifies. Never persisted.
  */
 export class SelectionEditor {
     private readonly index: DocumentIndex;
-    private readonly shapes: ElementShape[];
+    private readonly shapes: ShapeIndex;
+    /** What a pick of each selectable element selects: its whole group, or itself. */
+    private readonly units: ReadonlyMap<Id, readonly Id[]>;
     private state: State = { kind: 'idle', pickfirst: new Set() };
     private previousSelection: ReadonlySet<Id> = new Set();
     /** Element under the cursor, whether selected or not. */
@@ -87,12 +98,19 @@ export class SelectionEditor {
      * went down (view px), whether Alt was held and whether it travelled past the threshold.
      */
     private press: { viewPoint: Point; alt: boolean; dragged: boolean } | null = null;
+    /** Elements the open area would pick, computed once per area. */
+    private areaPreview: { area: SelectionArea; ids: Id[] } | null = null;
     private current: SelectionSnapshot;
     private readonly listeners = new Set<() => void>();
 
     constructor(doc: CadDocument) {
         this.index = indexDocument(doc);
-        this.shapes = buildElementShapes(doc);
+        const shapes = buildElementShapes(doc);
+        this.shapes = new ShapeIndex(shapes);
+        this.units = buildSelectionUnits(
+            doc,
+            shapes.map((shape) => shape.id),
+        );
         this.current = this.buildSnapshot(null);
     }
 
@@ -262,6 +280,15 @@ export class SelectionEditor {
         this.changed();
     }
 
+    /** Elements the area would pick in its current state, before group expansion. */
+    private areaHits(area: SelectionArea): Id[] {
+        if (area.shape === 'lasso') {
+            return pickLasso(this.shapes, area.points, area.mode);
+        }
+        const rect = rectFromCorners(area.first, area.second);
+        return area.mode === 'window' ? pickWindow(this.shapes, rect) : pickCrossing(this.shapes, rect);
+    }
+
     private finishRect(first: Point, second: Point, remove: boolean): void {
         const rect = rectFromCorners(first, second);
         this.area = null;
@@ -270,10 +297,12 @@ export class SelectionEditor {
     }
 
     /**
-     * Adds the picked elements to the current selection, or removes them with `remove`.
-     * While AUSWAHL runs, reports the counts on the command line like AutoCAD.
+     * Adds the picked elements and their group members to the current selection, or removes
+     * them with `remove`. While AUSWAHL runs, reports the counts (of elements, members
+     * included) on the command line like AutoCAD.
      */
-    private applyPicked(picked: readonly Id[], remove: boolean): void {
+    private applyPicked(hits: readonly Id[], remove: boolean): void {
+        const picked = expandToUnits(hits, this.units);
         const state = this.state;
         const before = state.kind === 'idle' ? state.pickfirst : state.selection;
         const after = new Set(before);
@@ -315,10 +344,20 @@ export class SelectionEditor {
         const command = state.kind === 'select' ? 'AUSWAHL' : null;
         const highlighted = state.kind === 'idle' ? state.pickfirst : state.selection;
         const area = this.area;
-        // No rollover while a rectangle is spanned, like AutoCAD
-        const hovered = new Set(
-            area === null && this.underCursor !== null && !highlighted.has(this.underCursor) ? [this.underCursor] : [],
-        );
+        let previewed: Id[] = [];
+        if (area !== null) {
+            // Instead of the rollover, like AutoCAD's selection preview for windows
+            if (this.areaPreview?.area !== area) {
+                this.areaPreview = { area, ids: expandToUnits(this.areaHits(area), this.units) };
+            }
+            previewed = this.areaPreview.ids;
+        } else {
+            this.areaPreview = null;
+            if (this.underCursor !== null) {
+                previewed = expandToUnits([this.underCursor], this.units);
+            }
+        }
+        const hovered = new Set(previewed.filter((id) => !highlighted.has(id)));
         const sameSelection = previous !== null && command === previous.command && sameIds(highlighted, previous.highlighted);
         if (
             sameSelection &&

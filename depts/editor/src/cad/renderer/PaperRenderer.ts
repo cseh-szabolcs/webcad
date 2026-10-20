@@ -1,8 +1,9 @@
 import paper from 'paper';
 import type { CadDocument } from '../model/CadDocument';
-import { indexDocument } from '../model/DocumentIndex';
+import { indexDocument, type DocumentIndex } from '../model/DocumentIndex';
 import type { Id } from '../model/Point';
-import { createItem } from './ElementRenderer';
+import type { DisplayTheme } from './displayColor';
+import { applyStyle, createItem, styleOf } from './ElementRenderer';
 import type { Rect, Size, Viewport } from './Viewport';
 
 const DEFAULT_LAYER = '__default';
@@ -18,6 +19,8 @@ export class PaperRenderer {
     private readonly layers = new Map<Id, paper.Layer>();
     private overlay: paper.Layer | null = null;
     private viewport: Viewport | null = null;
+    private index: DocumentIndex | null = null;
+    private theme: DisplayTheme = 'light';
 
     constructor(canvas: HTMLCanvasElement) {
         this.scope = new paper.PaperScope();
@@ -33,6 +36,7 @@ export class PaperRenderer {
         this.items.clear();
         this.layers.clear();
         const index = indexDocument(doc);
+        this.index = index;
 
         this.layers.set(DEFAULT_LAYER, new this.scope.Layer({ name: DEFAULT_LAYER }));
         for (const layer of doc.layers) {
@@ -40,12 +44,31 @@ export class PaperRenderer {
         }
 
         for (const element of doc.elements) {
-            const item = createItem(this.scope, element, index);
+            const item = createItem(this.scope, element, index, this.theme);
             item.data.elementId = element.id;
             this.layerFor(element.layerId).addChild(item);
             this.items.set(element.id, item);
         }
         this.overlay?.bringToFront();
+    }
+
+    /** Re-colours all elements for the background; geometry stays as it is. */
+    setTheme(theme: DisplayTheme): void {
+        if (theme === this.theme) {
+            return;
+        }
+        this.theme = theme;
+        const index = this.index;
+        if (!index) {
+            return;
+        }
+        this.scope.activate();
+        for (const [id, item] of this.items) {
+            const element = index.elements.get(id);
+            if (element) {
+                applyStyle(this.scope, item, styleOf(element, index), theme);
+            }
+        }
     }
 
     getItemPath(id: Id): paper.Path | null {
@@ -95,6 +118,7 @@ export class PaperRenderer {
         this.items.clear();
         this.layers.clear();
         this.overlay = null;
+        this.index = null;
         this.scope.project.remove();
     }
 

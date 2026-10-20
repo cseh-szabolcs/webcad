@@ -35,6 +35,17 @@
     font-variant-numeric: tabular-nums;
 }
 
+.toolbar-theme {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+}
+
+.toolbar-theme-label {
+    color: var(--muted);
+}
+
 .cad-canvas {
     position: relative;
     flex: 1;
@@ -56,7 +67,7 @@
 }
 
 .app-message-error {
-    color: #b91c1c;
+    color: var(--error);
 }
 
 .commandline {
@@ -69,7 +80,7 @@
 }
 
 .commandline-history {
-    color: #6b7280;
+    color: var(--muted);
 }
 
 .statusbar {

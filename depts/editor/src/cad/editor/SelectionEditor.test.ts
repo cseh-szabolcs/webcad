@@ -480,3 +480,110 @@ describe('SelectionEditor dragged rectangle', () => {
         expect(editor.snapshot.area?.shape).toBe('rect');
     });
 });
+
+describe('SelectionEditor group selection', () => {
+    /** Middle of the door leaf (x 1000, y 240–1140); door leaf and swing form group Door D1. */
+    const DOOR_LEAF = { x: 1000, y: 690 };
+    const DOOR = [E['door-leaf'], E['door-swing']];
+
+    it('hovers the whole group', () => {
+        const editor = create();
+        editor.pointerMove(at(DOOR_LEAF));
+        expect(ids(editor.snapshot.hovered)).toEqual(DOOR);
+    });
+
+    it('selects the whole group with a click on one member', () => {
+        const editor = create();
+        click(editor, DOOR_LEAF);
+        expect(ids(editor.snapshot.highlighted)).toEqual(DOOR);
+        // Leaf: 3 grips, swing: 4, sharing hinge and open end
+        expect(editor.snapshot.grips).toHaveLength(5);
+    });
+
+    it('removes the whole group with Shift+click', () => {
+        const editor = create();
+        click(editor, TABLE);
+        click(editor, DOOR_LEAF);
+        click(editor, DOOR_LEAF, { shiftKey: true });
+        expect(ids(editor.snapshot.highlighted)).toEqual([E.table]);
+    });
+
+    it('selects the whole group when a window contains only one member', () => {
+        const editor = create();
+        // Starts above the leaf, clear of the inner wall at y 240, and spans to the right
+        drag(editor, [
+            { x: 985, y: 1160 },
+            { x: 1015, y: 225 },
+        ]);
+        expect(ids(editor.snapshot.highlighted)).toEqual(DOOR);
+    });
+
+    it('counts group members in the command line messages', () => {
+        const editor = create();
+        editor.startSelectCommand();
+        click(editor, DOOR_LEAF);
+        expect(editor.snapshot.message).toBe('2 gefunden, 2 gesamt');
+        click(editor, DOOR_LEAF);
+        expect(editor.snapshot.message).toBe('2 gefunden (2 doppelt), 2 gesamt');
+    });
+
+    it('does not hover a group that is already selected', () => {
+        const editor = create();
+        click(editor, DOOR_LEAF);
+        editor.pointerMove(at(DOOR_LEAF));
+        expect(editor.snapshot.hovered.size).toBe(0);
+    });
+});
+
+describe('SelectionEditor selection preview', () => {
+    const LOWER_LEFT = { x: 3300, y: 1100 };
+    const UPPER_RIGHT = { x: 4700, y: 2500 };
+
+    it('previews what a window would pick while it is spanned', () => {
+        const editor = create();
+        editor.pointerDown(at(LOWER_LEFT));
+        editor.pointerMove(at(UPPER_RIGHT));
+        expect(ids(editor.snapshot.hovered)).toEqual([E.table]);
+        // Crossing to the left (x 3200–3300) only cuts the rug; the table starts at x 3400
+        editor.pointerMove(at({ x: 3200, y: 2500 }));
+        expect(ids(editor.snapshot.hovered)).toEqual([E.rug]);
+    });
+
+    it('previews the rectangle of a click too, until the second click', () => {
+        const editor = create();
+        click(editor, UPPER_RIGHT);
+        editor.pointerMove(at(LOWER_LEFT));
+        expect(ids(editor.snapshot.hovered)).toEqual([E.table, E.rug]);
+        click(editor, LOWER_LEFT);
+        expect(editor.snapshot.hovered.size).toBe(0);
+        expect(ids(editor.snapshot.highlighted)).toEqual([E.table, E.rug]);
+    });
+
+    it('previews a lasso and follows Space', () => {
+        const editor = create();
+        editor.pointerDown(at(LOWER_LEFT, { altKey: true }));
+        editor.pointerMove(at({ x: 4700, y: 1100 }));
+        editor.pointerMove(at(UPPER_RIGHT));
+        editor.pointerMove(at({ x: 3300, y: 2500 }));
+        expect(ids(editor.snapshot.hovered)).toEqual([E.table]);
+        editor.keyDown({ key: ' ' });
+        expect(ids(editor.snapshot.hovered)).toEqual([E.table, E.rug]);
+    });
+
+    it('previews whole groups and leaves out what is already selected', () => {
+        const editor = create();
+        click(editor, TABLE);
+        // Crossing from right to left over the door leaf (x 1000) and the table
+        editor.pointerDown(at({ x: 4700, y: 1160 }));
+        editor.pointerMove(at({ x: 985, y: 1100 }));
+        expect(ids(editor.snapshot.hovered)).toEqual([E['door-leaf'], E['door-swing'], E.rug]);
+    });
+
+    it('drops the preview with the area', () => {
+        const editor = create();
+        editor.pointerDown(at(LOWER_LEFT));
+        editor.pointerMove(at(UPPER_RIGHT));
+        editor.keyDown({ key: 'Escape' });
+        expect(editor.snapshot.hovered.size).toBe(0);
+    });
+});
