@@ -18,9 +18,10 @@ apps in one repo:
 - **CAD editor frontend** in `depts/editor/`: Vite + React 19 + TypeScript, with
   Paper.js for rendering and Redux Toolkit installed (unused). **The editor is being
   rebuilt from scratch, closer to AutoCAD behaviour.** Everything is rebuilt in small
-  steps. So far it loads a plan through the API and only displays it (wheel zoom,
-  middle/Space+drag pan, status line with cursor position and zoom); there is no
-  selection, snapping or editing yet.
+  steps. So far it loads a plan through the API and displays it (wheel zoom,
+  middle/Space+drag pan, status line, light/dark mode) and has AutoCAD-like object
+  selection (see "Editor: current state" below). There is no snapping, moving or editing
+  yet; grips are drawn but have no function.
 
 ### Reference material (read, don't copy)
 
@@ -30,17 +31,18 @@ apps in one repo:
   adopted into `depts/editor/` (reviewed, trimmed to the current step, with their tests),
   but not wholesale: its interaction model (selection, handles, tools) differs from
   AutoCAD. Already adopted: the document model (with `circle`), serializer, API client,
-  `Viewport`, `PathSpec`, arc geometry and the view-only `PaperRenderer`. Once adopted,
-  the code in `depts/editor/` is the reference.
+  `Viewport`, `PathSpec`, arc geometry, `PaperRenderer` (with items map and overlay
+  layer), the canvas input routing, the highlight-by-restyled-copy overlay and
+  `selectionUnit` (group expansion). Once adopted, the code in `depts/editor/` is the
+  reference.
 - **`depts/demo1/`** (git-ignored): a plain-JS object snap (OSNAP) reference with tests.
   `Snap-Spezifikation.md` is the detailed snap/tracking/MOVE spec (German, AutoCAD
   behaviour). Run with `npm run demo:dev` in `depts/demo1/`, then open
   http://localhost:3000/demo/. Use it to cross-check our logic, not as a template; ideas
-  like the `rbush` spatial index may be adopted. It is for comparison only: the editor is
+  may be adopted (the `rbush` spatial index already is). It is for comparison only: the editor is
   TypeScript, so re-implement ideas as typed code in our structure and never copy or
   import demo1's JS files.
 - **`docs/`**: `docs/todo/setup.md` (architecture concept, German),
-  `docs/milestones/phase*.md` (reports of the old implementation),
   `docs/editor-bedienung.md` (controls of the old editor), `docs/architecture/cqrs.md`.
   The editor docs describe the old editor and are background only.
 
@@ -104,7 +106,7 @@ packages globally.
 
 ## Architecture
 
-The design concept is in `docs/todo/setup.md` (German, not committed yet). Its main
+The design concept is in `docs/todo/setup.md` (German). Its main
 decisions (still valid for the rebuild):
 
 - **The persisted CAD document is independent of Paper.js, React and the editor tools.**
@@ -152,6 +154,45 @@ groups are stored, and document schema versioning/migrations.
 
 Work in small, well-scoped increments that follow existing conventions (e.g. "build a
 `CircleEditor` like the `LineEditor`, mutating the model only via commands").
+
+## Editor: current state
+
+Object selection follows AutoCAD, with one deliberate deviation: **press + drag in empty
+space spans a rectangle** (like AutoCAD with `PICKDRAG=2` and the lasso turned off); the
+**lasso needs Alt (⌥) held on the press**. Otherwise:
+
+- No command active (noun-verb): click adds to the pickfirst selection (highlight +
+  grips), Shift removes, Esc clears. Clicking empty space without dragging also opens a
+  rectangle that the next click ends. Rectangle to the right = window (completely
+  inside), to the left = crossing (touches); lasso direction picks the mode, Space toggles.
+- Toolbar tool "Auswahl" starts the `AUSWAHL` command (verb-noun): takes over the
+  pickfirst selection, grips disappear, the command line shows AutoCAD-style prompts and
+  counts ("1 gefunden, 2 gesamt"). Enter or right click ends it (result kept as
+  `previous`, nothing stays highlighted), Esc cancels.
+- Only outlines are hit, never fills. Elements on hidden or locked layers are not
+  selectable. Picking a grouped element picks its whole group. While a rectangle or lasso
+  is open, what it would pick is previewed in the hover style.
+
+Structure (all pure TS and unit-tested unless noted):
+
+- `cad/editor/SelectionEditor.ts`: the selection state machine, independent of Paper.js
+  and React. It gets `EditorPointerEvent`s and key events and publishes an immutable
+  `SelectionSnapshot` (prompt, message, hovered, highlighted, grips, area) via `subscribe()`.
+- `cad/editor/selection/`: `ElementShapes` (flattened outlines), `ShapeIndex` (`rbush`
+  R-tree over their bounds), `picking` (point/window/crossing/lasso), `grips`, `grouping`.
+  All derived from the document and **only built on load**; once commands change the
+  document, these must be updated too.
+- `cad/editor/overlays/SelectionOverlay.ts` (Paper.js): hover/selection highlights as
+  restyled copies of the rendered paths, grips, rectangle/lasso, one palette per theme.
+- `ui/canvasInput.ts`: the single owner of canvas input (zoom, pan, forwarding to the
+  editor, pointer capture, lost-release and `pointercancel` handling). `ui/CommandLine.tsx`
+  is display only.
+- Light/dark mode: `ui/theme.ts` (`system` / `light` / `dark`, remembered in
+  `localStorage`, sets `data-theme` on `<html>` for the CSS tokens in `index.css`).
+  Drawing colours are adapted for display only in `cad/renderer/displayColor.ts`
+  (strokes: mirrored lightness, at least 0.6; fills: same distance from the background
+  and same chroma as on white); the stored document is never changed.
+  `DARK_CANVAS_BG` there must match `--canvas-bg` in `index.css`.
 
 ## git
 For now, we can just work in the main-branch directly and commits to git will happen manually.
