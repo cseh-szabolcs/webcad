@@ -1,9 +1,11 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
+import { SelectionOverlay } from 'app/cad/editor/overlays/SelectionOverlay';
+import { SelectionEditor } from 'app/cad/editor/SelectionEditor';
 import type { CadDocument } from 'app/cad/model/CadDocument';
 import type { Point } from 'app/cad/model/Point';
 import { PaperRenderer } from 'app/cad/renderer/PaperRenderer';
 import { Viewport, type Size } from 'app/cad/renderer/Viewport';
-import { attachViewportNavigation } from './viewportNavigation';
+import { attachCanvasInput } from './canvasInput';
 
 export interface CadCanvasHandle {
     fit(): void;
@@ -24,6 +26,8 @@ export function CadCanvas({ document, onViewportChange, onPointerChange, ref }: 
     const viewportRef = useRef(new Viewport());
     const sizeRef = useRef<Size | null>(null);
     const needsFitRef = useRef(true);
+    /** Redraws the editor overlay, whose grips depend on the zoom. */
+    const refreshOverlayRef = useRef<(() => void) | null>(null);
     const onViewportChangeRef = useRef(onViewportChange);
     const onPointerChangeRef = useRef(onPointerChange);
     useEffect(() => {
@@ -34,6 +38,7 @@ export function CadCanvas({ document, onViewportChange, onPointerChange, ref }: 
     const applyViewport = (viewport: Viewport) => {
         viewportRef.current = viewport;
         rendererRef.current?.setViewport(viewport);
+        refreshOverlayRef.current?.();
         onViewportChangeRef.current?.(viewport);
     };
 
@@ -60,6 +65,11 @@ export function CadCanvas({ document, onViewportChange, onPointerChange, ref }: 
         rendererRef.current = renderer;
         renderer.setViewport(viewportRef.current);
         renderer.setDocument(document);
+        const editor = new SelectionEditor(document);
+        const overlay = new SelectionOverlay(renderer);
+        const refreshOverlay = () => overlay.render(editor.snapshot);
+        refreshOverlayRef.current = refreshOverlay;
+        const unsubscribe = editor.subscribe(refreshOverlay);
 
         const observer = new ResizeObserver(([entry]) => {
             const size = { width: entry.contentRect.width, height: entry.contentRect.height };
@@ -74,15 +84,18 @@ export function CadCanvas({ document, onViewportChange, onPointerChange, ref }: 
         });
         observer.observe(container);
 
-        const detachNavigation = attachViewportNavigation(canvas, {
+        const detachInput = attachCanvasInput(canvas, {
             getViewport: () => viewportRef.current,
             onViewportChange: applyViewport,
+            target: editor,
             onPointerMove: (viewPoint) => onPointerChangeRef.current?.(viewPoint),
             onPointerLeave: () => onPointerChangeRef.current?.(null),
         });
 
         return () => {
-            detachNavigation();
+            detachInput();
+            unsubscribe();
+            refreshOverlayRef.current = null;
             observer.disconnect();
             renderer.dispose();
             rendererRef.current = null;

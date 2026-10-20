@@ -9,11 +9,14 @@ const DEFAULT_LAYER = '__default';
 
 /**
  * Builds a Paper.js scene from a CadDocument. Items live in model space; the viewport is
- * applied through the view matrix, which also flips Y. Holds no editing state.
+ * applied through the view matrix, which also flips Y. Holds no editing state; editor
+ * overlays draw into the separate overlay layer.
  */
 export class PaperRenderer {
     private readonly scope: paper.PaperScope;
+    private readonly items = new Map<Id, paper.Path>();
     private readonly layers = new Map<Id, paper.Layer>();
+    private overlay: paper.Layer | null = null;
     private viewport: Viewport | null = null;
 
     constructor(canvas: HTMLCanvasElement) {
@@ -27,6 +30,7 @@ export class PaperRenderer {
         for (const layer of this.layers.values()) {
             layer.remove();
         }
+        this.items.clear();
         this.layers.clear();
         const index = indexDocument(doc);
 
@@ -39,7 +43,22 @@ export class PaperRenderer {
             const item = createItem(this.scope, element, index);
             item.data.elementId = element.id;
             this.layerFor(element.layerId).addChild(item);
+            this.items.set(element.id, item);
         }
+        this.overlay?.bringToFront();
+    }
+
+    getItemPath(id: Id): paper.Path | null {
+        return this.items.get(id) ?? null;
+    }
+
+    /** Layer above all document layers for editor overlays; kept across setDocument(). */
+    get overlayLayer(): paper.Layer {
+        if (!this.overlay) {
+            this.scope.activate();
+            this.overlay = new this.scope.Layer({ name: '__overlay' });
+        }
+        return this.overlay;
     }
 
     /** Current px per mm. */
@@ -73,7 +92,9 @@ export class PaperRenderer {
     }
 
     dispose(): void {
+        this.items.clear();
         this.layers.clear();
+        this.overlay = null;
         this.scope.project.remove();
     }
 

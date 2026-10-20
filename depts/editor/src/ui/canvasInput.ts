@@ -1,23 +1,35 @@
+import type { EditorKeyEvent, EditorPointerEvent } from 'app/cad/editor/EditorPointerEvent';
 import type { Point } from 'app/cad/model/Point';
 import type { Viewport } from 'app/cad/renderer/Viewport';
 
 const WHEEL_ZOOM_SPEED = 0.0015;
 const LINE_HEIGHT_PX = 16;
 
-export interface ViewportNavigationOptions {
+/** Receives the pointer input that is not viewport navigation, i.e. the editor. */
+export interface InputTarget {
+    pointerDown(event: EditorPointerEvent): void;
+    pointerMove(event: EditorPointerEvent): void;
+    pointerLeave(): void;
+    /** Returns true if the key was handled. */
+    keyDown(event: EditorKeyEvent): boolean;
+}
+
+export interface CanvasInputOptions {
     getViewport: () => Viewport;
     onViewportChange: (viewport: Viewport) => void;
+    target: InputTarget;
     /** Pointer position in view px, also reported while panning. */
     onPointerMove?: (viewPoint: Point) => void;
     onPointerLeave?: () => void;
 }
 
 /**
- * Viewport navigation on a canvas: wheel zooms around the cursor, middle drag or
- * Space + left drag pans. Returns a function that removes all listeners.
+ * Single owner of canvas input. Wheel zooms around the cursor; middle drag or Space + left
+ * drag pans; other pointer input goes to the target. Returns a function that removes all
+ * listeners.
  */
-export function attachViewportNavigation(canvas: HTMLCanvasElement, options: ViewportNavigationOptions): () => void {
-    const { getViewport, onViewportChange, onPointerMove, onPointerLeave } = options;
+export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInputOptions): () => void {
+    const { getViewport, onViewportChange, target, onPointerMove, onPointerLeave } = options;
     let spaceHeld = false;
     let panning: { pointerId: number; x: number; y: number } | null = null;
 
@@ -33,10 +45,26 @@ export function attachViewportNavigation(canvas: HTMLCanvasElement, options: Vie
         return { x: event.clientX - rect.left, y: event.clientY - rect.top };
     };
 
+    const toEditorEvent = (event: MouseEvent): EditorPointerEvent => {
+        const viewPoint = toViewPoint(event);
+        const viewport = getViewport();
+        return {
+            viewPoint,
+            modelPoint: viewport.viewToModel(viewPoint),
+            pixelSize: 1 / viewport.scale,
+            button: event.button,
+            shiftKey: event.shiftKey,
+        };
+    };
+
     const onWheel = (event: WheelEvent) => {
         event.preventDefault();
         const delta = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? event.deltaY * LINE_HEIGHT_PX : event.deltaY;
         onViewportChange(getViewport().zoomAt(toViewPoint(event), Math.exp(-delta * WHEEL_ZOOM_SPEED)));
+        // The pick box changes its size in model space, so the hovered element may change
+        if (!panning) {
+            target.pointerMove(toEditorEvent(event));
+        }
     };
 
     const onPointerDown = (event: PointerEvent) => {
@@ -44,8 +72,11 @@ export function attachViewportNavigation(canvas: HTMLCanvasElement, options: Vie
             event.preventDefault();
             canvas.setPointerCapture(event.pointerId);
             panning = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+            target.pointerLeave();
             updateCursor();
+            return;
         }
+        target.pointerDown(toEditorEvent(event));
     };
 
     const onPointerMoveEvent = (event: PointerEvent) => {
@@ -54,6 +85,8 @@ export function attachViewportNavigation(canvas: HTMLCanvasElement, options: Vie
             const dy = event.clientY - panning.y;
             panning = { ...panning, x: event.clientX, y: event.clientY };
             onViewportChange(getViewport().panBy(dx, dy));
+        } else if (!panning) {
+            target.pointerMove(toEditorEvent(event));
         }
         onPointerMove?.(toViewPoint(event));
     };
@@ -62,11 +95,19 @@ export function attachViewportNavigation(canvas: HTMLCanvasElement, options: Vie
         if (panning?.pointerId === event.pointerId) {
             panning = null;
             updateCursor();
+            // The pointer may have been released outside, where no pointerleave follows any more
+            const { x, y } = toViewPoint(event);
+            if (x >= 0 && y >= 0 && x <= canvas.clientWidth && y <= canvas.clientHeight) {
+                target.pointerMove(toEditorEvent(event));
+            } else {
+                onPointerLeave?.();
+            }
         }
     };
 
     const onPointerLeaveEvent = () => {
         if (!panning) {
+            target.pointerLeave();
             onPointerLeave?.();
         }
     };
@@ -75,11 +116,18 @@ export function attachViewportNavigation(canvas: HTMLCanvasElement, options: Vie
         event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable]') !== null;
 
     const onKeyDown = (event: KeyboardEvent) => {
-        if (event.code === 'Space' && !isTextInput(event)) {
+        if (isTextInput(event)) {
+            return;
+        }
+        if (event.code === 'Space') {
             // Also keeps a focused toolbar button from being activated
             event.preventDefault();
             spaceHeld = true;
             updateCursor();
+            return;
+        }
+        if (target.keyDown({ key: event.key })) {
+            event.preventDefault();
         }
     };
 
@@ -103,8 +151,12 @@ export function attachViewportNavigation(canvas: HTMLCanvasElement, options: Vie
         }
     };
 
+    // Right click belongs to the editor (it will end selections), not to the browser menu
+    const onContextMenu = (event: MouseEvent) => event.preventDefault();
+
     canvas.addEventListener('wheel', onWheel, { passive: false });
     canvas.addEventListener('mousedown', onMouseDown);
+    canvas.addEventListener('contextmenu', onContextMenu);
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointermove', onPointerMoveEvent);
     canvas.addEventListener('pointerup', onPointerUp);
@@ -118,6 +170,7 @@ export function attachViewportNavigation(canvas: HTMLCanvasElement, options: Vie
     return () => {
         canvas.removeEventListener('wheel', onWheel);
         canvas.removeEventListener('mousedown', onMouseDown);
+        canvas.removeEventListener('contextmenu', onContextMenu);
         canvas.removeEventListener('pointerdown', onPointerDown);
         canvas.removeEventListener('pointermove', onPointerMoveEvent);
         canvas.removeEventListener('pointerup', onPointerUp);

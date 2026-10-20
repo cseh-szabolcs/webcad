@@ -3,7 +3,7 @@ import type { SegmentSpec } from '../renderer/PathSpec';
 
 const TAU = 2 * Math.PI;
 
-interface ArcSweep {
+export interface ArcSweep {
     radius: number;
     startAngle: number;
     /** Signed: negative for clockwise. */
@@ -15,7 +15,7 @@ interface ArcSweep {
  * `end` only sets the end angle, so the arc ends on the ray from the centre through `end`.
  * Start and end at the same angle give a full circle.
  */
-function arcSweep(center: Point, start: Point, end: Point, clockwise: boolean): ArcSweep {
+export function arcSweep(center: Point, start: Point, end: Point, clockwise: boolean): ArcSweep {
     const radius = Math.hypot(start.x - center.x, start.y - center.y);
     const startAngle = Math.atan2(start.y - center.y, start.x - center.x);
     const endAngle = Math.atan2(end.y - center.y, end.x - center.x);
