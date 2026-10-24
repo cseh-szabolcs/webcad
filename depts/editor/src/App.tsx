@@ -21,6 +21,8 @@ import type { Viewport } from 'app/cad/renderer/Viewport';
 import { CadCanvas, type CadCanvasHandle } from 'app/ui/CadCanvas';
 import { CommandLine } from 'app/ui/CommandLine';
 import { StatusBar } from 'app/ui/StatusBar';
+import { ThemeIcon } from 'app/ui/ThemeIcon';
+import { ToolbarSelect } from 'app/ui/ToolbarSelect';
 import { useTheme, type ThemePreference } from 'app/ui/theme';
 import './App.css';
 
@@ -169,34 +171,32 @@ function App() {
                 <button type="button" onClick={() => canvasRef.current?.fit()} title={t('toolbar.zoomExtentsTitle')}>
                     {t('toolbar.zoomExtents')}
                 </button>
-                <div className="toolbar-theme" role="group" aria-label={t('toolbar.theme')}>
-                    <span className="toolbar-theme-label">{t('toolbar.theme')}</span>
-                    {THEME_OPTIONS.map((option) => (
-                        <button
-                            key={option.value}
-                            type="button"
-                            aria-pressed={preference === option.value}
-                            onClick={() => setPreference(option.value)}
-                            title={t(option.title)}
-                        >
-                            {t(option.label)}
-                        </button>
-                    ))}
-                </div>
-                <div className="toolbar-theme" role="group" aria-label={t('toolbar.language')}>
-                    <span className="toolbar-theme-label">{t('toolbar.language')}</span>
-                    {LANGUAGES.map((option) => (
-                        <button
-                            key={option}
-                            type="button"
-                            lang={option}
-                            aria-pressed={language === option}
-                            onClick={() => setLanguage(option)}
-                            title={t(`language.${option}`)}
-                        >
-                            {option.toUpperCase()}
-                        </button>
-                    ))}
+                <div className="toolbar-settings">
+                    <ToolbarSelect
+                        label={t('toolbar.theme')}
+                        title={t('toolbar.themeMenuTitle')}
+                        value={preference}
+                        options={THEME_OPTIONS.map((option) => ({
+                            value: option.value,
+                            label: t(option.label),
+                            menuLabel: t(option.label),
+                            title: t(option.title),
+                            icon: <ThemeIcon theme={option.value} />,
+                        }))}
+                        onChange={setPreference}
+                    />
+                    <ToolbarSelect
+                        label={t('toolbar.language')}
+                        title={t('toolbar.languageMenuTitle')}
+                        value={language}
+                        options={LANGUAGES.map((option) => ({
+                            value: option,
+                            label: option.toUpperCase(),
+                            menuLabel: t(`language.${option}`),
+                            lang: option,
+                        }))}
+                        onChange={setLanguage}
+                    />
                 </div>
             </header>
             <CadCanvas

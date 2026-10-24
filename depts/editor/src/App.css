@@ -35,15 +35,47 @@
     font-variant-numeric: tabular-nums;
 }
 
-.toolbar-theme {
+/* Appearance and language on the right, as selects like the status bar switches */
+.toolbar-settings {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 18px;
     margin-left: auto;
 }
 
-.toolbar-theme-label {
+.toolbar-select {
+    align-items: center;
+}
+
+.toolbar-select-label {
+    margin-right: 4px;
+    font-size: 12px;
     color: var(--muted);
+}
+
+/* The value button holds an optional icon before its label */
+.toolbar-select button {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Sun, moon and monitor of the theme select (ThemeIcon) */
+.theme-icon {
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Toolbar menus open downwards and end at the right edge of their switch */
+.toolbar-select .snap-menu {
+    top: calc(100% + 6px);
+    bottom: auto;
+    right: 0;
+    left: auto;
 }
 
 .cad-canvas {
@@ -190,7 +222,7 @@
     margin-left: auto;
 }
 
-/* Polar tracking and object snap switches and their menus, which open upwards */
+/* Status bar switches and their menus, which open upwards (also used by ToolbarSelect) */
 .snap-switch {
     position: relative;
     display: flex;

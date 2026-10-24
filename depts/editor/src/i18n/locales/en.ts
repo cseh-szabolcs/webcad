@@ -24,7 +24,9 @@ export const en: Translations = {
         themeDarkTitle: 'Dark background',
         themeSystem: 'System',
         themeSystemTitle: 'Like the system setting',
+        themeMenuTitle: 'Light, dark or like the system',
         language: 'Language',
+        languageMenuTitle: 'Language of the interface',
     },
     language: {
         de: 'Deutsch',

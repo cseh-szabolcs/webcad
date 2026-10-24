@@ -12,8 +12,10 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
 ## Oberfläche
 
 - **Toolbar** (oben): Werkzeug **Verschieben** (Befehl SCHIEBEN), Name des Plans, Button
-  **Zoom Grenzen**, rechts **Darstellung** mit **Hell / Dunkel / System** und **Sprache**
-  mit **DE / EN**.
+  **Zoom Grenzen**, rechts die Auswahlen **Darstellung** (Hell / Dunkel / System, mit
+  Sonne, Mond bzw. Bildschirm als Symbol) und **Sprache** (DE / EN). Sie sehen aus wie
+  die Schalter der Statusleiste: Ein Klick auf den angezeigten Wert oder auf **▾** öffnet
+  ein Menü nach unten; die Wahl dort schließt es, ebenso **Esc** oder ein Klick daneben.
 - **Zeichenfläche** in der Mitte.
 - **Kommandozeile** unter der Zeichenfläche: oben in Grau die letzte Meldung (z. B.
   `1 gefunden, 2 gesamt`), darunter die aktuelle Aufforderung (z. B. `Befehl:` oder
@@ -327,7 +329,7 @@ X und Y durch den Nullpunkt; jede zehnte ist eine kräftigere Hauptlinie.
 
 ## Darstellung (Hell / Dunkel)
 
-Rechts in der Toolbar unter **Darstellung**:
+Rechts in der Toolbar in der Auswahl **Darstellung**:
 
 - **System** (Standard): folgt der Hell-/Dunkel-Einstellung des Betriebssystems, auch
   wenn sie sich während der Arbeit ändert.
@@ -339,7 +341,8 @@ Töne. Die gespeicherten Farben im Plan ändern sich nicht.
 
 ## Sprache (Deutsch / Englisch)
 
-Rechts in der Toolbar unter **Sprache**: **DE** oder **EN**. Ohne gemerkte Wahl gilt die
+Rechts in der Toolbar in der Auswahl **Sprache**: **Deutsch** oder **English** (angezeigt als
+**DE** bzw. **EN**). Ohne gemerkte Wahl gilt die
 Sprache des Browsers (Deutsch für jede deutsche Einstellung, sonst Englisch). Der Browser
 merkt sich die Wahl. Die Umschaltung wirkt sofort, auch mitten in einem Befehl: Toolbar,
 Statusleiste (RASTER/GRID, OFANG/OSNAP …), Fang-Tooltips und Kommandozeile wechseln. Die

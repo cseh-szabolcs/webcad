@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SNAP_MODES, snapModeLabel, type SnapMode } from 'app/cad/editor/snapping/SnapMode';
 import { formatAngleList, MAX_ADDITIONAL_ANGLES, parseAngleList } from 'app/cad/editor/tracking/PolarTracking';
@@ -7,6 +7,7 @@ import type { Point } from 'app/cad/model/Point';
 import type { Viewport } from 'app/cad/renderer/Viewport';
 import { POLAR_INCREMENTS, type GridSettings, type PolarSettings, type SnapSettings } from 'app/settings/editorSettings';
 import { markerPath } from './SnapMarker';
+import { useMenu } from './useMenu';
 
 interface StatusBarProps {
     viewport: Viewport | null;
@@ -57,36 +58,6 @@ export function StatusBar({
             {viewport && <span>{t('status.zoom', { scale: viewport.scale.toFixed(3) })}</span>}
         </footer>
     );
-}
-
-/** Open state of a status bar menu, which closes on a press outside `rootRef` or on Escape. */
-function useMenu() {
-    const [open, setOpen] = useState(false);
-    const rootRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (!open) {
-            return;
-        }
-        const close = (event: PointerEvent) => {
-            if (!rootRef.current?.contains(event.target as Node)) {
-                setOpen(false);
-            }
-        };
-        const closeOnEscape = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                setOpen(false);
-            }
-        };
-        document.addEventListener('pointerdown', close);
-        document.addEventListener('keydown', closeOnEscape);
-        return () => {
-            document.removeEventListener('pointerdown', close);
-            document.removeEventListener('keydown', closeOnEscape);
-        };
-    }, [open]);
-
-    return { open, setOpen, rootRef };
 }
 
 /**

@@ -25,7 +25,9 @@ export const de = {
         themeDarkTitle: 'Dunkler Hintergrund',
         themeSystem: 'System',
         themeSystemTitle: 'Wie die Systemeinstellung',
+        themeMenuTitle: 'Hell, Dunkel oder wie das System',
         language: 'Sprache',
+        languageMenuTitle: 'Sprache der Oberfläche',
     },
     language: {
         de: 'Deutsch',
