@@ -95,3 +95,24 @@ export const DEFAULT_POLAR_SETTINGS: Readonly<PolarSettings> = {
     incrementAngle: 90,
     additionalAngles: [],
 };
+
+/** Ortho (F8) and polar tracking (F10), which exclude each other like in AutoCAD. */
+export interface TrackingModes {
+    ortho: boolean;
+    polar: PolarSettings;
+}
+
+export const DEFAULT_TRACKING_MODES: Readonly<TrackingModes> = {
+    ortho: false,
+    polar: DEFAULT_POLAR_SETTINGS,
+};
+
+/** Switches Ortho; switching it on switches polar tracking off (its angles are kept). */
+export function withOrtho(modes: TrackingModes, ortho: boolean): TrackingModes {
+    return { ortho, polar: ortho && modes.polar.enabled ? { ...modes.polar, enabled: false } : modes.polar };
+}
+
+/** Changes polar tracking; switching it on switches Ortho off. */
+export function withPolar(modes: TrackingModes, polar: PolarSettings): TrackingModes {
+    return { ortho: modes.ortho && !polar.enabled, polar };
+}

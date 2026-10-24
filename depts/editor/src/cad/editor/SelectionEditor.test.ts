@@ -693,6 +693,76 @@ describe('SelectionEditor SCHIEBEN: polar tracking', () => {
     });
 });
 
+describe('SelectionEditor SCHIEBEN: Ortho', () => {
+    /** SCHIEBEN on the table (centre at 4000, 1800), with the base point 3000,1000 typed and Ortho on. */
+    const atSecondPoint = () => {
+        const history = new DocumentHistory(parseDocument(samplePlan));
+        const editor = new SelectionEditor(history);
+        editor.setOrtho(true);
+        click(editor, TABLE);
+        editor.startMoveCommand();
+        for (const key of '3000,1000') {
+            editor.keyDown({ key });
+        }
+        editor.keyDown({ key: 'Enter' });
+        return { editor, history };
+    };
+
+    it('forces the point onto the horizontal or vertical through the base point, however far off', () => {
+        const { editor } = atSecondPoint();
+        editor.pointerMove(at({ x: 3300, y: 1600 }));
+        expect(editor.snapshot.previewPoint).toEqual({ x: 3000, y: 1600 });
+        editor.pointerMove(at({ x: 3700, y: 1600 }));
+        expect(editor.snapshot.previewPoint).toEqual({ x: 3700, y: 1000 });
+        // No polar path while Ortho is on
+        editor.pointerMove(at({ x: 3008, y: 1600 }));
+        expect(editor.snapshot.polar).toBeNull();
+    });
+
+    it('moves exactly vertically on a click', () => {
+        const { editor, history } = atSecondPoint();
+        click(editor, { x: 3300, y: 1600 });
+        expect(tableCentre(history)).toEqual({ x: 4000, y: 2400 });
+    });
+
+    it('moves a typed distance in the Ortho direction', () => {
+        const { editor, history } = atSecondPoint();
+        editor.pointerMove(at({ x: 3700, y: 1600 }));
+        for (const key of '250') {
+            editor.keyDown({ key });
+        }
+        editor.keyDown({ key: 'Enter' });
+        expect(tableCentre(history)).toEqual({ x: 4250, y: 1800 });
+    });
+
+    it('gives way to a snap point and to typed coordinates', () => {
+        const { editor } = atSecondPoint();
+        editor.pointerMove(at({ x: 3004, y: 2 }));
+        expect(editor.snapshot.previewPoint).toEqual(WALL);
+        const typed = atSecondPoint();
+        typed.editor.pointerMove(at({ x: 3700, y: 1600 }));
+        for (const key of '@100,100') {
+            typed.editor.keyDown({ key });
+        }
+        typed.editor.keyDown({ key: 'Enter' });
+        expect(tableCentre(typed.history)).toEqual({ x: 4100, y: 1900 });
+    });
+
+    it('does not change the base point and follows switching at the cursor', () => {
+        const history = new DocumentHistory(parseDocument(samplePlan));
+        const editor = new SelectionEditor(history);
+        editor.setOrtho(true);
+        click(editor, TABLE);
+        editor.startMoveCommand();
+        click(editor, EMPTY);
+        expect(editor.snapshot.basePoint).toEqual(EMPTY);
+        editor.pointerMove(at({ x: 3300, y: 2200 }));
+        expect(editor.snapshot.previewPoint).toEqual({ x: 3300, y: 2000 });
+        editor.setOrtho(false);
+        expect(editor.snapshot.previewPoint).toEqual({ x: 3300, y: 2200 });
+    });
+});
+
 describe('SelectionEditor SCHIEBEN: Tab cycling and hysteresis', () => {
     /** A line 12 mm (6 px) long: endpoints at 0 and 12, midpoint at 6. */
     const LINE: CadDocument = {

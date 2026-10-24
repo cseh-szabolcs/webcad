@@ -243,8 +243,15 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   bar "POLAR" switch with a menu of the increments (`POLAR_INCREMENTS`, radio: one increment,
   all its multiples apply) and a "Zusatzwinkel" text field (`parseAngleList`, e.g. "30, 60",
   at most `MAX_ADDITIONAL_ANGLES`; every valid edit applies at once, invalid text is marked
-  and keeps the last valid angles). Ortho (F8, mutually
-  exclusive with POLAR) and relative-to-last-segment angles are not built yet.
+  and keeps the last valid angles). Relative-to-last-segment angles are not built yet.
+- Ortho (ORTHO, F8, off by default; `cad/editor/tracking/ortho.ts` `orthoPoint`): at the
+  second point only, where no snap point is found, the point goes onto the horizontal or
+  vertical through the base point, whichever is nearer, without any tolerance; click,
+  preview, rubber band and direct distance entry follow it (`SelectionEditor.pointAt`),
+  with no path, tooltip or crosshair magnet (like AutoCAD). Typed coordinates win. Ortho
+  and POLAR exclude each other: App keeps both as `TrackingModes` and switches through
+  `withOrtho`/`withPolar` (editorSettings); the editor gets `setOrtho()` and leaves polar
+  tracking out while Ortho is on.
 - Only outlines are hit, never fills: an element is hit when its outline passes through
   the square pick box around the cursor. Elements on hidden or locked layers are not
   selectable. Picking a grouped element picks its whole group. While a rectangle or lasso
@@ -293,7 +300,7 @@ Structure (all pure TS and unit-tested unless noted):
   Tokens `--snap-marker`, `--polar-track`, `--snap-tooltip-bg|fg|border`; rubber band and
   preview use `--preview-color`, which `SnapMarker` sets from `EditorSettings.previewColor`
   for the theme (`setTheme`). `ui/StatusBar.tsx` holds
-  the POLAR and OFANG switches on the left, position and zoom on the right (so the switches
+  the ORTHO, POLAR and OFANG switches on the left, position and zoom on the right (so the switches
   never move).
 - Cursor: over the canvas the system pointer is hidden and `ui/CrosshairCursor.ts` draws an
   AutoCAD-like crosshair as a DOM layer (moved by CSS transform, so the drawing is never
@@ -309,8 +316,9 @@ Structure (all pure TS and unit-tested unless noted):
   and `previewColor` (per theme: light `#ea580c`, dark `#facc15`). Code receives the object
   (App → `CadCanvas` → editor and crosshair) rather than importing the defaults, so the
   user can change them later; for now they are read when a document is loaded. The running
-  snaps (`SnapSettings`: `enabled` like F3, `modes` like OSMODE) and polar tracking
-  (`PolarSettings`: `enabled` like F10, angles) live in App state and may
+  snaps (`SnapSettings`: `enabled` like F3, `modes` like OSMODE), Ortho and polar tracking
+  (`TrackingModes`: `ortho` like F8, `polar: PolarSettings` with `enabled` like F10 and the
+  angles) live in App state and may
   change at any time.
 - Light/dark mode: `ui/theme.ts` (`system` / `light` / `dark`, remembered in
   `localStorage`, sets `data-theme` on `<html>` for the CSS tokens in `index.css`).

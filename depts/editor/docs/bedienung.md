@@ -6,7 +6,7 @@ Auf dem Mac entspricht **Option (⌥)** der Taste Alt.
 Tastenkürzel wirken, solange der Fokus nicht in einem Textfeld liegt.
 
 Der Editor zeigt Pläne an, wählt Objekte aus und verschiebt sie mit dem Befehl SCHIEBEN
-(mit Objektfang, Polarspur, Koordinateneingabe und Rückgängig). Gespeichert wird noch nichts; was
+(mit Objektfang, Polarspur, Ortho, Koordinateneingabe und Rückgängig). Gespeichert wird noch nichts; was
 sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgesetzt).
 
 ## Oberfläche
@@ -19,8 +19,8 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   `Basispunkt angeben oder [Verschiebung] <Verschiebung>:`). Bei Punkt-Aufforderungen
   erscheint dahinter ein Textcursor und, was man tippt (siehe
   [Eingabe in der Kommandozeile](#eingabe-in-der-kommandozeile)).
-- **Statuszeile** (unten): links der Polarspur-Schalter **POLAR** und der
-  Objektfang-Schalter **OFANG**, jeweils mit dem Menü **▾**; rechts die Cursorposition
+- **Statuszeile** (unten): links der Schalter **ORTHO**, der Polarspur-Schalter **POLAR**
+  und der Objektfang-Schalter **OFANG**, die beiden letzten mit dem Menü **▾**; rechts die Cursorposition
   `X … Y …` in mm und der Zoom in px/mm.
 
 ## Ansicht
@@ -174,7 +174,7 @@ bedeuten dort dasselbe.
 
 Ungültige Eingaben meldet die Kommandozeile mit `Punkt oder Option-Schlüsselwort
 erforderlich.`, die Aufforderung bleibt. Getippte Zeichen lösen keine anderen
-Tastenkürzel aus; Strg/⌘-Kürzel, F3 und F10 wirken weiter.
+Tastenkürzel aus; Strg/⌘-Kürzel, F3, F8 und F10 wirken weiter.
 
 ## Objektfang (OFANG)
 
@@ -264,6 +264,25 @@ also waagrecht und senkrecht). Der Punkt liegt dann exakt auf dieser Geraden.
 - Die Polarspur wirkt auch bei ausgeschaltetem Objektfang. Beim Basispunkt gibt es keine
   Spur, weil noch kein Bezugspunkt existiert.
 
+## Ortho (ORTHO)
+
+Beim zweiten Punkt von SCHIEBEN liegt der Punkt mit Ortho immer auf der Waagrechten oder
+der Senkrechten durch den Basispunkt, je nachdem, welche dem Cursor näher liegt. Anders
+als bei der Polarspur gilt das ohne Toleranz, egal wie weit der Cursor daneben liegt.
+
+| Eingabe                       | Wirkung                                                  |
+|-------------------------------|----------------------------------------------------------|
+| **F8** oder Button **ORTHO**  | Schaltet Ortho ein oder aus (beim Start aus)             |
+
+- Ortho und Polarspur schließen sich aus: Ortho ein schaltet POLAR aus, POLAR ein (auch
+  über die Winkelwahl im Menü) schaltet Ortho aus. Die Polarwinkel bleiben erhalten.
+- Es gibt keine eigene Spurlinie und keinen Tooltip, wie in AutoCAD: Vorschau und Gummiband
+  folgen dem Ortho-Punkt, das Fadenkreuz bleibt am Mauszeiger.
+- **Klick** nimmt den Ortho-Punkt. Eine getippte **Zahl** + Enter geht diesen Abstand
+  waagrecht bzw. senkrecht.
+- Ein **Fangpunkt** und getippte Koordinaten haben Vorrang. Beim Basispunkt wirkt Ortho
+  nicht, weil noch kein Bezugspunkt existiert.
+
 ## Darstellung (Hell / Dunkel)
 
 Rechts in der Toolbar unter **Darstellung**:
@@ -312,8 +331,7 @@ lassen sich auch im POLAR-Menü ändern.
 - Befehle und Optionen beim Objekte-Wählen in der Kommandozeile eintippen (z. B. `V` für
   „Vorherige“); die Verschiebung merkt sich noch nicht die letzte Eingabe als Vorgabe.
 - Beim Objektfang: weitere Modi und Objektfangspuren (F11).
-- Ortho-Modus (F8); er schließt sich später mit der Polarspur gegenseitig aus. Bei der
-  Polarspur außerdem: Winkel relativ zum letzten Segment, Schnittpunkte der Spur mit
-  Objekten. Die Polar-Einstellungen werden noch nicht gespeichert (nach dem Neuladen gilt
-  wieder 90° ohne Zusatzwinkel).
+- Bei der Polarspur: Winkel relativ zum letzten Segment, Schnittpunkte der Spur mit
+  Objekten. Ortho- und Polar-Einstellungen werden noch nicht gespeichert (nach dem
+  Neuladen gilt wieder POLAR an mit 90° ohne Zusatzwinkel, Ortho aus).
 - Die Einstellungen im Editor ändern.

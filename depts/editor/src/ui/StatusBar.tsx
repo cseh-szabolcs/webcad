@@ -14,10 +14,12 @@ interface StatusBarProps {
     onSnapSettingsChange: (settings: SnapSettings) => void;
     polarSettings: PolarSettings;
     onPolarSettingsChange: (settings: PolarSettings) => void;
+    ortho: boolean;
+    onOrthoChange: (ortho: boolean) => void;
 }
 
 /**
- * The polar tracking and object snap switches on the left, the cursor position in model space
+ * The Ortho, polar tracking and object snap switches on the left, the cursor position in model space
  * and the zoom level on the right, so the switches stay put while the numbers change width.
  */
 export function StatusBar({
@@ -27,11 +29,18 @@ export function StatusBar({
     onSnapSettingsChange,
     polarSettings,
     onPolarSettingsChange,
+    ortho,
+    onOrthoChange,
 }: StatusBarProps) {
     const model = viewport && pointer ? viewport.viewToModel(pointer) : null;
 
     return (
         <footer className="statusbar">
+            <div className="snap-switch">
+                <button type="button" aria-pressed={ortho} onClick={() => onOrthoChange(!ortho)} title="Ortho ein/aus (F8)">
+                    ORTHO
+                </button>
+            </div>
             <PolarSwitch settings={polarSettings} onChange={onPolarSettingsChange} />
             <SnapSwitch settings={snapSettings} onChange={onSnapSettingsChange} />
             <b className="statusbar-position">

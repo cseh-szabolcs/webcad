@@ -21,6 +21,7 @@ import { pickAt, pickCrossing, pickLasso, pickWindow } from './selection/picking
 import { ShapeIndex } from './selection/ShapeIndex';
 import { SnapEngine, SnapMemory, coincide, sameSnapPoint, type SnapResult } from './snapping/SnapEngine';
 import type { SnapPoint } from './snapping/SnapGeometry';
+import { orthoPoint } from './tracking/ortho';
 import { findPolarTrack, type PolarTrack } from './tracking/PolarTracking';
 
 /** How far a press must travel (screen px) before it counts as a drag. */
@@ -111,8 +112,8 @@ export interface SelectionSnapshot {
     basePoint: Point | null;
     /**
      * At the second point prompt, the point a click would take now (the snap point, else the
-     * point on the polar path, else the cursor), for the move preview; null at other prompts
-     * and while the pointer is outside.
+     * Ortho point or the point on the polar path, else the cursor), for the move preview; null
+     * at other prompts and while the pointer is outside.
      */
     previewPoint: Point | null;
     /** Undo and redo are possible now (not while a command runs). */
@@ -150,9 +151,10 @@ function isPointPrompt(state: State): state is PointPromptState {
  * The base point and the second point snap to the drawing (see SnapEngine); a click takes
  * the snap point, or the cursor position if there is none. At the second point the snapshot
  * carries the point for the move preview; the click moves the selection as one undo step
- * (see MoveCommand) and ends the command. Where nothing snaps at the second point, polar
- * tracking (see PolarTracking) puts the point on the nearest polar path from the base point,
- * also with the object snap off. While several points lie in the aperture, Tab
+ * (see MoveCommand) and ends the command. Where nothing snaps at the second point, Ortho
+ * forces the point onto the horizontal or vertical through the base point (see orthoPoint);
+ * with Ortho off, polar tracking (see PolarTracking) puts it on the nearest polar path from
+ * the base point. Both also work with the object snap off. While several points lie in the aperture, Tab
  * switches to the next one (Shift+Tab back), until the cursor moves more than the aperture
  * size (half the box side) from where Tab was pressed. Esc cancels the command at any prompt. With
  * no command, undo() and redo() step through the document history.
@@ -164,7 +166,7 @@ function isPointPrompt(state: State): state is PointPromptState {
  * far from the base point towards the cursor (direct distance entry). Enter on its own (or
  * "V") at the base point prompt asks for the displacement vector instead, and at the second
  * point takes the base point itself as the displacement, like AutoCAD. Direct distance entry
- * follows the polar path while the cursor is on one.
+ * follows the Ortho direction, or the polar path while the cursor is on one.
  *
  * The derived structures (outlines, R-tree, groups, snap geometry) follow every document
  * change of the history; they are rebuilt as a whole for now.
@@ -202,6 +204,8 @@ export class SelectionEditor {
     private polarSettings: PolarSettings = DEFAULT_POLAR_SETTINGS;
     /** Polar path at the cursor during the second point prompt (see PolarTracking). */
     private polar: PolarTrack | null = null;
+    /** Ortho mode (F8); excludes polar tracking. */
+    private ortho = false;
     /** Last cursor position over the canvas, to snap at once when a point prompt starts. */
     private lastPointer: EditorPointerEvent | null = null;
     private state: State = { kind: 'idle', pickfirst: new Set() };
@@ -339,6 +343,15 @@ export class SelectionEditor {
         }
     }
 
+    /** Switches Ortho; takes effect at the cursor right away. Polar tracking is off while it is on. */
+    setOrtho(enabled: boolean): void {
+        this.ortho = enabled;
+        if (this.lastPointer !== null && isPointPrompt(this.state)) {
+            this.updateSnap(this.lastPointer);
+            this.changed();
+        }
+    }
+
     pointerDown(event: EditorPointerEvent): void {
         const state = this.state;
         if (isPointPrompt(state)) {
@@ -346,7 +359,7 @@ export class SelectionEditor {
                 // A click gives the point; text typed so far is dropped
                 this.input = '';
                 this.updateSnap(event);
-                this.pointGiven(this.snap?.point ?? this.polar?.point ?? event.modelPoint);
+                this.pointGiven(this.pointAt(event.modelPoint));
             }
             return;
         }
@@ -608,14 +621,23 @@ export class SelectionEditor {
         }
     }
 
-    /**
-     * At the second point prompt, the point a click would take now: the snap point, else the
-     * point on the polar path, else the cursor.
-     */
+    /** At the second point prompt, the point a click would take now (see pointAt). */
     private previewPoint(): Point | null {
-        return this.state.kind === 'secondPoint' && this.lastPointer !== null
-            ? (this.snap?.point ?? this.polar?.point ?? this.lastPointer.modelPoint)
-            : null;
+        return this.state.kind === 'secondPoint' && this.lastPointer !== null ? this.pointAt(this.lastPointer.modelPoint) : null;
+    }
+
+    /**
+     * The point a click at `cursor` gives: the snap point; else at the second point the Ortho
+     * point or the point on the polar path; else the cursor itself.
+     */
+    private pointAt(cursor: Point): Point {
+        if (this.snap !== null) {
+            return this.snap.point;
+        }
+        if (this.state.kind === 'secondPoint' && this.ortho) {
+            return orthoPoint(this.state.basePoint, cursor);
+        }
+        return this.polar?.point ?? cursor;
     }
 
     /** Each point prompt starts with a fresh snap memory and snaps at the cursor anew. */
@@ -670,7 +692,8 @@ export class SelectionEditor {
      * Snaps at the cursor (or nowhere with null). A point chosen by Tab stays chosen while it is
      * in the aperture and the cursor stays within the aperture size of where Tab was pressed;
      * otherwise the best point snaps, with the previous snap point kept by hysteresis. Where
-     * nothing snaps at the second point prompt, looks for a polar path from the base point.
+     * nothing snaps at the second point prompt and Ortho is off, looks for a polar path from
+     * the base point.
      * Also finds the snap point preview at point prompts.
      */
     private updateSnap(event: EditorPointerEvent | null): void {
@@ -702,7 +725,7 @@ export class SelectionEditor {
         this.snap = candidates[Math.max(index, 0)] ?? null;
         const state = this.state;
         this.polar =
-            event !== null && this.snap === null && state.kind === 'secondPoint'
+            event !== null && this.snap === null && state.kind === 'secondPoint' && !this.ortho
                 ? findPolarTrack(
                       {
                           reference: state.basePoint,

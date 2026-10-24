@@ -5,10 +5,12 @@ import type { Point } from 'app/cad/model/Point';
 import { CadApiClient } from 'app/cad/persistence/CadApiClient';
 import {
     DEFAULT_EDITOR_SETTINGS,
-    DEFAULT_POLAR_SETTINGS,
     DEFAULT_SNAP_SETTINGS,
-    type PolarSettings,
+    DEFAULT_TRACKING_MODES,
     type SnapSettings,
+    type TrackingModes,
+    withOrtho,
+    withPolar,
 } from 'app/settings/editorSettings';
 import type { Viewport } from 'app/cad/renderer/Viewport';
 import { CadCanvas, type CadCanvasHandle } from 'app/ui/CadCanvas';
@@ -41,12 +43,12 @@ function App() {
     const [selection, setSelection] = useState<SelectionSnapshot | null>(null);
     const [state, setState] = useState<LoadState>({ status: 'loading' });
     const [snapSettings, setSnapSettings] = useState<SnapSettings>(DEFAULT_SNAP_SETTINGS);
-    const [polarSettings, setPolarSettings] = useState<PolarSettings>(DEFAULT_POLAR_SETTINGS);
+    const [tracking, setTracking] = useState<TrackingModes>(DEFAULT_TRACKING_MODES);
     const { preference, setPreference, theme } = useTheme();
 
     // Shortcuts like AutoCAD: F3 switches the object snap (and must not open the browser's
-    // search), F10 polar tracking (and must not focus the browser's menu bar), Ctrl/Cmd+Z
-    // undoes, Ctrl+Y or Cmd+Shift+Z redoes
+    // search), F8 Ortho, F10 polar tracking (and must not focus the browser's menu bar),
+    // Ctrl/Cmd+Z undoes, Ctrl+Y or Cmd+Shift+Z redoes
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
             // A key the editor took (e.g. typed on the command line) does nothing else
@@ -63,10 +65,17 @@ function App() {
                 }
                 return;
             }
+            if (event.key === 'F8') {
+                event.preventDefault();
+                if (!event.repeat) {
+                    setTracking((modes) => withOrtho(modes, !modes.ortho));
+                }
+                return;
+            }
             if (event.key === 'F10') {
                 event.preventDefault();
                 if (!event.repeat) {
-                    setPolarSettings((settings) => ({ ...settings, enabled: !settings.enabled }));
+                    setTracking((modes) => withPolar(modes, { ...modes.polar, enabled: !modes.polar.enabled }));
                 }
                 return;
             }
@@ -166,7 +175,8 @@ function App() {
                 theme={theme}
                 settings={DEFAULT_EDITOR_SETTINGS}
                 snapSettings={snapSettings}
-                polarSettings={polarSettings}
+                polarSettings={tracking.polar}
+                ortho={tracking.ortho}
                 onViewportChange={setViewport}
                 onPointerChange={setPointer}
                 onSelectionChange={setSelection}
@@ -184,8 +194,10 @@ function App() {
                 pointer={pointer}
                 snapSettings={snapSettings}
                 onSnapSettingsChange={setSnapSettings}
-                polarSettings={polarSettings}
-                onPolarSettingsChange={setPolarSettings}
+                polarSettings={tracking.polar}
+                onPolarSettingsChange={(polar) => setTracking((modes) => withPolar(modes, polar))}
+                ortho={tracking.ortho}
+                onOrthoChange={(ortho) => setTracking((modes) => withOrtho(modes, ortho))}
             />
         </div>
     );

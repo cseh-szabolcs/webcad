@@ -34,6 +34,8 @@ interface CadCanvasProps {
     snapSettings: SnapSettings;
     /** Polar tracking; may change at any time. */
     polarSettings: PolarSettings;
+    /** Ortho mode (F8); may change at any time. */
+    ortho: boolean;
     onViewportChange?: (viewport: Viewport) => void;
     /**
      * Pointer position in view px (the snap or polar tracking point while the magnet holds
@@ -51,6 +53,7 @@ export function CadCanvas({
     settings,
     snapSettings,
     polarSettings,
+    ortho,
     onViewportChange,
     onPointerChange,
     onSelectionChange,
@@ -66,6 +69,7 @@ export function CadCanvas({
     const settingsRef = useRef(settings);
     const snapSettingsRef = useRef(snapSettings);
     const polarSettingsRef = useRef(polarSettings);
+    const orthoRef = useRef(ortho);
     const viewportRef = useRef(new Viewport());
     const sizeRef = useRef<Size | null>(null);
     const needsFitRef = useRef(true);
@@ -125,6 +129,7 @@ export function CadCanvas({
         const editor = new SelectionEditor(history, settingsRef.current);
         editor.setSnapSettings(snapSettingsRef.current);
         editor.setPolarSettings(polarSettingsRef.current);
+        editor.setOrtho(orthoRef.current);
         const crosshair = new CrosshairCursor(container, settingsRef.current);
         const snapMarker = new SnapMarker(container, settingsRef.current, themeRef.current);
         snapMarkerRef.current = snapMarker;
@@ -241,6 +246,11 @@ export function CadCanvas({
         polarSettingsRef.current = polarSettings;
         editorRef.current?.setPolarSettings(polarSettings);
     }, [polarSettings]);
+
+    useEffect(() => {
+        orthoRef.current = ortho;
+        editorRef.current?.setOrtho(ortho);
+    }, [ortho]);
 
     useEffect(() => {
         themeRef.current = theme;
