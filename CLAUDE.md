@@ -43,9 +43,10 @@ apps in one repo:
   may be adopted (the `rbush` spatial index already is). It is for comparison only: the editor is
   TypeScript, so re-implement ideas as typed code in our structure and never copy or
   import demo1's JS files.
-- **`docs/`**: `docs/todo/setup.md` (architecture concept, German),
-  `docs/editor-bedienung.md` (controls of the old editor), `docs/architecture/cqrs.md`.
-  The editor docs describe the old editor and are background only.
+- **`docs/`**: `docs/todo/setup.md` (architecture concept, German) and
+  `docs/architecture/cqrs.md`.
+- **`depts/editor/docs/bedienung.md`**: user guide of the new editor (German), covering
+  every mouse and keyboard action. Keep it in sync when the controls change.
 
 ## Running it (Docker)
 
