@@ -7,6 +7,11 @@
     --error: #b91c1c;
     --canvas-bg: #ffffff;
     --crosshair: #111827;
+    /* AutoSnap marker and tooltip (SnapMarker) */
+    --snap-marker: #15a33f;
+    --snap-tooltip-bg: #ffffe1;
+    --snap-tooltip-fg: #111827;
+    --snap-tooltip-border: #6b7280;
     color-scheme: light;
 
     font: 14px/1.4 system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -25,6 +30,10 @@
     --error: #f87171;
     --canvas-bg: #212830;
     --crosshair: #f3f4f6;
+    --snap-marker: #4ade80;
+    --snap-tooltip-bg: #2d333b;
+    --snap-tooltip-fg: #e5e7eb;
+    --snap-tooltip-border: #6b7280;
     color-scheme: dark;
 }
 

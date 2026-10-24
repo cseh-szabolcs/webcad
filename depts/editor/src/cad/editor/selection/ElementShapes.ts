@@ -1,6 +1,8 @@
 import { flattenPathSpec } from '../../geometry/flatten';
+import { boundsOf } from '../../geometry/selectionGeometry';
 import type { CadDocument } from '../../model/CadDocument';
 import { indexDocument } from '../../model/DocumentIndex';
+import { elementsInDrawOrder } from '../../model/drawOrder';
 import type { Id, Point } from '../../model/Point';
 import { buildPathSpec } from '../../renderer/PathSpec';
 import type { Rect } from '../../renderer/Viewport';
@@ -23,26 +25,8 @@ export interface ElementShape {
  */
 export function buildElementShapes(doc: CadDocument): ElementShape[] {
     const index = indexDocument(doc);
-    const layerOrder = new Map(doc.layers.map((layer, i) => [layer.id, i]));
-    const drawOrder = (layerId: Id | null) => (layerId !== null ? (layerOrder.get(layerId) ?? -1) : -1);
-
-    return doc.elements
-        .filter((element) => {
-            const layer = element.layerId !== null ? index.layers.get(element.layerId) : undefined;
-            return !layer || (layer.visible && !layer.locked);
-        })
-        .map((element, i) => ({ element, i }))
-        .sort((a, b) => drawOrder(a.element.layerId) - drawOrder(b.element.layerId) || a.i - b.i)
-        .map(({ element }) => {
-            const points = flattenPathSpec(buildPathSpec(element, index), SHAPE_TOLERANCE_MM);
-            return { id: element.id, points, bounds: boundsOf(points) };
-        });
-}
-
-function boundsOf(points: readonly Point[]): Rect {
-    const xs = points.map((p) => p.x);
-    const ys = points.map((p) => p.y);
-    const x = Math.min(...xs);
-    const y = Math.min(...ys);
-    return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
+    return elementsInDrawOrder(doc, (layer) => layer.visible && !layer.locked).map((element) => {
+        const points = flattenPathSpec(buildPathSpec(element, index), SHAPE_TOLERANCE_MM);
+        return { id: element.id, points, bounds: boundsOf(points) };
+    });
 }

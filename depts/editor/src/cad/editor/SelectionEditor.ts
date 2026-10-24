@@ -1,5 +1,10 @@
 import type { CadDocument } from '../model/CadDocument';
-import { DEFAULT_EDITOR_SETTINGS, type EditorSettings } from '../../settings/editorSettings';
+import {
+    DEFAULT_EDITOR_SETTINGS,
+    DEFAULT_SNAP_SETTINGS,
+    type EditorSettings,
+    type SnapSettings,
+} from '../../settings/editorSettings';
 import { indexDocument, type DocumentIndex } from '../model/DocumentIndex';
 import type { Id, Point } from '../model/Point';
 import { rectFromCorners } from '../geometry/selectionGeometry';
@@ -9,20 +14,30 @@ import { selectionControlFrames, selectionGrips } from './selection/grips';
 import { buildSelectionUnits, expandToUnits } from './selection/grouping';
 import { pickAt, pickCrossing, pickLasso, pickWindow } from './selection/picking';
 import { ShapeIndex } from './selection/ShapeIndex';
+import { SnapEngine, SnapMemory, type SnapResult } from './snapping/SnapEngine';
 
 /** How far a press must travel (screen px) before it counts as a drag. */
 const DRAG_THRESHOLD_PX = 3;
 /** Minimum distance (screen px) between recorded lasso points. */
 const LASSO_STEP_PX = 4;
 
-export type EditorCommand = 'AUSWAHL';
+/** SCHIEBEN is AutoCAD's MOVE; for now it ends after the second point without moving. */
+export type EditorCommand = 'SCHIEBEN';
 
 const PROMPTS = {
     idle: 'Befehl:',
-    AUSWAHL: 'AUSWAHL Objekte wählen:',
+    select: 'SCHIEBEN Objekte wählen:',
+    basePoint: 'Basispunkt angeben:',
+    secondPoint: 'Zweiten Punkt angeben oder <ersten Punkt als Verschiebung verwenden>:',
     corner: 'Entgegengesetzte Ecke angeben:',
     lasso: 'Lasso – Leertaste wechselt Fenster/Kreuzen',
 } as const;
+
+/**
+ * What the cursor shows, like AutoCAD: crosshair and pick box with no command, only the pick
+ * box while a command selects objects, only the crosshair while it asks for a point.
+ */
+export type CursorMode = 'command' | 'select' | 'point';
 
 /** Window: only elements completely inside; crossing: everything the area touches. */
 export type SelectionMode = 'window' | 'crossing';
@@ -56,22 +71,35 @@ export interface SelectionSnapshot {
     controlFrames: readonly (readonly [Point, Point])[];
     /** Selection rectangle or lasso in progress, or null. */
     area: SelectionArea | null;
+    cursor: CursorMode;
+    /** Snap point under the cursor during a point prompt, or null. */
+    snap: SnapResult | null;
+    /** Base point of SCHIEBEN once given, or null. */
+    basePoint: Point | null;
 }
 
 type State =
     /** No command; clicks build the pickfirst selection (noun-verb). */
     | { kind: 'idle'; pickfirst: ReadonlySet<Id> }
-    /** AUSWAHL runs; clicks build the command's selection (verb-noun). */
-    | { kind: 'select'; selection: ReadonlySet<Id> };
+    /** SCHIEBEN selects objects; clicks build the command's selection (verb-noun). */
+    | { kind: 'select'; selection: ReadonlySet<Id> }
+    /** SCHIEBEN asks for the base point. */
+    | { kind: 'basePoint'; selection: ReadonlySet<Id> }
+    /** SCHIEBEN asks for the second point. */
+    | { kind: 'secondPoint'; selection: ReadonlySet<Id>; basePoint: Point };
 
 /**
- * Object selection of the editor like AutoCAD, independent of Paper.js and React.
+ * Object selection and the SCHIEBEN (MOVE) command of the editor like AutoCAD, independent
+ * of Paper.js and React.
  *
  * With no command, a click adds the element under the cursor to the pickfirst selection,
- * Shift+click removes it and Esc clears it. The AUSWAHL command takes over the pickfirst
- * selection; clicks then add to or remove from the command's selection, Enter or a right
- * click ends the command (the result becomes the "previous" selection, nothing stays
- * highlighted) and Esc cancels it.
+ * Shift+click removes it and Esc clears it. SCHIEBEN takes over the pickfirst selection and
+ * then asks for the base point right away; without one it first asks for objects: clicks add
+ * to or remove from the command's selection, and Enter or a right click ends the selection
+ * (the result becomes the "previous" selection; with nothing selected the command ends).
+ * The base point and the second point snap to the drawing (see SnapEngine); a click takes
+ * the snap point, or the cursor position if there is none. The second point only reports the
+ * displacement for now. Esc cancels the command at any prompt.
  *
  * In both, pressing into empty space and dragging opens a rectangle; a plain click into
  * empty space does nothing. The rectangle stays open after the release, so the view can
@@ -90,6 +118,13 @@ export class SelectionEditor {
     private readonly shapes: ShapeIndex;
     /** What a pick of each selectable element selects: its whole group, or itself. */
     private readonly units: ReadonlyMap<Id, readonly Id[]>;
+    private readonly snapEngine: SnapEngine;
+    private snapSettings: SnapSettings = DEFAULT_SNAP_SETTINGS;
+    /** Curves touched during the current point prompt (see SnapMemory). */
+    private snapMemory = new SnapMemory();
+    private snap: SnapResult | null = null;
+    /** Last cursor position over the canvas, to snap at once when a point prompt starts. */
+    private lastPointer: EditorPointerEvent | null = null;
     private state: State = { kind: 'idle', pickfirst: new Set() };
     private previousSelection: ReadonlySet<Id> = new Set();
     /** Element under the cursor, whether selected or not. */
@@ -108,10 +143,17 @@ export class SelectionEditor {
 
     /** Half the pick box side in screen px (see EditorSettings.pickboxSize). */
     private readonly pickboxSize: number;
+    /** Half the aperture box side in screen px (see EditorSettings.apertureSize). */
+    private readonly apertureSize: number;
 
-    constructor(doc: CadDocument, settings: Pick<EditorSettings, 'pickboxSize'> = DEFAULT_EDITOR_SETTINGS) {
+    constructor(
+        doc: CadDocument,
+        settings: Pick<EditorSettings, 'pickboxSize' | 'apertureSize'> = DEFAULT_EDITOR_SETTINGS,
+    ) {
         this.pickboxSize = settings.pickboxSize;
+        this.apertureSize = settings.apertureSize;
         this.index = indexDocument(doc);
+        this.snapEngine = new SnapEngine(doc);
         const shapes = buildElementShapes(doc);
         this.shapes = new ShapeIndex(shapes);
         this.units = buildSelectionUnits(
@@ -125,7 +167,7 @@ export class SelectionEditor {
         return this.current;
     }
 
-    /** Result of the last completed AUSWAHL, for later commands ("Vorherige"). */
+    /** Selection the last SCHIEBEN worked on, for later commands ("Vorherige"). */
     get previous(): ReadonlySet<Id> {
         return this.previousSelection;
     }
@@ -135,21 +177,47 @@ export class SelectionEditor {
         return () => this.listeners.delete(listener);
     }
 
-    /** Starts AUSWAHL with the pickfirst selection; does nothing while it already runs. */
-    startSelectCommand(): void {
-        if (this.state.kind === 'select') {
+    /**
+     * Starts SCHIEBEN: with a pickfirst selection straight at the base point, otherwise by
+     * selecting objects. Does nothing while a command runs.
+     */
+    startMoveCommand(): void {
+        if (this.state.kind !== 'idle') {
             return;
         }
         const selection = this.state.pickfirst;
-        this.state = { kind: 'select', selection };
-        this.message = selection.size > 0 ? `${selection.size} gefunden` : null;
+        this.area = null;
+        this.press = null;
+        if (selection.size > 0) {
+            this.askBasePoint(selection);
+            this.message = `${selection.size} gefunden`;
+        } else {
+            this.state = { kind: 'select', selection };
+            this.message = null;
+        }
         this.changed();
     }
 
+    /** Switches the running object snaps; takes effect at the cursor right away. */
+    setSnapSettings(settings: SnapSettings): void {
+        this.snapSettings = settings;
+        if (this.lastPointer !== null && (this.state.kind === 'basePoint' || this.state.kind === 'secondPoint')) {
+            this.snap = this.snapAt(this.lastPointer);
+            this.changed();
+        }
+    }
+
     pointerDown(event: EditorPointerEvent): void {
+        const state = this.state;
+        if (state.kind === 'basePoint' || state.kind === 'secondPoint') {
+            if (event.button === 0) {
+                this.pointGiven(this.snapAt(event)?.point ?? event.modelPoint);
+            }
+            return;
+        }
         if (event.button === 2) {
-            if (this.area === null && this.state.kind === 'select') {
-                this.finishSelectCommand();
+            if (this.area === null && state.kind === 'select') {
+                this.finishSelection();
             }
             return;
         }
@@ -174,6 +242,12 @@ export class SelectionEditor {
     }
 
     pointerMove(event: EditorPointerEvent): void {
+        this.lastPointer = event;
+        if (this.state.kind === 'basePoint' || this.state.kind === 'secondPoint') {
+            this.snap = this.snapAt(event);
+            this.changed();
+            return;
+        }
         this.underCursor = this.pick(event);
         const press = this.press;
         const area = this.area;
@@ -235,6 +309,8 @@ export class SelectionEditor {
 
     pointerLeave(): void {
         this.underCursor = null;
+        this.lastPointer = null;
+        this.snap = null;
         this.changed();
     }
 
@@ -258,15 +334,14 @@ export class SelectionEditor {
             return true;
         }
         const state = this.state;
-        if (state.kind === 'select') {
-            if (event.key === 'Enter') {
-                this.finishSelectCommand();
+        if (state.kind !== 'idle') {
+            if (event.key === 'Escape') {
+                this.endCommand('*Abbruch*');
                 return true;
             }
-            if (event.key === 'Escape') {
-                this.state = { kind: 'idle', pickfirst: new Set() };
-                this.message = '*Abbruch*';
-                this.changed();
+            // At the point prompts Enter will take the displacement option, not built yet
+            if (event.key === 'Enter' && state.kind === 'select') {
+                this.finishSelection();
                 return true;
             }
             return false;
@@ -279,14 +354,70 @@ export class SelectionEditor {
         return false;
     }
 
-    private finishSelectCommand(): void {
+    /** Ends the object selection of SCHIEBEN: on to the base point, or out if nothing is selected. */
+    private finishSelection(): void {
         if (this.state.kind !== 'select') {
             return;
         }
-        this.previousSelection = this.state.selection;
-        this.state = { kind: 'idle', pickfirst: new Set() };
+        if (this.state.selection.size === 0) {
+            this.endCommand(null);
+            return;
+        }
+        this.askBasePoint(this.state.selection);
         this.message = null;
         this.changed();
+    }
+
+    private askBasePoint(selection: ReadonlySet<Id>): void {
+        this.previousSelection = selection;
+        this.state = { kind: 'basePoint', selection };
+        this.underCursor = null;
+        this.startPointPrompt();
+    }
+
+    /** A click at a point prompt, at the snap point or the cursor. */
+    private pointGiven(point: Point): void {
+        const state = this.state;
+        if (state.kind === 'basePoint') {
+            this.state = { kind: 'secondPoint', selection: state.selection, basePoint: point };
+            this.startPointPrompt();
+            this.message = null;
+            this.changed();
+        } else if (state.kind === 'secondPoint') {
+            const dx = point.x - state.basePoint.x;
+            const dy = point.y - state.basePoint.y;
+            this.endCommand(`Verschiebung X ${formatLength(dx)}, Y ${formatLength(dy)} – noch nicht umgesetzt`);
+        }
+    }
+
+    /** Each point prompt starts with a fresh snap memory; the cursor snaps again on its next move. */
+    private startPointPrompt(): void {
+        this.snapMemory = new SnapMemory();
+        if (this.lastPointer !== null) {
+            this.snap = this.snapAt(this.lastPointer);
+        }
+    }
+
+    private endCommand(message: string | null): void {
+        this.state = { kind: 'idle', pickfirst: new Set() };
+        this.message = message;
+        this.snap = null;
+        this.changed();
+    }
+
+    private snapAt(event: EditorPointerEvent): SnapResult | null {
+        if (!this.snapSettings.enabled) {
+            return null;
+        }
+        return this.snapEngine.find(
+            {
+                cursor: event.modelPoint,
+                pixelSize: event.pixelSize,
+                aperture: this.apertureSize,
+                modes: this.snapSettings.modes,
+            },
+            this.snapMemory,
+        );
     }
 
     /** Elements the area would pick in its current state, before group expansion. */
@@ -307,12 +438,15 @@ export class SelectionEditor {
 
     /**
      * Adds the picked elements and their group members to the current selection, or removes
-     * them with `remove`. While AUSWAHL runs, reports the counts (of elements, members
+     * them with `remove`. While SCHIEBEN selects, reports the counts (of elements, members
      * included) on the command line like AutoCAD.
      */
     private applyPicked(hits: readonly Id[], remove: boolean): void {
         const picked = expandToUnits(hits, this.units);
         const state = this.state;
+        if (state.kind !== 'idle' && state.kind !== 'select') {
+            return;
+        }
         const before = state.kind === 'idle' ? state.pickfirst : state.selection;
         const after = new Set(before);
         for (const id of picked) {
@@ -350,8 +484,11 @@ export class SelectionEditor {
     /** New snapshot, or `previous` itself when nothing changed; reuses its grips if possible. */
     private buildSnapshot(previous: SelectionSnapshot | null): SelectionSnapshot {
         const state = this.state;
-        const command = state.kind === 'select' ? 'AUSWAHL' : null;
+        const command = state.kind === 'idle' ? null : 'SCHIEBEN';
         const highlighted = state.kind === 'idle' ? state.pickfirst : state.selection;
+        const pointPrompt = state.kind === 'basePoint' || state.kind === 'secondPoint';
+        const basePoint = state.kind === 'secondPoint' ? state.basePoint : null;
+        const snap = pointPrompt ? this.snap : null;
         const area = this.area;
         let previewed: Id[] = [];
         if (area !== null) {
@@ -362,7 +499,8 @@ export class SelectionEditor {
             previewed = this.areaPreview.ids;
         } else {
             this.areaPreview = null;
-            if (this.underCursor !== null) {
+            // No rollover at point prompts, like AutoCAD
+            if (this.underCursor !== null && !pointPrompt) {
                 previewed = expandToUnits([this.underCursor], this.units);
             }
         }
@@ -372,7 +510,9 @@ export class SelectionEditor {
             sameSelection &&
             this.message === previous.message &&
             area === previous.area &&
-            sameIds(hovered, previous.hovered)
+            sameIds(hovered, previous.hovered) &&
+            sameSnap(snap, previous.snap) &&
+            basePoint === previous.basePoint
         ) {
             return previous;
         }
@@ -388,13 +528,16 @@ export class SelectionEditor {
         }
         return {
             command,
-            prompt: area !== null ? PROMPTS[area.shape === 'rect' ? 'corner' : 'lasso'] : command === null ? PROMPTS.idle : PROMPTS[command],
+            prompt: area !== null ? PROMPTS[area.shape === 'rect' ? 'corner' : 'lasso'] : PROMPTS[state.kind],
             message: this.message,
             hovered,
             highlighted,
             grips,
             controlFrames,
             area,
+            cursor: pointPrompt ? 'point' : state.kind === 'select' ? 'select' : 'command',
+            snap,
+            basePoint,
         };
     }
 }
@@ -406,4 +549,22 @@ function areaMode(first: Point, second: Point): SelectionMode {
 
 function sameIds(a: ReadonlySet<Id>, b: ReadonlySet<Id>): boolean {
     return a.size === b.size && [...a].every((id) => b.has(id));
+}
+
+/** Same mode at the same point, equally remote; a new search returns new objects for an unchanged snap. */
+function sameSnap(a: SnapResult | null, b: SnapResult | null): boolean {
+    return (
+        a === b ||
+        (a !== null &&
+            b !== null &&
+            a.mode === b.mode &&
+            a.remote === b.remote &&
+            a.point.x === b.point.x &&
+            a.point.y === b.point.y)
+    );
+}
+
+/** One decimal, without a negative zero. */
+function formatLength(value: number): string {
+    return (Math.round(value * 10) / 10 + 0).toFixed(1);
 }

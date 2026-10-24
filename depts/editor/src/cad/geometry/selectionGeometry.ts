@@ -16,6 +16,15 @@ export function rectFromCorners(a: Point, b: Point): Rect {
     };
 }
 
+/** Bounding box of a non-empty point list. */
+export function boundsOf(points: readonly Point[]): Rect {
+    const xs = points.map((p) => p.x);
+    const ys = points.map((p) => p.y);
+    const x = Math.min(...xs);
+    const y = Math.min(...ys);
+    return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
+}
+
 /** Shortest distance from `p` to the polyline; Infinity for an empty one. */
 export function distanceToPolyline(p: Point, points: readonly Point[]): number {
     if (points.length === 1) {

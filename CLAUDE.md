@@ -19,9 +19,10 @@ apps in one repo:
   Paper.js for rendering and Redux Toolkit installed (unused). **The editor is being
   rebuilt from scratch, closer to AutoCAD behaviour.** Everything is rebuilt in small
   steps. So far it loads a plan through the API and displays it (wheel zoom,
-  middle/Space+drag pan, status line, light/dark mode) and has AutoCAD-like object
-  selection (see "Editor: current state" below). There is no snapping, moving or editing
-  yet; grips are drawn but have no function.
+  middle/Space+drag pan, status line, light/dark mode), has AutoCAD-like object
+  selection and the start of the MOVE command (`SCHIEBEN`) with object snap for its base
+  and second point (see "Editor: current state" below). Nothing is moved or edited yet;
+  grips are drawn but have no function.
 
 ### Reference material (read, don't copy)
 
@@ -166,10 +167,30 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
 - No command active (noun-verb): click adds to the pickfirst selection (highlight +
   grips), Shift removes, Esc clears. Rectangle to the right = window (completely inside),
   to the left = crossing (touches); lasso direction picks the mode, Space toggles.
-- Toolbar tool "Auswahl" starts the `AUSWAHL` command (verb-noun): takes over the
-  pickfirst selection, grips disappear, the command line shows AutoCAD-style prompts and
-  counts ("1 gefunden, 2 gesamt"). Enter or right click ends it (result kept as
-  `previous`, nothing stays highlighted), Esc cancels.
+- Toolbar tool "Verschieben" starts `SCHIEBEN` (AutoCAD MOVE). With a pickfirst selection
+  it goes straight to "Basispunkt angeben:" ("N gefunden"); otherwise it first asks
+  "Objekte wählen:" (verb-noun: grips disappear, AutoCAD-style counts such as "1 gefunden,
+  2 gesamt"), and Enter or right click ends the selection (kept as `previous`; empty ends
+  the command). The base point and then the second point are clicked with object snap; the
+  second click only reports "Verschiebung X …, Y … – noch nicht umgesetzt" and ends
+  without changing anything (moving with preview, command and undo come next). Enter and
+  right click do nothing at the point prompts yet (AutoCAD's displacement option). Esc
+  cancels at every prompt. The selection stays highlighted at the point prompts, without
+  rollover; the base point shows as a small cross.
+- Cursor per prompt like AutoCAD: crosshair + pick box with no command, only the pick box
+  at "Objekte wählen:", only the crosshair at point prompts (the aperture box only with
+  `showApertureBox`).
+- Object snap (AutoSnap): endpoint, midpoint, centre, quadrant, intersection, on the exact
+  geometry (bezier midpoint by arc length; intersections exact for segments/circles/arcs,
+  numeric with Newton refinement for beziers and ellipses). Points must lie in the
+  aperture box (`apertureSize` px, square); a centre also shows while the cursor passes
+  over its curve, and right on the centre only after that (per point prompt). Points in
+  the box beat remote centres; then nearest, with a 2 px tie going END > INT > CEN > MID >
+  QUA; coinciding points merge. Hidden layers do not snap, locked ones do. Marker (green,
+  shape per mode), tooltip and magnet (the crosshair and the status bar coordinates jump to
+  the snap point, but not to a remote centre: there the cursor stays on the curve and only
+  the click takes the centre). Status bar "OFANG" switch (also F3) with a menu of the modes. No Tab
+  cycling, hysteresis or further modes yet.
 - Only outlines are hit, never fills: an element is hit when its outline passes through
   the square pick box around the cursor. Elements on hidden or locked layers are not
   selectable. Picking a grouped element picks its whole group. While a rectangle or lasso
@@ -177,9 +198,17 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
 
 Structure (all pure TS and unit-tested unless noted):
 
-- `cad/editor/SelectionEditor.ts`: the selection state machine, independent of Paper.js
-  and React. It gets `EditorPointerEvent`s and key events and publishes an immutable
-  `SelectionSnapshot` (prompt, message, hovered, highlighted, grips, area) via `subscribe()`.
+- `cad/editor/SelectionEditor.ts`: the selection and `SCHIEBEN` state machine, independent
+  of Paper.js and React. It gets `EditorPointerEvent`s and key events and publishes an
+  immutable `SelectionSnapshot` (prompt, message, hovered, highlighted, grips, area,
+  cursor mode, snap, base point) via `subscribe()`. Once moving is built, splitting it into
+  an editor core with commands is due.
+- `cad/editor/snapping/`: `SnapMode` (modes, German labels, precedence), `SnapGeometry`
+  (exact snap primitives per element with sampled polylines and fixed snap points),
+  `intersections`, `SnapEngine` (`find(query, SnapMemory)`). Uses the generic `ShapeIndex`.
+  Built on load like the selection structures. Geometry helpers in `cad/geometry/`
+  (`bezier`, `intersect`, `arc.angleOnArc`); `cad/model/drawOrder.ts` gives the renderer's
+  element order for selection and snapping.
 - `cad/editor/selection/`: `ElementShapes` (flattened outlines), `ShapeIndex` (`rbush`
   R-tree over their bounds), `picking` (point/window/crossing/lasso), `grips`, `grouping`.
   All derived from the document and **only built on load**; once commands change the
@@ -191,6 +220,9 @@ Structure (all pure TS and unit-tested unless noted):
 - `ui/canvasInput.ts`: the single owner of canvas input (zoom, pan, forwarding to the
   editor, pointer capture, lost-release and `pointercancel` handling) and of the cursor.
   `ui/CommandLine.tsx` is display only.
+- `ui/SnapMarker.ts`: snap marker, tooltip (flips at the canvas edge) and base point cross
+  as an SVG/DOM layer over the canvas, positioned by `CadCanvas` in view px. Tokens
+  `--snap-marker`, `--snap-tooltip-bg|fg|border`. `ui/StatusBar.tsx` holds the OFANG switch.
 - Cursor: over the canvas the system pointer is hidden and `ui/CrosshairCursor.ts` draws an
   AutoCAD-like crosshair as a DOM layer (moved by CSS transform, so the drawing is never
   redrawn for it), with the pick box as a square in its centre and a minus sign off its
@@ -199,9 +231,13 @@ Structure (all pure TS and unit-tested unless noted):
 - Central settings: `src/settings/editorSettings.ts` (`EditorSettings`,
   `DEFAULT_EDITOR_SETTINGS`): `crosshairSize` (% of the drawing area's larger side, like
   AutoCAD CURSORSIZE; 100 = across the whole area), `pickboxSize` (half side in px, like
-  PICKBOX; also the hover/click tolerance) and `showPickbox`. Code receives the object
+  PICKBOX; also the hover/click tolerance), `showPickbox`, `apertureSize` (half side in
+  px, like APERTURE), `showApertureBox` (APBOX), `snapMarkerSize` (AUTOSNAPSIZE) and
+  `snapMarker`/`snapTooltip`/`snapMagnet` (AUTOSNAP). Code receives the object
   (App → `CadCanvas` → editor and crosshair) rather than importing the defaults, so the
-  user can change them later; for now they are read when a document is loaded.
+  user can change them later; for now they are read when a document is loaded. The running
+  snaps (`SnapSettings`: `enabled` like F3, `modes` like OSMODE) live in App state and may
+  change at any time.
 - Light/dark mode: `ui/theme.ts` (`system` / `light` / `dark`, remembered in
   `localStorage`, sets `data-theme` on `<html>` for the CSS tokens in `index.css`).
   Drawing colours are adapted for display only in `cad/renderer/displayColor.ts`

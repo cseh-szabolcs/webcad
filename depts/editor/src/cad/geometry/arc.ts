@@ -27,6 +27,17 @@ export function arcSweep(center: Point, start: Point, end: Point, clockwise: boo
     return { radius, startAngle, sweep: clockwise ? -sweep : sweep };
 }
 
+/** Whether `angle` lies on the arc from `startAngle` over the signed `sweep` (ends included). */
+export function angleOnArc(angle: number, startAngle: number, sweep: number): boolean {
+    if (Math.abs(sweep) >= TAU - 1e-9) {
+        return true;
+    }
+    const offset = sweep >= 0 ? angle - startAngle : startAngle - angle;
+    const normalized = ((offset % TAU) + TAU) % TAU;
+    // Just below a full turn is just before the start
+    return normalized <= Math.abs(sweep) + 1e-9 || normalized >= TAU - 1e-9;
+}
+
 /** Cubic Bézier segments of a circular arc (see `arcSweep`), at most 90° each. */
 export function arcSegments(center: Point, start: Point, end: Point, clockwise: boolean): SegmentSpec[] {
     const { radius, startAngle, sweep } = arcSweep(center, start, end, clockwise);
