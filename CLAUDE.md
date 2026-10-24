@@ -263,3 +263,8 @@ Structure (all pure TS and unit-tested unless noted):
 
 ## git
 For now, we can just work in the main-branch directly and commits to git will happen manually.
+
+## Workflow
+One developer works on this project alone, one chat at a time: no parallel chats or
+sessions, no worktrees. Work sequentially in this folder on main; there is no need to
+guard against concurrent edits or to split work across parallel sessions.
