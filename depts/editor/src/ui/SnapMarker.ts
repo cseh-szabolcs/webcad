@@ -32,6 +32,12 @@ export function markerPath(mode: SnapMode, s: number): string {
     }
 }
 
+/** Tooltip text: the mode name, with the Tab position while Tab chose the point ("Schnittpunkt (Tab 2/3)"). */
+export function snapTooltipText(mode: SnapMode, cycle: { index: number; count: number } | null = null): string {
+    const label = SNAP_MODE_LABELS[mode];
+    return cycle ? `${label} (Tab ${cycle.index + 1}/${cycle.count})` : label;
+}
+
 /**
  * AutoSnap display as a DOM layer over the canvas, like the crosshair, so a changing snap
  * point never redraws the drawing: the marker at the snap point, the tooltip with the mode
@@ -68,8 +74,11 @@ export class SnapMarker {
         this.settings = settings;
     }
 
-    /** Shows the snap point at `viewPoint`, or hides marker and tooltip with null. */
-    show(snap: { viewPoint: Point; mode: SnapMode } | null): void {
+    /**
+     * Shows the snap point at `viewPoint`, or hides marker and tooltip with null; `cycle` is
+     * the Tab position while Tab chose the point.
+     */
+    show(snap: { viewPoint: Point; mode: SnapMode; cycle?: { index: number; count: number } | null } | null): void {
         const markerShown = snap !== null && this.settings.snapMarker;
         this.marker.style.display = markerShown ? '' : 'none';
         this.tooltip.hidden = snap === null || !this.settings.snapTooltip;
@@ -83,7 +92,7 @@ export class SnapMarker {
             this.marker.setAttribute('transform', `translate(${x} ${y})`);
         }
         if (!this.tooltip.hidden) {
-            this.tooltip.textContent = SNAP_MODE_LABELS[snap.mode];
+            this.tooltip.textContent = snapTooltipText(snap.mode, snap.cycle);
             const offset = s + TOOLTIP_GAP_PX;
             const { offsetWidth: width, offsetHeight: height } = this.tooltip;
             // Below right of the marker; flipped to the other side where it would leave the canvas

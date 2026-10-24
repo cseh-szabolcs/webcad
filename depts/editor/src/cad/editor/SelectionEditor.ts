@@ -16,7 +16,7 @@ import { selectionControlFrames, selectionGrips } from './selection/grips';
 import { buildSelectionUnits, expandToUnits } from './selection/grouping';
 import { pickAt, pickCrossing, pickLasso, pickWindow } from './selection/picking';
 import { ShapeIndex } from './selection/ShapeIndex';
-import { SnapEngine, SnapMemory, type SnapResult } from './snapping/SnapEngine';
+import { SnapEngine, SnapMemory, sameSnapPoint, type SnapResult } from './snapping/SnapEngine';
 
 /** How far a press must travel (screen px) before it counts as a drag. */
 const DRAG_THRESHOLD_PX = 3;
@@ -76,6 +76,11 @@ export interface SelectionSnapshot {
     cursor: CursorMode;
     /** Snap point under the cursor during a point prompt, or null. */
     snap: SnapResult | null;
+    /**
+     * While Tab chose the snap point: its position (from 0) among the `count` snap points in
+     * the aperture, for the tooltip; null while the best point snaps.
+     */
+    snapCycle: { index: number; count: number } | null;
     /** Base point of SCHIEBEN once given, or null. */
     basePoint: Point | null;
     /**
@@ -110,8 +115,10 @@ type State =
  * The base point and the second point snap to the drawing (see SnapEngine); a click takes
  * the snap point, or the cursor position if there is none. At the second point the snapshot
  * carries the point for the move preview; the click moves the selection as one undo step
- * (see MoveCommand) and ends the command. Esc cancels the command at any prompt. With no
- * command, undo() and redo() step through the document history.
+ * (see MoveCommand) and ends the command. While several points lie in the aperture, Tab
+ * switches to the next one (Shift+Tab back), until the cursor moves more than the aperture
+ * size (half the box side) from where Tab was pressed. Esc cancels the command at any prompt. With
+ * no command, undo() and redo() step through the document history.
  *
  * The derived structures (outlines, R-tree, groups, snap geometry) follow every document
  * change of the history; they are rebuilt as a whole for now.
@@ -140,6 +147,10 @@ export class SelectionEditor {
     /** Curves touched during the current point prompt (see SnapMemory). */
     private snapMemory = new SnapMemory();
     private snap: SnapResult | null = null;
+    /** Snap points in the aperture at the last cursor position, best first (see SnapEngine.candidates). */
+    private snapCandidates: SnapResult[] = [];
+    /** Tab cycle: index of the chosen snap point and the view point where Tab was pressed last. */
+    private snapCycle: { index: number; anchor: Point } | null = null;
     /** Last cursor position over the canvas, to snap at once when a point prompt starts. */
     private lastPointer: EditorPointerEvent | null = null;
     private state: State = { kind: 'idle', pickfirst: new Set() };
@@ -252,7 +263,8 @@ export class SelectionEditor {
     setSnapSettings(settings: SnapSettings): void {
         this.snapSettings = settings;
         if (this.lastPointer !== null && (this.state.kind === 'basePoint' || this.state.kind === 'secondPoint')) {
-            this.snap = this.snapAt(this.lastPointer);
+            this.snapCycle = null;
+            this.updateSnap(this.lastPointer);
             this.changed();
         }
     }
@@ -261,7 +273,8 @@ export class SelectionEditor {
         const state = this.state;
         if (state.kind === 'basePoint' || state.kind === 'secondPoint') {
             if (event.button === 0) {
-                this.pointGiven(this.snapAt(event)?.point ?? event.modelPoint);
+                this.updateSnap(event);
+                this.pointGiven(this.snap?.point ?? event.modelPoint);
             }
             return;
         }
@@ -294,7 +307,7 @@ export class SelectionEditor {
     pointerMove(event: EditorPointerEvent): void {
         this.lastPointer = event;
         if (this.state.kind === 'basePoint' || this.state.kind === 'secondPoint') {
-            this.snap = this.snapAt(event);
+            this.updateSnap(event);
             this.changed();
             return;
         }
@@ -360,7 +373,7 @@ export class SelectionEditor {
     pointerLeave(): void {
         this.underCursor = null;
         this.lastPointer = null;
-        this.snap = null;
+        this.updateSnap(null);
         this.changed();
     }
 
@@ -384,6 +397,14 @@ export class SelectionEditor {
             return true;
         }
         const state = this.state;
+        if (event.key === 'Tab') {
+            // Handled at every point prompt, so the browser focus never moves away
+            if (state.kind !== 'basePoint' && state.kind !== 'secondPoint') {
+                return false;
+            }
+            this.cycleSnap(event.shiftKey ? -1 : 1);
+            return true;
+        }
         if (state.kind !== 'idle') {
             if (event.key === 'Escape') {
                 this.endCommand('*Abbruch*');
@@ -443,18 +464,30 @@ export class SelectionEditor {
         }
     }
 
-    /** Each point prompt starts with a fresh snap memory; the cursor snaps again on its next move. */
+    /** Each point prompt starts with a fresh snap memory and snaps at the cursor anew. */
     private startPointPrompt(): void {
         this.snapMemory = new SnapMemory();
-        if (this.lastPointer !== null) {
-            this.snap = this.snapAt(this.lastPointer);
+        this.snap = null;
+        this.snapCycle = null;
+        this.updateSnap(this.lastPointer);
+    }
+
+    /** Tab: the next (or with -1 the previous) snap point in the aperture, wrapping around. */
+    private cycleSnap(step: 1 | -1): void {
+        const count = this.snapCandidates.length;
+        if (count < 2 || this.lastPointer === null) {
+            return;
         }
+        const index = ((this.snapCycle?.index ?? 0) + step + count) % count;
+        this.snapCycle = { index, anchor: this.lastPointer.viewPoint };
+        this.snap = this.snapCandidates[index];
+        this.changed();
     }
 
     private endCommand(message: string | null): void {
         this.state = { kind: 'idle', pickfirst: new Set() };
         this.message = message;
-        this.snap = null;
+        this.updateSnap(null);
         this.changed();
     }
 
@@ -476,19 +509,36 @@ export class SelectionEditor {
         this.previousSelection = exists(this.previousSelection);
     }
 
-    private snapAt(event: EditorPointerEvent): SnapResult | null {
-        if (!this.snapSettings.enabled) {
-            return null;
-        }
-        return this.snapEngine.find(
-            {
-                cursor: event.modelPoint,
-                pixelSize: event.pixelSize,
-                aperture: this.apertureSize,
-                modes: this.snapSettings.modes,
-            },
-            this.snapMemory,
-        );
+    /**
+     * Snaps at the cursor (or nowhere with null). A point chosen by Tab stays chosen while it is
+     * in the aperture and the cursor stays within the aperture size of where Tab was pressed;
+     * otherwise the best point snaps, with the previous snap point kept by hysteresis.
+     */
+    private updateSnap(event: EditorPointerEvent | null): void {
+        const cycle = this.snapCycle;
+        const candidates =
+            event === null || !this.snapSettings.enabled
+                ? []
+                : this.snapEngine.candidates(
+                      {
+                          cursor: event.modelPoint,
+                          pixelSize: event.pixelSize,
+                          aperture: this.apertureSize,
+                          modes: this.snapSettings.modes,
+                      },
+                      this.snapMemory,
+                      cycle === null ? this.snap : null,
+                  );
+        const chosen = this.snap;
+        const cycling =
+            cycle !== null &&
+            event !== null &&
+            chosen !== null &&
+            Math.hypot(event.viewPoint.x - cycle.anchor.x, event.viewPoint.y - cycle.anchor.y) <= this.apertureSize;
+        const index = cycling ? candidates.findIndex((candidate) => sameSnapPoint(candidate, chosen)) : -1;
+        this.snapCandidates = candidates;
+        this.snapCycle = index >= 0 ? { ...cycle!, index } : null;
+        this.snap = candidates[Math.max(index, 0)] ?? null;
     }
 
     /** Elements the area would pick in its current state, before group expansion. */
@@ -560,6 +610,8 @@ export class SelectionEditor {
         const pointPrompt = state.kind === 'basePoint' || state.kind === 'secondPoint';
         const basePoint = state.kind === 'secondPoint' ? state.basePoint : null;
         const snap = pointPrompt ? this.snap : null;
+        const snapCycle =
+            pointPrompt && this.snapCycle !== null ? { index: this.snapCycle.index, count: this.snapCandidates.length } : null;
         const previewPoint =
             state.kind === 'secondPoint' && this.lastPointer !== null ? (snap?.point ?? this.lastPointer.modelPoint) : null;
         const idle = state.kind === 'idle' && this.area === null;
@@ -592,6 +644,7 @@ export class SelectionEditor {
             area === previous.area &&
             sameIds(hovered, previous.hovered) &&
             sameSnap(snap, previous.snap) &&
+            sameCycle(snapCycle, previous.snapCycle) &&
             basePoint === previous.basePoint &&
             samePoint(previewPoint, previous.previewPoint) &&
             canUndo === previous.canUndo &&
@@ -620,6 +673,7 @@ export class SelectionEditor {
             area,
             cursor: pointPrompt ? 'point' : state.kind === 'select' ? 'select' : 'command',
             snap,
+            snapCycle,
             basePoint,
             previewPoint,
             canUndo,
@@ -644,4 +698,8 @@ function samePoint(a: Point | null, b: Point | null): boolean {
 /** Same mode at the same point; a new search returns new objects for an unchanged snap. */
 function sameSnap(a: SnapResult | null, b: SnapResult | null): boolean {
     return a === b || (a !== null && b !== null && a.mode === b.mode && samePoint(a.point, b.point));
+}
+
+function sameCycle(a: SelectionSnapshot['snapCycle'], b: SelectionSnapshot['snapCycle']): boolean {
+    return a === b || (a !== null && b !== null && a.index === b.index && a.count === b.count);
 }

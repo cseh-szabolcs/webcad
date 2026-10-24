@@ -38,9 +38,10 @@ export interface CanvasInputOptions {
 
 /**
  * Single owner of canvas input. Wheel zooms around the cursor; middle drag or Space + left
- * drag pans; other pointer input goes to the target. Keys go to the target first; Space
- * only pans if the target does not use it (e.g. to toggle a lasso). Returns a function
- * that removes all listeners.
+ * drag pans; other pointer input goes to the target. Keys go to the target first, and a key
+ * it handles does nothing else (Tab at a point prompt cycles the snap points instead of
+ * moving the browser focus); Space only pans if the target does not use it (e.g. to toggle
+ * a lasso). Returns a function that removes all listeners.
  */
 export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInputOptions): () => void {
     const { getViewport, onViewportChange, target, onPointerMove, onPointerLeave, crosshair } = options;

@@ -147,6 +147,7 @@ Bei den Punkt-Aufforderungen rastet der Cursor auf markante Punkte der Geometrie
 |-------------------------------|----------------------------------------------------------|
 | **F3** oder Button **OFANG**  | Schaltet den Objektfang ein oder aus (beim Start an)     |
 | Button **▾** neben OFANG      | Menü, in dem sich die einzelnen Fangmodi an- und abwählen lassen |
+| **Tab** / **Shift+Tab**       | Schaltet zum nächsten / vorherigen Fangpunkt im Fangbereich |
 
 Die gewählten Modi bleiben erhalten, wenn der Objektfang ausgeschaltet wird.
 
@@ -160,16 +161,21 @@ Die gewählten Modi bleiben erhalten, wenn der Objektfang ausgeschaltet wird.
 
 - Gefangen wird, was im **Fangbereich** liegt, einem Quadrat um den Cursor (Standard
   ±10 px, größer als die Pickbox).
-- Ein **Zentrum** wird auch angeboten, während der Cursor über den Kreis oder Bogen fährt.
-  Direkt auf dem Mittelpunkt rastet es erst ein, nachdem der Cursor in dieser
-  Aufforderung einmal über die Kurve gefahren ist, wie in AutoCAD.
+- Ein **Zentrum** rastet nur ein, wenn der Mittelpunkt selbst im Fangbereich liegt, und
+  erst nachdem der Cursor in dieser Aufforderung einmal über den Kreis, die Ellipse oder
+  den Bogen gefahren ist, wie in AutoCAD. Von der Kurve aus wird es nicht angeboten.
 - Liegen mehrere Fangpunkte im Bereich, gewinnt der nächste. Sind zwei etwa gleich weit
   entfernt, gilt die Reihenfolge Endpunkt, Schnittpunkt, Zentrum, Mittelpunkt, Quadrant.
-  Fallen Punkte zusammen, wird nur einer angezeigt.
+  Fallen Punkte zusammen, wird nur einer angezeigt. Der zuletzt gefangene Punkt bleibt
+  gefangen, bis ein anderer mehr als 2 px näher liegt, damit der Fang nicht zwischen fast
+  gleich nahen Punkten hin- und herspringt.
+- Mit **Tab** wird der Reihe nach zu den anderen Fangpunkten im Bereich geschaltet (nach
+  dem letzten wieder der erste), mit **Shift+Tab** zurück. Der Tooltip zeigt dann die
+  Position, z. B. „Schnittpunkt (Tab 2/3)“, und ein Klick nimmt diesen Punkt. Wird der
+  Cursor mehr als 10 px (halbe Breite des Fangbereichs) bewegt, gilt wieder der beste Punkt.
 - Angezeigt werden ein **grüner Marker** in der Form des Modus und ein **Tooltip** mit dem
   Namen. Das Fadenkreuz und die Koordinaten in der Statuszeile springen auf den Fangpunkt
-  (**Magnet**), außer bei einem entfernten Zentrum: Dort bleibt der Cursor auf der Kurve,
-  und erst der Klick nimmt das Zentrum.
+  (**Magnet**).
 - Elemente auf **ausgeblendeten** Layern werden nicht gefangen, auf **gesperrten** schon.
 - Der Fang setzt nur die Position. Elemente werden dadurch nicht miteinander verbunden.
 
@@ -215,5 +221,5 @@ noch nicht ändern; das kommt in einem späteren Schritt.
   wählen.
 - Zwischen überlappenden Objekten unter dem Cursor durchschalten.
 - Eingaben in der Kommandozeile (z. B. Koordinaten oder Optionen wie `V` für „Vorherige“).
-- Beim Objektfang: Durchschalten mit Tab, weitere Modi und Spurverfolgung.
+- Beim Objektfang: weitere Modi und Spurverfolgung.
 - Die Einstellungen im Editor ändern.

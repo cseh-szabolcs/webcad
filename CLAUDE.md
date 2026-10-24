@@ -199,8 +199,13 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   quadrants the user aimed at). Then nearest, with a 2 px tie going END > INT > CEN > MID >
   QUA; coinciding points merge. Hidden layers do not snap, locked ones do. Marker (green,
   shape per mode), tooltip and magnet (the crosshair and the status bar coordinates jump to
-  the snap point). Status bar "OFANG" switch (also F3) with a menu of the modes. No Tab
-  cycling, hysteresis or further modes yet.
+  the snap point). Status bar "OFANG" switch (also F3) with a menu of the modes.
+  Hysteresis: the last snap point stays while it is in the aperture and no other point is
+  more than 2 px nearer. Tab at a point prompt (Shift+Tab back) cycles through the points in
+  the aperture in priority order (bands of points within 2 px, by mode), wrapping around;
+  the tooltip then reads e.g. "Schnittpunkt (Tab 2/3)". A move of more than `apertureSize`
+  px (half the box side) from where Tab was pressed, or the chosen point leaving the
+  aperture, resets to the best point; a click takes the chosen point. No further modes yet.
 - Only outlines are hit, never fills: an element is hit when its outline passes through
   the square pick box around the cursor. Elements on hidden or locked layers are not
   selectable. Picking a grouped element picks its whole group. While a rectangle or lasso
@@ -211,7 +216,8 @@ Structure (all pure TS and unit-tested unless noted):
 - `cad/editor/SelectionEditor.ts`: the selection and `SCHIEBEN` state machine, independent
   of Paper.js and React. It gets `EditorPointerEvent`s and key events and publishes an
   immutable `SelectionSnapshot` (prompt, message, hovered, highlighted, grips, area,
-  cursor mode, snap, base point, preview point, can undo/redo) via `subscribe()`. It runs
+  cursor mode, snap, Tab cycle position, base point, preview point, can undo/redo) via
+  `subscribe()`. It holds the Tab cycle state; the engine stays stateless. It runs
   on a `DocumentHistory`. Before further commands (KOPIEREN, DREHEN …) it should be split
   into an editor core and per-command state machines.
 - `cad/editor/commands/`: `DocumentCommand` (`execute`/`undo` on immutable documents,
@@ -222,7 +228,9 @@ Structure (all pure TS and unit-tested unless noted):
   paths). The editor's derived structures are rebuilt as a whole on every change for now.
 - `cad/editor/snapping/`: `SnapMode` (modes, German labels, precedence), `SnapGeometry`
   (exact snap primitives per element with sampled polylines and fixed snap points),
-  `intersections`, `SnapEngine` (`find(query, SnapMemory)`). Uses the generic `ShapeIndex`.
+  `intersections`, `SnapEngine` (`candidates(query, SnapMemory, previous)`: all points in
+  the aperture best first, `previous` for the hysteresis; `find` takes the first). Uses the
+  generic `ShapeIndex`.
   Built on load like the selection structures. Geometry helpers in `cad/geometry/`
   (`bezier`, `intersect`, `arc.angleOnArc`); `cad/model/drawOrder.ts` gives the renderer's
   element order for selection and snapping.

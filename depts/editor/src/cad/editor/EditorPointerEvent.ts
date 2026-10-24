@@ -17,6 +17,9 @@ export interface EditorPointerEvent {
 
 export interface EditorKeyEvent {
     key: string;
-    /** Shift+Enter ends an open selection rectangle by removing what it finds. */
+    /**
+     * Shift+Enter ends an open selection rectangle by removing what it finds; Shift+Tab
+     * cycles the snap points backwards.
+     */
     shiftKey?: boolean;
 }

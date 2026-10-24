@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { CadDocument } from '../model/CadDocument';
 import type { Point } from '../model/Point';
 import { parseDocument } from '../persistence/CadSerializer';
 import samplePlan from '../__fixtures__/sample-plan.json';
@@ -452,6 +453,110 @@ describe('SelectionEditor SCHIEBEN: base point and second point', () => {
         editor.pointerMove(at(NEAR_CORNER));
         editor.keyDown({ key: 'Enter' });
         expect(editor.snapshot.snap).toMatchObject({ mode: 'END', point: CORNER });
+    });
+});
+
+describe('SelectionEditor SCHIEBEN: Tab cycling and hysteresis', () => {
+    /** A line 12 mm (6 px) long: endpoints at 0 and 12, midpoint at 6. */
+    const LINE: CadDocument = {
+        ...parseDocument(samplePlan),
+        vertices: [
+            { id: 'a', x: 0, y: 0 },
+            { id: 'b', x: 12, y: 0 },
+        ],
+        elements: [{ id: 'line', type: 'line', layerId: null, groupId: null, styleId: null, startVertexId: 'a', endVertexId: 'b' }],
+        layers: [],
+        groups: [],
+    };
+    const START = { x: 0, y: 0 };
+    const MIDDLE = { x: 6, y: 0 };
+    const END = { x: 12, y: 0 };
+    /** 2 px from the start point, 1 px from the midpoint, 4 px from the end point. */
+    const NEAR_START = { x: 4, y: 0 };
+
+    /** SCHIEBEN on the line, at the base point prompt. */
+    const atBasePoint = () => {
+        const editor = new SelectionEditor(LINE);
+        click(editor, MIDDLE);
+        editor.startMoveCommand();
+        return editor;
+    };
+    const tab = (editor: SelectionEditor, shiftKey = false) => editor.keyDown({ key: 'Tab', shiftKey });
+
+    it('switches to the next snap point in the aperture with Tab, wrapping around', () => {
+        const editor = atBasePoint();
+        editor.pointerMove(at(NEAR_START));
+        expect(editor.snapshot).toMatchObject({ snap: { mode: 'END', point: START }, snapCycle: null });
+        expect(tab(editor)).toBe(true);
+        expect(editor.snapshot).toMatchObject({ snap: { mode: 'MID', point: MIDDLE }, snapCycle: { index: 1, count: 3 } });
+        tab(editor);
+        expect(editor.snapshot).toMatchObject({ snap: { mode: 'END', point: END }, snapCycle: { index: 2, count: 3 } });
+        tab(editor);
+        expect(editor.snapshot).toMatchObject({ snap: { mode: 'END', point: START }, snapCycle: { index: 0, count: 3 } });
+        expect(tab(editor, true)).toBe(true);
+        expect(editor.snapshot).toMatchObject({ snap: { mode: 'END', point: END }, snapCycle: { index: 2, count: 3 } });
+    });
+
+    it('takes the point chosen by Tab on a click', () => {
+        const editor = atBasePoint();
+        editor.pointerMove(at(NEAR_START));
+        tab(editor);
+        click(editor, NEAR_START);
+        expect(editor.snapshot).toMatchObject({ basePoint: MIDDLE, snapCycle: null });
+    });
+
+    it('keeps the Tab choice for small moves and resets it beyond the aperture size', () => {
+        const editor = atBasePoint();
+        editor.pointerMove(at(NEAR_START));
+        tab(editor);
+        // 1 px away
+        editor.pointerMove(at({ x: 4, y: 2 }));
+        expect(editor.snapshot).toMatchObject({ snap: { mode: 'MID' }, snapCycle: { index: 1, count: 3 } });
+        // 10 px from where Tab was pressed: still within the 10 px aperture size
+        editor.pointerMove(at({ x: 4, y: 20 }));
+        expect(editor.snapshot.snap).toMatchObject({ mode: 'MID' });
+        // 15 px: back to the best point, although the midpoint is still in the aperture
+        editor.pointerMove(at({ x: 26, y: 20 }));
+        expect(editor.snapshot).toMatchObject({ snap: { mode: 'END', point: END }, snapCycle: null });
+    });
+
+    it('ends the cycle when the chosen point leaves the aperture', () => {
+        const editor = atBasePoint();
+        editor.pointerMove(at(NEAR_START));
+        tab(editor, true);
+        expect(editor.snapshot.snap).toMatchObject({ point: END });
+        // Zoomed in at the cursor: the aperture reaches 5 mm, the end point is 8 mm away
+        editor.pointerMove(at(NEAR_START, { pixelSize: 0.5 }));
+        expect(editor.snapshot).toMatchObject({ snap: { mode: 'MID' }, snapCycle: null });
+    });
+
+    it('handles Tab at every point prompt but nowhere else', () => {
+        const editor = new SelectionEditor(LINE);
+        editor.pointerMove(at(NEAR_START));
+        expect(tab(editor)).toBe(false);
+        click(editor, MIDDLE);
+        editor.startMoveCommand();
+        editor.pointerMove(at({ x: 100, y: 100 }));
+        expect(tab(editor)).toBe(true);
+        expect(editor.snapshot).toMatchObject({ snap: null, snapCycle: null });
+        click(editor, { x: 100, y: 100 });
+        editor.pointerMove(at(NEAR_START));
+        expect(tab(editor)).toBe(true);
+        expect(editor.snapshot.snapCycle).toEqual({ index: 1, count: 3 });
+    });
+
+    it('keeps the last snap point while no other is more than 2 px nearer', () => {
+        const editor = atBasePoint();
+        editor.pointerMove(at(MIDDLE));
+        expect(editor.snapshot.snap).toMatchObject({ mode: 'MID' });
+        // Without the midpoint before, the start point would win here (see the first test)
+        editor.pointerMove(at(NEAR_START));
+        expect(editor.snapshot.snap).toMatchObject({ mode: 'MID' });
+        // Start point 0.5 px, midpoint 2.5 px away: not more than 2 px nearer yet
+        editor.pointerMove(at({ x: 1, y: 0 }));
+        expect(editor.snapshot.snap).toMatchObject({ mode: 'MID' });
+        editor.pointerMove(at({ x: 0.8, y: 0 }));
+        expect(editor.snapshot.snap).toMatchObject({ mode: 'END', point: START });
     });
 });
 

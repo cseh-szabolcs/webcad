@@ -134,12 +134,12 @@ export function CadCanvas({
         /** Pointer position while the crosshair shows, so it can follow snap and zoom changes. */
         let crosshairAt: Point | null = null;
         const refreshOverlay = () => {
-            const { snap, basePoint, cursor } = editor.snapshot;
+            const { snap, snapCycle, basePoint, cursor } = editor.snapshot;
             const viewport = viewportRef.current;
             // While moving, the originals show dimmed under the preview, like AutoCAD
             renderer.setDimmed(basePoint ? editor.snapshot.highlighted : NOTHING);
             overlay.render(editor.snapshot);
-            snapMarker.show(snap && { viewPoint: viewport.modelToView(snap.point), mode: snap.mode });
+            snapMarker.show(snap && { viewPoint: viewport.modelToView(snap.point), mode: snap.mode, cycle: snapCycle });
             snapMarker.showBasePoint(basePoint && viewport.modelToView(basePoint));
             crosshair.setMode(cursor);
             if (crosshairAt) {

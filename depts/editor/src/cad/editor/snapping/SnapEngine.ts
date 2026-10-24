@@ -6,7 +6,10 @@ import { shapeIntersections } from './intersections';
 import { buildSnapShapes, type SnapShape } from './SnapGeometry';
 import { SNAP_MODE_RANK, type SnapMode } from './SnapMode';
 
-/** Distance difference (screen px) below which two snap points count as equally near. */
+/**
+ * Distance difference (screen px) below which two snap points count as equally near; also
+ * how much nearer another point must be to take over from the previous snap (hysteresis).
+ */
 const TIE_TOLERANCE_PX = 2;
 /** Snap points closer than this (mm) are one point. */
 const COINCIDENCE_MM = 1e-6;
@@ -63,7 +66,13 @@ interface Candidate extends SnapResult {
  * A centre also needs its curve to have been touched by the box during the prompt (see
  * SnapMemory). The nearest point wins; points within TIE_TOLERANCE_PX of it go by mode
  * (END, INT, CEN, MID, QUA), then by distance, then the element drawn on top. Coinciding
- * points merge into the higher mode.
+ * points merge into the higher mode. Beyond the best point, candidates() orders the others
+ * the same way for Tab cycling: the next band of points within TIE_TOLERANCE_PX of each
+ * other, by mode, and so on.
+ *
+ * Hysteresis: given the previous snap result, that point stays first while it is still in
+ * the aperture and no other point is more than TIE_TOLERANCE_PX nearer, so the snap does
+ * not flicker between almost equally near points.
  *
  * Elements on hidden layers do not snap, those on locked layers do. Built from the
  * document once; rebuild it when the document changes.
@@ -75,10 +84,20 @@ export class SnapEngine {
         this.index = new ShapeIndex(buildSnapShapes(doc));
     }
 
-    find(query: SnapQuery, memory: SnapMemory = new SnapMemory()): SnapResult | null {
+    /** The best snap point at the cursor, or null; see candidates(). */
+    find(query: SnapQuery, memory: SnapMemory = new SnapMemory(), previous: SnapResult | null = null): SnapResult | null {
+        return this.candidates(query, memory, previous)[0] ?? null;
+    }
+
+    /**
+     * All snap points in the aperture, best first: the order Tab cycles through. With
+     * `previous` (the snap result shown last), that point stays first as long as no other
+     * point is more than TIE_TOLERANCE_PX nearer.
+     */
+    candidates(query: SnapQuery, memory: SnapMemory = new SnapMemory(), previous: SnapResult | null = null): SnapResult[] {
         const { cursor, pixelSize, aperture, modes } = query;
         if (modes.size === 0) {
-            return null;
+            return [];
         }
         const half = aperture * pixelSize;
         const box = { x: cursor.x - half, y: cursor.y - half, width: 2 * half, height: 2 * half };
@@ -119,9 +138,17 @@ export class SnapEngine {
                 }
             }
         }
-        const best = pickBest(merge(candidates));
-        return best && { point: best.point, mode: best.mode, elementIds: best.elementIds };
+        return keepPrevious(rank(merge(candidates)), previous).map(({ point, mode, elementIds }) => ({
+            point,
+            mode,
+            elementIds,
+        }));
     }
+}
+
+/** Same mode at (almost) the same point: the same snap point, also in a new search. */
+export function sameSnapPoint(a: SnapResult, b: SnapResult): boolean {
+    return a.mode === b.mode && Math.hypot(a.point.x - b.point.x, a.point.y - b.point.y) <= COINCIDENCE_MM;
 }
 
 /** Merges coinciding candidates: the higher mode wins, the elements add up. */
@@ -145,15 +172,37 @@ function merge(candidates: Candidate[]): Candidate[] {
     return merged;
 }
 
-function pickBest(candidates: Candidate[]): Candidate | null {
-    if (candidates.length === 0) {
-        return null;
+/**
+ * Best first: the nearest point and all within TIE_TOLERANCE_PX of it form a band, ordered by
+ * mode, then distance, then the element drawn on top; the remaining points follow in bands
+ * the same way.
+ */
+function rank(candidates: Candidate[]): Candidate[] {
+    const rest = [...candidates].sort((a, b) => a.distance - b.distance);
+    const ranked: Candidate[] = [];
+    while (rest.length > 0) {
+        const limit = rest[0].distance + TIE_TOLERANCE_PX;
+        const end = rest.findIndex((candidate) => candidate.distance > limit);
+        const band = rest.splice(0, end === -1 ? rest.length : end);
+        ranked.push(
+            ...band.sort(
+                (a, b) =>
+                    SNAP_MODE_RANK[a.mode] - SNAP_MODE_RANK[b.mode] || a.distance - b.distance || b.order - a.order,
+            ),
+        );
     }
-    const nearest = Math.min(...candidates.map((candidate) => candidate.distance));
-    return candidates
-        .filter((candidate) => candidate.distance <= nearest + TIE_TOLERANCE_PX)
-        .sort(
-            (a, b) =>
-                SNAP_MODE_RANK[a.mode] - SNAP_MODE_RANK[b.mode] || a.distance - b.distance || b.order - a.order,
-        )[0];
+    return ranked;
+}
+
+/** Moves the previous snap point to the front unless another point is clearly nearer. */
+function keepPrevious(ranked: Candidate[], previous: SnapResult | null): Candidate[] {
+    const i = previous ? ranked.findIndex((candidate) => sameSnapPoint(candidate, previous)) : -1;
+    if (i <= 0) {
+        return ranked;
+    }
+    const nearest = Math.min(...ranked.map((candidate) => candidate.distance));
+    if (nearest < ranked[i].distance - TIE_TOLERANCE_PX) {
+        return ranked;
+    }
+    return [ranked[i], ...ranked.slice(0, i), ...ranked.slice(i + 1)];
 }

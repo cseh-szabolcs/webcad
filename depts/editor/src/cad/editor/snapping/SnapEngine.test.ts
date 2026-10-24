@@ -173,6 +173,55 @@ describe('SnapEngine: priority and settings', () => {
         expect(snapped(short.find(query({ x: 3, y: 0 })))).toEqual({ mode: 'MID', x: 3, y: 0 });
     });
 
+    it('lists all snap points in the aperture, best first, in bands of equally near points', () => {
+        // MID 1 px and the left END 2 px away form the first band, the right END 4 px follows
+        expect(short.candidates(query({ x: 2, y: 0 })).map(snapped)).toEqual([
+            { mode: 'END', x: 0, y: 0 },
+            { mode: 'MID', x: 3, y: 0 },
+            { mode: 'END', x: 6, y: 0 },
+        ]);
+        expect(short.candidates(query({ x: 20, y: 0 }))).toEqual([]);
+    });
+
+    it('keeps the previous snap point while no other is more than 2 px nearer', () => {
+        const mid: SnapResult = { mode: 'MID', point: { x: 3, y: 0 }, elementIds: ['e0'] };
+        expect(snapped(short.find(query({ x: 2, y: 0 }), new SnapMemory(), mid))).toEqual({ mode: 'MID', x: 3, y: 0 });
+        expect(short.candidates(query({ x: 2, y: 0 }), new SnapMemory(), mid).map(snapped)).toEqual([
+            { mode: 'MID', x: 3, y: 0 },
+            { mode: 'END', x: 0, y: 0 },
+            { mode: 'END', x: 6, y: 0 },
+        ]);
+        // The endpoint 0.5 px away is just 2 px nearer than the midpoint 2.5 px away, then more
+        expect(snapped(short.find(query({ x: 0.5, y: 0 }), new SnapMemory(), mid))).toEqual({ mode: 'MID', x: 3, y: 0 });
+        expect(snapped(short.find(query({ x: 0.4, y: 0 }), new SnapMemory(), mid))).toEqual({ mode: 'END', x: 0, y: 0 });
+    });
+
+    it('keeps the previous one of two endpoints that are about as near', () => {
+        const twoLines = new SnapEngine(
+            drawing({ a: { x: 0, y: 0 }, b: { x: 0, y: 50 }, c: { x: 4, y: 0 }, d: { x: 4, y: -50 } }, [
+                { type: 'line', startVertexId: 'a', endVertexId: 'b' },
+                { type: 'line', startVertexId: 'c', endVertexId: 'd' },
+            ]),
+        );
+        const left: SnapResult = { mode: 'END', point: { x: 0, y: 0 }, elementIds: ['e0'] };
+        expect(snapped(twoLines.find(query({ x: 2.5, y: 0 }, only('END'))))).toEqual({ mode: 'END', x: 4, y: 0 });
+        expect(snapped(twoLines.find(query({ x: 2.5, y: 0 }, only('END')), new SnapMemory(), left))).toEqual({
+            mode: 'END',
+            x: 0,
+            y: 0,
+        });
+        expect(snapped(twoLines.find(query({ x: 3.5, y: 0 }, only('END')), new SnapMemory(), left))).toEqual({
+            mode: 'END',
+            x: 4,
+            y: 0,
+        });
+    });
+
+    it('drops a previous snap point that left the aperture', () => {
+        const farEnd: SnapResult = { mode: 'END', point: { x: 6, y: 0 }, elementIds: ['e0'] };
+        expect(snapped(short.find(query({ x: -5, y: 0 }), new SnapMemory(), farEnd))).toEqual({ mode: 'END', x: 0, y: 0 });
+    });
+
     it('only uses the enabled modes', () => {
         expect(snapped(short.find(query({ x: 2, y: 0 }, only('MID'))))).toEqual({ mode: 'MID', x: 3, y: 0 });
         expect(short.find(query({ x: 2, y: 0 }, only()))).toBeNull();
