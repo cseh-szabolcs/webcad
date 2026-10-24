@@ -20,9 +20,9 @@ apps in one repo:
   rebuilt from scratch, closer to AutoCAD behaviour.** Everything is rebuilt in small
   steps. So far it loads a plan through the API and displays it (wheel zoom,
   middle/Space+drag pan, status line, light/dark mode), has AutoCAD-like object
-  selection and the start of the MOVE command (`SCHIEBEN`) with object snap for its base
-  and second point (see "Editor: current state" below). Nothing is moved or edited yet;
-  grips are drawn but have no function.
+  selection, object snap and the MOVE command (`SCHIEBEN`) with preview and undo/redo
+  (see "Editor: current state" below). Changes are not saved to the backend yet; grips
+  are drawn but have no function.
 
 ### Reference material (read, don't copy)
 
@@ -172,9 +172,18 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   it goes straight to "Basispunkt angeben:" ("N gefunden"); otherwise it first asks
   "Objekte wählen:" (verb-noun: grips disappear, AutoCAD-style counts such as "1 gefunden,
   2 gesamt"), and Enter or right click ends the selection (kept as `previous`; empty ends
-  the command). The base point and then the second point are clicked with object snap; the
-  second click only reports "Verschiebung X …, Y … – noch nicht umgesetzt" and ends
-  without changing anything (moving with preview, command and undo come next). Enter and
+  the command). The base point and then the second point are clicked with object snap. At the
+  second point a preview follows the cursor (or its snap point): copies of the
+  selected paths in their own style (opacity 0.7), offset by (point − base point), and a
+  dashed rubber band from the base point (orange on light, yellow on dark); the originals
+  stay in place dimmed to a neutral grey (`PaperRenderer.setDimmed`, display only) and
+  stay snappable, the document is unchanged.
+  The second click moves the selection by (point − base point) as one undo step
+  (`MoveCommand`; a zero displacement does nothing) and ends the command with nothing
+  selected. Vertices shared with elements that are not moved are detached: those
+  neighbours get one copy of the vertex at the old position and stay unchanged, like
+  AutoCAD MOVE. Undo/redo with no command running: toolbar "Rückgängig"/"Wiederherstellen",
+  Ctrl/⌘+Z, Ctrl+Y or ⌘+⇧+Z (command line "Rückgängig: SCHIEBEN"). Enter and
   right click do nothing at the point prompts yet (AutoCAD's displacement option). Esc
   cancels at every prompt. The selection stays highlighted at the point prompts, without
   rollover; the base point shows as a small cross.
@@ -184,13 +193,13 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
 - Object snap (AutoSnap): endpoint, midpoint, centre, quadrant, intersection, on the exact
   geometry (bezier midpoint by arc length; intersections exact for segments/circles/arcs,
   numeric with Newton refinement for beziers and ellipses). Points must lie in the
-  aperture box (`apertureSize` px, square); a centre also shows while the cursor passes
-  over its curve, and right on the centre only after that (per point prompt). Points in
-  the box beat remote centres; then nearest, with a 2 px tie going END > INT > CEN > MID >
+  aperture box (`apertureSize` px, square); a point outside never snaps. A centre snaps
+  only near the centre and only after its curve was passed over in this point prompt; it is
+  deliberately never offered from the curve (a remote centre pulled the snap away from the
+  quadrants the user aimed at). Then nearest, with a 2 px tie going END > INT > CEN > MID >
   QUA; coinciding points merge. Hidden layers do not snap, locked ones do. Marker (green,
   shape per mode), tooltip and magnet (the crosshair and the status bar coordinates jump to
-  the snap point, but not to a remote centre: there the cursor stays on the curve and only
-  the click takes the centre). Status bar "OFANG" switch (also F3) with a menu of the modes. No Tab
+  the snap point). Status bar "OFANG" switch (also F3) with a menu of the modes. No Tab
   cycling, hysteresis or further modes yet.
 - Only outlines are hit, never fills: an element is hit when its outline passes through
   the square pick box around the cursor. Elements on hidden or locked layers are not
@@ -202,8 +211,15 @@ Structure (all pure TS and unit-tested unless noted):
 - `cad/editor/SelectionEditor.ts`: the selection and `SCHIEBEN` state machine, independent
   of Paper.js and React. It gets `EditorPointerEvent`s and key events and publishes an
   immutable `SelectionSnapshot` (prompt, message, hovered, highlighted, grips, area,
-  cursor mode, snap, base point) via `subscribe()`. Once moving is built, splitting it into
-  an editor core with commands is due.
+  cursor mode, snap, base point, preview point, can undo/redo) via `subscribe()`. It runs
+  on a `DocumentHistory`. Before further commands (KOPIEREN, DREHEN …) it should be split
+  into an editor core and per-command state machines.
+- `cad/editor/commands/`: `DocumentCommand` (`execute`/`undo` on immutable documents,
+  returning the new document and the changed element ids), `DocumentHistory` (current
+  document, undo/redo stacks, listeners), `MoveCommand`. `CadCanvas` keeps the history of
+  the loaded document; the editor and the renderer follow it (`PaperRenderer.updateElements`
+  replaces only the changed items, subscribed before the editor so its overlay sees the new
+  paths). The editor's derived structures are rebuilt as a whole on every change for now.
 - `cad/editor/snapping/`: `SnapMode` (modes, German labels, precedence), `SnapGeometry`
   (exact snap primitives per element with sampled polylines and fixed snap points),
   `intersections`, `SnapEngine` (`find(query, SnapMemory)`). Uses the generic `ShapeIndex`.
@@ -212,12 +228,11 @@ Structure (all pure TS and unit-tested unless noted):
   element order for selection and snapping.
 - `cad/editor/selection/`: `ElementShapes` (flattened outlines), `ShapeIndex` (`rbush`
   R-tree over their bounds), `picking` (point/window/crossing/lasso), `grips`, `grouping`.
-  All derived from the document and **only built on load**; once commands change the
-  document, these must be updated too.
+  All derived from the document; rebuilt by the editor after every document change.
 - `cad/editor/overlays/SelectionOverlay.ts` (Paper.js): hover/selection highlights as
   restyled copies of the rendered paths, grips (beziers also get a dashed control frame
   from each end to its control point, as their control grips lie off the curve),
-  rectangle/lasso, one palette per theme.
+  rectangle/lasso, the move preview (offset copies, rubber band), one palette per theme.
 - `ui/canvasInput.ts`: the single owner of canvas input (zoom, pan, forwarding to the
   editor, pointer capture, lost-release and `pointercancel` handling) and of the cursor.
   `ui/CommandLine.tsx` is display only.

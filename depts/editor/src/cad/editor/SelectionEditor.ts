@@ -1,4 +1,6 @@
 import type { CadDocument } from '../model/CadDocument';
+import { DocumentHistory } from './commands/DocumentHistory';
+import { MoveCommand } from './commands/MoveCommand';
 import {
     DEFAULT_EDITOR_SETTINGS,
     DEFAULT_SNAP_SETTINGS,
@@ -21,7 +23,7 @@ const DRAG_THRESHOLD_PX = 3;
 /** Minimum distance (screen px) between recorded lasso points. */
 const LASSO_STEP_PX = 4;
 
-/** SCHIEBEN is AutoCAD's MOVE; for now it ends after the second point without moving. */
+/** SCHIEBEN is AutoCAD's MOVE. */
 export type EditorCommand = 'SCHIEBEN';
 
 const PROMPTS = {
@@ -76,6 +78,14 @@ export interface SelectionSnapshot {
     snap: SnapResult | null;
     /** Base point of SCHIEBEN once given, or null. */
     basePoint: Point | null;
+    /**
+     * At the second point prompt, the point a click would take now (the snap point, else the
+     * cursor), for the move preview; null at other prompts and while the pointer is outside.
+     */
+    previewPoint: Point | null;
+    /** Undo and redo are possible now (not while a command runs). */
+    canUndo: boolean;
+    canRedo: boolean;
 }
 
 type State =
@@ -98,8 +108,13 @@ type State =
  * to or remove from the command's selection, and Enter or a right click ends the selection
  * (the result becomes the "previous" selection; with nothing selected the command ends).
  * The base point and the second point snap to the drawing (see SnapEngine); a click takes
- * the snap point, or the cursor position if there is none. The second point only reports the
- * displacement for now. Esc cancels the command at any prompt.
+ * the snap point, or the cursor position if there is none. At the second point the snapshot
+ * carries the point for the move preview; the click moves the selection as one undo step
+ * (see MoveCommand) and ends the command. Esc cancels the command at any prompt. With no
+ * command, undo() and redo() step through the document history.
+ *
+ * The derived structures (outlines, R-tree, groups, snap geometry) follow every document
+ * change of the history; they are rebuilt as a whole for now.
  *
  * In both, pressing into empty space and dragging opens a rectangle; a plain click into
  * empty space does nothing. The rectangle stays open after the release, so the view can
@@ -114,11 +129,13 @@ type State =
  * only one member qualifies. Never persisted.
  */
 export class SelectionEditor {
-    private readonly index: DocumentIndex;
-    private readonly shapes: ShapeIndex;
+    private readonly history: DocumentHistory;
+    private readonly unsubscribeHistory: () => void;
+    private index!: DocumentIndex;
+    private shapes!: ShapeIndex;
     /** What a pick of each selectable element selects: its whole group, or itself. */
-    private readonly units: ReadonlyMap<Id, readonly Id[]>;
-    private readonly snapEngine: SnapEngine;
+    private units!: ReadonlyMap<Id, readonly Id[]>;
+    private snapEngine!: SnapEngine;
     private snapSettings: SnapSettings = DEFAULT_SNAP_SETTINGS;
     /** Curves touched during the current point prompt (see SnapMemory). */
     private snapMemory = new SnapMemory();
@@ -139,6 +156,8 @@ export class SelectionEditor {
     /** Elements the open area would pick, computed once per area. */
     private areaPreview: { area: SelectionArea; ids: Id[] } | null = null;
     private current: SelectionSnapshot;
+    /** Document index the current snapshot was built from. */
+    private snapshotIndex: DocumentIndex | null = null;
     private readonly listeners = new Set<() => void>();
 
     /** Half the pick box side in screen px (see EditorSettings.pickboxSize). */
@@ -146,21 +165,26 @@ export class SelectionEditor {
     /** Half the aperture box side in screen px (see EditorSettings.apertureSize). */
     private readonly apertureSize: number;
 
+    /** Works on the document of `history` (a plain document gets a history of its own). */
     constructor(
-        doc: CadDocument,
+        history: DocumentHistory | CadDocument,
         settings: Pick<EditorSettings, 'pickboxSize' | 'apertureSize'> = DEFAULT_EDITOR_SETTINGS,
     ) {
         this.pickboxSize = settings.pickboxSize;
         this.apertureSize = settings.apertureSize;
-        this.index = indexDocument(doc);
-        this.snapEngine = new SnapEngine(doc);
-        const shapes = buildElementShapes(doc);
-        this.shapes = new ShapeIndex(shapes);
-        this.units = buildSelectionUnits(
-            doc,
-            shapes.map((shape) => shape.id),
-        );
+        this.history = history instanceof DocumentHistory ? history : new DocumentHistory(history);
+        this.derive(this.history.document);
+        this.unsubscribeHistory = this.history.subscribe(({ document }) => {
+            this.derive(document);
+            this.changed();
+        });
         this.current = this.buildSnapshot(null);
+    }
+
+    /** Stops following the history. */
+    dispose(): void {
+        this.unsubscribeHistory();
+        this.listeners.clear();
     }
 
     get snapshot(): SelectionSnapshot {
@@ -175,6 +199,32 @@ export class SelectionEditor {
     subscribe(listener: () => void): () => void {
         this.listeners.add(listener);
         return () => this.listeners.delete(listener);
+    }
+
+    /** Reverts the last command; only with no command running. Returns true if something was undone. */
+    undo(): boolean {
+        if (this.state.kind !== 'idle' || this.area !== null) {
+            return false;
+        }
+        const command = this.history.undo();
+        if (!command) {
+            return false;
+        }
+        this.endCommand(`Rückgängig: ${command.label}`);
+        return true;
+    }
+
+    /** Runs the last undone command again; only with no command running. */
+    redo(): boolean {
+        if (this.state.kind !== 'idle' || this.area !== null) {
+            return false;
+        }
+        const command = this.history.redo();
+        if (!command) {
+            return false;
+        }
+        this.endCommand(`Wiederherstellen: ${command.label}`);
+        return true;
     }
 
     /**
@@ -384,9 +434,12 @@ export class SelectionEditor {
             this.message = null;
             this.changed();
         } else if (state.kind === 'secondPoint') {
-            const dx = point.x - state.basePoint.x;
-            const dy = point.y - state.basePoint.y;
-            this.endCommand(`Verschiebung X ${formatLength(dx)}, Y ${formatLength(dy)} – noch nicht umgesetzt`);
+            const delta = { x: point.x - state.basePoint.x, y: point.y - state.basePoint.y };
+            this.endCommand(null);
+            // A zero displacement changes nothing, so it leaves no undo step either
+            if (delta.x !== 0 || delta.y !== 0) {
+                this.history.execute(new MoveCommand(state.selection, delta));
+            }
         }
     }
 
@@ -403,6 +456,24 @@ export class SelectionEditor {
         this.message = message;
         this.snap = null;
         this.changed();
+    }
+
+    /** Builds the structures derived from the document; drops selected elements that are gone. */
+    private derive(doc: CadDocument): void {
+        this.index = indexDocument(doc);
+        this.snapEngine = new SnapEngine(doc);
+        const shapes = buildElementShapes(doc);
+        this.shapes = new ShapeIndex(shapes);
+        this.units = buildSelectionUnits(
+            doc,
+            shapes.map((shape) => shape.id),
+        );
+        this.underCursor = null;
+        this.areaPreview = null;
+        const exists = (ids: ReadonlySet<Id>) => new Set([...ids].filter((id) => this.units.has(id)));
+        const state = this.state;
+        this.state = state.kind === 'idle' ? { kind: 'idle', pickfirst: exists(state.pickfirst) } : { ...state, selection: exists(state.selection) };
+        this.previousSelection = exists(this.previousSelection);
     }
 
     private snapAt(event: EditorPointerEvent): SnapResult | null {
@@ -489,6 +560,11 @@ export class SelectionEditor {
         const pointPrompt = state.kind === 'basePoint' || state.kind === 'secondPoint';
         const basePoint = state.kind === 'secondPoint' ? state.basePoint : null;
         const snap = pointPrompt ? this.snap : null;
+        const previewPoint =
+            state.kind === 'secondPoint' && this.lastPointer !== null ? (snap?.point ?? this.lastPointer.modelPoint) : null;
+        const idle = state.kind === 'idle' && this.area === null;
+        const canUndo = idle && this.history.undoCommand !== null;
+        const canRedo = idle && this.history.redoCommand !== null;
         const area = this.area;
         let previewed: Id[] = [];
         if (area !== null) {
@@ -505,14 +581,21 @@ export class SelectionEditor {
             }
         }
         const hovered = new Set(previewed.filter((id) => !highlighted.has(id)));
-        const sameSelection = previous !== null && command === previous.command && sameIds(highlighted, previous.highlighted);
+        // Grips follow the geometry, so a document change rebuilds them
+        const sameDocument = this.snapshotIndex === this.index;
+        this.snapshotIndex = this.index;
+        const sameSelection =
+            previous !== null && sameDocument && command === previous.command && sameIds(highlighted, previous.highlighted);
         if (
             sameSelection &&
             this.message === previous.message &&
             area === previous.area &&
             sameIds(hovered, previous.hovered) &&
             sameSnap(snap, previous.snap) &&
-            basePoint === previous.basePoint
+            basePoint === previous.basePoint &&
+            samePoint(previewPoint, previous.previewPoint) &&
+            canUndo === previous.canUndo &&
+            canRedo === previous.canRedo
         ) {
             return previous;
         }
@@ -538,6 +621,9 @@ export class SelectionEditor {
             cursor: pointPrompt ? 'point' : state.kind === 'select' ? 'select' : 'command',
             snap,
             basePoint,
+            previewPoint,
+            canUndo,
+            canRedo,
         };
     }
 }
@@ -551,20 +637,11 @@ function sameIds(a: ReadonlySet<Id>, b: ReadonlySet<Id>): boolean {
     return a.size === b.size && [...a].every((id) => b.has(id));
 }
 
-/** Same mode at the same point, equally remote; a new search returns new objects for an unchanged snap. */
-function sameSnap(a: SnapResult | null, b: SnapResult | null): boolean {
-    return (
-        a === b ||
-        (a !== null &&
-            b !== null &&
-            a.mode === b.mode &&
-            a.remote === b.remote &&
-            a.point.x === b.point.x &&
-            a.point.y === b.point.y)
-    );
+function samePoint(a: Point | null, b: Point | null): boolean {
+    return a === b || (a !== null && b !== null && a.x === b.x && a.y === b.y);
 }
 
-/** One decimal, without a negative zero. */
-function formatLength(value: number): string {
-    return (Math.round(value * 10) / 10 + 0).toFixed(1);
+/** Same mode at the same point; a new search returns new objects for an unchanged snap. */
+function sameSnap(a: SnapResult | null, b: SnapResult | null): boolean {
+    return a === b || (a !== null && b !== null && a.mode === b.mode && samePoint(a.point, b.point));
 }

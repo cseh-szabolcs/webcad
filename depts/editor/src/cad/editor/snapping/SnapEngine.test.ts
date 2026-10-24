@@ -53,7 +53,6 @@ function drawing(vertices: Record<string, Point>, elements: Partial<CadElement>[
 describe('SnapEngine: snap points', () => {
     it('snaps to the endpoint near the cursor', () => {
         expect(snapped(engine.find(query({ x: 6005, y: 3 })))).toEqual({ mode: 'END', x: 6000, y: 0 });
-        expect(engine.find(query({ x: 6005, y: 3 }))?.remote).toBe(false);
         expect(snapped(engine.find(query({ x: 6011, y: 3 })))).toBeNull();
     });
 
@@ -92,24 +91,25 @@ describe('SnapEngine: snap points', () => {
 describe('SnapEngine: centre', () => {
     const onTable = { x: 4000 + 600 * Math.SQRT1_2, y: 1800 + 600 * Math.SQRT1_2 };
 
-    it('shows the centre while the cursor passes over the curve', () => {
-        const result = engine.find(query(onTable));
-        expect(snapped(result)).toEqual({ mode: 'CEN', x: 4000, y: 1800 });
-        expect(result?.elementIds).toEqual([E.table]);
-        expect(result?.remote).toBe(true);
+    it('never pulls the snap from the curve to the far centre', () => {
+        expect(engine.find(query(onTable))).toBeNull();
+        // Just outside the aperture of the table's left quadrant (3400, 1800), still on the circle
+        const nearQuadrant = { x: 4000 - 600 * Math.cos(0.022), y: 1800 + 600 * Math.sin(0.022) };
+        expect(engine.find(query(nearQuadrant))).toBeNull();
+        // On the rug's outline
+        expect(engine.find(query({ x: 4000 + 1000 * Math.SQRT1_2, y: 1800 + 700 * Math.SQRT1_2 }))).toBeNull();
     });
 
-    it('snaps right on the centre only after the curve was touched in this prompt', () => {
+    it('snaps on the centre only after the curve was touched in this prompt', () => {
         const memory = new SnapMemory();
         expect(engine.find(query({ x: 4003, y: 1802 }), memory)).toBeNull();
         engine.find(query(onTable), memory);
-        const direct = engine.find(query({ x: 4003, y: 1802 }), memory);
-        expect(snapped(direct)).toEqual({ mode: 'CEN', x: 4000, y: 1800 });
-        expect(direct?.remote).toBe(false);
+        const result = engine.find(query({ x: 4003, y: 1802 }), memory);
+        expect(snapped(result)).toEqual({ mode: 'CEN', x: 4000, y: 1800 });
+        expect(result?.elementIds).toEqual([E.table]);
     });
 
-    it('prefers a point inside the aperture over a remote centre', () => {
-        // On the circle at 0°: the quadrant is in the box, the centre is not
+    it('snaps to the quadrant near the curve', () => {
         expect(snapped(engine.find(query({ x: 4600, y: 1806 })))).toEqual({ mode: 'QUA', x: 4600, y: 1800 });
     });
 });

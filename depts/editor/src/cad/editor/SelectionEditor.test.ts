@@ -4,9 +4,10 @@ import { parseDocument } from '../persistence/CadSerializer';
 import samplePlan from '../__fixtures__/sample-plan.json';
 import { sampleIds } from '../__fixtures__/sampleIds';
 import type { EditorPointerEvent } from './EditorPointerEvent';
+import { DocumentHistory } from './commands/DocumentHistory';
 import { SelectionEditor } from './SelectionEditor';
 
-const { element: E } = sampleIds;
+const { element: E, vertex: V } = sampleIds;
 
 /** One screen pixel is 2 mm (Y flipped), so the 5 px pick box reaches 10 mm. */
 const at = (modelPoint: Point, change: Partial<EditorPointerEvent> = {}): EditorPointerEvent => ({
@@ -47,6 +48,10 @@ const drag = (editor: SelectionEditor, points: Point[], change: Partial<EditorPo
     editor.pointerUp(at(points[points.length - 1], change));
 };
 const ids = (set: ReadonlySet<string>) => [...set];
+const tableCentre = (history: DocumentHistory) => {
+    const { x, y } = history.document.vertices.find((v) => v.id === V['t-center'])!;
+    return { x, y };
+};
 
 describe('SelectionEditor hover', () => {
     it('hovers the element under the cursor within the pick box', () => {
@@ -321,20 +326,91 @@ describe('SelectionEditor SCHIEBEN: base point and second point', () => {
         expect(editor.snapshot.basePoint).toEqual(EMPTY);
     });
 
-    it('reports the displacement at the second point and ends without moving', () => {
-        const editor = atBasePoint();
+    it('moves the selection at the second point as one undo step and ends', () => {
+        const history = new DocumentHistory(parseDocument(samplePlan));
+        const editor = new SelectionEditor(history);
+        click(editor, TABLE);
+        editor.startMoveCommand();
         click(editor, NEAR_CORNER);
         editor.pointerMove(at(WALL));
         click(editor, WALL);
         expect(editor.snapshot).toMatchObject({
             command: null,
             prompt: 'Befehl:',
-            message: 'Verschiebung X -3000.0, Y 0.0 – noch nicht umgesetzt',
+            message: null,
             basePoint: null,
             snap: null,
             cursor: 'command',
+            canUndo: true,
+            canRedo: false,
         });
         expect(editor.snapshot.highlighted.size).toBe(0);
+        expect(ids(editor.previous)).toEqual([E.table]);
+        // From the corner (6000, 0) to the wall midpoint (3000, 0)
+        expect(tableCentre(history)).toEqual({ x: 1000, y: 1800 });
+        // Picking and snapping follow the moved geometry
+        editor.pointerMove(at({ x: 1600, y: 1800 }));
+        expect(ids(editor.snapshot.hovered)).toEqual([E.table]);
+        editor.pointerMove(at(TABLE));
+        expect(editor.snapshot.hovered.size).toBe(0);
+    });
+
+    it('undoes and redoes the move with messages', () => {
+        const history = new DocumentHistory(parseDocument(samplePlan));
+        const editor = new SelectionEditor(history);
+        click(editor, TABLE);
+        editor.startMoveCommand();
+        click(editor, NEAR_CORNER);
+        click(editor, WALL);
+        expect(editor.undo()).toBe(true);
+        expect(editor.snapshot).toMatchObject({ message: 'Rückgängig: SCHIEBEN', canUndo: false, canRedo: true });
+        expect(tableCentre(history)).toEqual({ x: 4000, y: 1800 });
+        expect(editor.undo()).toBe(false);
+        expect(editor.redo()).toBe(true);
+        expect(editor.snapshot).toMatchObject({ message: 'Wiederherstellen: SCHIEBEN', canUndo: true, canRedo: false });
+        expect(tableCentre(history)).toEqual({ x: 1000, y: 1800 });
+    });
+
+    it('allows no undo while a command runs', () => {
+        const history = new DocumentHistory(parseDocument(samplePlan));
+        const editor = new SelectionEditor(history);
+        click(editor, TABLE);
+        editor.startMoveCommand();
+        click(editor, NEAR_CORNER);
+        click(editor, WALL);
+        click(editor, { x: 1600, y: 1800 });
+        editor.startMoveCommand();
+        expect(editor.snapshot.canUndo).toBe(false);
+        expect(editor.undo()).toBe(false);
+        expect(tableCentre(history)).toEqual({ x: 1000, y: 1800 });
+    });
+
+    it('leaves no undo step for a zero displacement', () => {
+        const history = new DocumentHistory(parseDocument(samplePlan));
+        const editor = new SelectionEditor(history);
+        click(editor, TABLE);
+        editor.startMoveCommand();
+        click(editor, NEAR_CORNER);
+        click(editor, NEAR_CORNER);
+        expect(editor.snapshot.command).toBeNull();
+        expect(history.undoCommand).toBeNull();
+    });
+
+    it('gives the preview point at the second point prompt: the snap point, else the cursor', () => {
+        const editor = atBasePoint();
+        editor.pointerMove(at(EMPTY));
+        expect(editor.snapshot.previewPoint).toBeNull();
+        click(editor, EMPTY);
+        expect(editor.snapshot.previewPoint).toEqual(EMPTY);
+        editor.pointerMove(at(NEAR_CORNER));
+        expect(editor.snapshot.previewPoint).toEqual(CORNER);
+        editor.pointerMove(at({ x: 2000, y: 1500 }));
+        expect(editor.snapshot.previewPoint).toEqual({ x: 2000, y: 1500 });
+        editor.pointerLeave();
+        expect(editor.snapshot.previewPoint).toBeNull();
+        editor.pointerMove(at(WALL));
+        click(editor, WALL);
+        expect(editor.snapshot.previewPoint).toBeNull();
     });
 
     it('cancels with Escape at both point prompts', () => {

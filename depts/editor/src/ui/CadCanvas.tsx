@@ -1,4 +1,5 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
+import { DocumentHistory } from 'app/cad/editor/commands/DocumentHistory';
 import { SelectionOverlay } from 'app/cad/editor/overlays/SelectionOverlay';
 import { SelectionEditor, type SelectionSnapshot } from 'app/cad/editor/SelectionEditor';
 import type { CadDocument } from 'app/cad/model/CadDocument';
@@ -11,13 +12,19 @@ import { attachCanvasInput } from './canvasInput';
 import { CrosshairCursor } from './CrosshairCursor';
 import { SnapMarker } from './SnapMarker';
 
+const NOTHING: ReadonlySet<string> = new Set();
+
 export interface CadCanvasHandle {
     fit(): void;
     /** Starts the SCHIEBEN command, taking over the current pickfirst selection. */
     startMoveCommand(): void;
+    /** Undo and redo of document changes; ignored while a command runs. */
+    undo(): void;
+    redo(): void;
 }
 
 interface CadCanvasProps {
+    /** Loaded document; the canvas keeps its own history of changes to it. */
     document: CadDocument;
     /** Background the drawing is shown on; drawing and overlay colours follow it. */
     theme: DisplayTheme;
@@ -90,7 +97,12 @@ export function CadCanvas({
         }
     };
 
-    useImperativeHandle(ref, () => ({ fit, startMoveCommand: () => editorRef.current?.startMoveCommand() }));
+    useImperativeHandle(ref, () => ({
+        fit,
+        startMoveCommand: () => editorRef.current?.startMoveCommand(),
+        undo: () => editorRef.current?.undo(),
+        redo: () => editorRef.current?.redo(),
+    }));
 
     useEffect(() => {
         const container = containerRef.current!;
@@ -100,7 +112,12 @@ export function CadCanvas({
         renderer.setViewport(viewportRef.current);
         renderer.setTheme(themeRef.current);
         renderer.setDocument(document);
-        const editor = new SelectionEditor(document, settingsRef.current);
+        const history = new DocumentHistory(document);
+        // Subscribed before the editor, so the paths are up to date when its overlay redraws
+        const unsubscribeHistory = history.subscribe(({ document, changedElementIds }) =>
+            renderer.updateElements(document, changedElementIds),
+        );
+        const editor = new SelectionEditor(history, settingsRef.current);
         editor.setSnapSettings(snapSettingsRef.current);
         const crosshair = new CrosshairCursor(container, settingsRef.current);
         const snapMarker = new SnapMarker(container, settingsRef.current);
@@ -109,21 +126,18 @@ export function CadCanvas({
         overlayRef.current = overlay;
         editorRef.current = editor;
 
-        /**
-         * Where the cursor shows: on the snap point while the magnet holds it, else at the
-         * pointer. A remote centre does not pull the cursor away from the curve.
-         */
+        /** Where the cursor shows: on the snap point while the magnet holds it, else at the pointer. */
         const cursorAt = (viewPoint: Point): Point => {
             const snap = editor.snapshot.snap;
-            return snap && !snap.remote && settingsRef.current.snapMagnet
-                ? viewportRef.current.modelToView(snap.point)
-                : viewPoint;
+            return snap && settingsRef.current.snapMagnet ? viewportRef.current.modelToView(snap.point) : viewPoint;
         };
         /** Pointer position while the crosshair shows, so it can follow snap and zoom changes. */
         let crosshairAt: Point | null = null;
         const refreshOverlay = () => {
             const { snap, basePoint, cursor } = editor.snapshot;
             const viewport = viewportRef.current;
+            // While moving, the originals show dimmed under the preview, like AutoCAD
+            renderer.setDimmed(basePoint ? editor.snapshot.highlighted : NOTHING);
             overlay.render(editor.snapshot);
             snapMarker.show(snap && { viewPoint: viewport.modelToView(snap.point), mode: snap.mode });
             snapMarker.showBasePoint(basePoint && viewport.modelToView(basePoint));
@@ -177,6 +191,8 @@ export function CadCanvas({
             crosshair.dispose();
             snapMarker.dispose();
             unsubscribe();
+            editor.dispose();
+            unsubscribeHistory();
             refreshOverlayRef.current = null;
             editorRef.current = null;
             overlayRef.current = null;

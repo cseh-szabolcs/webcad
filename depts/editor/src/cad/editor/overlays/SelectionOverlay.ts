@@ -1,5 +1,5 @@
 import paper from 'paper';
-import type { Id } from '../../model/Point';
+import type { Id, Point } from '../../model/Point';
 import type { DisplayTheme } from '../../renderer/displayColor';
 import type { SelectionArea, SelectionSnapshot } from '../SelectionEditor';
 
@@ -10,6 +10,10 @@ const GRIP_SIZE_PX = 7;
 const CONTROL_FRAME_DASH = [4, 3];
 /** Crossing areas get a dashed edge (screen px), windows a solid one. */
 const AREA_DASH = { window: [] as number[], crossing: [6, 4] };
+/** Rubber band from the base point to the cursor while moving (screen px). */
+const RUBBER_BAND_DASH = [10, 6];
+/** The move preview copies are slightly see-through, so what lies below stays visible. */
+const PREVIEW_OPACITY = 0.7;
 
 /**
  * Overlay colours per background. On dark, hover and selection are lighter blues so they
@@ -20,6 +24,8 @@ const PALETTES = {
         hovered: '#60a5fa',
         selected: '#2563eb',
         grip: '#1e90ff',
+        /** Orange, as yellow is hard to see on white. */
+        rubberBand: '#ea580c',
         window: { fill: 'rgba(37, 99, 235, 0.15)', stroke: '#2563eb' },
         crossing: { fill: 'rgba(22, 163, 74, 0.15)', stroke: '#16a34a' },
     },
@@ -27,6 +33,7 @@ const PALETTES = {
         hovered: '#93c5fd',
         selected: '#60a5fa',
         grip: '#1e90ff',
+        rubberBand: '#facc15',
         window: { fill: 'rgba(59, 130, 246, 0.25)', stroke: '#60a5fa' },
         crossing: { fill: 'rgba(34, 197, 94, 0.22)', stroke: '#4ade80' },
     },
@@ -38,13 +45,20 @@ export interface OverlayHost {
     /** Current px per mm, to keep grips at a constant screen size. */
     readonly scale: number;
     getItemPath(id: Id): paper.Path | null;
+    /** Gives `item` the display style of element `id` (the rendered item may be dimmed). */
+    applyElementStyle(item: paper.Path, id: Id): void;
 }
 
 /**
  * Draws the selection state on top of the document: highlights as restyled copies of the
  * rendered paths, grips as filled squares with the control frame of curves, and the
- * selection rectangle or lasso. Grips depend
- * on the zoom, so render again after every viewport change (and after setTheme()).
+ * selection rectangle or lasso. While SCHIEBEN asks for the second point, it previews the
+ * move like AutoCAD: copies of the selected paths in their own style (slightly
+ * see-through), offset from the base point to the preview point, and a dashed rubber band
+ * between the two (orange on light, yellow on dark). The originals are then not
+ * highlighted; the canvas dims them (PaperRenderer.setDimmed); the document stays
+ * unchanged. Grips depend on the zoom, so render again after every viewport change (and
+ * after setTheme()).
  */
 export class SelectionOverlay {
     private readonly host: OverlayHost;
@@ -59,14 +73,20 @@ export class SelectionOverlay {
         this.palette = PALETTES[theme];
     }
 
-    render({ hovered, highlighted, grips, controlFrames, area }: SelectionSnapshot): void {
+    render({ hovered, highlighted, grips, controlFrames, area, basePoint, previewPoint }: SelectionSnapshot): void {
         const layer = this.host.overlayLayer;
         layer.removeChildren();
         for (const id of hovered) {
             this.highlight(layer, id, this.palette.hovered, HOVER_EXTRA_WIDTH);
         }
-        for (const id of highlighted) {
-            this.highlight(layer, id, this.palette.selected, SELECTED_EXTRA_WIDTH);
+        // While moving, the originals are dimmed instead
+        if (!basePoint) {
+            for (const id of highlighted) {
+                this.highlight(layer, id, this.palette.selected, SELECTED_EXTRA_WIDTH);
+            }
+        }
+        if (basePoint && previewPoint) {
+            this.movePreview(layer, highlighted, basePoint, previewPoint);
         }
         // Below the grips, so the grips stay whole at the line ends
         for (const [from, to] of controlFrames) {
@@ -104,6 +124,28 @@ export class SelectionOverlay {
         path.dashArray = AREA_DASH[area.mode];
         path.strokeScaling = false;
         return path;
+    }
+
+    private movePreview(layer: paper.Layer, ids: Iterable<Id>, from: Point, to: Point): void {
+        const offset = new paper.Point(to.x - from.x, to.y - from.y);
+        for (const id of ids) {
+            const source = this.host.getItemPath(id);
+            if (!source) {
+                continue;
+            }
+            const copy = source.clone({ insert: false, deep: false }) as paper.Path;
+            copy.translate(offset);
+            this.host.applyElementStyle(copy, id);
+            copy.opacity = PREVIEW_OPACITY;
+            copy.data = {};
+            layer.addChild(copy);
+        }
+        const band = new paper.Path.Line({ from: [from.x, from.y], to: [to.x, to.y], insert: false });
+        band.strokeColor = new paper.Color(this.palette.rubberBand);
+        band.strokeWidth = 1;
+        band.dashArray = RUBBER_BAND_DASH;
+        band.strokeScaling = false;
+        layer.addChild(band);
     }
 
     private highlight(layer: paper.Layer, id: Id, color: string, extraWidth: number): void {

@@ -7,6 +7,11 @@ import { applyStyle, createItem, styleOf } from './ElementRenderer';
 import type { Rect, Size, Viewport } from './Viewport';
 
 const DEFAULT_LAYER = '__default';
+/** Neutral greys for dimmed elements (see setDimmed), per background. */
+const DIMMED = {
+    light: { stroke: '#c3c8cf', fill: 'rgba(195, 200, 207, 0.25)' },
+    dark: { stroke: '#5a616d', fill: 'rgba(90, 97, 109, 0.3)' },
+} satisfies Record<DisplayTheme, unknown>;
 
 /**
  * Builds a Paper.js scene from a CadDocument. Items live in model space; the viewport is
@@ -21,6 +26,7 @@ export class PaperRenderer {
     private viewport: Viewport | null = null;
     private index: DocumentIndex | null = null;
     private theme: DisplayTheme = 'light';
+    private dimmed: ReadonlySet<Id> = new Set();
 
     constructor(canvas: HTMLCanvasElement) {
         this.scope = new paper.PaperScope();
@@ -48,8 +54,66 @@ export class PaperRenderer {
             item.data.elementId = element.id;
             this.layerFor(element.layerId).addChild(item);
             this.items.set(element.id, item);
+            if (this.dimmed.has(element.id)) {
+                this.restyle(element.id);
+            }
         }
         this.overlay?.bringToFront();
+    }
+
+    /**
+     * Rebuilds the items of the given elements in place, keeping their layer and drawing
+     * order; the other items stay. Falls back to setDocument() if an element was added or
+     * removed.
+     */
+    updateElements(doc: CadDocument, ids: Iterable<Id>): void {
+        this.scope.activate();
+        const index = indexDocument(doc);
+        if (index.elements.size !== this.items.size) {
+            this.setDocument(doc);
+            return;
+        }
+        this.index = index;
+        for (const id of ids) {
+            const element = index.elements.get(id);
+            const old = this.items.get(id);
+            if (!element || !old) {
+                this.setDocument(doc);
+                return;
+            }
+            const item = createItem(this.scope, element, index, this.theme);
+            item.data.elementId = id;
+            old.replaceWith(item);
+            this.items.set(id, item);
+            if (this.dimmed.has(id)) {
+                this.restyle(id);
+            }
+        }
+    }
+
+    /**
+     * Display only: draws these elements in a neutral grey instead of their colours, e.g.
+     * the originals while a move is previewed; elements left out get their style back. The
+     * document is never changed.
+     */
+    setDimmed(ids: ReadonlySet<Id>): void {
+        const previous = this.dimmed;
+        if (previous.size === ids.size && [...ids].every((id) => previous.has(id))) {
+            return;
+        }
+        this.dimmed = new Set(ids);
+        this.scope.activate();
+        for (const id of new Set([...previous, ...ids])) {
+            this.restyle(id);
+        }
+    }
+
+    /** Gives `item` the display style of element `id`, e.g. a copy of a dimmed item. */
+    applyElementStyle(item: paper.Path, id: Id): void {
+        const element = this.index?.elements.get(id);
+        if (element && this.index) {
+            applyStyle(this.scope, item, styleOf(element, this.index), this.theme);
+        }
     }
 
     /** Re-colours all elements for the background; geometry stays as it is. */
@@ -63,11 +127,8 @@ export class PaperRenderer {
             return;
         }
         this.scope.activate();
-        for (const [id, item] of this.items) {
-            const element = index.elements.get(id);
-            if (element) {
-                applyStyle(this.scope, item, styleOf(element, index), theme);
-            }
+        for (const id of this.items.keys()) {
+            this.restyle(id);
         }
     }
 
@@ -120,6 +181,22 @@ export class PaperRenderer {
         this.overlay = null;
         this.index = null;
         this.scope.project.remove();
+    }
+
+    /** Own style, then the grey of a dimmed element on top. */
+    private restyle(id: Id): void {
+        const item = this.items.get(id);
+        if (!item) {
+            return;
+        }
+        this.applyElementStyle(item, id);
+        if (this.dimmed.has(id)) {
+            const grey = DIMMED[this.theme];
+            item.strokeColor = new this.scope.Color(grey.stroke);
+            if (item.fillColor) {
+                item.fillColor = new this.scope.Color(grey.fill);
+            }
+        }
     }
 
     private layerFor(layerId: Id | null): paper.Layer {

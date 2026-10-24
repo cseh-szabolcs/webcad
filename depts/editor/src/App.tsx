@@ -37,15 +37,30 @@ function App() {
     const [snapSettings, setSnapSettings] = useState<SnapSettings>(DEFAULT_SNAP_SETTINGS);
     const { preference, setPreference, theme } = useTheme();
 
-    // F3 switches the object snap like in AutoCAD (and must not open the browser's search)
+    // Shortcuts like AutoCAD: F3 switches the object snap (and must not open the browser's
+    // search), Ctrl/Cmd+Z undoes, Ctrl+Y or Cmd+Shift+Z redoes
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
-            if (event.key !== 'F3') {
+            if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable]')) {
                 return;
             }
-            event.preventDefault();
-            if (!event.repeat) {
-                setSnapSettings((settings) => ({ ...settings, enabled: !settings.enabled }));
+            if (event.key === 'F3') {
+                event.preventDefault();
+                if (!event.repeat) {
+                    setSnapSettings((settings) => ({ ...settings, enabled: !settings.enabled }));
+                }
+                return;
+            }
+            if (!(event.ctrlKey || event.metaKey) || event.altKey) {
+                return;
+            }
+            const key = event.key.toLowerCase();
+            if (key === 'z' && !event.shiftKey) {
+                event.preventDefault();
+                canvasRef.current?.undo();
+            } else if ((key === 'z' && event.shiftKey) || (key === 'y' && !event.shiftKey)) {
+                event.preventDefault();
+                canvasRef.current?.redo();
             }
         };
         window.addEventListener('keydown', onKeyDown);
@@ -89,6 +104,22 @@ function App() {
                         title="Objekte verschieben (SCHIEBEN)"
                     >
                         Verschieben
+                    </button>
+                    <button
+                        type="button"
+                        disabled={!selection?.canUndo}
+                        onClick={() => canvasRef.current?.undo()}
+                        title="Rückgängig (Strg/⌘+Z)"
+                    >
+                        Rückgängig
+                    </button>
+                    <button
+                        type="button"
+                        disabled={!selection?.canRedo}
+                        onClick={() => canvasRef.current?.redo()}
+                        title="Wiederherstellen (Strg+Y, ⌘+⇧+Z)"
+                    >
+                        Wiederherstellen
                     </button>
                 </div>
                 <span className="toolbar-title">{state.document.name}</span>

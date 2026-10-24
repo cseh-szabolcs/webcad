@@ -30,18 +30,13 @@ export interface SnapResult {
     mode: SnapMode;
     /** Elements the point belongs to, e.g. both for an intersection. */
     elementIds: Id[];
-    /**
-     * A centre outside the aperture, found because its curve passes through it. The magnet
-     * leaves the cursor at the pointer for these, like AutoCAD.
-     */
-    remote: boolean;
 }
 
 /**
  * Curves with a centre (circles, arcs, ellipses) that the aperture touched during the
- * current point prompt. Their centre then also snaps when the cursor is right on it, like
- * AutoCAD, where a centre is found by first passing over the curve. Start a new memory with
- * every point prompt.
+ * current point prompt. Only their centres snap: a centre is acquired by first passing over
+ * its curve, so the empty middle of a circle does not snap by accident. Start a new memory
+ * with every point prompt.
  */
 export class SnapMemory {
     private readonly touched = new Set<Id>();
@@ -55,25 +50,20 @@ export class SnapMemory {
     }
 }
 
-/** Candidate classes: points inside the aperture win over centres of curves passing through it. */
-const INSIDE = 0;
-const REMOTE = 1;
-
-interface Candidate extends Omit<SnapResult, 'remote'> {
-    klass: typeof INSIDE | typeof REMOTE;
+interface Candidate extends SnapResult {
     /** Distance to the cursor in screen px. */
     distance: number;
     order: number;
 }
 
 /**
- * Object snap (OSNAP) like AutoCAD's AutoSnap, on the exact element geometry. Endpoints,
- * midpoints, quadrants and intersections snap when they lie in the aperture box (a square in
- * screen px around the cursor, so the same size at every zoom). A centre snaps as soon as
- * its curve passes through the box, and when the cursor is on it after the curve did (see
- * SnapMemory). Points in the box win over remote centres; among them the nearest wins, and
- * points within TIE_TOLERANCE_PX of it go by mode (END, INT, CEN, MID, QUA), then by
- * distance, then the element drawn on top. Coinciding points merge into the higher mode.
+ * Object snap (OSNAP) like AutoCAD's AutoSnap, on the exact element geometry. A snap point
+ * only snaps when it lies in the aperture box (a square in screen px around the cursor, so
+ * the same size at every zoom); a point outside never pulls the snap away from the cursor.
+ * A centre also needs its curve to have been touched by the box during the prompt (see
+ * SnapMemory). The nearest point wins; points within TIE_TOLERANCE_PX of it go by mode
+ * (END, INT, CEN, MID, QUA), then by distance, then the element drawn on top. Coinciding
+ * points merge into the higher mode.
  *
  * Elements on hidden layers do not snap, those on locked layers do. Built from the
  * document once; rebuild it when the document changes.
@@ -94,11 +84,10 @@ export class SnapEngine {
         const box = { x: cursor.x - half, y: cursor.y - half, width: 2 * half, height: 2 * half };
         const inside = (p: Point) => Math.max(Math.abs(p.x - cursor.x), Math.abs(p.y - cursor.y)) <= half;
         const candidates: Candidate[] = [];
-        const add = (point: Point, mode: SnapMode, klass: Candidate['klass'], shapes: SnapShape[]) =>
+        const add = (point: Point, mode: SnapMode, shapes: SnapShape[]) =>
             candidates.push({
                 point,
                 mode,
-                klass,
                 distance: Math.hypot(point.x - cursor.x, point.y - cursor.y) / pixelSize,
                 order: Math.max(...shapes.map((shape) => shape.order)),
                 elementIds: [...new Set(shapes.map((shape) => shape.elementId))],
@@ -112,15 +101,9 @@ export class SnapEngine {
             }
         }
         for (const shape of shapes) {
-            const touches = touching.includes(shape);
             for (const { point, mode } of shape.snapPoints) {
-                if (!modes.has(mode)) {
-                    continue;
-                }
-                if (mode === 'CEN' && touches) {
-                    add(point, mode, inside(point) ? INSIDE : REMOTE, [shape]);
-                } else if (inside(point) && (mode !== 'CEN' || memory.has(shape.elementId))) {
-                    add(point, mode, INSIDE, [shape]);
+                if (modes.has(mode) && inside(point) && (mode !== 'CEN' || memory.has(shape.elementId))) {
+                    add(point, mode, [shape]);
                 }
             }
         }
@@ -130,18 +113,18 @@ export class SnapEngine {
                 for (let j = i + 1; j < touching.length && pairs < MAX_INTERSECTION_PAIRS; j++, pairs++) {
                     for (const point of shapeIntersections(touching[i], touching[j], box)) {
                         if (inside(point)) {
-                            add(point, 'INT', INSIDE, [touching[i], touching[j]]);
+                            add(point, 'INT', [touching[i], touching[j]]);
                         }
                     }
                 }
             }
         }
         const best = pickBest(merge(candidates));
-        return best && { point: best.point, mode: best.mode, elementIds: best.elementIds, remote: best.klass === REMOTE };
+        return best && { point: best.point, mode: best.mode, elementIds: best.elementIds };
     }
 }
 
-/** Merges coinciding candidates: the higher mode and class win, the elements add up. */
+/** Merges coinciding candidates: the higher mode wins, the elements add up. */
 function merge(candidates: Candidate[]): Candidate[] {
     const merged: Candidate[] = [];
     for (const candidate of candidates) {
@@ -156,7 +139,6 @@ function merge(candidates: Candidate[]): Candidate[] {
             same.mode = candidate.mode;
             same.point = candidate.point;
         }
-        same.klass = Math.min(same.klass, candidate.klass) as Candidate['klass'];
         same.order = Math.max(same.order, candidate.order);
         same.elementIds = [...new Set([...same.elementIds, ...candidate.elementIds])];
     }
@@ -167,10 +149,8 @@ function pickBest(candidates: Candidate[]): Candidate | null {
     if (candidates.length === 0) {
         return null;
     }
-    const klass = Math.min(...candidates.map((candidate) => candidate.klass));
-    const inClass = candidates.filter((candidate) => candidate.klass === klass);
-    const nearest = Math.min(...inClass.map((candidate) => candidate.distance));
-    return inClass
+    const nearest = Math.min(...candidates.map((candidate) => candidate.distance));
+    return candidates
         .filter((candidate) => candidate.distance <= nearest + TIE_TOLERANCE_PX)
         .sort(
             (a, b) =>

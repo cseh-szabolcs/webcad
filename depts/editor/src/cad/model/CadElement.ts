@@ -82,3 +82,25 @@ export function vertexRefs(element: CadElement): Id[] {
             return element.vertexIds;
     }
 }
+
+/** The element with its vertex references replaced where `replace` maps them; others kept. */
+export function withVertexRefs(element: CadElement, replace: ReadonlyMap<Id, Id>): CadElement {
+    const r = (id: Id) => replace.get(id) ?? id;
+    switch (element.type) {
+        case 'line':
+        case 'bezier':
+            return { ...element, startVertexId: r(element.startVertexId), endVertexId: r(element.endVertexId) };
+        case 'ellipse':
+        case 'circle':
+            return { ...element, centerVertexId: r(element.centerVertexId) };
+        case 'arc':
+            return {
+                ...element,
+                centerVertexId: r(element.centerVertexId),
+                startVertexId: r(element.startVertexId),
+                endVertexId: r(element.endVertexId),
+            };
+        case 'polyline':
+            return { ...element, vertexIds: element.vertexIds.map(r) };
+    }
+}
