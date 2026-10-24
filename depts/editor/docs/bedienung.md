@@ -5,18 +5,20 @@ Auf dem Mac entspricht **Option (⌥)** der Taste Alt.
 
 Tastenkürzel wirken, solange der Fokus nicht in einem Textfeld liegt.
 
-Der Editor zeigt Pläne an, wählt Objekte aus und führt den Befehl SCHIEBEN bis zur Angabe
-des zweiten Punkts mit Objektfang. Verschoben wird dabei noch nichts; was sonst noch fehlt,
-steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgesetzt).
+Der Editor zeigt Pläne an, wählt Objekte aus und verschiebt sie mit dem Befehl SCHIEBEN
+(mit Objektfang, Koordinateneingabe und Rückgängig). Gespeichert wird noch nichts; was
+sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgesetzt).
 
 ## Oberfläche
 
 - **Toolbar** (oben): Werkzeug **Verschieben** (Befehl SCHIEBEN), Name des Plans, Button
   **Zoom Grenzen** und rechts **Darstellung** mit **Hell / Dunkel / System**.
 - **Zeichenfläche** in der Mitte.
-- **Kommandozeile** unter der Zeichenfläche, nur zur Anzeige: oben in Grau die letzte
-  Meldung (z. B. `1 gefunden, 2 gesamt`), darunter die aktuelle Aufforderung (z. B.
-  `Befehl:` oder `Basispunkt angeben:`).
+- **Kommandozeile** unter der Zeichenfläche: oben in Grau die letzte Meldung (z. B.
+  `1 gefunden, 2 gesamt`), darunter die aktuelle Aufforderung (z. B. `Befehl:` oder
+  `Basispunkt angeben oder [Verschiebung] <Verschiebung>:`). Bei Punkt-Aufforderungen
+  erscheint dahinter ein Textcursor und, was man tippt (siehe
+  [Eingabe in der Kommandozeile](#eingabe-in-der-kommandozeile)).
 - **Statuszeile** (unten): Cursorposition `X … Y …` in mm, der Objektfang-Schalter
   **OFANG** mit dem Menü **▾** und der Zoom in px/mm.
 
@@ -128,16 +130,49 @@ weiterer Klick darauf bewirkt dann nichts.
    mit (z. B. `1 gefunden, 2 gesamt`, `1 gefunden (1 doppelt), 2 gesamt` oder
    `1 gefunden, 1 entfernt, 1 gesamt`). Grips werden dabei nicht gezeigt.
    **Enter** oder **Rechtsklick** beendet die Auswahl; ist nichts gewählt, endet der Befehl.
-2. **`Basispunkt angeben:`** Klick auf einen Punkt, mit [Objektfang](#objektfang-ofang).
-   Die gewählten Objekte bleiben hervorgehoben, der Basispunkt wird als kleines Kreuz
-   markiert.
+2. **`Basispunkt angeben oder [Verschiebung] <Verschiebung>:`** Klick auf einen Punkt,
+   mit [Objektfang](#objektfang-ofang), oder Koordinaten eintippen. Die gewählten Objekte
+   bleiben hervorgehoben, der Basispunkt wird als kleines Kreuz markiert.
+   **Enter** (ohne Eingabe) oder `V` + Enter wählt die Option **Verschiebung**: Die
+   Kommandozeile fragt `Verschiebung angeben <0,0>:`, und die Objekte werden um den
+   eingetippten Vektor (z. B. `500,-200` oder `1000<30`) oder um die Koordinaten eines
+   geklickten Punkts verschoben. Enter ohne Eingabe nimmt `0,0` und verschiebt nichts.
 3. **`Zweiten Punkt angeben oder <ersten Punkt als Verschiebung verwenden>:`** Klick auf
-   den Zielpunkt, ebenfalls mit Objektfang. Im Moment zeigt die Kommandozeile danach nur
-   die Verschiebung an (`Verschiebung X …, Y … – noch nicht umgesetzt`), der Befehl endet,
-   und die Zeichnung bleibt unverändert.
+   den Zielpunkt, ebenfalls mit Objektfang, oder Eingabe wie unten. Bis dahin folgt eine
+   Vorschau der Objekte dem Cursor. Verschoben wird um (Zielpunkt − Basispunkt), der Befehl
+   endet. **Enter** ohne Eingabe nimmt den Basispunkt selbst als Verschiebung (Basispunkt
+   `100,50` verschiebt um 100 nach rechts und 50 nach oben).
 
-**Esc** bricht den Befehl bei jeder Aufforderung ab (`*Abbruch*`). Enter und Rechtsklick
-haben bei den Punkt-Aufforderungen noch keine Funktion.
+**Esc** bricht den Befehl bei jeder Aufforderung ab (`*Abbruch*`); ist schon etwas
+getippt, verwirft das erste Esc nur die Eingabe. Rechtsklick hat bei den
+Punkt-Aufforderungen noch keine Funktion. Ohne laufenden Befehl macht **Strg/⌘+Z** bzw.
+der Button **Rückgängig** das Verschieben rückgängig, **Strg+Y** / **⌘+⇧+Z** bzw.
+**Wiederherstellen** stellt es wieder her.
+
+### Eingabe in der Kommandozeile
+
+Bei den Punkt-Aufforderungen tippt die Tastatur direkt in die Kommandozeile, ohne sie
+anzuklicken. **Enter** (oder die **Leertaste**, sobald etwas getippt ist) schließt die
+Eingabe ab, **Backspace** löscht das letzte Zeichen, **Esc** verwirft sie. Ein Klick nimmt
+den geklickten Punkt und verwirft das Getippte. Dezimaltrennzeichen ist der Punkt, das
+Komma trennt die Koordinaten (wie im deutschen AutoCAD). Winkel in Grad, gegen den
+Uhrzeigersinn ab der positiven X-Achse; Y zeigt nach oben.
+
+| Eingabe            | Bedeutung                                                              |
+|--------------------|------------------------------------------------------------------------|
+| `x,y` (auch `#x,y`) | Absoluter Punkt in mm                                                 |
+| `@dx,dy`           | Relativ: beim zweiten Punkt zum Basispunkt, beim Basispunkt zum zuletzt angegebenen Punkt (anfangs 0,0) |
+| `@abstand<winkel`  | Relativ in Polarkoordinaten, z. B. `@1000<90` = 1 m nach oben          |
+| `abstand<winkel`   | Absolut in Polarkoordinaten, vom Ursprung aus                          |
+| `@`                | Der Bezugspunkt selbst                                                 |
+| Zahl, z. B. `250`  | Nur beim zweiten Punkt: so weit vom Basispunkt in Richtung Cursor (bzw. Fangpunkt); negativ in Gegenrichtung (Direkte Distanzeingabe) |
+
+Bei `Verschiebung angeben <0,0>:` ist die Eingabe immer ein Vektor: `500,0` und `@500,0`
+bedeuten dort dasselbe.
+
+Ungültige Eingaben meldet die Kommandozeile mit `Punkt oder Option-Schlüsselwort
+erforderlich.`, die Aufforderung bleibt. Getippte Zeichen lösen keine anderen
+Tastenkürzel aus; Strg/⌘-Kürzel und F3 wirken weiter.
 
 ## Objektfang (OFANG)
 
@@ -211,15 +246,13 @@ noch nicht ändern; das kommt in einem späteren Schritt.
 
 ## Noch nicht umgesetzt
 
-- Objekte tatsächlich **verschieben** (Vorschau beim zweiten Punkt, Ausführen,
-  Rückgängig), sowie Enter bzw. Rechtsklick bei den Punkt-Aufforderungen (AutoCAD: ersten
-  Punkt als Verschiebung verwenden).
+- Rechtsklick bei den Punkt-Aufforderungen (AutoCAD: Kontextmenü bzw. wie Enter).
 - **Grip-Funktionen** (Ziehen an Grips) und alle anderen Bearbeitungsbefehle wie Löschen,
   Gruppieren oder Kopieren.
-- **Rückgängig/Wiederholen.**
 - Gruppenauswahl ausschalten (AutoCAD Ctrl+Shift+A), um einzelne Gruppenmitglieder zu
   wählen.
 - Zwischen überlappenden Objekten unter dem Cursor durchschalten.
-- Eingaben in der Kommandozeile (z. B. Koordinaten oder Optionen wie `V` für „Vorherige“).
+- Befehle und Optionen beim Objekte-Wählen in der Kommandozeile eintippen (z. B. `V` für
+  „Vorherige“); die Verschiebung merkt sich noch nicht die letzte Eingabe als Vorgabe.
 - Beim Objektfang: weitere Modi und Spurverfolgung.
 - Die Einstellungen im Editor ändern.

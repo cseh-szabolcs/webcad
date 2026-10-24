@@ -24,6 +24,8 @@ const WALL = { x: 3000, y: 0 };
 const TABLE = { x: 4600, y: 1800 };
 const EMPTY = { x: 3000, y: 2000 };
 
+const BASE_POINT_PROMPT = 'Basispunkt angeben oder [Verschiebung] <Verschiebung>:';
+
 const create = () => new SelectionEditor(parseDocument(samplePlan));
 /** Press and release at the same point. */
 const click = (editor: SelectionEditor, point: Point, change: Partial<EditorPointerEvent> = {}) => {
@@ -206,7 +208,7 @@ describe('SelectionEditor SCHIEBEN: object selection (verb-noun)', () => {
         editor.startMoveCommand();
         expect(ids(editor.snapshot.highlighted)).toEqual([E['wall-outer'], E.table]);
         expect(editor.snapshot.grips).toEqual([]);
-        expect(editor.snapshot).toMatchObject({ prompt: 'Basispunkt angeben:', message: '2 gefunden', cursor: 'point' });
+        expect(editor.snapshot).toMatchObject({ prompt: BASE_POINT_PROMPT, message: '2 gefunden', cursor: 'point' });
         expect(ids(editor.previous)).toEqual([E['wall-outer'], E.table]);
     });
 
@@ -215,7 +217,7 @@ describe('SelectionEditor SCHIEBEN: object selection (verb-noun)', () => {
         editor.startMoveCommand();
         click(editor, TABLE);
         expect(editor.keyDown({ key: 'Enter' })).toBe(true);
-        expect(editor.snapshot).toMatchObject({ command: 'SCHIEBEN', prompt: 'Basispunkt angeben:', message: null });
+        expect(editor.snapshot).toMatchObject({ command: 'SCHIEBEN', prompt: BASE_POINT_PROMPT, message: null });
         expect(ids(editor.snapshot.highlighted)).toEqual([E.table]);
         expect(ids(editor.previous)).toEqual([E.table]);
     });
@@ -225,7 +227,7 @@ describe('SelectionEditor SCHIEBEN: object selection (verb-noun)', () => {
         editor.startMoveCommand();
         click(editor, WALL);
         click(editor, EMPTY, { button: 2 });
-        expect(editor.snapshot.prompt).toBe('Basispunkt angeben:');
+        expect(editor.snapshot.prompt).toBe(BASE_POINT_PROMPT);
     });
 
     it('ends the command when the selection is ended empty', () => {
@@ -425,11 +427,10 @@ describe('SelectionEditor SCHIEBEN: base point and second point', () => {
         expect(editor.snapshot).toMatchObject({ command: null, basePoint: null, message: '*Abbruch*' });
     });
 
-    it('ignores right clicks, Enter and drags at the point prompts', () => {
+    it('ignores right clicks and drags at the point prompts', () => {
         const editor = atBasePoint();
         click(editor, EMPTY, { button: 2 });
-        expect(editor.keyDown({ key: 'Enter' })).toBe(false);
-        expect(editor.snapshot.prompt).toBe('Basispunkt angeben:');
+        expect(editor.snapshot.prompt).toBe(BASE_POINT_PROMPT);
         editor.pointerMove(at({ x: 3200, y: 2200 }));
         expect(editor.snapshot.area).toBeNull();
         expect(ids(editor.snapshot.highlighted)).toEqual([E.table]);
@@ -453,6 +454,166 @@ describe('SelectionEditor SCHIEBEN: base point and second point', () => {
         editor.pointerMove(at(NEAR_CORNER));
         editor.keyDown({ key: 'Enter' });
         expect(editor.snapshot.snap).toMatchObject({ mode: 'END', point: CORNER });
+    });
+});
+
+describe('SelectionEditor SCHIEBEN: typed input', () => {
+    const SECOND_POINT_PROMPT = 'Zweiten Punkt angeben oder <ersten Punkt als Verschiebung verwenden>:';
+    const DISPLACEMENT_PROMPT = 'Verschiebung angeben <0,0>:';
+    const INVALID = 'Punkt oder Option-Schlüsselwort erforderlich.';
+
+    /** SCHIEBEN on the table (centre at 4000, 1800), at the base point prompt. */
+    const start = () => {
+        const history = new DocumentHistory(parseDocument(samplePlan));
+        const editor = new SelectionEditor(history);
+        click(editor, TABLE);
+        editor.startMoveCommand();
+        return { editor, history };
+    };
+    /** Types each character of `text`, then Enter unless `enter` is false. */
+    const type = (editor: SelectionEditor, text: string, enter = true) => {
+        for (const key of text) {
+            expect(editor.keyDown({ key }), key).toBe(true);
+        }
+        if (enter) {
+            expect(editor.keyDown({ key: 'Enter' })).toBe(true);
+        }
+    };
+
+    it('shows the typed text; Backspace edits it, Esc drops it and then cancels', () => {
+        const { editor } = start();
+        type(editor, '12,3', false);
+        expect(editor.snapshot).toMatchObject({ prompt: BASE_POINT_PROMPT, input: '12,3' });
+        editor.keyDown({ key: 'Backspace' });
+        expect(editor.snapshot.input).toBe('12,');
+        expect(editor.keyDown({ key: 'Escape' })).toBe(true);
+        expect(editor.snapshot).toMatchObject({ command: 'SCHIEBEN', input: '' });
+        expect(editor.keyDown({ key: 'Escape' })).toBe(true);
+        expect(editor.snapshot).toMatchObject({ command: null, message: '*Abbruch*' });
+    });
+
+    it('takes a typed absolute base point and a second point relative to it', () => {
+        const { editor, history } = start();
+        type(editor, '4000,1800');
+        expect(editor.snapshot).toMatchObject({ prompt: SECOND_POINT_PROMPT, basePoint: { x: 4000, y: 1800 }, input: '' });
+        type(editor, '@100,-50');
+        expect(editor.snapshot.command).toBeNull();
+        expect(tableCentre(history)).toEqual({ x: 4100, y: 1750 });
+        expect(editor.undo()).toBe(true);
+        expect(tableCentre(history)).toEqual({ x: 4000, y: 1800 });
+    });
+
+    it('takes an absolute second point and polar input in degrees, counter-clockwise', () => {
+        const absolute = start();
+        type(absolute.editor, '4000,1800');
+        type(absolute.editor, '0,0');
+        expect(tableCentre(absolute.history)).toEqual({ x: 0, y: 0 });
+        const polar = start();
+        type(polar.editor, '0,0');
+        type(polar.editor, '@100<90');
+        const centre = tableCentre(polar.history);
+        expect(centre.x).toBeCloseTo(4000);
+        expect(centre.y).toBeCloseTo(1900);
+    });
+
+    it('takes relative input at the base point from the last point given', () => {
+        const { editor, history } = start();
+        type(editor, '@10,20');
+        expect(editor.snapshot.basePoint).toEqual({ x: 10, y: 20 });
+        type(editor, '@5,0');
+        click(editor, { x: 4605, y: 1800 });
+        editor.startMoveCommand();
+        type(editor, '@');
+        expect(editor.snapshot.basePoint).toEqual({ x: 15, y: 20 });
+        expect(tableCentre(history)).toEqual({ x: 4005, y: 1800 });
+    });
+
+    it('moves a typed distance towards the cursor at the second point (direct distance entry)', () => {
+        const { editor, history } = start();
+        type(editor, '3000,1000');
+        // Straight up, where nothing snaps
+        editor.pointerMove(at(EMPTY));
+        type(editor, '250');
+        expect(tableCentre(history)).toEqual({ x: 4000, y: 2050 });
+    });
+
+    it('rejects a distance without a cursor and text that is no point, staying at the prompt', () => {
+        const { editor, history } = start();
+        type(editor, '250');
+        expect(editor.snapshot).toMatchObject({ prompt: BASE_POINT_PROMPT, message: INVALID, input: '' });
+        type(editor, 'x');
+        expect(editor.snapshot).toMatchObject({ prompt: BASE_POINT_PROMPT, message: INVALID });
+        type(editor, '3000,1000');
+        type(editor, '250');
+        expect(editor.snapshot).toMatchObject({ prompt: SECOND_POINT_PROMPT, message: INVALID });
+        type(editor, '1,2,3');
+        expect(editor.snapshot).toMatchObject({ prompt: SECOND_POINT_PROMPT, message: INVALID });
+        expect(tableCentre(history)).toEqual({ x: 4000, y: 1800 });
+    });
+
+    it('asks for the displacement on Enter or "V" at the base point and moves by the typed vector', () => {
+        const { editor, history } = start();
+        editor.keyDown({ key: 'Enter' });
+        expect(editor.snapshot).toMatchObject({ prompt: DISPLACEMENT_PROMPT, cursor: 'point', basePoint: null });
+        type(editor, '-500,200');
+        expect(editor.snapshot.command).toBeNull();
+        expect(tableCentre(history)).toEqual({ x: 3500, y: 2000 });
+        click(editor, { x: 4100, y: 2000 });
+        editor.startMoveCommand();
+        type(editor, 'v');
+        expect(editor.snapshot.prompt).toBe(DISPLACEMENT_PROMPT);
+        type(editor, '@100<0');
+        expect(tableCentre(history).x).toBeCloseTo(3600);
+    });
+
+    it('takes a clicked point as the displacement vector', () => {
+        const { editor, history } = start();
+        editor.keyDown({ key: 'Enter' });
+        click(editor, EMPTY);
+        expect(tableCentre(history)).toEqual({ x: 7000, y: 3800 });
+    });
+
+    it('moves nothing for the default <0,0> and rejects a distance at the displacement prompt', () => {
+        const { editor, history } = start();
+        editor.keyDown({ key: 'Enter' });
+        type(editor, '100');
+        expect(editor.snapshot).toMatchObject({ prompt: DISPLACEMENT_PROMPT, message: INVALID });
+        editor.keyDown({ key: 'Enter' });
+        expect(editor.snapshot.command).toBeNull();
+        expect(history.undoCommand).toBeNull();
+    });
+
+    it('takes the base point as the displacement on Enter at the second point', () => {
+        const { editor, history } = start();
+        type(editor, '100,-50');
+        editor.keyDown({ key: 'Enter' });
+        expect(editor.snapshot.command).toBeNull();
+        expect(tableCentre(history)).toEqual({ x: 4100, y: 1750 });
+    });
+
+    it('ends typed text with Space; a click drops it and takes the point', () => {
+        const { editor } = start();
+        expect(editor.keyDown({ key: ' ' })).toBe(false);
+        type(editor, '10,20', false);
+        expect(editor.keyDown({ key: ' ' })).toBe(true);
+        expect(editor.snapshot.basePoint).toEqual({ x: 10, y: 20 });
+        type(editor, '99', false);
+        editor.pointerMove(at(EMPTY));
+        click(editor, EMPTY);
+        expect(editor.snapshot).toMatchObject({ command: null, input: '' });
+    });
+
+    it('takes no shortcuts and types only at point prompts', () => {
+        const { editor } = start();
+        expect(editor.keyDown({ key: 'z', ctrlKey: true })).toBe(false);
+        expect(editor.keyDown({ key: 'F3' })).toBe(false);
+        expect(editor.snapshot.input).toBe('');
+        editor.keyDown({ key: 'Escape' });
+        expect(editor.keyDown({ key: '1' })).toBe(false);
+        editor.startMoveCommand();
+        expect(editor.snapshot.prompt).toBe('SCHIEBEN Objekte wählen:');
+        expect(editor.keyDown({ key: '1' })).toBe(false);
+        expect(editor.snapshot.input).toBe('');
     });
 });
 

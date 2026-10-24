@@ -41,7 +41,11 @@ function App() {
     // search), Ctrl/Cmd+Z undoes, Ctrl+Y or Cmd+Shift+Z redoes
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
-            if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable]')) {
+            // A key the editor took (e.g. typed on the command line) does nothing else
+            if (
+                event.defaultPrevented ||
+                (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable]'))
+            ) {
                 return;
             }
             if (event.key === 'F3') {
@@ -151,7 +155,14 @@ function App() {
                 onPointerChange={setPointer}
                 onSelectionChange={setSelection}
             />
-            {selection && <CommandLine prompt={selection.prompt} message={selection.message} />}
+            {selection && (
+                <CommandLine
+                    prompt={selection.prompt}
+                    input={selection.input}
+                    acceptsInput={selection.cursor === 'point'}
+                    message={selection.message}
+                />
+            )}
             <StatusBar
                 viewport={viewport}
                 pointer={pointer}

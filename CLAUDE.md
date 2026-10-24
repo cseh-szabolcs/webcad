@@ -20,8 +20,8 @@ apps in one repo:
   rebuilt from scratch, closer to AutoCAD behaviour.** Everything is rebuilt in small
   steps. So far it loads a plan through the API and displays it (wheel zoom,
   middle/Space+drag pan, status line, light/dark mode), has AutoCAD-like object
-  selection, object snap and the MOVE command (`SCHIEBEN`) with preview and undo/redo
-  (see "Editor: current state" below). Changes are not saved to the backend yet; grips
+  selection, object snap and the MOVE command (`SCHIEBEN`) with preview, typed
+  coordinates and undo/redo (see "Editor: current state" below). Changes are not saved to the backend yet; grips
   are drawn but have no function.
 
 ### Reference material (read, don't copy)
@@ -169,10 +169,11 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   grips), Shift removes, Esc clears. Rectangle to the right = window (completely inside),
   to the left = crossing (touches); lasso direction picks the mode, Space toggles.
 - Toolbar tool "Verschieben" starts `SCHIEBEN` (AutoCAD MOVE). With a pickfirst selection
-  it goes straight to "Basispunkt angeben:" ("N gefunden"); otherwise it first asks
+  it goes straight to "Basispunkt angeben oder [Verschiebung] <Verschiebung>:" ("N gefunden"); otherwise it first asks
   "Objekte wählen:" (verb-noun: grips disappear, AutoCAD-style counts such as "1 gefunden,
   2 gesamt"), and Enter or right click ends the selection (kept as `previous`; empty ends
-  the command). The base point and then the second point are clicked with object snap. At the
+  the command). The base point and then the second point are clicked with object snap (or
+  typed, see below). At the
   second point a preview follows the cursor (or its snap point): copies of the
   selected paths in their own style (opacity 0.7), offset by (point − base point), and a
   dashed rubber band from the base point (orange on light, yellow on dark); the originals
@@ -183,10 +184,22 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   selected. Vertices shared with elements that are not moved are detached: those
   neighbours get one copy of the vertex at the old position and stay unchanged, like
   AutoCAD MOVE. Undo/redo with no command running: toolbar "Rückgängig"/"Wiederherstellen",
-  Ctrl/⌘+Z, Ctrl+Y or ⌘+⇧+Z (command line "Rückgängig: SCHIEBEN"). Enter and
-  right click do nothing at the point prompts yet (AutoCAD's displacement option). Esc
-  cancels at every prompt. The selection stays highlighted at the point prompts, without
-  rollover; the base point shows as a small cross.
+  Ctrl/⌘+Z, Ctrl+Y or ⌘+⇧+Z (command line "Rückgängig: SCHIEBEN"). Right click does
+  nothing at the point prompts yet. Esc cancels at every prompt. The selection stays
+  highlighted at the point prompts, without rollover; the base point shows as a small cross.
+- Typed input at the point prompts (no focus needed; the command line shows the text and a
+  caret): absolute `x,y` (also `#x,y`) and `abstand<winkel`, relative `@dx,dy`,
+  `@abstand<winkel` and `@` (to the base point at the second point; to the last point
+  given, AutoCAD's LASTPOINT starting at 0,0, at the base point), `.` decimals, degrees
+  counter-clockwise from +X (Y up). A plain number at the second point is direct distance
+  entry towards the preview point (cursor or snap point). Enter (or Space once something is
+  typed) ends the text, Backspace edits, Esc drops the text and only then cancels; a click
+  drops it. Enter empty or "V" at the base point asks "Verschiebung angeben <0,0>:" (typed
+  vector, or a clicked point as vector; Enter empty = 0,0, nothing moves); Enter empty at
+  the second point moves by the base point as vector. Invalid text: "Punkt oder
+  Option-Schlüsselwort erforderlich.", the prompt stays. Every printable key is taken at a
+  point prompt (`canvasInput` prevents its default; App's shortcuts skip `defaultPrevented`
+  keys), Ctrl/⌘ shortcuts are not (`EditorKeyEvent.ctrlKey`; AltGr counts as typing).
 - Cursor per prompt like AutoCAD: crosshair + pick box with no command, only the pick box
   at "Objekte wählen:", only the crosshair at point prompts (the aperture box only with
   `showApertureBox`).
@@ -215,11 +228,12 @@ Structure (all pure TS and unit-tested unless noted):
 
 - `cad/editor/SelectionEditor.ts`: the selection and `SCHIEBEN` state machine, independent
   of Paper.js and React. It gets `EditorPointerEvent`s and key events and publishes an
-  immutable `SelectionSnapshot` (prompt, message, hovered, highlighted, grips, area,
+  immutable `SelectionSnapshot` (prompt, typed input, message, hovered, highlighted, grips, area,
   cursor mode, snap, Tab cycle position, base point, preview point, can undo/redo) via
   `subscribe()`. It holds the Tab cycle state; the engine stays stateless. It runs
   on a `DocumentHistory`. Before further commands (KOPIEREN, DREHEN …) it should be split
-  into an editor core and per-command state machines.
+  into an editor core and per-command state machines. Typed text is parsed by the pure
+  `cad/editor/commandInput.ts` (`parsePointInput`, `resolvePointInput`, `matchesKeyword`).
 - `cad/editor/commands/`: `DocumentCommand` (`execute`/`undo` on immutable documents,
   returning the new document and the changed element ids), `DocumentHistory` (current
   document, undo/redo stacks, listeners), `MoveCommand`. `CadCanvas` keeps the history of
@@ -243,7 +257,7 @@ Structure (all pure TS and unit-tested unless noted):
   rectangle/lasso, the move preview (offset copies, rubber band), one palette per theme.
 - `ui/canvasInput.ts`: the single owner of canvas input (zoom, pan, forwarding to the
   editor, pointer capture, lost-release and `pointercancel` handling) and of the cursor.
-  `ui/CommandLine.tsx` is display only.
+  `ui/CommandLine.tsx` is display only (prompt, typed input, caret); the editor gets the keys.
 - `ui/SnapMarker.ts`: snap marker, tooltip (flips at the canvas edge) and base point cross
   as an SVG/DOM layer over the canvas, positioned by `CadCanvas` in view px. Tokens
   `--snap-marker`, `--snap-tooltip-bg|fg|border`. `ui/StatusBar.tsx` holds the OFANG switch.

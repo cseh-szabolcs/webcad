@@ -40,8 +40,9 @@ export interface CanvasInputOptions {
  * Single owner of canvas input. Wheel zooms around the cursor; middle drag or Space + left
  * drag pans; other pointer input goes to the target. Keys go to the target first, and a key
  * it handles does nothing else (Tab at a point prompt cycles the snap points instead of
- * moving the browser focus); Space only pans if the target does not use it (e.g. to toggle
- * a lasso). Returns a function that removes all listeners.
+ * moving the browser focus; typed text goes to the command line); its default is prevented,
+ * so later listeners can tell. Space only pans if the target does not use it (e.g. to toggle
+ * a lasso or end typed text). Returns a function that removes all listeners.
  */
 export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInputOptions): () => void {
     const { getViewport, onViewportChange, target, onPointerMove, onPointerLeave, crosshair } = options;
@@ -214,7 +215,8 @@ export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInpu
             }
             return;
         }
-        if (target.keyDown({ key: event.key, shiftKey: event.shiftKey })) {
+        const ctrlKey = (event.ctrlKey || event.metaKey) && !event.altKey;
+        if (target.keyDown({ key: event.key, shiftKey: event.shiftKey, ctrlKey })) {
             event.preventDefault();
         }
     };

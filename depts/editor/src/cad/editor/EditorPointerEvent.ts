@@ -22,4 +22,9 @@ export interface EditorKeyEvent {
      * cycles the snap points backwards.
      */
     shiftKey?: boolean;
+    /**
+     * Ctrl or ⌘ held without Alt: a shortcut, not typed text. (AltGr reports Ctrl and Alt and
+     * types characters such as @ on German Windows keyboards.)
+     */
+    ctrlKey?: boolean;
 }

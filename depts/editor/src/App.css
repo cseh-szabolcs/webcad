@@ -139,6 +139,21 @@
     color: var(--muted);
 }
 
+.commandline-caret {
+    display: inline-block;
+    width: 1px;
+    height: 1.1em;
+    vertical-align: text-bottom;
+    background: currentColor;
+    animation: commandline-blink 1s steps(1) infinite;
+}
+
+@keyframes commandline-blink {
+    50% {
+        opacity: 0;
+    }
+}
+
 .statusbar {
     display: flex;
     align-items: center;

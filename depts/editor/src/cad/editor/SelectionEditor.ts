@@ -10,6 +10,7 @@ import {
 import { indexDocument, type DocumentIndex } from '../model/DocumentIndex';
 import type { Id, Point } from '../model/Point';
 import { rectFromCorners } from '../geometry/selectionGeometry';
+import { matchesKeyword, parsePointInput, resolvePointInput } from './commandInput';
 import type { EditorKeyEvent, EditorPointerEvent } from './EditorPointerEvent';
 import { buildElementShapes } from './selection/ElementShapes';
 import { selectionControlFrames, selectionGrips } from './selection/grips';
@@ -29,11 +30,17 @@ export type EditorCommand = 'SCHIEBEN';
 const PROMPTS = {
     idle: 'Befehl:',
     select: 'SCHIEBEN Objekte wählen:',
-    basePoint: 'Basispunkt angeben:',
+    basePoint: 'Basispunkt angeben oder [Verschiebung] <Verschiebung>:',
+    displacement: 'Verschiebung angeben <0,0>:',
     secondPoint: 'Zweiten Punkt angeben oder <ersten Punkt als Verschiebung verwenden>:',
     corner: 'Entgegengesetzte Ecke angeben:',
     lasso: 'Lasso – Leertaste wechselt Fenster/Kreuzen',
 } as const;
+
+/** The option of the base point prompt that takes a displacement vector instead. */
+const DISPLACEMENT_KEYWORD = 'Verschiebung';
+/** Typed text that is neither a point nor an option, like AutoCAD. */
+const INVALID_INPUT = 'Punkt oder Option-Schlüsselwort erforderlich.';
 
 /**
  * What the cursor shows, like AutoCAD: crosshair and pick box with no command, only the pick
@@ -57,6 +64,8 @@ export interface SelectionSnapshot {
     command: EditorCommand | null;
     /** Command line prompt. */
     prompt: string;
+    /** Text typed at the prompt so far, not yet ended with Enter. */
+    input: string;
     /** Last command line message, e.g. "1 gefunden, 2 gesamt". */
     message: string | null;
     /**
@@ -101,7 +110,15 @@ type State =
     /** SCHIEBEN asks for the base point. */
     | { kind: 'basePoint'; selection: ReadonlySet<Id> }
     /** SCHIEBEN asks for the second point. */
-    | { kind: 'secondPoint'; selection: ReadonlySet<Id>; basePoint: Point };
+    | { kind: 'secondPoint'; selection: ReadonlySet<Id>; basePoint: Point }
+    /** SCHIEBEN asks for the displacement vector (option "Verschiebung"); a click gives it as a point. */
+    | { kind: 'displacement'; selection: ReadonlySet<Id> };
+
+type PointPromptState = Extract<State, { kind: 'basePoint' | 'secondPoint' | 'displacement' }>;
+
+function isPointPrompt(state: State): state is PointPromptState {
+    return state.kind === 'basePoint' || state.kind === 'secondPoint' || state.kind === 'displacement';
+}
 
 /**
  * Object selection and the SCHIEBEN (MOVE) command of the editor like AutoCAD, independent
@@ -119,6 +136,14 @@ type State =
  * switches to the next one (Shift+Tab back), until the cursor moves more than the aperture
  * size (half the box side) from where Tab was pressed. Esc cancels the command at any prompt. With
  * no command, undo() and redo() step through the document history.
+ *
+ * At the point prompts the keyboard types on the command line (see commandInput): Enter ends
+ * the text (so does Space once something is typed), Backspace edits it and Esc drops it. A
+ * typed point is absolute (`x,y`, `abstand<winkel`) or relative (`@…`) to the base point, at
+ * the base point prompt to the last point given; a plain number at the second point goes that
+ * far from the base point towards the cursor (direct distance entry). Enter on its own (or
+ * "V") at the base point prompt asks for the displacement vector instead, and at the second
+ * point takes the base point itself as the displacement, like AutoCAD.
  *
  * The derived structures (outlines, R-tree, groups, snap geometry) follow every document
  * change of the history; they are rebuilt as a whole for now.
@@ -154,6 +179,10 @@ export class SelectionEditor {
     /** Last cursor position over the canvas, to snap at once when a point prompt starts. */
     private lastPointer: EditorPointerEvent | null = null;
     private state: State = { kind: 'idle', pickfirst: new Set() };
+    /** Text typed at the current point prompt. */
+    private input = '';
+    /** Last point given, the reference of relative input at the base point prompt (AutoCAD's LASTPOINT). */
+    private lastPoint: Point = { x: 0, y: 0 };
     private previousSelection: ReadonlySet<Id> = new Set();
     /** Element under the cursor, whether selected or not. */
     private underCursor: Id | null = null;
@@ -262,7 +291,7 @@ export class SelectionEditor {
     /** Switches the running object snaps; takes effect at the cursor right away. */
     setSnapSettings(settings: SnapSettings): void {
         this.snapSettings = settings;
-        if (this.lastPointer !== null && (this.state.kind === 'basePoint' || this.state.kind === 'secondPoint')) {
+        if (this.lastPointer !== null && isPointPrompt(this.state)) {
             this.snapCycle = null;
             this.updateSnap(this.lastPointer);
             this.changed();
@@ -271,8 +300,10 @@ export class SelectionEditor {
 
     pointerDown(event: EditorPointerEvent): void {
         const state = this.state;
-        if (state.kind === 'basePoint' || state.kind === 'secondPoint') {
+        if (isPointPrompt(state)) {
             if (event.button === 0) {
+                // A click gives the point; text typed so far is dropped
+                this.input = '';
                 this.updateSnap(event);
                 this.pointGiven(this.snap?.point ?? event.modelPoint);
             }
@@ -306,7 +337,7 @@ export class SelectionEditor {
 
     pointerMove(event: EditorPointerEvent): void {
         this.lastPointer = event;
-        if (this.state.kind === 'basePoint' || this.state.kind === 'secondPoint') {
+        if (isPointPrompt(this.state)) {
             this.updateSnap(event);
             this.changed();
             return;
@@ -399,18 +430,20 @@ export class SelectionEditor {
         const state = this.state;
         if (event.key === 'Tab') {
             // Handled at every point prompt, so the browser focus never moves away
-            if (state.kind !== 'basePoint' && state.kind !== 'secondPoint') {
+            if (!isPointPrompt(state)) {
                 return false;
             }
             this.cycleSnap(event.shiftKey ? -1 : 1);
             return true;
+        }
+        if (isPointPrompt(state)) {
+            return this.typeKey(event);
         }
         if (state.kind !== 'idle') {
             if (event.key === 'Escape') {
                 this.endCommand('*Abbruch*');
                 return true;
             }
-            // At the point prompts Enter will take the displacement option, not built yet
             if (event.key === 'Enter' && state.kind === 'select') {
                 this.finishSelection();
                 return true;
@@ -446,22 +479,99 @@ export class SelectionEditor {
         this.startPointPrompt();
     }
 
-    /** A click at a point prompt, at the snap point or the cursor. */
+    /**
+     * A key at a point prompt: types on the command line, or ends, edits or drops the text.
+     * Every printable key is taken, so none triggers anything else; Ctrl/⌘ shortcuts are not.
+     */
+    private typeKey(event: EditorKeyEvent): boolean {
+        const { key } = event;
+        if (key === 'Escape') {
+            if (this.input === '') {
+                this.endCommand('*Abbruch*');
+            } else {
+                this.input = '';
+                this.changed();
+            }
+            return true;
+        }
+        if (key === 'Enter' || (key === ' ' && this.input !== '')) {
+            this.submitInput();
+            return true;
+        }
+        if (key === 'Backspace') {
+            this.input = this.input.slice(0, -1);
+            this.changed();
+            return true;
+        }
+        if (key.length === 1 && key !== ' ' && !event.ctrlKey) {
+            this.input += key;
+            this.changed();
+            return true;
+        }
+        return false;
+    }
+
+    /** Enter at a point prompt: takes the typed point, option or default (see the class comment). */
+    private submitInput(): void {
+        const state = this.state as PointPromptState;
+        const text = this.input.trim();
+        this.input = '';
+        if (state.kind === 'basePoint' && (text === '' || matchesKeyword(text, DISPLACEMENT_KEYWORD))) {
+            this.state = { kind: 'displacement', selection: state.selection };
+            this.startPointPrompt();
+            this.message = null;
+            this.changed();
+            return;
+        }
+        if (text === '') {
+            // The base point as displacement, or the default <0,0>
+            this.moveBy(state.selection, state.kind === 'secondPoint' ? state.basePoint : { x: 0, y: 0 });
+            return;
+        }
+        const parsed = parsePointInput(text);
+        const reference = state.kind === 'secondPoint' ? state.basePoint : state.kind === 'basePoint' ? this.lastPoint : { x: 0, y: 0 };
+        // Direct distance entry needs a base point to measure from
+        const toward = state.kind === 'secondPoint' ? this.previewPoint() : null;
+        const point = parsed && resolvePointInput(parsed, reference, toward);
+        if (point === null) {
+            this.message = INVALID_INPUT;
+            this.changed();
+            return;
+        }
+        this.pointGiven(point);
+    }
+
+    /** A point given at a point prompt: clicked (at the snap point or the cursor) or typed. */
     private pointGiven(point: Point): void {
         const state = this.state;
         if (state.kind === 'basePoint') {
+            this.lastPoint = point;
             this.state = { kind: 'secondPoint', selection: state.selection, basePoint: point };
             this.startPointPrompt();
             this.message = null;
             this.changed();
         } else if (state.kind === 'secondPoint') {
-            const delta = { x: point.x - state.basePoint.x, y: point.y - state.basePoint.y };
-            this.endCommand(null);
-            // A zero displacement changes nothing, so it leaves no undo step either
-            if (delta.x !== 0 || delta.y !== 0) {
-                this.history.execute(new MoveCommand(state.selection, delta));
-            }
+            this.lastPoint = point;
+            this.moveBy(state.selection, { x: point.x - state.basePoint.x, y: point.y - state.basePoint.y });
+        } else if (state.kind === 'displacement') {
+            this.moveBy(state.selection, point);
         }
+    }
+
+    /** Ends SCHIEBEN by moving the selection by `delta`. */
+    private moveBy(selection: ReadonlySet<Id>, delta: Point): void {
+        this.endCommand(null);
+        // A zero displacement changes nothing, so it leaves no undo step either
+        if (delta.x !== 0 || delta.y !== 0) {
+            this.history.execute(new MoveCommand(selection, delta));
+        }
+    }
+
+    /** At the second point prompt, the point a click would take now: the snap point, else the cursor. */
+    private previewPoint(): Point | null {
+        return this.state.kind === 'secondPoint' && this.lastPointer !== null
+            ? (this.snap?.point ?? this.lastPointer.modelPoint)
+            : null;
     }
 
     /** Each point prompt starts with a fresh snap memory and snaps at the cursor anew. */
@@ -486,6 +596,7 @@ export class SelectionEditor {
 
     private endCommand(message: string | null): void {
         this.state = { kind: 'idle', pickfirst: new Set() };
+        this.input = '';
         this.message = message;
         this.updateSnap(null);
         this.changed();
@@ -607,13 +718,12 @@ export class SelectionEditor {
         const state = this.state;
         const command = state.kind === 'idle' ? null : 'SCHIEBEN';
         const highlighted = state.kind === 'idle' ? state.pickfirst : state.selection;
-        const pointPrompt = state.kind === 'basePoint' || state.kind === 'secondPoint';
+        const pointPrompt = isPointPrompt(state);
         const basePoint = state.kind === 'secondPoint' ? state.basePoint : null;
         const snap = pointPrompt ? this.snap : null;
         const snapCycle =
             pointPrompt && this.snapCycle !== null ? { index: this.snapCycle.index, count: this.snapCandidates.length } : null;
-        const previewPoint =
-            state.kind === 'secondPoint' && this.lastPointer !== null ? (snap?.point ?? this.lastPointer.modelPoint) : null;
+        const previewPoint = this.previewPoint();
         const idle = state.kind === 'idle' && this.area === null;
         const canUndo = idle && this.history.undoCommand !== null;
         const canRedo = idle && this.history.redoCommand !== null;
@@ -641,6 +751,7 @@ export class SelectionEditor {
         if (
             sameSelection &&
             this.message === previous.message &&
+            this.input === previous.input &&
             area === previous.area &&
             sameIds(hovered, previous.hovered) &&
             sameSnap(snap, previous.snap) &&
@@ -665,6 +776,7 @@ export class SelectionEditor {
         return {
             command,
             prompt: area !== null ? PROMPTS[area.shape === 'rect' ? 'corner' : 'lasso'] : PROMPTS[state.kind],
+            input: this.input,
             message: this.message,
             hovered,
             highlighted,
