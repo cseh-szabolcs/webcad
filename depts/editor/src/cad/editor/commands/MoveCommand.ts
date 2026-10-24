@@ -11,7 +11,7 @@ import type { DocumentChange, DocumentCommand } from './DocumentCommand';
  * other). The moved elements keep the original vertex ids.
  */
 export class MoveCommand implements DocumentCommand {
-    readonly label = 'SCHIEBEN';
+    readonly label = 'MOVE';
     private readonly elementIds: ReadonlySet<Id>;
     private readonly delta: Vector2;
     private readonly newId: () => Id;

@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import path from 'path'
@@ -22,6 +23,10 @@ export default defineConfig({
         alias: {
             'app': path.resolve(__dirname, './src'),
         }
+    },
+    test: {
+        // The tests check the German texts, whatever the machine's language
+        setupFiles: ['./src/i18n/testSetup.ts'],
     },
     build: {
         target: 'esnext',

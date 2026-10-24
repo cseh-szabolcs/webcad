@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CadDocument } from '../model/CadDocument';
 import type { Point } from '../model/Point';
 import { parseDocument } from '../persistence/CadSerializer';
@@ -8,6 +8,7 @@ import type { EditorPointerEvent } from './EditorPointerEvent';
 import { DocumentHistory } from './commands/DocumentHistory';
 import { DEFAULT_EDITOR_SETTINGS } from '../../settings/editorSettings';
 import { SelectionEditor } from './SelectionEditor';
+import { i18n } from '../../i18n/i18n';
 
 const { element: E, vertex: V } = sampleIds;
 
@@ -178,7 +179,7 @@ describe('SelectionEditor SCHIEBEN: object selection (verb-noun)', () => {
         expect(editor.snapshot).toMatchObject({ command: null, prompt: 'Befehl:', message: null, cursor: 'command' });
         editor.startMoveCommand();
         expect(editor.snapshot).toMatchObject({
-            command: 'SCHIEBEN',
+            command: 'MOVE',
             prompt: 'SCHIEBEN Objekte wählen:',
             message: null,
             cursor: 'select',
@@ -218,7 +219,7 @@ describe('SelectionEditor SCHIEBEN: object selection (verb-noun)', () => {
         editor.startMoveCommand();
         click(editor, TABLE);
         expect(editor.keyDown({ key: 'Enter' })).toBe(true);
-        expect(editor.snapshot).toMatchObject({ command: 'SCHIEBEN', prompt: BASE_POINT_PROMPT, message: null });
+        expect(editor.snapshot).toMatchObject({ command: 'MOVE', prompt: BASE_POINT_PROMPT, message: null });
         expect(ids(editor.snapshot.highlighted)).toEqual([E.table]);
         expect(ids(editor.previous)).toEqual([E.table]);
     });
@@ -314,7 +315,7 @@ describe('SelectionEditor SCHIEBEN: base point and second point', () => {
         editor.pointerMove(at(NEAR_CORNER));
         click(editor, NEAR_CORNER);
         expect(editor.snapshot).toMatchObject({
-            command: 'SCHIEBEN',
+            command: 'MOVE',
             prompt: 'Zweiten Punkt angeben oder <ersten Punkt als Verschiebung verwenden>:',
             basePoint: CORNER,
             cursor: 'point',
@@ -488,7 +489,7 @@ describe('SelectionEditor SCHIEBEN: typed input', () => {
         editor.keyDown({ key: 'Backspace' });
         expect(editor.snapshot.input).toBe('12,');
         expect(editor.keyDown({ key: 'Escape' })).toBe(true);
-        expect(editor.snapshot).toMatchObject({ command: 'SCHIEBEN', input: '' });
+        expect(editor.snapshot).toMatchObject({ command: 'MOVE', input: '' });
         expect(editor.keyDown({ key: 'Escape' })).toBe(true);
         expect(editor.snapshot).toMatchObject({ command: null, message: '*Abbruch*' });
     });
@@ -604,14 +605,18 @@ describe('SelectionEditor SCHIEBEN: typed input', () => {
         expect(editor.snapshot).toMatchObject({ command: null, input: '' });
     });
 
-    it('takes no shortcuts and types only at point prompts', () => {
+    it('takes no shortcuts and types at point prompts and the command prompt only', () => {
         const { editor } = start();
         expect(editor.keyDown({ key: 'z', ctrlKey: true })).toBe(false);
         expect(editor.keyDown({ key: 'F3' })).toBe(false);
         expect(editor.snapshot.input).toBe('');
         editor.keyDown({ key: 'Escape' });
-        expect(editor.keyDown({ key: '1' })).toBe(false);
+        expect(editor.keyDown({ key: 'z', ctrlKey: true })).toBe(false);
+        expect(editor.keyDown({ key: '1' })).toBe(true);
+        expect(editor.snapshot).toMatchObject({ input: '1', acceptsInput: true });
+        editor.keyDown({ key: 'Escape' });
         editor.startMoveCommand();
+        expect(editor.snapshot.acceptsInput).toBe(false);
         expect(editor.snapshot.prompt).toBe('SCHIEBEN Objekte wählen:');
         expect(editor.keyDown({ key: '1' })).toBe(false);
         expect(editor.snapshot.input).toBe('');
@@ -1083,14 +1088,14 @@ describe('SelectionEditor rectangle (press + drag)', () => {
         editor.pointerDown(at(UPPER_RIGHT));
         editor.pointerMove(at(LOWER_LEFT));
         expect(editor.keyDown({ key: 'Escape' })).toBe(true);
-        expect(editor.snapshot).toMatchObject({ command: 'SCHIEBEN', area: null, prompt: 'SCHIEBEN Objekte wählen:' });
+        expect(editor.snapshot).toMatchObject({ command: 'MOVE', area: null, prompt: 'SCHIEBEN Objekte wählen:' });
         editor.pointerMove(at(UPPER_RIGHT));
         editor.pointerUp(at(UPPER_RIGHT));
         expect(editor.snapshot.area).toBeNull();
         // Escape after the release
         drag(editor, [UPPER_RIGHT, LOWER_LEFT]);
         expect(editor.keyDown({ key: 'Escape' })).toBe(true);
-        expect(editor.snapshot).toMatchObject({ command: 'SCHIEBEN', area: null });
+        expect(editor.snapshot).toMatchObject({ command: 'MOVE', area: null });
         expect(ids(editor.snapshot.highlighted)).toEqual([E.table]);
     });
 
@@ -1100,7 +1105,7 @@ describe('SelectionEditor rectangle (press + drag)', () => {
         editor.pointerDown(at(UPPER_RIGHT));
         editor.pointerMove(at(LOWER_LEFT));
         editor.pointerDown(at(LOWER_LEFT, { button: 2 }));
-        expect(editor.snapshot.command).toBe('SCHIEBEN');
+        expect(editor.snapshot.command).toBe('MOVE');
         expect(editor.snapshot.area).not.toBeNull();
     });
 
@@ -1338,5 +1343,104 @@ describe('SelectionEditor selection preview', () => {
         editor.pointerMove(at(UPPER_RIGHT));
         editor.keyDown({ key: 'Escape' });
         expect(editor.snapshot.hovered.size).toBe(0);
+    });
+});
+
+describe('SelectionEditor in English', () => {
+    afterEach(async () => {
+        await i18n.changeLanguage('de');
+    });
+
+    it('republishes prompt and message in the new language, without a state change', async () => {
+        const editor = create();
+        click(editor, TABLE);
+        editor.startMoveCommand();
+        const listener = vi.fn();
+        editor.subscribe(listener);
+        await i18n.changeLanguage('en');
+        expect(listener).not.toHaveBeenCalled();
+        editor.refreshTexts();
+        expect(listener).toHaveBeenCalledOnce();
+        expect(editor.snapshot).toMatchObject({
+            prompt: 'Specify base point or [Displacement] <Displacement>:',
+            message: '1 found',
+        });
+        editor.keyDown({ key: 'Escape' });
+        expect(editor.snapshot).toMatchObject({ prompt: 'Command:', message: '*Cancel*' });
+    });
+
+    it('takes the English keyword and reports undo with the English command name', async () => {
+        await i18n.changeLanguage('en');
+        const editor = create();
+        click(editor, TABLE);
+        editor.startMoveCommand();
+        editor.keyDown({ key: 'v' });
+        editor.keyDown({ key: 'Enter' });
+        expect(editor.snapshot.message).toBe('Point or option keyword required.');
+        editor.keyDown({ key: 'd' });
+        editor.keyDown({ key: 'Enter' });
+        expect(editor.snapshot.prompt).toBe('Specify displacement <0,0>:');
+        for (const key of '100,0') {
+            editor.keyDown({ key });
+        }
+        editor.keyDown({ key: 'Enter' });
+        expect(editor.undo()).toBe(true);
+        expect(editor.snapshot.message).toBe('Undo: MOVE');
+    });
+});
+
+describe('SelectionEditor typed commands', () => {
+    /** Types each character of `text`, then `end` (Enter by default). */
+    const type = (editor: SelectionEditor, text: string, end = 'Enter') => {
+        for (const key of text) {
+            expect(editor.keyDown({ key }), key).toBe(true);
+        }
+        return editor.keyDown({ key: end });
+    };
+
+    it('starts SCHIEBEN by its name or its alias, in any case, with Enter or Space', () => {
+        for (const [text, end] of [['SCHIEBEN', 'Enter'], ['move', ' '], ['Schieben', ' ']]) {
+            const editor = create();
+            expect(editor.snapshot).toMatchObject({ prompt: 'Befehl:', acceptsInput: true });
+            type(editor, text, 'Backspace');
+            expect(editor.snapshot.input).toBe(text.slice(0, -1));
+            expect(type(editor, text.slice(-1), end), text).toBe(true);
+            expect(editor.snapshot).toMatchObject({ command: 'MOVE', prompt: 'SCHIEBEN Objekte wählen:', input: '' });
+        }
+    });
+
+    it('takes the pickfirst selection, like the toolbar', () => {
+        const editor = create();
+        click(editor, TABLE);
+        type(editor, 'move');
+        expect(editor.snapshot).toMatchObject({ prompt: BASE_POINT_PROMPT, message: '1 gefunden' });
+    });
+
+    it('reports an unknown command and stays at the command prompt', () => {
+        const editor = create();
+        type(editor, 'kreis');
+        expect(editor.snapshot).toMatchObject({ command: null, prompt: 'Befehl:', input: '', message: 'Unbekannter Befehl "KREIS".' });
+    });
+
+    it('leaves Space, Enter, Backspace and Esc alone without text; Esc drops the text first', () => {
+        const editor = create();
+        click(editor, TABLE);
+        for (const key of [' ', 'Enter', 'Backspace']) {
+            expect(editor.keyDown({ key }), key).toBe(false);
+        }
+        editor.keyDown({ key: 'm' });
+        expect(editor.keyDown({ key: 'Escape' })).toBe(true);
+        expect(editor.snapshot).toMatchObject({ input: '', highlighted: new Set([E.table]) });
+        expect(editor.keyDown({ key: 'Escape' })).toBe(true);
+        expect(editor.snapshot.highlighted.size).toBe(0);
+    });
+
+    it('types nothing while a selection rectangle is open', () => {
+        const editor = create();
+        editor.pointerDown(at(EMPTY));
+        editor.pointerMove(at({ x: 3500, y: 2500 }));
+        editor.pointerUp(at({ x: 3500, y: 2500 }));
+        expect(editor.snapshot.acceptsInput).toBe(false);
+        expect(editor.keyDown({ key: 'm' })).toBe(false);
     });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SNAP_MODE_LABELS, SNAP_MODE_RANK, SNAP_MODES } from './SnapMode';
+import { SNAP_MODE_RANK, SNAP_MODES, snapModeLabel } from './SnapMode';
 
 describe('SnapMode', () => {
     it('ranks END > INT > CEN > MID > QUA > GCE', () => {
@@ -15,6 +15,6 @@ describe('SnapMode', () => {
 
     it('lists the geometric centre after the centre, like AutoCAD', () => {
         expect(SNAP_MODES).toEqual(['END', 'MID', 'CEN', 'GCE', 'QUA', 'INT']);
-        expect(SNAP_MODE_LABELS.GCE).toBe('Geometrisches Zentrum');
+        expect(snapModeLabel('GCE')).toBe('Geometrisches Zentrum');
     });
 });

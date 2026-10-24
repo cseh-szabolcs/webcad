@@ -5,6 +5,7 @@ import { SelectionEditor, type SelectionSnapshot } from 'app/cad/editor/Selectio
 import type { CadDocument } from 'app/cad/model/CadDocument';
 import type { Point } from 'app/cad/model/Point';
 import type { DisplayTheme } from 'app/cad/renderer/displayColor';
+import { i18n } from 'app/i18n/i18n';
 import { PaperRenderer } from 'app/cad/renderer/PaperRenderer';
 import { Viewport, type Size } from 'app/cad/renderer/Viewport';
 import type { EditorSettings, GridSettings, PolarSettings, SnapSettings } from 'app/settings/editorSettings';
@@ -193,6 +194,9 @@ export function CadCanvas({
             onSelectionChangeRef.current?.(editor.snapshot);
         });
         onSelectionChangeRef.current?.(editor.snapshot);
+        // The prompt always changes with the language, so this also redraws the tooltips
+        const refreshTexts = () => editor.refreshTexts();
+        i18n.on('languageChanged', refreshTexts);
 
         const observer = new ResizeObserver(([entry]) => {
             const size = { width: entry.contentRect.width, height: entry.contentRect.height };
@@ -235,6 +239,7 @@ export function CadCanvas({
             snapMarkerRef.current = null;
             grid.dispose();
             gridRef.current = null;
+            i18n.off('languageChanged', refreshTexts);
             unsubscribe();
             editor.dispose();
             unsubscribeHistory();

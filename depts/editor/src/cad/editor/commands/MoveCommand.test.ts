@@ -74,7 +74,7 @@ describe('DocumentHistory', () => {
         history.execute(new MoveCommand([E.table], { x: 100, y: 0 }, ids()));
         history.execute(new MoveCommand([E.table], { x: 0, y: 100 }, ids()));
         expect(positions(history.document, E.table)).toEqual([{ x: 4100, y: 1900 }]);
-        expect(history.undo()?.label).toBe('SCHIEBEN');
+        expect(history.undo()?.label).toBe('MOVE');
         expect(positions(history.document, E.table)).toEqual([{ x: 4100, y: 1800 }]);
         history.undo();
         expect(history.document).toEqual(doc);

@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { commandName } from 'app/cad/editor/commandNames';
 import type { SelectionSnapshot } from 'app/cad/editor/SelectionEditor';
 import type { CadDocument } from 'app/cad/model/CadDocument';
+import { currentLanguage, LANGUAGES, setLanguage } from 'app/i18n/i18n';
 import type { Point } from 'app/cad/model/Point';
 import { CadApiClient } from 'app/cad/persistence/CadApiClient';
 import {
@@ -26,11 +29,11 @@ const DEV_PLAN_ID = '01994f4e-6f3a-7c2d-9b1e-5a3c2d1e0f42';
 
 const api = new CadApiClient();
 
-const THEME_OPTIONS: { value: ThemePreference; label: string; title: string }[] = [
-    { value: 'light', label: 'Hell', title: 'Heller Hintergrund' },
-    { value: 'dark', label: 'Dunkel', title: 'Dunkler Hintergrund' },
-    { value: 'system', label: 'System', title: 'Wie die Systemeinstellung' },
-];
+const THEME_OPTIONS = [
+    { value: 'light', label: 'toolbar.themeLight', title: 'toolbar.themeLightTitle' },
+    { value: 'dark', label: 'toolbar.themeDark', title: 'toolbar.themeDarkTitle' },
+    { value: 'system', label: 'toolbar.themeSystem', title: 'toolbar.themeSystemTitle' },
+] as const satisfies readonly { value: ThemePreference; label: string; title: string }[];
 
 type LoadState =
     | { status: 'loading' }
@@ -38,6 +41,8 @@ type LoadState =
     | { status: 'loaded'; document: CadDocument };
 
 function App() {
+    const { t } = useTranslation();
+    const language = currentLanguage();
     const planId = new URLSearchParams(window.location.search).get('plan') ?? (import.meta.env.DEV ? DEV_PLAN_ID : null);
     const canvasRef = useRef<CadCanvasHandle>(null);
     const [viewport, setViewport] = useState<Viewport | null>(null);
@@ -122,59 +127,74 @@ function App() {
     }, [planId]);
 
     if (planId === null) {
-        return <p className="app-message">No plan selected.</p>;
+        return <p className="app-message">{t('app.noPlan')}</p>;
     }
     if (state.status === 'loading') {
-        return <p className="app-message">Loading plan…</p>;
+        return <p className="app-message">{t('app.loading')}</p>;
     }
     if (state.status === 'error') {
-        return <p className="app-message app-message-error">{state.message}</p>;
+        return <p className="app-message app-message-error">{t('app.loadFailed', { reason: state.message })}</p>;
     }
 
     return (
         <div className="app">
             <header className="toolbar">
-                <div className="toolbar-tools" role="toolbar" aria-label="Werkzeuge">
+                <div className="toolbar-tools" role="toolbar" aria-label={t('toolbar.tools')}>
                     <button
                         type="button"
-                        aria-pressed={selection?.command === 'SCHIEBEN'}
+                        aria-pressed={selection?.command === 'MOVE'}
                         onClick={() => canvasRef.current?.startMoveCommand()}
-                        title="Objekte verschieben (SCHIEBEN)"
+                        title={t('toolbar.moveTitle', { command: commandName('MOVE') })}
                     >
-                        Verschieben
+                        {t('toolbar.move')}
                     </button>
                     <button
                         type="button"
                         disabled={!selection?.canUndo}
                         onClick={() => canvasRef.current?.undo()}
-                        title="Rückgängig (Strg/⌘+Z)"
+                        title={t('toolbar.undoTitle')}
                     >
-                        Rückgängig
+                        {t('toolbar.undo')}
                     </button>
                     <button
                         type="button"
                         disabled={!selection?.canRedo}
                         onClick={() => canvasRef.current?.redo()}
-                        title="Wiederherstellen (Strg+Y, ⌘+⇧+Z)"
+                        title={t('toolbar.redoTitle')}
                     >
-                        Wiederherstellen
+                        {t('toolbar.redo')}
                     </button>
                 </div>
                 <span className="toolbar-title">{state.document.name}</span>
-                <button type="button" onClick={() => canvasRef.current?.fit()} title="Alles zeigen">
-                    Zoom Grenzen
+                <button type="button" onClick={() => canvasRef.current?.fit()} title={t('toolbar.zoomExtentsTitle')}>
+                    {t('toolbar.zoomExtents')}
                 </button>
-                <div className="toolbar-theme" role="group" aria-label="Darstellung">
-                    <span className="toolbar-theme-label">Darstellung</span>
+                <div className="toolbar-theme" role="group" aria-label={t('toolbar.theme')}>
+                    <span className="toolbar-theme-label">{t('toolbar.theme')}</span>
                     {THEME_OPTIONS.map((option) => (
                         <button
                             key={option.value}
                             type="button"
                             aria-pressed={preference === option.value}
                             onClick={() => setPreference(option.value)}
-                            title={option.title}
+                            title={t(option.title)}
                         >
-                            {option.label}
+                            {t(option.label)}
+                        </button>
+                    ))}
+                </div>
+                <div className="toolbar-theme" role="group" aria-label={t('toolbar.language')}>
+                    <span className="toolbar-theme-label">{t('toolbar.language')}</span>
+                    {LANGUAGES.map((option) => (
+                        <button
+                            key={option}
+                            type="button"
+                            lang={option}
+                            aria-pressed={language === option}
+                            onClick={() => setLanguage(option)}
+                            title={t(`language.${option}`)}
+                        >
+                            {option.toUpperCase()}
                         </button>
                     ))}
                 </div>
@@ -196,7 +216,7 @@ function App() {
                 <CommandLine
                     prompt={selection.prompt}
                     input={selection.input}
-                    acceptsInput={selection.cursor === 'point'}
+                    acceptsInput={selection.acceptsInput}
                     message={selection.message}
                 />
             )}

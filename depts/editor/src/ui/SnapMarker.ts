@@ -1,7 +1,8 @@
-import { SNAP_MODE_LABELS, type SnapMode } from 'app/cad/editor/snapping/SnapMode';
+import { snapModeLabel, type SnapMode } from 'app/cad/editor/snapping/SnapMode';
 import type { Point } from 'app/cad/model/Point';
 import type { DisplayTheme } from 'app/cad/renderer/displayColor';
 import type { EditorSettings } from 'app/settings/editorSettings';
+import { t } from 'app/i18n/i18n';
 
 type MarkerSettings = Pick<EditorSettings, 'snapMarkerSize' | 'snapMarker' | 'snapTooltip' | 'previewColor'>;
 
@@ -69,13 +70,13 @@ export function previewPath(markers: readonly PreviewMarker[], snapMarkerSize: n
 
 /** Tooltip text: the mode name, with the Tab position while Tab chose the point ("Schnittpunkt (Tab 2/3)"). */
 export function snapTooltipText(mode: SnapMode, cycle: { index: number; count: number } | null = null): string {
-    const label = SNAP_MODE_LABELS[mode];
-    return cycle ? `${label} (Tab ${cycle.index + 1}/${cycle.count})` : label;
+    const label = snapModeLabel(mode);
+    return cycle ? t('snap.tabCycle', { label, index: cycle.index + 1, count: cycle.count }) : label;
 }
 
 /** Polar tooltip like AutoCAD's: distance from the reference point and angle, e.g. "Polar: 125.40 < 45°". */
 export function polarTooltipText(distance: number, angle: number): string {
-    return `Polar: ${distance.toFixed(2)} < ${Number(angle.toFixed(4))}°`;
+    return t('snap.polar', { distance: distance.toFixed(2), angle: Number(angle.toFixed(4)) });
 }
 
 /** What the polar tracking display shows, in view px. */

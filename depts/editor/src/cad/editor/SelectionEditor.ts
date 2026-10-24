@@ -22,6 +22,8 @@ import { ShapeIndex } from './selection/ShapeIndex';
 import { SnapEngine, SnapMemory, coincide, sameSnapPoint, type SnapResult } from './snapping/SnapEngine';
 import type { SnapPoint } from './snapping/SnapGeometry';
 import { orthoPoint } from './tracking/ortho';
+import { t } from '../../i18n/i18n';
+import { commandName, findCommand, type EditorCommand } from './commandNames';
 import { findPolarTrack, type PolarTrack } from './tracking/PolarTracking';
 
 /** How far a press must travel (screen px) before it counts as a drag. */
@@ -30,23 +32,20 @@ const DRAG_THRESHOLD_PX = 3;
 const LASSO_STEP_PX = 4;
 const NO_POINTS: readonly SnapPoint[] = [];
 
-/** SCHIEBEN is AutoCAD's MOVE. */
-export type EditorCommand = 'SCHIEBEN';
+export type { EditorCommand };
 
-const PROMPTS = {
-    idle: 'Befehl:',
-    select: 'SCHIEBEN Objekte wählen:',
-    basePoint: 'Basispunkt angeben oder [Verschiebung] <Verschiebung>:',
-    displacement: 'Verschiebung angeben <0,0>:',
-    secondPoint: 'Zweiten Punkt angeben oder <ersten Punkt als Verschiebung verwenden>:',
-    corner: 'Entgegengesetzte Ecke angeben:',
-    lasso: 'Lasso – Leertaste wechselt Fenster/Kreuzen',
-} as const;
+/**
+ * Command line message, translated only when a snapshot is built, so a language change shows
+ * at once (see refreshTexts).
+ */
+type Message = () => string;
 
-/** The option of the base point prompt that takes a displacement vector instead. */
-const DISPLACEMENT_KEYWORD = 'Verschiebung';
 /** Typed text that is neither a point nor an option, like AutoCAD. */
-const INVALID_INPUT = 'Punkt oder Option-Schlüsselwort erforderlich.';
+const INVALID_INPUT: Message = () => t('message.invalidInput');
+const CANCEL: Message = () => t('message.cancel');
+
+/** A key that types a character on the command line (Space ends the text instead). */
+const isTypedCharacter = (event: EditorKeyEvent) => event.key.length === 1 && event.key !== ' ' && !event.ctrlKey;
 
 /**
  * What the cursor shows, like AutoCAD: crosshair and pick box with no command, only the pick
@@ -72,6 +71,8 @@ export interface SelectionSnapshot {
     prompt: string;
     /** Text typed at the prompt so far, not yet ended with Enter. */
     input: string;
+    /** The prompt takes typed text (a point prompt, or the command prompt for a command name). */
+    acceptsInput: boolean;
     /** Last command line message, e.g. "1 gefunden, 2 gesamt". */
     message: string | null;
     /**
@@ -209,14 +210,14 @@ export class SelectionEditor {
     /** Last cursor position over the canvas, to snap at once when a point prompt starts. */
     private lastPointer: EditorPointerEvent | null = null;
     private state: State = { kind: 'idle', pickfirst: new Set() };
-    /** Text typed at the current point prompt. */
+    /** Text typed at the current point prompt or the command prompt. */
     private input = '';
     /** Last point given, the reference of relative input at the base point prompt (AutoCAD's LASTPOINT). */
     private lastPoint: Point = { x: 0, y: 0 };
     private previousSelection: ReadonlySet<Id> = new Set();
     /** Element under the cursor, whether selected or not. */
     private underCursor: Id | null = null;
-    private message: string | null = null;
+    private message: Message | null = null;
     private area: SelectionArea | null = null;
     /**
      * Press into empty space while the button is held: where it went down (view px and
@@ -286,7 +287,7 @@ export class SelectionEditor {
         if (!command) {
             return false;
         }
-        this.endCommand(`Rückgängig: ${command.label}`);
+        this.endCommand(() => t('message.undone', { command: commandName(command.label) }));
         return true;
     }
 
@@ -299,7 +300,7 @@ export class SelectionEditor {
         if (!command) {
             return false;
         }
-        this.endCommand(`Wiederherstellen: ${command.label}`);
+        this.endCommand(() => t('message.redone', { command: commandName(command.label) }));
         return true;
     }
 
@@ -316,11 +317,16 @@ export class SelectionEditor {
         this.press = null;
         if (selection.size > 0) {
             this.askBasePoint(selection);
-            this.message = `${selection.size} gefunden`;
+            this.message = () => t('message.found', { count: selection.size });
         } else {
             this.state = { kind: 'select', selection };
             this.message = null;
         }
+        this.changed();
+    }
+
+    /** Publishes the texts again after a language change. */
+    refreshTexts(): void {
         this.changed();
     }
 
@@ -495,7 +501,7 @@ export class SelectionEditor {
         }
         if (state.kind !== 'idle') {
             if (event.key === 'Escape') {
-                this.endCommand('*Abbruch*');
+                this.endCommand(CANCEL);
                 return true;
             }
             if (event.key === 'Enter' && state.kind === 'select') {
@@ -503,6 +509,9 @@ export class SelectionEditor {
                 return true;
             }
             return false;
+        }
+        if (this.area === null && this.typeCommandKey(event)) {
+            return true;
         }
         if (event.key === 'Escape' && state.pickfirst.size > 0) {
             this.state = { kind: 'idle', pickfirst: new Set() };
@@ -541,7 +550,7 @@ export class SelectionEditor {
         const { key } = event;
         if (key === 'Escape') {
             if (this.input === '') {
-                this.endCommand('*Abbruch*');
+                this.endCommand(CANCEL);
             } else {
                 this.input = '';
                 this.changed();
@@ -557,7 +566,7 @@ export class SelectionEditor {
             this.changed();
             return true;
         }
-        if (key.length === 1 && key !== ' ' && !event.ctrlKey) {
+        if (isTypedCharacter(event)) {
             this.input += key;
             this.changed();
             return true;
@@ -565,12 +574,50 @@ export class SelectionEditor {
         return false;
     }
 
+    /**
+     * A key at the command prompt: types a command name (or alias) on the command line, ends
+     * the text with Enter or Space and runs the command, edits or drops the text. Only takes
+     * Space, Enter, Backspace and Esc while there is text, so they keep their meaning otherwise.
+     */
+    private typeCommandKey(event: EditorKeyEvent): boolean {
+        const { key } = event;
+        if (isTypedCharacter(event)) {
+            this.input += key;
+        } else if (this.input === '') {
+            return false;
+        } else if (key === 'Escape') {
+            this.input = '';
+        } else if (key === 'Backspace') {
+            this.input = this.input.slice(0, -1);
+        } else if (key === 'Enter' || key === ' ') {
+            this.runTypedCommand();
+            return true;
+        } else {
+            return false;
+        }
+        this.changed();
+        return true;
+    }
+
+    /** Runs the command the typed text names, like AutoCAD's command line. */
+    private runTypedCommand(): void {
+        const text = this.input.trim();
+        this.input = '';
+        const command = findCommand(text);
+        if (command === 'MOVE') {
+            this.startMoveCommand();
+            return;
+        }
+        this.message = () => t('message.unknownCommand', { name: text.toUpperCase() });
+        this.changed();
+    }
+
     /** Enter at a point prompt: takes the typed point, option or default (see the class comment). */
     private submitInput(): void {
         const state = this.state as PointPromptState;
         const text = this.input.trim();
         this.input = '';
-        if (state.kind === 'basePoint' && (text === '' || matchesKeyword(text, DISPLACEMENT_KEYWORD))) {
+        if (state.kind === 'basePoint' && (text === '' || matchesKeyword(text, t('message.displacementKeyword')))) {
             this.state = { kind: 'displacement', selection: state.selection };
             this.startPointPrompt();
             this.message = null;
@@ -662,7 +709,7 @@ export class SelectionEditor {
         this.changed();
     }
 
-    private endCommand(message: string | null): void {
+    private endCommand(message: Message | null): void {
         this.state = { kind: 'idle', pickfirst: new Set() };
         this.input = '';
         this.message = message;
@@ -780,9 +827,12 @@ export class SelectionEditor {
         } else {
             this.state = { kind: 'select', selection: after };
             const duplicates = picked.filter((id) => before.has(id)).length;
+            const counts = { count: picked.length, total: after.size };
             this.message = remove
-                ? `${picked.length} gefunden, ${before.size - after.size} entfernt, ${after.size} gesamt`
-                : `${picked.length} gefunden${duplicates > 0 ? ` (${duplicates} doppelt)` : ''}, ${after.size} gesamt`;
+                ? () => t('message.foundRemovedTotal', { ...counts, removed: before.size - after.size })
+                : duplicates > 0
+                  ? () => t('message.foundDuplicatesTotal', { ...counts, duplicates })
+                  : () => t('message.foundTotal', counts);
         }
         this.changed();
     }
@@ -803,7 +853,7 @@ export class SelectionEditor {
     /** New snapshot, or `previous` itself when nothing changed; reuses its grips if possible. */
     private buildSnapshot(previous: SelectionSnapshot | null): SelectionSnapshot {
         const state = this.state;
-        const command = state.kind === 'idle' ? null : 'SCHIEBEN';
+        const command: EditorCommand | null = state.kind === 'idle' ? null : 'MOVE';
         const highlighted = state.kind === 'idle' ? state.pickfirst : state.selection;
         const pointPrompt = isPointPrompt(state);
         const basePoint = state.kind === 'secondPoint' ? state.basePoint : null;
@@ -820,6 +870,10 @@ export class SelectionEditor {
         const canUndo = idle && this.history.undoCommand !== null;
         const canRedo = idle && this.history.redoCommand !== null;
         const area = this.area;
+        const prompt = t(`prompt.${area !== null ? (area.shape === 'rect' ? 'corner' : 'lasso') : state.kind}`, {
+            command: command && commandName(command),
+        });
+        const message = this.message?.() ?? null;
         let previewed: Id[] = [];
         if (area !== null) {
             // Instead of the rollover, like AutoCAD's selection preview for windows
@@ -842,7 +896,8 @@ export class SelectionEditor {
             previous !== null && sameDocument && command === previous.command && sameIds(highlighted, previous.highlighted);
         if (
             sameSelection &&
-            this.message === previous.message &&
+            prompt === previous.prompt &&
+            message === previous.message &&
             this.input === previous.input &&
             area === previous.area &&
             sameIds(hovered, previous.hovered) &&
@@ -869,9 +924,10 @@ export class SelectionEditor {
         }
         return {
             command,
-            prompt: area !== null ? PROMPTS[area.shape === 'rect' ? 'corner' : 'lasso'] : PROMPTS[state.kind],
+            prompt,
             input: this.input,
-            message: this.message,
+            acceptsInput: pointPrompt || (state.kind === 'idle' && area === null),
+            message,
             hovered,
             highlighted,
             grips,

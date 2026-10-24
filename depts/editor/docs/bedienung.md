@@ -12,7 +12,8 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
 ## Oberfläche
 
 - **Toolbar** (oben): Werkzeug **Verschieben** (Befehl SCHIEBEN), Name des Plans, Button
-  **Zoom Grenzen** und rechts **Darstellung** mit **Hell / Dunkel / System**.
+  **Zoom Grenzen**, rechts **Darstellung** mit **Hell / Dunkel / System** und **Sprache**
+  mit **DE / EN**.
 - **Zeichenfläche** in der Mitte.
 - **Kommandozeile** unter der Zeichenfläche: oben in Grau die letzte Meldung (z. B.
   `1 gefunden, 2 gesamt`), darunter die aktuelle Aufforderung (z. B. `Befehl:` oder
@@ -125,6 +126,14 @@ Punkt, gibt es dort nur einen Grip. Die Grips haben noch keine Funktion.
 
 Button **Verschieben** in der Toolbar. Er bleibt gedrückt, solange der Befehl läuft; ein
 weiterer Klick darauf bewirkt dann nichts.
+
+Oder bei `Befehl:` den Namen tippen, `SCHIEBEN` oder `MOVE` (Groß-/Kleinschreibung egal,
+in jeder Sprache), und mit **Enter** oder **Leertaste** ausführen. Der Text erscheint in
+der Kommandozeile; **Rücktaste** korrigiert, **Esc** verwirft ihn (erst ein zweites **Esc**
+hebt die Auswahl auf). Ohne getippten Text behalten Leertaste (Verschieben der Ansicht),
+Enter und Esc ihre übliche Bedeutung. Ein unbekannter Name meldet
+`Unbekannter Befehl "XYZ".`. Während ein Auswahlrechteck oder Lasso offen ist, wird nicht
+getippt.
 
 1. **Objekte wählen.** Ist schon etwas gewählt, wird diese Auswahl übernommen
    (`N gefunden`) und es geht direkt zum Basispunkt. Sonst fragt die Kommandozeile
@@ -327,6 +336,18 @@ Rechts in der Toolbar unter **Darstellung**:
 Der Browser merkt sich die Wahl. Im dunklen Modus werden die Farben des Plans nur für die
 Anzeige angepasst: Dunkle Linien erscheinen hell, helle Füllungen als dezente dunkle
 Töne. Die gespeicherten Farben im Plan ändern sich nicht.
+
+## Sprache (Deutsch / Englisch)
+
+Rechts in der Toolbar unter **Sprache**: **DE** oder **EN**. Ohne gemerkte Wahl gilt die
+Sprache des Browsers (Deutsch für jede deutsche Einstellung, sonst Englisch). Der Browser
+merkt sich die Wahl. Die Umschaltung wirkt sofort, auch mitten in einem Befehl: Toolbar,
+Statusleiste (RASTER/GRID, OFANG/OSNAP …), Fang-Tooltips und Kommandozeile wechseln. Die
+Kommandozeile folgt dem englischen AutoCAD (`Command:`, `MOVE`, `Specify base point or
+[Displacement] <Displacement>:`, `1 found, 2 total`, `*Cancel*`); die Option heißt dann
+**Displacement**, also `D` statt `V`. Befehlsnamen gelten in beiden Sprachen (`SCHIEBEN`
+und `MOVE`); angezeigt wird der Name der eingestellten Sprache. Die Namen im Plan selbst
+werden nicht übersetzt.
 
 ## Einstellungen
 

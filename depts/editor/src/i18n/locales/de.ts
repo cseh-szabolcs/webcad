@@ -1,0 +1,93 @@
+/**
+ * German texts, the reference language: `en` must have the same keys (checked by its type).
+ * Command line texts follow the German AutoCAD.
+ */
+export const de = {
+    app: {
+        noPlan: 'Kein Plan ausgewählt.',
+        loading: 'Plan wird geladen…',
+        loadFailed: 'Plan konnte nicht geladen werden: {{reason}}',
+    },
+    toolbar: {
+        tools: 'Werkzeuge',
+        move: 'Verschieben',
+        moveTitle: 'Objekte verschieben ({{command}})',
+        undo: 'Rückgängig',
+        undoTitle: 'Rückgängig (Strg/⌘+Z)',
+        redo: 'Wiederherstellen',
+        redoTitle: 'Wiederherstellen (Strg+Y, ⌘+⇧+Z)',
+        zoomExtents: 'Zoom Grenzen',
+        zoomExtentsTitle: 'Alles zeigen',
+        theme: 'Darstellung',
+        themeLight: 'Hell',
+        themeLightTitle: 'Heller Hintergrund',
+        themeDark: 'Dunkel',
+        themeDarkTitle: 'Dunkler Hintergrund',
+        themeSystem: 'System',
+        themeSystemTitle: 'Wie die Systemeinstellung',
+        language: 'Sprache',
+    },
+    language: {
+        de: 'Deutsch',
+        en: 'English',
+    },
+    prompt: {
+        idle: 'Befehl:',
+        select: '{{command}} Objekte wählen:',
+        basePoint: 'Basispunkt angeben oder [Verschiebung] <Verschiebung>:',
+        displacement: 'Verschiebung angeben <0,0>:',
+        secondPoint: 'Zweiten Punkt angeben oder <ersten Punkt als Verschiebung verwenden>:',
+        corner: 'Entgegengesetzte Ecke angeben:',
+        lasso: 'Lasso – Leertaste wechselt Fenster/Kreuzen',
+    },
+    message: {
+        /** The option of the base point prompt that takes a displacement vector instead. */
+        displacementKeyword: 'Verschiebung',
+        invalidInput: 'Punkt oder Option-Schlüsselwort erforderlich.',
+        unknownCommand: 'Unbekannter Befehl "{{name}}".',
+        cancel: '*Abbruch*',
+        undone: 'Rückgängig: {{command}}',
+        redone: 'Wiederherstellen: {{command}}',
+        found: '{{count}} gefunden',
+        foundTotal: '{{count}} gefunden, {{total}} gesamt',
+        foundDuplicatesTotal: '{{count}} gefunden ({{duplicates}} doppelt), {{total}} gesamt',
+        foundRemovedTotal: '{{count}} gefunden, {{removed}} entfernt, {{total}} gesamt',
+    },
+    snap: {
+        mode: {
+            END: 'Endpunkt',
+            MID: 'Mittelpunkt',
+            CEN: 'Zentrum',
+            GCE: 'Geometrisches Zentrum',
+            QUA: 'Quadrant',
+            INT: 'Schnittpunkt',
+        },
+        tabCycle: '{{label}} (Tab {{index}}/{{count}})',
+        polar: 'Polar: {{distance}} < {{angle}}°',
+    },
+    status: {
+        grid: 'RASTER',
+        gridTitle: 'Raster ein/aus (F7)',
+        gridMenuTitle: 'Raster einstellen',
+        gridSpacing: 'Rasterabstand (mm)',
+        gridSpacingTitle: 'Abstand der Rasterlinien in mm, größer als 0 (Dezimalpunkt)',
+        majorEvery: 'Hauptlinie alle',
+        majorEveryTitle: 'Jede wievielte Linie eine Hauptlinie ist, ganze Zahl von 1 bis {{max}}',
+        ortho: 'ORTHO',
+        orthoTitle: 'Ortho ein/aus (F8)',
+        polar: 'POLAR',
+        polarTitle: 'Polarspur ein/aus (F10)',
+        polarMenuTitle: 'Polarwinkel wählen',
+        polarIncrement: 'Winkelschritt',
+        additionalAngles: 'Zusatzwinkel',
+        additionalAnglesPlaceholder: 'z. B. 30, 60',
+        additionalAnglesTitle: 'Winkel in Grad, durch Komma getrennt (Dezimalpunkt), höchstens {{max}}',
+        snap: 'OFANG',
+        snapTitle: 'Objektfang ein/aus (F3)',
+        snapMenuTitle: 'Objektfang-Modi wählen',
+        snapModes: 'Objektfang-Modi',
+        zoom: 'Zoom {{scale}} px/mm',
+    },
+};
+
+export type Translations = typeof de;

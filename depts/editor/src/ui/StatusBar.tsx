@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { SNAP_MODE_LABELS, SNAP_MODES, type SnapMode } from 'app/cad/editor/snapping/SnapMode';
-import { formatAngleList, parseAngleList } from 'app/cad/editor/tracking/PolarTracking';
+import { useTranslation } from 'react-i18next';
+import { SNAP_MODES, snapModeLabel, type SnapMode } from 'app/cad/editor/snapping/SnapMode';
+import { formatAngleList, MAX_ADDITIONAL_ANGLES, parseAngleList } from 'app/cad/editor/tracking/PolarTracking';
 import { MAX_MAJOR_EVERY, parseGridSpacing, parseMajorEvery } from 'app/cad/renderer/grid';
 import type { Point } from 'app/cad/model/Point';
 import type { Viewport } from 'app/cad/renderer/Viewport';
@@ -37,14 +38,15 @@ export function StatusBar({
     gridSettings,
     onGridSettingsChange,
 }: StatusBarProps) {
+    const { t } = useTranslation();
     const model = viewport && pointer ? viewport.viewToModel(pointer) : null;
 
     return (
         <footer className="statusbar">
             <GridSwitch settings={gridSettings} onChange={onGridSettingsChange} />
             <div className="snap-switch">
-                <button type="button" aria-pressed={ortho} onClick={() => onOrthoChange(!ortho)} title="Ortho ein/aus (F8)">
-                    ORTHO
+                <button type="button" aria-pressed={ortho} onClick={() => onOrthoChange(!ortho)} title={t('status.orthoTitle')}>
+                    {t('status.ortho')}
                 </button>
             </div>
             <PolarSwitch settings={polarSettings} onChange={onPolarSettingsChange} />
@@ -52,7 +54,7 @@ export function StatusBar({
             <b className="statusbar-position">
                 {model ? `X ${formatCoordinate(model.x)}  Y ${formatCoordinate(model.y)}` : 'X –  Y –'}
             </b>
-            {viewport && <span>Zoom {viewport.scale.toFixed(3)} px/mm</span>}
+            {viewport && <span>{t('status.zoom', { scale: viewport.scale.toFixed(3) })}</span>}
         </footer>
     );
 }
@@ -92,6 +94,7 @@ function useMenu() {
  * AutoCAD's GRIDUNIT and GRIDMAJOR.
  */
 function GridSwitch({ settings, onChange }: { settings: GridSettings; onChange: (settings: GridSettings) => void }) {
+    const { t } = useTranslation();
     const { open, setOpen, rootRef } = useMenu();
 
     return (
@@ -100,34 +103,34 @@ function GridSwitch({ settings, onChange }: { settings: GridSettings; onChange: 
                 type="button"
                 aria-pressed={settings.enabled}
                 onClick={() => onChange({ ...settings, enabled: !settings.enabled })}
-                title="Raster ein/aus (F7)"
+                title={t('status.gridTitle')}
             >
-                RASTER
+                {t('status.grid')}
             </button>
             <button
                 type="button"
                 aria-expanded={open}
                 aria-haspopup="true"
                 onClick={() => setOpen(!open)}
-                title="Raster einstellen"
+                title={t('status.gridMenuTitle')}
             >
                 ▾
             </button>
             {open && (
                 <div className="snap-menu">
                     <NumberField
-                        label="Rasterabstand (mm)"
+                        label={t('status.gridSpacing')}
                         value={settings.spacing}
                         parse={parseGridSpacing}
-                        title="Abstand der Rasterlinien in mm, größer als 0 (Dezimalpunkt)"
+                        title={t('status.gridSpacingTitle')}
                         // Every valid value also switches the grid on, like the polar angles
                         onChange={(spacing) => onChange({ ...settings, enabled: true, spacing })}
                     />
                     <NumberField
-                        label="Hauptlinie alle"
+                        label={t('status.majorEvery')}
                         value={settings.majorEvery}
                         parse={parseMajorEvery}
-                        title={`Jede wievielte Linie eine Hauptlinie ist, ganze Zahl von 1 bis ${MAX_MAJOR_EVERY}`}
+                        title={t('status.majorEveryTitle', { max: MAX_MAJOR_EVERY })}
                         onChange={(majorEvery) => onChange({ ...settings, enabled: true, majorEvery })}
                     />
                 </div>
@@ -184,6 +187,7 @@ function NumberField({
  * a field for the additional angles.
  */
 function PolarSwitch({ settings, onChange }: { settings: PolarSettings; onChange: (settings: PolarSettings) => void }) {
+    const { t } = useTranslation();
     const { open, setOpen, rootRef } = useMenu();
 
     return (
@@ -192,22 +196,22 @@ function PolarSwitch({ settings, onChange }: { settings: PolarSettings; onChange
                 type="button"
                 aria-pressed={settings.enabled}
                 onClick={() => onChange({ ...settings, enabled: !settings.enabled })}
-                title="Polarspur ein/aus (F10)"
+                title={t('status.polarTitle')}
             >
-                POLAR
+                {t('status.polar')}
             </button>
             <button
                 type="button"
                 aria-expanded={open}
                 aria-haspopup="true"
                 onClick={() => setOpen(!open)}
-                title="Polarwinkel wählen"
+                title={t('status.polarMenuTitle')}
             >
                 ▾
             </button>
             {open && (
                 <div className="snap-menu">
-                    <div className="polar-increments" role="radiogroup" aria-label="Winkelschritt">
+                    <div className="polar-increments" role="radiogroup" aria-label={t('status.polarIncrement')}>
                         {POLAR_INCREMENTS.map((angle) => (
                             <label key={angle}>
                                 <input
@@ -237,6 +241,7 @@ function PolarSwitch({ settings, onChange }: { settings: PolarSettings; onChange
  * angles stay.
  */
 function AdditionalAngles({ angles, onChange }: { angles: readonly number[]; onChange: (angles: number[]) => void }) {
+    const { t } = useTranslation();
     const [text, setText] = useState(() => formatAngleList(angles));
     const parsed = parseAngleList(text);
 
@@ -250,13 +255,13 @@ function AdditionalAngles({ angles, onChange }: { angles: readonly number[]; onC
 
     return (
         <label className="polar-additional">
-            Zusatzwinkel
+            {t('status.additionalAngles')}
             <input
                 type="text"
                 value={text}
-                placeholder="z. B. 30, 60"
+                placeholder={t('status.additionalAnglesPlaceholder')}
                 aria-invalid={parsed === null}
-                title="Winkel in Grad, durch Komma getrennt (Dezimalpunkt), höchstens 10"
+                title={t('status.additionalAnglesTitle', { max: MAX_ADDITIONAL_ANGLES })}
                 onChange={(event) => edit(event.target.value)}
             />
         </label>
@@ -265,6 +270,7 @@ function AdditionalAngles({ angles, onChange }: { angles: readonly number[]; onC
 
 /** OFANG switch (like F3) with a menu of the running snap modes, like AutoCAD's status bar. */
 function SnapSwitch({ settings, onChange }: { settings: SnapSettings; onChange: (settings: SnapSettings) => void }) {
+    const { t } = useTranslation();
     const { open, setOpen, rootRef } = useMenu();
 
     const toggleMode = (mode: SnapMode) => {
@@ -283,28 +289,28 @@ function SnapSwitch({ settings, onChange }: { settings: SnapSettings; onChange: 
                 type="button"
                 aria-pressed={settings.enabled}
                 onClick={() => onChange({ ...settings, enabled: !settings.enabled })}
-                title="Objektfang ein/aus (F3)"
+                title={t('status.snapTitle')}
             >
-                OFANG
+                {t('status.snap')}
             </button>
             <button
                 type="button"
                 aria-expanded={open}
                 aria-haspopup="true"
                 onClick={() => setOpen(!open)}
-                title="Objektfang-Modi wählen"
+                title={t('status.snapMenuTitle')}
             >
                 ▾
             </button>
             {open && (
-                <div className="snap-menu" role="group" aria-label="Objektfang-Modi">
+                <div className="snap-menu" role="group" aria-label={t('status.snapModes')}>
                     {SNAP_MODES.map((mode) => (
                         <label key={mode}>
                             <input type="checkbox" checked={settings.modes.has(mode)} onChange={() => toggleMode(mode)} />
                             <svg className="snap-menu-icon" width="16" height="16" viewBox="-8 -8 16 16" aria-hidden="true">
                                 <path d={markerPath(mode, 5)} />
                             </svg>
-                            {SNAP_MODE_LABELS[mode]}
+                            {snapModeLabel(mode)}
                         </label>
                     ))}
                 </div>

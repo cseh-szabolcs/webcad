@@ -168,7 +168,10 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
 - No command active (noun-verb): click adds to the pickfirst selection (highlight +
   grips), Shift removes, Esc clears. Rectangle to the right = window (completely inside),
   to the left = crossing (touches); lasso direction picks the mode, Space toggles.
-- Toolbar tool "Verschieben" starts `SCHIEBEN` (AutoCAD MOVE). With a pickfirst selection
+- Toolbar tool "Verschieben" starts `SCHIEBEN` (AutoCAD MOVE, id `MOVE`); so does typing
+  `SCHIEBEN` or `MOVE` (any case, either language) at "Befehl:" with Enter or Space (Esc and
+  Backspace edit the text; Space/Enter/Esc keep their meaning while nothing is typed;
+  otherwise "Unbekannter Befehl "XYZ"."; no typing while a rectangle or lasso is open). With a pickfirst selection
   it goes straight to "Basispunkt angeben oder [Verschiebung] <Verschiebung>:" ("N gefunden"); otherwise it first asks
   "Objekte wählen:" (verb-noun: grips disappear, AutoCAD-style counts such as "1 gefunden,
   2 gesamt"), and Enter or right click ends the selection (kept as `previous`; empty ends
@@ -335,6 +338,20 @@ Structure (all pure TS and unit-tested unless noted):
   (`TrackingModes`: `ortho` like F8, `polar: PolarSettings` with `enabled` like F10 and the
   angles) and the grid (`GridSettings`, F7) live in App state and may
   change at any time.
+- Translations (German and English): i18next in `src/i18n/i18n.ts` (one instance, also
+  used outside React: `t` for the editor core and the DOM layers, `I18nextProvider` in
+  `main.tsx` and `useTranslation` in components). Texts in `src/i18n/locales/de.ts` (the
+  reference; its type `Translations` types the keys) and `en.ts` (typed as `Translations`,
+  so a missing key fails `tsc`); command line texts follow the German resp. English
+  AutoCAD. Never hard-code visible text. Language: remembered in `localStorage`, else the
+  browser language, toolbar "Sprache" DE/EN; `<html lang>` follows. `SelectionEditor` keeps
+  messages as thunks and translates prompt and message when it builds a snapshot;
+  `CadCanvas` calls `refreshTexts()` on `languageChanged`. The keyword is translated too
+  (`Verschiebung`/`Displacement`). Command names are not in the translation files:
+  `cad/editor/commandAliases.json` maps each English AutoCAD name (the command id,
+  `EditorCommand`, e.g. `MOVE`) to its aliases (`{"MOVE": ["SCHIEBEN"]}`); the first alias is
+  the name shown in German (`commandNames.ts`: `commandName`, `findCommand`; a name wins over
+  an alias). Prompts take the name as `{{command}}`. Tests run in German (`src/i18n/testSetup.ts`, Vitest `setupFiles`).
 - Light/dark mode: `ui/theme.ts` (`system` / `light` / `dark`, remembered in
   `localStorage`, sets `data-theme` on `<html>` for the CSS tokens in `index.css`).
   Drawing colours are adapted for display only in `cad/renderer/displayColor.ts`
