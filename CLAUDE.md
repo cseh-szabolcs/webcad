@@ -20,7 +20,7 @@ apps in one repo:
   rebuilt from scratch, closer to AutoCAD behaviour.** Everything is rebuilt in small
   steps. So far it loads a plan through the API and displays it (wheel zoom,
   middle/Space+drag pan, status line, light/dark mode), has AutoCAD-like object
-  selection, object snap, polar tracking and the MOVE command (`SCHIEBEN`) with preview,
+  selection, a grid, object snap, polar tracking and the MOVE command (`SCHIEBEN`) with preview,
   typed coordinates and undo/redo (see "Editor: current state" below). Changes are not saved to the backend yet; grips
   are drawn but have no function.
 
@@ -252,6 +252,17 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   and POLAR exclude each other: App keeps both as `TrackingModes` and switches through
   `withOrtho`/`withPolar` (editorSettings); the editor gets `setOrtho()` and leaves polar
   tracking out while Ortho is on.
+- Grid (RASTER, F7, on by default; display only, like AutoCAD GRIDMODE): lines parallel to X
+  and Y through the model origin, every `majorEvery`-th a major line, on its own canvas under
+  the drawing (`ui/GridLayer.ts`, so it is never in the document, the content bounds,
+  picking or snapping). Adaptive like AutoCAD: the shown step is `spacing × majorEvery^k`
+  (factor 2 at `majorEvery` 1) with the smallest k ≥ 0 that keeps the lines at least
+  `gridMinSpacing` px apart, never finer than `spacing` (`cad/renderer/grid.ts`: `gridStep`,
+  `gridLines`, only the visible lines, by index). `GridSettings` (`enabled`, `spacing` mm,
+  `majorEvery`; default 10 mm / 10) live in App state; the status bar "RASTER" switch has a
+  menu with both values (`parseGridSpacing`, `parseMajorEvery`; valid edits apply at once and
+  switch the grid on). Colours per theme in `EditorSettings.gridColor`. No grid snap (F9),
+  separate X/Y spacing, dot style, isometric grid or limits yet.
 - Only outlines are hit, never fills: an element is hit when its outline passes through
   the square pick box around the cursor. Elements on hidden or locked layers are not
   selectable. Picking a grouped element picks its whole group. While a rectangle or lasso
@@ -300,7 +311,7 @@ Structure (all pure TS and unit-tested unless noted):
   Tokens `--snap-marker`, `--polar-track`, `--snap-tooltip-bg|fg|border`; rubber band and
   preview use `--preview-color`, which `SnapMarker` sets from `EditorSettings.previewColor`
   for the theme (`setTheme`). `ui/StatusBar.tsx` holds
-  the ORTHO, POLAR and OFANG switches on the left, position and zoom on the right (so the switches
+  the RASTER, ORTHO, POLAR and OFANG switches on the left, position and zoom on the right (so the switches
   never move).
 - Cursor: over the canvas the system pointer is hidden and `ui/CrosshairCursor.ts` draws an
   AutoCAD-like crosshair as a DOM layer (moved by CSS transform, so the drawing is never
@@ -313,12 +324,13 @@ Structure (all pure TS and unit-tested unless noted):
   PICKBOX; also the hover/click tolerance), `showPickbox`, `apertureSize` (half side in
   px, like APERTURE), `showApertureBox` (APBOX), `snapMarkerSize` (AUTOSNAPSIZE) and
   `snapMarker`/`snapTooltip`/`snapMagnet` (AUTOSNAP), `polarTolerance` (px), `snapPreview`
-  and `previewColor` (per theme: light `#ea580c`, dark `#facc15`). Code receives the object
+  and `previewColor` (per theme: light `#ea580c`, dark `#facc15`), `gridMinSpacing` (px) and
+  `gridColor` (minor/major per theme). Code receives the object
   (App → `CadCanvas` → editor and crosshair) rather than importing the defaults, so the
   user can change them later; for now they are read when a document is loaded. The running
   snaps (`SnapSettings`: `enabled` like F3, `modes` like OSMODE), Ortho and polar tracking
   (`TrackingModes`: `ortho` like F8, `polar: PolarSettings` with `enabled` like F10 and the
-  angles) live in App state and may
+  angles) and the grid (`GridSettings`, F7) live in App state and may
   change at any time.
 - Light/dark mode: `ui/theme.ts` (`system` / `light` / `dark`, remembered in
   `localStorage`, sets `data-theme` on `<html>` for the CSS tokens in `index.css`).

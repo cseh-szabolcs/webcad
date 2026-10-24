@@ -6,7 +6,7 @@ Auf dem Mac entspricht **Option (⌥)** der Taste Alt.
 Tastenkürzel wirken, solange der Fokus nicht in einem Textfeld liegt.
 
 Der Editor zeigt Pläne an, wählt Objekte aus und verschiebt sie mit dem Befehl SCHIEBEN
-(mit Objektfang, Polarspur, Ortho, Koordinateneingabe und Rückgängig). Gespeichert wird noch nichts; was
+(mit Raster, Objektfang, Polarspur, Ortho, Koordinateneingabe und Rückgängig). Gespeichert wird noch nichts; was
 sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgesetzt).
 
 ## Oberfläche
@@ -19,8 +19,9 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   `Basispunkt angeben oder [Verschiebung] <Verschiebung>:`). Bei Punkt-Aufforderungen
   erscheint dahinter ein Textcursor und, was man tippt (siehe
   [Eingabe in der Kommandozeile](#eingabe-in-der-kommandozeile)).
-- **Statuszeile** (unten): links der Schalter **ORTHO**, der Polarspur-Schalter **POLAR**
-  und der Objektfang-Schalter **OFANG**, die beiden letzten mit dem Menü **▾**; rechts die Cursorposition
+- **Statuszeile** (unten): links der Raster-Schalter **RASTER**, der Schalter **ORTHO**, der
+  Polarspur-Schalter **POLAR** und der Objektfang-Schalter **OFANG**; RASTER, POLAR und
+  OFANG mit dem Menü **▾**; rechts die Cursorposition
   `X … Y …` in mm und der Zoom in px/mm.
 
 ## Ansicht
@@ -174,7 +175,7 @@ bedeuten dort dasselbe.
 
 Ungültige Eingaben meldet die Kommandozeile mit `Punkt oder Option-Schlüsselwort
 erforderlich.`, die Aufforderung bleibt. Getippte Zeichen lösen keine anderen
-Tastenkürzel aus; Strg/⌘-Kürzel, F3, F8 und F10 wirken weiter.
+Tastenkürzel aus; Strg/⌘-Kürzel, F3, F7, F8 und F10 wirken weiter.
 
 ## Objektfang (OFANG)
 
@@ -283,6 +284,29 @@ als bei der Polarspur gilt das ohne Toleranz, egal wie weit der Cursor daneben l
 - Ein **Fangpunkt** und getippte Koordinaten haben Vorrang. Beim Basispunkt wirkt Ortho
   nicht, weil noch kein Bezugspunkt existiert.
 
+## Raster (RASTER)
+
+Ein Linienraster unter der Zeichnung hilft, Abstände und Lage abzuschätzen, wie
+Millimeterpapier. Es ist nur Anzeige: Es gehört nicht zum Plan, wird nie gedruckt und
+beeinflusst weder Auswahl noch Objektfang noch Zoom Grenzen. Die Linien laufen parallel zu
+X und Y durch den Nullpunkt; jede zehnte ist eine kräftigere Hauptlinie.
+
+| Eingabe                       | Wirkung                                                  |
+|-------------------------------|----------------------------------------------------------|
+| **F7** oder Button **RASTER** | Schaltet das Raster ein oder aus (beim Start an)         |
+| **▾** neben RASTER            | Menü mit **Rasterabstand (mm)** und **Hauptlinie alle**  |
+
+- **Rasterabstand**: Abstand der Linien in mm (Standard 10), größer als 0, Dezimalpunkt.
+- **Hauptlinie alle**: jede wievielte Linie eine Hauptlinie ist (Standard 10), ganze Zahl
+  von 1 bis 100.
+- Jede gültige Eingabe gilt sofort und schaltet das Raster ein. Eine ungültige wird rot
+  markiert, bis dahin bleibt der letzte gültige Wert.
+- **Beim Herauszoomen wird das Raster gröber**, wie AutoCAD: Lägen die Linien enger als
+  10 px, wird der Abstand mit „Hauptlinie alle“ multipliziert (bei 1 verdoppelt), bis es
+  passt. Mit den Standardwerten zeigt das Raster also 10 mm, 100 mm, 1 m oder 10 m; die
+  Hauptlinien der einen Stufe sind die Nebenlinien der nächsten. Feiner als der
+  eingestellte Abstand wird es nie.
+
 ## Darstellung (Hell / Dunkel)
 
 Rechts in der Toolbar unter **Darstellung**:
@@ -315,10 +339,16 @@ noch nicht ändern; das kommt in einem späteren Schritt.
 | `snapPreview`     | an       | Fangpunkt-Vorschau der Objekte unter dem Fangbereich          | (keine)      |
 | `previewColor`    | `#ea580c` / `#facc15` | Farbe von Fangpunkt-Vorschau und Gummiband, bei Hell / Dunkel |  |
 | `polarTolerance`  | 10       | Größter Abstand des Cursors von einer Polarspur in px          |              |
+| `gridMinSpacing`  | 10       | Kleinster Abstand der Rasterlinien in px; enger wird das Raster gröber |      |
+| `gridColor`       | siehe Datei | Farben der Neben- und Hauptlinien des Rasters, bei Hell / Dunkel | Optionen → Farben |
 
 Die Winkel der Polarspur stehen in `DEFAULT_POLAR_SETTINGS`: `incrementAngle` (90,
 POLARANG), `additionalAngles` (zusätzliche Winkel, z. B. `[30, 60]`, POLARADDANG). Beide
 lassen sich auch im POLAR-Menü ändern.
+
+Die Rasterwerte stehen in `DEFAULT_GRID_SETTINGS`: `enabled` (an, GRIDMODE), `spacing`
+(10 mm, GRIDUNIT), `majorEvery` (10, GRIDMAJOR); `spacing` und `majorEvery` lassen sich im
+RASTER-Menü ändern.
 
 ## Noch nicht umgesetzt
 
@@ -334,4 +364,7 @@ lassen sich auch im POLAR-Menü ändern.
 - Bei der Polarspur: Winkel relativ zum letzten Segment, Schnittpunkte der Spur mit
   Objekten. Ortho- und Polar-Einstellungen werden noch nicht gespeichert (nach dem
   Neuladen gilt wieder POLAR an mit 90° ohne Zusatzwinkel, Ortho aus).
+- Beim Raster: Rasterfang (F9), getrennte Abstände für X und Y, Punktraster, isometrisches
+  Raster, Limiten. Die Rasterwerte werden noch nicht gespeichert (nach dem Neuladen gilt
+  wieder 10 mm, Hauptlinie alle 10, Raster an).
 - Die Einstellungen im Editor ändern.

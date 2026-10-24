@@ -5,8 +5,10 @@ import type { Point } from 'app/cad/model/Point';
 import { CadApiClient } from 'app/cad/persistence/CadApiClient';
 import {
     DEFAULT_EDITOR_SETTINGS,
+    DEFAULT_GRID_SETTINGS,
     DEFAULT_SNAP_SETTINGS,
     DEFAULT_TRACKING_MODES,
+    type GridSettings,
     type SnapSettings,
     type TrackingModes,
     withOrtho,
@@ -44,10 +46,11 @@ function App() {
     const [state, setState] = useState<LoadState>({ status: 'loading' });
     const [snapSettings, setSnapSettings] = useState<SnapSettings>(DEFAULT_SNAP_SETTINGS);
     const [tracking, setTracking] = useState<TrackingModes>(DEFAULT_TRACKING_MODES);
+    const [gridSettings, setGridSettings] = useState<GridSettings>(DEFAULT_GRID_SETTINGS);
     const { preference, setPreference, theme } = useTheme();
 
     // Shortcuts like AutoCAD: F3 switches the object snap (and must not open the browser's
-    // search), F8 Ortho, F10 polar tracking (and must not focus the browser's menu bar),
+    // search), F7 the grid (and must not start caret browsing), F8 Ortho, F10 polar tracking (and must not focus the browser's menu bar),
     // Ctrl/Cmd+Z undoes, Ctrl+Y or Cmd+Shift+Z redoes
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
@@ -62,6 +65,13 @@ function App() {
                 event.preventDefault();
                 if (!event.repeat) {
                     setSnapSettings((settings) => ({ ...settings, enabled: !settings.enabled }));
+                }
+                return;
+            }
+            if (event.key === 'F7') {
+                event.preventDefault();
+                if (!event.repeat) {
+                    setGridSettings((grid) => ({ ...grid, enabled: !grid.enabled }));
                 }
                 return;
             }
@@ -177,6 +187,7 @@ function App() {
                 snapSettings={snapSettings}
                 polarSettings={tracking.polar}
                 ortho={tracking.ortho}
+                gridSettings={gridSettings}
                 onViewportChange={setViewport}
                 onPointerChange={setPointer}
                 onSelectionChange={setSelection}
@@ -198,6 +209,8 @@ function App() {
                 onPolarSettingsChange={(polar) => setTracking((modes) => withPolar(modes, polar))}
                 ortho={tracking.ortho}
                 onOrthoChange={(ortho) => setTracking((modes) => withOrtho(modes, ortho))}
+                gridSettings={gridSettings}
+                onGridSettingsChange={setGridSettings}
             />
         </div>
     );

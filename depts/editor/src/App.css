@@ -61,6 +61,13 @@
     touch-action: none;
 }
 
+/* Grid (GridLayer) under the drawing canvas; its backing size follows the device pixel ratio */
+.cad-canvas .cad-grid {
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
 /* Drawn crosshair (CrosshairCursor); its parts are positioned around the cursor pixel */
 .crosshair {
     position: absolute;
@@ -228,6 +235,17 @@
     gap: 2px;
 }
 
+/* Number fields of the grid menu, label above the field */
+.snap-menu .menu-field {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+}
+
+.snap-menu .menu-field + .menu-field {
+    margin-top: 4px;
+}
+
 /* Additional polar angles below the increments */
 .snap-menu .polar-additional {
     flex-direction: column;
@@ -238,12 +256,14 @@
     border-top: 1px solid var(--border);
 }
 
-.polar-additional input {
+.polar-additional input,
+.menu-field input {
     width: 9em;
     font: inherit;
 }
 
-.polar-additional input[aria-invalid='true'] {
+.polar-additional input[aria-invalid='true'],
+.menu-field input[aria-invalid='true'] {
     border-color: var(--error);
     outline-color: var(--error);
 }

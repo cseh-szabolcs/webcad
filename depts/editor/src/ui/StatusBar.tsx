@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { SNAP_MODE_LABELS, SNAP_MODES, type SnapMode } from 'app/cad/editor/snapping/SnapMode';
 import { formatAngleList, parseAngleList } from 'app/cad/editor/tracking/PolarTracking';
+import { MAX_MAJOR_EVERY, parseGridSpacing, parseMajorEvery } from 'app/cad/renderer/grid';
 import type { Point } from 'app/cad/model/Point';
 import type { Viewport } from 'app/cad/renderer/Viewport';
-import { POLAR_INCREMENTS, type PolarSettings, type SnapSettings } from 'app/settings/editorSettings';
+import { POLAR_INCREMENTS, type GridSettings, type PolarSettings, type SnapSettings } from 'app/settings/editorSettings';
 import { markerPath } from './SnapMarker';
 
 interface StatusBarProps {
@@ -16,10 +17,12 @@ interface StatusBarProps {
     onPolarSettingsChange: (settings: PolarSettings) => void;
     ortho: boolean;
     onOrthoChange: (ortho: boolean) => void;
+    gridSettings: GridSettings;
+    onGridSettingsChange: (settings: GridSettings) => void;
 }
 
 /**
- * The Ortho, polar tracking and object snap switches on the left, the cursor position in model space
+ * The grid, Ortho, polar tracking and object snap switches on the left (in AutoCAD's order), the cursor position in model space
  * and the zoom level on the right, so the switches stay put while the numbers change width.
  */
 export function StatusBar({
@@ -31,11 +34,14 @@ export function StatusBar({
     onPolarSettingsChange,
     ortho,
     onOrthoChange,
+    gridSettings,
+    onGridSettingsChange,
 }: StatusBarProps) {
     const model = viewport && pointer ? viewport.viewToModel(pointer) : null;
 
     return (
         <footer className="statusbar">
+            <GridSwitch settings={gridSettings} onChange={onGridSettingsChange} />
             <div className="snap-switch">
                 <button type="button" aria-pressed={ortho} onClick={() => onOrthoChange(!ortho)} title="Ortho ein/aus (F8)">
                     ORTHO
@@ -79,6 +85,98 @@ function useMenu() {
     }, [open]);
 
     return { open, setOpen, rootRef };
+}
+
+/**
+ * RASTER switch (like F7) with a menu of the grid spacing and the lines per major line, like
+ * AutoCAD's GRIDUNIT and GRIDMAJOR.
+ */
+function GridSwitch({ settings, onChange }: { settings: GridSettings; onChange: (settings: GridSettings) => void }) {
+    const { open, setOpen, rootRef } = useMenu();
+
+    return (
+        <div className="snap-switch" ref={rootRef}>
+            <button
+                type="button"
+                aria-pressed={settings.enabled}
+                onClick={() => onChange({ ...settings, enabled: !settings.enabled })}
+                title="Raster ein/aus (F7)"
+            >
+                RASTER
+            </button>
+            <button
+                type="button"
+                aria-expanded={open}
+                aria-haspopup="true"
+                onClick={() => setOpen(!open)}
+                title="Raster einstellen"
+            >
+                ▾
+            </button>
+            {open && (
+                <div className="snap-menu">
+                    <NumberField
+                        label="Rasterabstand (mm)"
+                        value={settings.spacing}
+                        parse={parseGridSpacing}
+                        title="Abstand der Rasterlinien in mm, größer als 0 (Dezimalpunkt)"
+                        // Every valid value also switches the grid on, like the polar angles
+                        onChange={(spacing) => onChange({ ...settings, enabled: true, spacing })}
+                    />
+                    <NumberField
+                        label="Hauptlinie alle"
+                        value={settings.majorEvery}
+                        parse={parseMajorEvery}
+                        title={`Jede wievielte Linie eine Hauptlinie ist, ganze Zahl von 1 bis ${MAX_MAJOR_EVERY}`}
+                        onChange={(majorEvery) => onChange({ ...settings, enabled: true, majorEvery })}
+                    />
+                </div>
+            )}
+        </div>
+    );
+}
+
+/**
+ * Number field in a status bar menu: every valid change applies at once; while the text is
+ * invalid it is marked and the last valid value stays.
+ */
+function NumberField({
+    label,
+    value,
+    parse,
+    title,
+    onChange,
+}: {
+    label: string;
+    value: number;
+    parse: (text: string) => number | null;
+    title: string;
+    onChange: (value: number) => void;
+}) {
+    const [text, setText] = useState(() => String(value));
+    const parsed = parse(text);
+
+    const edit = (next: string) => {
+        setText(next);
+        const nextValue = parse(next);
+        if (nextValue !== null && nextValue !== value) {
+            onChange(nextValue);
+        }
+    };
+
+    return (
+        <label className="menu-field">
+            {label}
+            <input
+                type="text"
+                inputMode="decimal"
+                value={text}
+                aria-invalid={parsed === null}
+                title={title}
+                onChange={(event) => edit(event.target.value)}
+            />
+        </label>
+    );
 }
 
 /**

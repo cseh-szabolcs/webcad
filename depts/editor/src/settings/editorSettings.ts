@@ -47,6 +47,13 @@ export interface EditorSettings {
      * most this far from it, so the behaviour does not depend on the zoom.
      */
     polarTolerance: number;
+    /**
+     * Smallest distance in screen px between two grid lines: while the grid spacing would come
+     * out closer, the grid is shown coarser (see GridSettings.majorEvery).
+     */
+    gridMinSpacing: number;
+    /** Colours of the grid's minor and major lines, per background. */
+    gridColor: Readonly<Record<DisplayTheme, { minor: string; major: string }>>;
 }
 
 export const DEFAULT_EDITOR_SETTINGS: Readonly<EditorSettings> = {
@@ -62,6 +69,33 @@ export const DEFAULT_EDITOR_SETTINGS: Readonly<EditorSettings> = {
     snapPreview: true,
     previewColor: { light: '#ea580c', dark: '#facc15' },
     polarTolerance: 10,
+    gridMinSpacing: 10,
+    gridColor: {
+        light: { minor: '#eef0f3', major: '#dde1e6' },
+        dark: { minor: '#283039', major: '#343d48' },
+    },
+};
+
+/**
+ * Grid display, switched while the editor runs (status bar, F7), like AutoCAD's GRIDMODE. The
+ * grid is never part of the document and is never plotted.
+ */
+export interface GridSettings {
+    /** Main switch like F7 (GRIDMODE). */
+    enabled: boolean;
+    /** Distance between grid lines in mm, the same for X and Y, like GRIDUNIT. */
+    spacing: number;
+    /**
+     * Every this many lines one is a major line, like GRIDMAJOR (1–100). Zoomed out, the
+     * grid gets coarser by this factor (by 2 at 1), like AutoCAD's adaptive grid.
+     */
+    majorEvery: number;
+}
+
+export const DEFAULT_GRID_SETTINGS: Readonly<GridSettings> = {
+    enabled: true,
+    spacing: 10,
+    majorEvery: 10,
 };
 
 /** Running object snaps, switched while the editor runs (status bar, F3). */

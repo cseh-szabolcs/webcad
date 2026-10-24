@@ -7,9 +7,10 @@ import type { Point } from 'app/cad/model/Point';
 import type { DisplayTheme } from 'app/cad/renderer/displayColor';
 import { PaperRenderer } from 'app/cad/renderer/PaperRenderer';
 import { Viewport, type Size } from 'app/cad/renderer/Viewport';
-import type { EditorSettings, PolarSettings, SnapSettings } from 'app/settings/editorSettings';
+import type { EditorSettings, GridSettings, PolarSettings, SnapSettings } from 'app/settings/editorSettings';
 import { attachCanvasInput } from './canvasInput';
 import { CrosshairCursor } from './CrosshairCursor';
+import { GridLayer } from './GridLayer';
 import { SnapMarker } from './SnapMarker';
 
 const NOTHING: ReadonlySet<string> = new Set();
@@ -36,6 +37,8 @@ interface CadCanvasProps {
     polarSettings: PolarSettings;
     /** Ortho mode (F8); may change at any time. */
     ortho: boolean;
+    /** Grid display (F7); may change at any time. */
+    gridSettings: GridSettings;
     onViewportChange?: (viewport: Viewport) => void;
     /**
      * Pointer position in view px (the snap or polar tracking point while the magnet holds
@@ -54,6 +57,7 @@ export function CadCanvas({
     snapSettings,
     polarSettings,
     ortho,
+    gridSettings,
     onViewportChange,
     onPointerChange,
     onSelectionChange,
@@ -65,11 +69,13 @@ export function CadCanvas({
     const editorRef = useRef<SelectionEditor | null>(null);
     const overlayRef = useRef<SelectionOverlay | null>(null);
     const snapMarkerRef = useRef<SnapMarker | null>(null);
+    const gridRef = useRef<GridLayer | null>(null);
     const themeRef = useRef(theme);
     const settingsRef = useRef(settings);
     const snapSettingsRef = useRef(snapSettings);
     const polarSettingsRef = useRef(polarSettings);
     const orthoRef = useRef(ortho);
+    const gridSettingsRef = useRef(gridSettings);
     const viewportRef = useRef(new Viewport());
     const sizeRef = useRef<Size | null>(null);
     const needsFitRef = useRef(true);
@@ -88,6 +94,7 @@ export function CadCanvas({
     const applyViewport = (viewport: Viewport) => {
         viewportRef.current = viewport;
         rendererRef.current?.setViewport(viewport);
+        gridRef.current?.setViewport(viewport);
         refreshOverlayRef.current?.();
         onViewportChangeRef.current?.(viewport);
     };
@@ -121,6 +128,9 @@ export function CadCanvas({
         renderer.setViewport(viewportRef.current);
         renderer.setTheme(themeRef.current);
         renderer.setDocument(document);
+        const grid = new GridLayer(container, settingsRef.current, themeRef.current, gridSettingsRef.current);
+        grid.setViewport(viewportRef.current);
+        gridRef.current = grid;
         const history = new DocumentHistory(document);
         // Subscribed before the editor, so the paths are up to date when its overlay redraws
         const unsubscribeHistory = history.subscribe(({ document, changedElementIds }) =>
@@ -191,6 +201,7 @@ export function CadCanvas({
             }
             sizeRef.current = size;
             renderer.resize(size);
+            grid.resize(size);
             crosshair.update(size, settingsRef.current);
             if (needsFitRef.current) {
                 fit();
@@ -222,6 +233,8 @@ export function CadCanvas({
             crosshair.dispose();
             snapMarker.dispose();
             snapMarkerRef.current = null;
+            grid.dispose();
+            gridRef.current = null;
             unsubscribe();
             editor.dispose();
             unsubscribeHistory();
@@ -253,10 +266,16 @@ export function CadCanvas({
     }, [ortho]);
 
     useEffect(() => {
+        gridSettingsRef.current = gridSettings;
+        gridRef.current?.setGrid(gridSettings);
+    }, [gridSettings]);
+
+    useEffect(() => {
         themeRef.current = theme;
         rendererRef.current?.setTheme(theme);
         overlayRef.current?.setTheme(theme);
         snapMarkerRef.current?.setTheme(theme);
+        gridRef.current?.setTheme(theme);
         refreshOverlayRef.current?.();
     }, [theme]);
 
