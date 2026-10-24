@@ -71,6 +71,23 @@ export function selectionGrips(elements: Iterable<CadElement>, index: DocumentIn
     return [...grips.values()];
 }
 
+/**
+ * Control frame of the selected elements, drawn with their grips so the grips off a curve
+ * make sense: for each bezier one line from each end to its control point. Other element
+ * types have no control points and no frame.
+ */
+export function selectionControlFrames(elements: Iterable<CadElement>, index: DocumentIndex): [Point, Point][] {
+    const frames: [Point, Point][] = [];
+    for (const element of elements) {
+        if (element.type !== 'bezier') {
+            continue;
+        }
+        const [start, end, startControl, endControl] = elementGrips(element, index);
+        frames.push([start, startControl], [end, endControl]);
+    }
+    return frames;
+}
+
 function midpoint(a: Point, b: Point): Point {
     return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
 }

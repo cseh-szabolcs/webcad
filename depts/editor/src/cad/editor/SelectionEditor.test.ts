@@ -133,6 +133,36 @@ describe('SelectionEditor pickfirst selection', () => {
     });
 });
 
+describe('SelectionEditor control frame', () => {
+    /** On the curtain bezier: B(0.5) of its control points. */
+    const CURTAIN = { x: 4250, y: 3550 };
+
+    it('shows the control frame of a selected bezier with its grips', () => {
+        const editor = create();
+        click(editor, CURTAIN);
+        expect(ids(editor.snapshot.highlighted)).toEqual([E.curtain]);
+        expect(editor.snapshot.grips).toHaveLength(4);
+        expect(editor.snapshot.controlFrames).toHaveLength(2);
+    });
+
+    it('has no frame for elements without control points', () => {
+        const editor = create();
+        click(editor, TABLE);
+        expect(editor.snapshot.controlFrames).toEqual([]);
+    });
+
+    it('hides the frame with the grips while AUSWAHL runs and after Escape', () => {
+        const editor = create();
+        click(editor, CURTAIN);
+        editor.startSelectCommand();
+        expect(editor.snapshot.controlFrames).toEqual([]);
+        editor.keyDown({ key: 'Escape' });
+        click(editor, CURTAIN);
+        editor.keyDown({ key: 'Escape' });
+        expect(editor.snapshot.controlFrames).toEqual([]);
+    });
+});
+
 describe('SelectionEditor AUSWAHL command (verb-noun)', () => {
     it('shows the prompts of the command line', () => {
         const editor = create();

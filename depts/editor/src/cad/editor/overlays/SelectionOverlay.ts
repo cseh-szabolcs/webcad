@@ -6,6 +6,8 @@ import type { SelectionArea, SelectionSnapshot } from '../SelectionEditor';
 const HOVER_EXTRA_WIDTH = 2;
 const SELECTED_EXTRA_WIDTH = 1;
 const GRIP_SIZE_PX = 7;
+/** Control frame lines in the grip colour, thin and dashed (screen px). */
+const CONTROL_FRAME_DASH = [4, 3];
 /** Crossing areas get a dashed edge (screen px), windows a solid one. */
 const AREA_DASH = { window: [] as number[], crossing: [6, 4] };
 
@@ -40,7 +42,8 @@ export interface OverlayHost {
 
 /**
  * Draws the selection state on top of the document: highlights as restyled copies of the
- * rendered paths, grips as filled squares and the selection rectangle or lasso. Grips depend
+ * rendered paths, grips as filled squares with the control frame of curves, and the
+ * selection rectangle or lasso. Grips depend
  * on the zoom, so render again after every viewport change (and after setTheme()).
  */
 export class SelectionOverlay {
@@ -56,7 +59,7 @@ export class SelectionOverlay {
         this.palette = PALETTES[theme];
     }
 
-    render({ hovered, highlighted, grips, area }: SelectionSnapshot): void {
+    render({ hovered, highlighted, grips, controlFrames, area }: SelectionSnapshot): void {
         const layer = this.host.overlayLayer;
         layer.removeChildren();
         for (const id of hovered) {
@@ -64,6 +67,15 @@ export class SelectionOverlay {
         }
         for (const id of highlighted) {
             this.highlight(layer, id, this.palette.selected, SELECTED_EXTRA_WIDTH);
+        }
+        // Below the grips, so the grips stay whole at the line ends
+        for (const [from, to] of controlFrames) {
+            const line = new paper.Path.Line({ from: [from.x, from.y], to: [to.x, to.y], insert: false });
+            line.strokeColor = new paper.Color(this.palette.grip);
+            line.strokeWidth = 1;
+            line.dashArray = CONTROL_FRAME_DASH;
+            line.strokeScaling = false;
+            layer.addChild(line);
         }
         const size = GRIP_SIZE_PX / this.host.scale;
         for (const { x, y } of grips) {

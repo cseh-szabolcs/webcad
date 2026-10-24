@@ -185,7 +185,9 @@ Structure (all pure TS and unit-tested unless noted):
   All derived from the document and **only built on load**; once commands change the
   document, these must be updated too.
 - `cad/editor/overlays/SelectionOverlay.ts` (Paper.js): hover/selection highlights as
-  restyled copies of the rendered paths, grips, rectangle/lasso, one palette per theme.
+  restyled copies of the rendered paths, grips (beziers also get a dashed control frame
+  from each end to its control point, as their control grips lie off the curve),
+  rectangle/lasso, one palette per theme.
 - `ui/canvasInput.ts`: the single owner of canvas input (zoom, pan, forwarding to the
   editor, pointer capture, lost-release and `pointercancel` handling) and of the cursor.
   `ui/CommandLine.tsx` is display only.

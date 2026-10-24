@@ -5,7 +5,7 @@ import type { Id, Point } from '../model/Point';
 import { rectFromCorners } from '../geometry/selectionGeometry';
 import type { EditorKeyEvent, EditorPointerEvent } from './EditorPointerEvent';
 import { buildElementShapes } from './selection/ElementShapes';
-import { selectionGrips } from './selection/grips';
+import { selectionControlFrames, selectionGrips } from './selection/grips';
 import { buildSelectionUnits, expandToUnits } from './selection/grouping';
 import { pickAt, pickCrossing, pickLasso, pickWindow } from './selection/picking';
 import { ShapeIndex } from './selection/ShapeIndex';
@@ -52,6 +52,8 @@ export interface SelectionSnapshot {
     highlighted: ReadonlySet<Id>;
     /** Grips of the pickfirst selection; none while a command runs. No function yet. */
     grips: readonly Point[];
+    /** Control frame lines shown with the grips (bezier end to its control point). */
+    controlFrames: readonly (readonly [Point, Point])[];
     /** Selection rectangle or lasso in progress, or null. */
     area: SelectionArea | null;
 }
@@ -375,13 +377,14 @@ export class SelectionEditor {
             return previous;
         }
         let grips: readonly Point[] = [];
+        let controlFrames: SelectionSnapshot['controlFrames'] = [];
         if (sameSelection) {
             grips = previous.grips;
+            controlFrames = previous.controlFrames;
         } else if (state.kind === 'idle') {
-            grips = selectionGrips(
-                [...state.pickfirst].map((id) => this.index.elements.get(id)!),
-                this.index,
-            );
+            const elements = [...state.pickfirst].map((id) => this.index.elements.get(id)!);
+            grips = selectionGrips(elements, this.index);
+            controlFrames = selectionControlFrames(elements, this.index);
         }
         return {
             command,
@@ -390,6 +393,7 @@ export class SelectionEditor {
             hovered,
             highlighted,
             grips,
+            controlFrames,
             area,
         };
     }

@@ -4,7 +4,7 @@ import type { Point } from '../../model/Point';
 import { parseDocument } from '../../persistence/CadSerializer';
 import samplePlan from '../../__fixtures__/sample-plan.json';
 import { sampleIds } from '../../__fixtures__/sampleIds';
-import { elementGrips, selectionGrips } from './grips';
+import { elementGrips, selectionControlFrames, selectionGrips } from './grips';
 
 const { element: E } = sampleIds;
 
@@ -98,5 +98,25 @@ describe('selectionGrips', () => {
         // Door leaf and swing share the hinge (1000, 240) and the open end (1000, 1140)
         const grips = selectionGrips([element(E['door-leaf']), element(E['door-swing'])], index);
         expect(grips).toHaveLength(3 + 4 - 2);
+    });
+});
+
+describe('selectionControlFrames', () => {
+    it('connects each bezier end with its control point', () => {
+        expect(selectionControlFrames([element(E.curtain)], index)).toEqual([
+            [
+                { x: 3500, y: 3700 },
+                { x: 4000, y: 3500 },
+            ],
+            [
+                { x: 5000, y: 3700 },
+                { x: 4500, y: 3500 },
+            ],
+        ]);
+    });
+
+    it('gives other element types no frame', () => {
+        const others = [E['door-leaf'], E['door-swing'], E.table, E.rug, E['wall-outer']].map(element);
+        expect(selectionControlFrames(others, index)).toEqual([]);
     });
 });
