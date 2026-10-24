@@ -1,4 +1,5 @@
 import type { CadDocument } from '../model/CadDocument';
+import { DEFAULT_EDITOR_SETTINGS, type EditorSettings } from '../../settings/editorSettings';
 import { indexDocument, type DocumentIndex } from '../model/DocumentIndex';
 import type { Id, Point } from '../model/Point';
 import { rectFromCorners } from '../geometry/selectionGeometry';
@@ -9,8 +10,6 @@ import { buildSelectionUnits, expandToUnits } from './selection/grouping';
 import { pickAt, pickCrossing, pickLasso, pickWindow } from './selection/picking';
 import { ShapeIndex } from './selection/ShapeIndex';
 
-/** Half size of the pick box in screen pixels. */
-export const PICK_TOLERANCE_PX = 5;
 /** How far a press must travel (screen px) before it counts as a drag. */
 const DRAG_THRESHOLD_PX = 3;
 /** Minimum distance (screen px) between recorded lasso points. */
@@ -72,12 +71,14 @@ type State =
  * click ends the command (the result becomes the "previous" selection, nothing stays
  * highlighted) and Esc cancels it.
  *
- * In both, pressing into empty space and dragging spans a rectangle that ends on release
- * (like AutoCAD with PICKDRAG 1); a plain click into empty space does nothing. To the right
- * it selects by window, to the left by crossing. With Alt held on the press, dragging draws
- * a lasso instead; its start direction picks window or crossing and Space toggles between
- * them. With Shift the found elements are removed instead. Esc or Enter drop just the
- * rectangle or lasso.
+ * In both, pressing into empty space and dragging opens a rectangle; a plain click into
+ * empty space does nothing. The rectangle stays open after the release, so the view can
+ * still be zoomed or panned, and the next click (its opposite corner) or Enter (at the
+ * cursor) ends it. To the right it selects by window, to the left by crossing. With Alt
+ * held on the press, dragging draws a lasso instead, which ends on release; its start
+ * direction picks window or crossing and Space toggles between them. With Shift on the
+ * ending click, Enter or release the found elements are removed instead. Esc drops just
+ * the rectangle or lasso.
  *
  * Picking a grouped element picks its whole group, also by window, crossing or lasso when
  * only one member qualifies. Never persisted.
@@ -103,7 +104,11 @@ export class SelectionEditor {
     private current: SelectionSnapshot;
     private readonly listeners = new Set<() => void>();
 
-    constructor(doc: CadDocument) {
+    /** Half the pick box side in screen px (see EditorSettings.pickboxSize). */
+    private readonly pickboxSize: number;
+
+    constructor(doc: CadDocument, settings: Pick<EditorSettings, 'pickboxSize'> = DEFAULT_EDITOR_SETTINGS) {
+        this.pickboxSize = settings.pickboxSize;
         this.index = indexDocument(doc);
         const shapes = buildElementShapes(doc);
         this.shapes = new ShapeIndex(shapes);
@@ -146,7 +151,15 @@ export class SelectionEditor {
             }
             return;
         }
-        if (event.button !== 0 || this.press !== null || this.area !== null) {
+        if (event.button !== 0 || this.press !== null) {
+            return;
+        }
+        if (this.area?.shape === 'rect') {
+            // The rectangle stayed open after the drag; this click sets its opposite corner
+            this.finishRect(this.area.first, event.modelPoint, event.shiftKey);
+            return;
+        }
+        if (this.area !== null) {
             return;
         }
         const id = this.pick(event);
@@ -184,17 +197,16 @@ export class SelectionEditor {
         this.changed();
     }
 
-    /** Ends the rectangle or lasso being dragged. */
+    /**
+     * Ends a lasso. A dragged rectangle stays open, so the view can still be zoomed or panned;
+     * the next click or Enter ends it.
+     */
     pointerUp(event: EditorPointerEvent): void {
         if (event.button !== 0) {
             return;
         }
         this.press = null;
         const area = this.area;
-        if (area?.shape === 'rect') {
-            this.finishRect(area.first, event.modelPoint, event.shiftKey);
-            return;
-        }
         if (area?.shape !== 'lasso') {
             return;
         }
@@ -207,10 +219,13 @@ export class SelectionEditor {
         this.applyPicked(pickLasso(this.shapes, polygon, area.mode), event.shiftKey);
     }
 
-    /** The browser aborted the press: drops a rectangle or lasso without selecting. */
+    /**
+     * The browser aborted the press: drops a lasso without selecting; a rectangle stays open,
+     * as after a release.
+     */
     pointerCancel(): void {
         this.press = null;
-        if (this.area !== null) {
+        if (this.area?.shape === 'lasso') {
             this.area = null;
             this.changed();
         }
@@ -227,6 +242,11 @@ export class SelectionEditor {
         if (area?.shape === 'lasso' && event.key === ' ') {
             this.area = { ...area, mode: area.mode === 'window' ? 'crossing' : 'window' };
             this.changed();
+            return true;
+        }
+        if (area?.shape === 'rect' && event.key === 'Enter') {
+            this.press = null;
+            this.finishRect(area.first, area.second, event.shiftKey ?? false);
             return true;
         }
         if (area !== null && (event.key === 'Escape' || event.key === 'Enter')) {
@@ -313,7 +333,7 @@ export class SelectionEditor {
     }
 
     private pick(event: EditorPointerEvent): Id | null {
-        return pickAt(this.shapes, event.modelPoint, PICK_TOLERANCE_PX * event.pixelSize);
+        return pickAt(this.shapes, event.modelPoint, this.pickboxSize * event.pixelSize);
     }
 
     /** Rebuilds the snapshot and notifies if anything visible differs. */

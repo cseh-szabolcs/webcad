@@ -158,9 +158,10 @@ Work in small, well-scoped increments that follow existing conventions (e.g. "bu
 ## Editor: current state
 
 Object selection follows AutoCAD, with these settings deliberately chosen: **a rectangle
-only comes from press + drag in empty space and ends on release; a plain click into empty
-space does nothing** (like AutoCAD with `PICKDRAG=1` and the lasso turned off). The
-**lasso needs Alt (⌥) held on the press**. Otherwise:
+only comes from press + drag in empty space; a plain click into empty space does
+nothing.** After the release the rectangle **stays open** (the view can still be zoomed and
+panned) until the next click sets its opposite corner or Enter ends it at the cursor; Esc
+drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. Otherwise:
 
 - No command active (noun-verb): click adds to the pickfirst selection (highlight +
   grips), Shift removes, Esc clears. Rectangle to the right = window (completely inside),
@@ -169,7 +170,8 @@ space does nothing** (like AutoCAD with `PICKDRAG=1` and the lasso turned off). 
   pickfirst selection, grips disappear, the command line shows AutoCAD-style prompts and
   counts ("1 gefunden, 2 gesamt"). Enter or right click ends it (result kept as
   `previous`, nothing stays highlighted), Esc cancels.
-- Only outlines are hit, never fills. Elements on hidden or locked layers are not
+- Only outlines are hit, never fills: an element is hit when its outline passes through
+  the square pick box around the cursor. Elements on hidden or locked layers are not
   selectable. Picking a grouped element picks its whole group. While a rectangle or lasso
   is open, what it would pick is previewed in the hover style.
 
@@ -185,8 +187,18 @@ Structure (all pure TS and unit-tested unless noted):
 - `cad/editor/overlays/SelectionOverlay.ts` (Paper.js): hover/selection highlights as
   restyled copies of the rendered paths, grips, rectangle/lasso, one palette per theme.
 - `ui/canvasInput.ts`: the single owner of canvas input (zoom, pan, forwarding to the
-  editor, pointer capture, lost-release and `pointercancel` handling). `ui/CommandLine.tsx`
-  is display only.
+  editor, pointer capture, lost-release and `pointercancel` handling) and of the cursor.
+  `ui/CommandLine.tsx` is display only.
+- Cursor: over the canvas the system pointer is hidden and `ui/CrosshairCursor.ts` draws an
+  AutoCAD-like crosshair as a DOM layer (moved by CSS transform, so the drawing is never
+  redrawn for it), with the pick box as a square in its centre; while panning the grab
+  hand shows instead. Colour token `--crosshair`.
+- Central settings: `src/settings/editorSettings.ts` (`EditorSettings`,
+  `DEFAULT_EDITOR_SETTINGS`): `crosshairSize` (% of the drawing area's larger side, like
+  AutoCAD CURSORSIZE; 100 = across the whole area), `pickboxSize` (half side in px, like
+  PICKBOX; also the hover/click tolerance) and `showPickbox`. Code receives the object
+  (App → `CadCanvas` → editor and crosshair) rather than importing the defaults, so the
+  user can change them later; for now they are read when a document is loaded.
 - Light/dark mode: `ui/theme.ts` (`system` / `light` / `dark`, remembered in
   `localStorage`, sets `data-theme` on `<html>` for the CSS tokens in `index.css`).
   Drawing colours are adapted for display only in `cad/renderer/displayColor.ts`

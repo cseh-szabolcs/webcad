@@ -17,4 +17,6 @@ export interface EditorPointerEvent {
 
 export interface EditorKeyEvent {
     key: string;
+    /** Shift+Enter ends an open selection rectangle by removing what it finds. */
+    shiftKey?: boolean;
 }

@@ -6,6 +6,7 @@
     --muted: #6b7280;
     --error: #b91c1c;
     --canvas-bg: #ffffff;
+    --crosshair: #111827;
     color-scheme: light;
 
     font: 14px/1.4 system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -23,6 +24,7 @@
     --muted: #9ca3af;
     --error: #f87171;
     --canvas-bg: #212830;
+    --crosshair: #f3f4f6;
     color-scheme: dark;
 }
 

@@ -61,6 +61,28 @@
     touch-action: none;
 }
 
+/* Drawn crosshair (CrosshairCursor); its parts are positioned around the cursor pixel */
+.crosshair {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+}
+
+.crosshair-line,
+.crosshair-pickbox {
+    position: absolute;
+}
+
+.crosshair-line {
+    background: var(--crosshair);
+}
+
+.crosshair-pickbox {
+    box-sizing: border-box;
+    border: 1px solid var(--crosshair);
+}
+
 .app-message {
     margin: 0;
     padding: 24px;

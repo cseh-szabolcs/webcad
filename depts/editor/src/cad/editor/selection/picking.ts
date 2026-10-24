@@ -1,5 +1,4 @@
 import {
-    distanceToPolyline,
     polylineInsidePolygon,
     polylineTouchesPolygon,
     polylineTouchesRect,
@@ -9,18 +8,14 @@ import type { Rect } from '../../renderer/Viewport';
 import type { ShapeIndex } from './ShapeIndex';
 
 /**
- * Element whose outline passes within `tolerance` (mm) of `point`; if several do, the one
- * drawn on top.
+ * Element whose outline passes through the pick box, the square reaching `halfSize` (mm)
+ * from `point` on each side, like AutoCAD's PICKBOX; if several do, the one drawn on top.
  */
-export function pickAt(index: ShapeIndex, point: Point, tolerance: number): Id | null {
-    const candidates = index.search({
-        x: point.x - tolerance,
-        y: point.y - tolerance,
-        width: 2 * tolerance,
-        height: 2 * tolerance,
-    });
+export function pickAt(index: ShapeIndex, point: Point, halfSize: number): Id | null {
+    const box = { x: point.x - halfSize, y: point.y - halfSize, width: 2 * halfSize, height: 2 * halfSize };
+    const candidates = index.search(box);
     for (let i = candidates.length - 1; i >= 0; i--) {
-        if (distanceToPolyline(point, candidates[i].points) <= tolerance) {
+        if (polylineTouchesRect(candidates[i].points, box)) {
             return candidates[i].id;
         }
     }

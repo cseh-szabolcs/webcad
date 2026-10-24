@@ -6,7 +6,9 @@ import type { Point } from 'app/cad/model/Point';
 import type { DisplayTheme } from 'app/cad/renderer/displayColor';
 import { PaperRenderer } from 'app/cad/renderer/PaperRenderer';
 import { Viewport, type Size } from 'app/cad/renderer/Viewport';
+import type { EditorSettings } from 'app/settings/editorSettings';
 import { attachCanvasInput } from './canvasInput';
+import { CrosshairCursor } from './CrosshairCursor';
 
 export interface CadCanvasHandle {
     fit(): void;
@@ -18,6 +20,8 @@ interface CadCanvasProps {
     document: CadDocument;
     /** Background the drawing is shown on; drawing and overlay colours follow it. */
     theme: DisplayTheme;
+    /** Crosshair and pick box; read when the document is loaded. */
+    settings: EditorSettings;
     onViewportChange?: (viewport: Viewport) => void;
     /** Pointer position in view px, or null when the pointer left the canvas. */
     onPointerChange?: (viewPoint: Point | null) => void;
@@ -26,13 +30,22 @@ interface CadCanvasProps {
     ref?: Ref<CadCanvasHandle>;
 }
 
-export function CadCanvas({ document, theme, onViewportChange, onPointerChange, onSelectionChange, ref }: CadCanvasProps) {
+export function CadCanvas({
+    document,
+    theme,
+    settings,
+    onViewportChange,
+    onPointerChange,
+    onSelectionChange,
+    ref,
+}: CadCanvasProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const rendererRef = useRef<PaperRenderer | null>(null);
     const editorRef = useRef<SelectionEditor | null>(null);
     const overlayRef = useRef<SelectionOverlay | null>(null);
     const themeRef = useRef(theme);
+    const settingsRef = useRef(settings);
     const viewportRef = useRef(new Viewport());
     const sizeRef = useRef<Size | null>(null);
     const needsFitRef = useRef(true);
@@ -45,6 +58,7 @@ export function CadCanvas({ document, theme, onViewportChange, onPointerChange, 
         onViewportChangeRef.current = onViewportChange;
         onPointerChangeRef.current = onPointerChange;
         onSelectionChangeRef.current = onSelectionChange;
+        settingsRef.current = settings;
     });
 
     const applyViewport = (viewport: Viewport) => {
@@ -78,7 +92,8 @@ export function CadCanvas({ document, theme, onViewportChange, onPointerChange, 
         renderer.setViewport(viewportRef.current);
         renderer.setTheme(themeRef.current);
         renderer.setDocument(document);
-        const editor = new SelectionEditor(document);
+        const editor = new SelectionEditor(document, settingsRef.current);
+        const crosshair = new CrosshairCursor(container, settingsRef.current);
         const overlay = new SelectionOverlay(renderer);
         overlay.setTheme(themeRef.current);
         overlayRef.current = overlay;
@@ -98,6 +113,7 @@ export function CadCanvas({ document, theme, onViewportChange, onPointerChange, 
             }
             sizeRef.current = size;
             renderer.resize(size);
+            crosshair.update(size, settingsRef.current);
             if (needsFitRef.current) {
                 fit();
             }
@@ -108,12 +124,14 @@ export function CadCanvas({ document, theme, onViewportChange, onPointerChange, 
             getViewport: () => viewportRef.current,
             onViewportChange: applyViewport,
             target: editor,
+            crosshair,
             onPointerMove: (viewPoint) => onPointerChangeRef.current?.(viewPoint),
             onPointerLeave: () => onPointerChangeRef.current?.(null),
         });
 
         return () => {
             detachInput();
+            crosshair.dispose();
             unsubscribe();
             refreshOverlayRef.current = null;
             editorRef.current = null;

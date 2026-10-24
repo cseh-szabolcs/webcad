@@ -3,6 +3,7 @@ import type { SelectionSnapshot } from 'app/cad/editor/SelectionEditor';
 import type { CadDocument } from 'app/cad/model/CadDocument';
 import type { Point } from 'app/cad/model/Point';
 import { CadApiClient } from 'app/cad/persistence/CadApiClient';
+import { DEFAULT_EDITOR_SETTINGS } from 'app/settings/editorSettings';
 import type { Viewport } from 'app/cad/renderer/Viewport';
 import { CadCanvas, type CadCanvasHandle } from 'app/ui/CadCanvas';
 import { CommandLine } from 'app/ui/CommandLine';
@@ -97,6 +98,7 @@ function App() {
                 ref={canvasRef}
                 document={state.document}
                 theme={theme}
+                settings={DEFAULT_EDITOR_SETTINGS}
                 onViewportChange={setViewport}
                 onPointerChange={setPointer}
                 onSelectionChange={setSelection}

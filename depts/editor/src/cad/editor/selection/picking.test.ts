@@ -48,6 +48,12 @@ describe('pickAt', () => {
         expect(pickAt(index, { x: 3000, y: 10 }, 5)).toBeNull();
     });
 
+    it('uses a square pick box, so its corners hit too', () => {
+        // The outer wall's corner (6000, 0) is 5.7 mm away diagonally, but inside the ±5 mm square
+        expect(pickAt(index, { x: 6004, y: -4 }, 5)).toBe(E['wall-outer']);
+        expect(pickAt(index, { x: 6006, y: -6 }, 5)).toBeNull();
+    });
+
     it('picks curves on their outline but not inside a filled shape', () => {
         expect(pickAt(index, { x: 4600, y: 1802 }, 5)).toBe(E.table);
         expect(pickAt(index, { x: 4000, y: 2000 }, 5)).toBeNull();

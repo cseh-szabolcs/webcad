@@ -24,6 +24,11 @@ export interface CanvasInputOptions {
     /** Pointer position in view px, also reported while panning. */
     onPointerMove?: (viewPoint: Point) => void;
     onPointerLeave?: () => void;
+    /**
+     * Drawn cursor that replaces the system pointer over the canvas; hidden while panning
+     * (the grab hand shows instead) and while the pointer is outside.
+     */
+    crosshair?: { moveTo(viewPoint: Point): void; hide(): void };
 }
 
 /**
@@ -33,16 +38,28 @@ export interface CanvasInputOptions {
  * that removes all listeners.
  */
 export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInputOptions): () => void {
-    const { getViewport, onViewportChange, target, onPointerMove, onPointerLeave } = options;
+    const { getViewport, onViewportChange, target, onPointerMove, onPointerLeave, crosshair } = options;
     let spaceHeld = false;
     let panning: { pointerId: number; x: number; y: number } | null = null;
     /** Pointer whose left press went to the target and whose release is still due. */
     let pressedPointer: number | null = null;
+    /** Last pointer position in view px while it is over the canvas. */
+    let pointer: Point | null = null;
 
+    /** System cursor and drawn crosshair for the current state. */
     const updateCursor = () => {
-        const cursor = panning ? 'grabbing' : spaceHeld ? 'grab' : 'crosshair';
+        const navigating = panning !== null || spaceHeld;
+        const cursor = panning ? 'grabbing' : spaceHeld ? 'grab' : crosshair ? 'none' : 'crosshair';
         if (canvas.style.cursor !== cursor) {
             canvas.style.cursor = cursor;
+        }
+        if (!crosshair) {
+            return;
+        }
+        if (pointer && !navigating) {
+            crosshair.moveTo(pointer);
+        } else {
+            crosshair.hide();
         }
     };
 
@@ -107,10 +124,13 @@ export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInpu
             }
             target.pointerMove(toEditorEvent(event));
         }
+        // A captured pointer keeps reporting moves outside the canvas
+        pointer = isInside(event) ? toViewPoint(event) : null;
+        updateCursor();
         onPointerMove?.(toViewPoint(event));
     };
 
-    const isInside = (event: PointerEvent) => {
+    const isInside = (event: MouseEvent) => {
         const { x, y } = toViewPoint(event);
         return x >= 0 && y >= 0 && x <= canvas.clientWidth && y <= canvas.clientHeight;
     };
@@ -119,13 +139,15 @@ export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInpu
         if (panning) {
             if (panning.pointerId === event.pointerId) {
                 panning = null;
-                updateCursor();
                 // The pointer may have been released outside, where no pointerleave follows any more
                 if (isInside(event)) {
+                    pointer = toViewPoint(event);
                     target.pointerMove(toEditorEvent(event));
                 } else {
+                    pointer = null;
                     onPointerLeave?.();
                 }
+                updateCursor();
             }
             return;
         }
@@ -134,6 +156,8 @@ export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInpu
         }
         target.pointerUp(toEditorEvent(event));
         if (!isInside(event)) {
+            pointer = null;
+            updateCursor();
             target.pointerLeave();
             onPointerLeave?.();
         }
@@ -151,6 +175,8 @@ export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInpu
 
     const onPointerLeaveEvent = () => {
         if (!panning) {
+            pointer = null;
+            updateCursor();
             target.pointerLeave();
             onPointerLeave?.();
         }
@@ -173,7 +199,7 @@ export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInpu
             }
             return;
         }
-        if (target.keyDown({ key: event.key })) {
+        if (target.keyDown({ key: event.key, shiftKey: event.shiftKey })) {
             event.preventDefault();
         }
     };
