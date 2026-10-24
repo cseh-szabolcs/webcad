@@ -105,6 +105,17 @@
     stroke: var(--snap-marker);
 }
 
+.polar-path,
+.polar-marker {
+    fill: none;
+    stroke: var(--polar-track);
+}
+
+.rubber-band {
+    fill: none;
+    stroke: var(--rubber-band);
+}
+
 .snap-tooltip {
     position: absolute;
     top: 0;
@@ -165,7 +176,12 @@
     white-space: pre;
 }
 
-/* Object snap switch and its mode menu, which opens upwards */
+/* Position and zoom on the right, so the switches on the left never move */
+.statusbar-position {
+    margin-left: auto;
+}
+
+/* Polar tracking and object snap switches and their menus, which open upwards */
 .snap-switch {
     position: relative;
     display: flex;
@@ -202,6 +218,32 @@
     align-items: center;
     gap: 6px;
     white-space: nowrap;
+}
+
+.polar-increments {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* Additional polar angles below the increments */
+.snap-menu .polar-additional {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+}
+
+.polar-additional input {
+    width: 9em;
+    font: inherit;
+}
+
+.polar-additional input[aria-invalid='true'] {
+    border-color: var(--error);
+    outline-color: var(--error);
 }
 
 .snap-menu-icon {

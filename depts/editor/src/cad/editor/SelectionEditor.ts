@@ -3,8 +3,10 @@ import { DocumentHistory } from './commands/DocumentHistory';
 import { MoveCommand } from './commands/MoveCommand';
 import {
     DEFAULT_EDITOR_SETTINGS,
+    DEFAULT_POLAR_SETTINGS,
     DEFAULT_SNAP_SETTINGS,
     type EditorSettings,
+    type PolarSettings,
     type SnapSettings,
 } from '../../settings/editorSettings';
 import { indexDocument, type DocumentIndex } from '../model/DocumentIndex';
@@ -18,6 +20,7 @@ import { buildSelectionUnits, expandToUnits } from './selection/grouping';
 import { pickAt, pickCrossing, pickLasso, pickWindow } from './selection/picking';
 import { ShapeIndex } from './selection/ShapeIndex';
 import { SnapEngine, SnapMemory, sameSnapPoint, type SnapResult } from './snapping/SnapEngine';
+import { findPolarTrack, type PolarTrack } from './tracking/PolarTracking';
 
 /** How far a press must travel (screen px) before it counts as a drag. */
 const DRAG_THRESHOLD_PX = 3;
@@ -90,11 +93,17 @@ export interface SelectionSnapshot {
      * the aperture, for the tooltip; null while the best point snaps.
      */
     snapCycle: { index: number; count: number } | null;
+    /**
+     * Polar path from the base point the cursor follows at the second point prompt, or null
+     * (also while a snap point is found, which wins).
+     */
+    polar: PolarTrack | null;
     /** Base point of SCHIEBEN once given, or null. */
     basePoint: Point | null;
     /**
      * At the second point prompt, the point a click would take now (the snap point, else the
-     * cursor), for the move preview; null at other prompts and while the pointer is outside.
+     * point on the polar path, else the cursor), for the move preview; null at other prompts
+     * and while the pointer is outside.
      */
     previewPoint: Point | null;
     /** Undo and redo are possible now (not while a command runs). */
@@ -132,7 +141,9 @@ function isPointPrompt(state: State): state is PointPromptState {
  * The base point and the second point snap to the drawing (see SnapEngine); a click takes
  * the snap point, or the cursor position if there is none. At the second point the snapshot
  * carries the point for the move preview; the click moves the selection as one undo step
- * (see MoveCommand) and ends the command. While several points lie in the aperture, Tab
+ * (see MoveCommand) and ends the command. Where nothing snaps at the second point, polar
+ * tracking (see PolarTracking) puts the point on the nearest polar path from the base point,
+ * also with the object snap off. While several points lie in the aperture, Tab
  * switches to the next one (Shift+Tab back), until the cursor moves more than the aperture
  * size (half the box side) from where Tab was pressed. Esc cancels the command at any prompt. With
  * no command, undo() and redo() step through the document history.
@@ -143,7 +154,8 @@ function isPointPrompt(state: State): state is PointPromptState {
  * the base point prompt to the last point given; a plain number at the second point goes that
  * far from the base point towards the cursor (direct distance entry). Enter on its own (or
  * "V") at the base point prompt asks for the displacement vector instead, and at the second
- * point takes the base point itself as the displacement, like AutoCAD.
+ * point takes the base point itself as the displacement, like AutoCAD. Direct distance entry
+ * follows the polar path while the cursor is on one.
  *
  * The derived structures (outlines, R-tree, groups, snap geometry) follow every document
  * change of the history; they are rebuilt as a whole for now.
@@ -176,6 +188,9 @@ export class SelectionEditor {
     private snapCandidates: SnapResult[] = [];
     /** Tab cycle: index of the chosen snap point and the view point where Tab was pressed last. */
     private snapCycle: { index: number; anchor: Point } | null = null;
+    private polarSettings: PolarSettings = DEFAULT_POLAR_SETTINGS;
+    /** Polar path at the cursor during the second point prompt (see PolarTracking). */
+    private polar: PolarTrack | null = null;
     /** Last cursor position over the canvas, to snap at once when a point prompt starts. */
     private lastPointer: EditorPointerEvent | null = null;
     private state: State = { kind: 'idle', pickfirst: new Set() };
@@ -204,14 +219,17 @@ export class SelectionEditor {
     private readonly pickboxSize: number;
     /** Half the aperture box side in screen px (see EditorSettings.apertureSize). */
     private readonly apertureSize: number;
+    /** See EditorSettings.polarTolerance. */
+    private readonly polarTolerance: number;
 
     /** Works on the document of `history` (a plain document gets a history of its own). */
     constructor(
         history: DocumentHistory | CadDocument,
-        settings: Pick<EditorSettings, 'pickboxSize' | 'apertureSize'> = DEFAULT_EDITOR_SETTINGS,
+        settings: Pick<EditorSettings, 'pickboxSize' | 'apertureSize' | 'polarTolerance'> = DEFAULT_EDITOR_SETTINGS,
     ) {
         this.pickboxSize = settings.pickboxSize;
         this.apertureSize = settings.apertureSize;
+        this.polarTolerance = settings.polarTolerance;
         this.history = history instanceof DocumentHistory ? history : new DocumentHistory(history);
         this.derive(this.history.document);
         this.unsubscribeHistory = this.history.subscribe(({ document }) => {
@@ -298,6 +316,15 @@ export class SelectionEditor {
         }
     }
 
+    /** Switches polar tracking or its angles; takes effect at the cursor right away. */
+    setPolarSettings(settings: PolarSettings): void {
+        this.polarSettings = settings;
+        if (this.lastPointer !== null && isPointPrompt(this.state)) {
+            this.updateSnap(this.lastPointer);
+            this.changed();
+        }
+    }
+
     pointerDown(event: EditorPointerEvent): void {
         const state = this.state;
         if (isPointPrompt(state)) {
@@ -305,7 +332,7 @@ export class SelectionEditor {
                 // A click gives the point; text typed so far is dropped
                 this.input = '';
                 this.updateSnap(event);
-                this.pointGiven(this.snap?.point ?? event.modelPoint);
+                this.pointGiven(this.snap?.point ?? this.polar?.point ?? event.modelPoint);
             }
             return;
         }
@@ -567,10 +594,13 @@ export class SelectionEditor {
         }
     }
 
-    /** At the second point prompt, the point a click would take now: the snap point, else the cursor. */
+    /**
+     * At the second point prompt, the point a click would take now: the snap point, else the
+     * point on the polar path, else the cursor.
+     */
     private previewPoint(): Point | null {
         return this.state.kind === 'secondPoint' && this.lastPointer !== null
-            ? (this.snap?.point ?? this.lastPointer.modelPoint)
+            ? (this.snap?.point ?? this.polar?.point ?? this.lastPointer.modelPoint)
             : null;
     }
 
@@ -579,6 +609,7 @@ export class SelectionEditor {
         this.snapMemory = new SnapMemory();
         this.snap = null;
         this.snapCycle = null;
+        this.polar = null;
         this.updateSnap(this.lastPointer);
     }
 
@@ -591,6 +622,7 @@ export class SelectionEditor {
         const index = ((this.snapCycle?.index ?? 0) + step + count) % count;
         this.snapCycle = { index, anchor: this.lastPointer.viewPoint };
         this.snap = this.snapCandidates[index];
+        this.polar = null;
         this.changed();
     }
 
@@ -623,7 +655,8 @@ export class SelectionEditor {
     /**
      * Snaps at the cursor (or nowhere with null). A point chosen by Tab stays chosen while it is
      * in the aperture and the cursor stays within the aperture size of where Tab was pressed;
-     * otherwise the best point snaps, with the previous snap point kept by hysteresis.
+     * otherwise the best point snaps, with the previous snap point kept by hysteresis. Where
+     * nothing snaps at the second point prompt, looks for a polar path from the base point.
      */
     private updateSnap(event: EditorPointerEvent | null): void {
         const cycle = this.snapCycle;
@@ -650,6 +683,20 @@ export class SelectionEditor {
         this.snapCandidates = candidates;
         this.snapCycle = index >= 0 ? { ...cycle!, index } : null;
         this.snap = candidates[Math.max(index, 0)] ?? null;
+        const state = this.state;
+        this.polar =
+            event !== null && this.snap === null && state.kind === 'secondPoint'
+                ? findPolarTrack(
+                      {
+                          reference: state.basePoint,
+                          cursor: event.modelPoint,
+                          pixelSize: event.pixelSize,
+                          tolerance: this.polarTolerance,
+                      },
+                      this.polarSettings,
+                      this.polar,
+                  )
+                : null;
     }
 
     /** Elements the area would pick in its current state, before group expansion. */
@@ -723,6 +770,7 @@ export class SelectionEditor {
         const snap = pointPrompt ? this.snap : null;
         const snapCycle =
             pointPrompt && this.snapCycle !== null ? { index: this.snapCycle.index, count: this.snapCandidates.length } : null;
+        const polar = state.kind === 'secondPoint' ? this.polar : null;
         const previewPoint = this.previewPoint();
         const idle = state.kind === 'idle' && this.area === null;
         const canUndo = idle && this.history.undoCommand !== null;
@@ -756,6 +804,7 @@ export class SelectionEditor {
             sameIds(hovered, previous.hovered) &&
             sameSnap(snap, previous.snap) &&
             sameCycle(snapCycle, previous.snapCycle) &&
+            samePolar(polar, previous.polar) &&
             basePoint === previous.basePoint &&
             samePoint(previewPoint, previous.previewPoint) &&
             canUndo === previous.canUndo &&
@@ -786,6 +835,7 @@ export class SelectionEditor {
             cursor: pointPrompt ? 'point' : state.kind === 'select' ? 'select' : 'command',
             snap,
             snapCycle,
+            polar,
             basePoint,
             previewPoint,
             canUndo,
@@ -810,6 +860,10 @@ function samePoint(a: Point | null, b: Point | null): boolean {
 /** Same mode at the same point; a new search returns new objects for an unchanged snap. */
 function sameSnap(a: SnapResult | null, b: SnapResult | null): boolean {
     return a === b || (a !== null && b !== null && a.mode === b.mode && samePoint(a.point, b.point));
+}
+
+function samePolar(a: PolarTrack | null, b: PolarTrack | null): boolean {
+    return a === b || (a !== null && b !== null && a.angle === b.angle && samePoint(a.point, b.point));
 }
 
 function sameCycle(a: SelectionSnapshot['snapCycle'], b: SelectionSnapshot['snapCycle']): boolean {

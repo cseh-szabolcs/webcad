@@ -7,8 +7,11 @@
     --error: #b91c1c;
     --canvas-bg: #ffffff;
     --crosshair: #111827;
-    /* AutoSnap marker and tooltip (SnapMarker) */
+    /* AutoSnap marker, polar tracking path and their tooltips (SnapMarker) */
     --snap-marker: #15a33f;
+    --polar-track: #15a33f;
+    /* Rubber band while moving: orange, as yellow is hard to see on white */
+    --rubber-band: #ea580c;
     --snap-tooltip-bg: #ffffe1;
     --snap-tooltip-fg: #111827;
     --snap-tooltip-border: #6b7280;
@@ -31,6 +34,8 @@
     --canvas-bg: #212830;
     --crosshair: #f3f4f6;
     --snap-marker: #4ade80;
+    --polar-track: #4ade80;
+    --rubber-band: #facc15;
     --snap-tooltip-bg: #2d333b;
     --snap-tooltip-fg: #e5e7eb;
     --snap-tooltip-border: #6b7280;

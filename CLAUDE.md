@@ -20,8 +20,8 @@ apps in one repo:
   rebuilt from scratch, closer to AutoCAD behaviour.** Everything is rebuilt in small
   steps. So far it loads a plan through the API and displays it (wheel zoom,
   middle/Space+drag pan, status line, light/dark mode), has AutoCAD-like object
-  selection, object snap and the MOVE command (`SCHIEBEN`) with preview, typed
-  coordinates and undo/redo (see "Editor: current state" below). Changes are not saved to the backend yet; grips
+  selection, object snap, polar tracking and the MOVE command (`SCHIEBEN`) with preview,
+  typed coordinates and undo/redo (see "Editor: current state" below). Changes are not saved to the backend yet; grips
   are drawn but have no function.
 
 ### Reference material (read, don't copy)
@@ -219,6 +219,21 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   the tooltip then reads e.g. "Schnittpunkt (Tab 2/3)". A move of more than `apertureSize`
   px (half the box side) from where Tab was pressed, or the chosen point leaving the
   aperture, resets to the best point; a click takes the chosen point. No further modes yet.
+- Polar tracking (POLAR, F10, on by default; `cad/editor/tracking/PolarTracking.ts`): at the
+  second point of `SCHIEBEN` only, where no snap point is found (a snap point always wins;
+  works with F3 off), the point goes onto the nearest ray from the base point at a polar
+  angle (`PolarSettings`: `incrementAngle`, default 90, and `additionalAngles`, in App state
+  like the snap settings), when the cursor is at most `polarTolerance` px from it and at
+  least as far from the base point; 2 px hysteresis like the snap. Click, move preview and
+  direct distance entry use that point (`previewPoint`), the snapshot carries `polar`
+  (angle, point, distance). Shown by `SnapMarker.showPolar`: dashed path from the base
+  point to the canvas edge, an x and the tooltip "Polar: 1000.00 < 90°" (token
+  `--polar-track`); the crosshair magnet (`snapMagnet`) also holds the polar point. Status
+  bar "POLAR" switch with a menu of the increments (`POLAR_INCREMENTS`, radio: one increment,
+  all its multiples apply) and a "Zusatzwinkel" text field (`parseAngleList`, e.g. "30, 60",
+  at most `MAX_ADDITIONAL_ANGLES`; every valid edit applies at once, invalid text is marked
+  and keeps the last valid angles). Ortho (F8, mutually
+  exclusive with POLAR) and relative-to-last-segment angles are not built yet.
 - Only outlines are hit, never fills: an element is hit when its outline passes through
   the square pick box around the cursor. Elements on hidden or locked layers are not
   selectable. Picking a grouped element picks its whole group. While a rectangle or lasso
@@ -229,7 +244,7 @@ Structure (all pure TS and unit-tested unless noted):
 - `cad/editor/SelectionEditor.ts`: the selection and `SCHIEBEN` state machine, independent
   of Paper.js and React. It gets `EditorPointerEvent`s and key events and publishes an
   immutable `SelectionSnapshot` (prompt, typed input, message, hovered, highlighted, grips, area,
-  cursor mode, snap, Tab cycle position, base point, preview point, can undo/redo) via
+  cursor mode, snap, Tab cycle position, polar track, base point, preview point, can undo/redo) via
   `subscribe()`. It holds the Tab cycle state; the engine stays stateless. It runs
   on a `DocumentHistory`. Before further commands (KOPIEREN, DREHEN …) it should be split
   into an editor core and per-command state machines. Typed text is parsed by the pure
@@ -240,6 +255,9 @@ Structure (all pure TS and unit-tested unless noted):
   the loaded document; the editor and the renderer follow it (`PaperRenderer.updateElements`
   replaces only the changed items, subscribed before the editor so its overlay sees the new
   paths). The editor's derived structures are rebuilt as a whole on every change for now.
+- `cad/editor/tracking/PolarTracking.ts`: `polarAngles`, `findPolarTrack` (pure, stateless;
+  the editor keeps the previous track for the hysteresis), `parseAngleList`/`formatAngleList`
+  for the additional angles field.
 - `cad/editor/snapping/`: `SnapMode` (modes, German labels, precedence), `SnapGeometry`
   (exact snap primitives per element with sampled polylines and fixed snap points),
   `intersections`, `SnapEngine` (`candidates(query, SnapMemory, previous)`: all points in
@@ -254,13 +272,16 @@ Structure (all pure TS and unit-tested unless noted):
 - `cad/editor/overlays/SelectionOverlay.ts` (Paper.js): hover/selection highlights as
   restyled copies of the rendered paths, grips (beziers also get a dashed control frame
   from each end to its control point, as their control grips lie off the curve),
-  rectangle/lasso, the move preview (offset copies, rubber band), one palette per theme.
+  rectangle/lasso, the move preview (offset copies), one palette per theme.
 - `ui/canvasInput.ts`: the single owner of canvas input (zoom, pan, forwarding to the
   editor, pointer capture, lost-release and `pointercancel` handling) and of the cursor.
   `ui/CommandLine.tsx` is display only (prompt, typed input, caret); the editor gets the keys.
-- `ui/SnapMarker.ts`: snap marker, tooltip (flips at the canvas edge) and base point cross
+- `ui/SnapMarker.ts`: snap marker, tooltip (flips at the canvas edge), polar path, the move's
+  rubber band (above the polar path) and base point cross
   as an SVG/DOM layer over the canvas, positioned by `CadCanvas` in view px. Tokens
-  `--snap-marker`, `--snap-tooltip-bg|fg|border`. `ui/StatusBar.tsx` holds the OFANG switch.
+  `--snap-marker`, `--polar-track`, `--rubber-band`, `--snap-tooltip-bg|fg|border`. `ui/StatusBar.tsx` holds
+  the POLAR and OFANG switches on the left, position and zoom on the right (so the switches
+  never move).
 - Cursor: over the canvas the system pointer is hidden and `ui/CrosshairCursor.ts` draws an
   AutoCAD-like crosshair as a DOM layer (moved by CSS transform, so the drawing is never
   redrawn for it), with the pick box as a square in its centre and a minus sign off its
@@ -271,10 +292,11 @@ Structure (all pure TS and unit-tested unless noted):
   AutoCAD CURSORSIZE; 100 = across the whole area), `pickboxSize` (half side in px, like
   PICKBOX; also the hover/click tolerance), `showPickbox`, `apertureSize` (half side in
   px, like APERTURE), `showApertureBox` (APBOX), `snapMarkerSize` (AUTOSNAPSIZE) and
-  `snapMarker`/`snapTooltip`/`snapMagnet` (AUTOSNAP). Code receives the object
+  `snapMarker`/`snapTooltip`/`snapMagnet` (AUTOSNAP) and `polarTolerance` (px). Code receives the object
   (App → `CadCanvas` → editor and crosshair) rather than importing the defaults, so the
   user can change them later; for now they are read when a document is loaded. The running
-  snaps (`SnapSettings`: `enabled` like F3, `modes` like OSMODE) live in App state and may
+  snaps (`SnapSettings`: `enabled` like F3, `modes` like OSMODE) and polar tracking
+  (`PolarSettings`: `enabled` like F10, angles) live in App state and may
   change at any time.
 - Light/dark mode: `ui/theme.ts` (`system` / `light` / `dark`, remembered in
   `localStorage`, sets `data-theme` on `<html>` for the CSS tokens in `index.css`).

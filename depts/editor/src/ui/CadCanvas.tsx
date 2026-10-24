@@ -7,7 +7,7 @@ import type { Point } from 'app/cad/model/Point';
 import type { DisplayTheme } from 'app/cad/renderer/displayColor';
 import { PaperRenderer } from 'app/cad/renderer/PaperRenderer';
 import { Viewport, type Size } from 'app/cad/renderer/Viewport';
-import type { EditorSettings, SnapSettings } from 'app/settings/editorSettings';
+import type { EditorSettings, PolarSettings, SnapSettings } from 'app/settings/editorSettings';
 import { attachCanvasInput } from './canvasInput';
 import { CrosshairCursor } from './CrosshairCursor';
 import { SnapMarker } from './SnapMarker';
@@ -32,10 +32,12 @@ interface CadCanvasProps {
     settings: EditorSettings;
     /** Running object snaps; may change at any time. */
     snapSettings: SnapSettings;
+    /** Polar tracking; may change at any time. */
+    polarSettings: PolarSettings;
     onViewportChange?: (viewport: Viewport) => void;
     /**
-     * Pointer position in view px (the snap point while the magnet holds the cursor there),
-     * or null when the pointer left the canvas.
+     * Pointer position in view px (the snap or polar tracking point while the magnet holds
+     * the cursor there), or null when the pointer left the canvas.
      */
     onPointerChange?: (viewPoint: Point | null) => void;
     /** Selection and command state, e.g. for the command line; also sent once on start. */
@@ -48,6 +50,7 @@ export function CadCanvas({
     theme,
     settings,
     snapSettings,
+    polarSettings,
     onViewportChange,
     onPointerChange,
     onSelectionChange,
@@ -61,6 +64,7 @@ export function CadCanvas({
     const themeRef = useRef(theme);
     const settingsRef = useRef(settings);
     const snapSettingsRef = useRef(snapSettings);
+    const polarSettingsRef = useRef(polarSettings);
     const viewportRef = useRef(new Viewport());
     const sizeRef = useRef<Size | null>(null);
     const needsFitRef = useRef(true);
@@ -119,6 +123,7 @@ export function CadCanvas({
         );
         const editor = new SelectionEditor(history, settingsRef.current);
         editor.setSnapSettings(snapSettingsRef.current);
+        editor.setPolarSettings(polarSettingsRef.current);
         const crosshair = new CrosshairCursor(container, settingsRef.current);
         const snapMarker = new SnapMarker(container, settingsRef.current);
         const overlay = new SelectionOverlay(renderer);
@@ -126,21 +131,37 @@ export function CadCanvas({
         overlayRef.current = overlay;
         editorRef.current = editor;
 
-        /** Where the cursor shows: on the snap point while the magnet holds it, else at the pointer. */
+        /**
+         * Where the cursor shows: on the snap point or the polar tracking point while the magnet
+         * holds it, else at the pointer.
+         */
         const cursorAt = (viewPoint: Point): Point => {
-            const snap = editor.snapshot.snap;
-            return snap && settingsRef.current.snapMagnet ? viewportRef.current.modelToView(snap.point) : viewPoint;
+            const held = editor.snapshot.snap?.point ?? editor.snapshot.polar?.point;
+            return held && settingsRef.current.snapMagnet ? viewportRef.current.modelToView(held) : viewPoint;
         };
         /** Pointer position while the crosshair shows, so it can follow snap and zoom changes. */
         let crosshairAt: Point | null = null;
         const refreshOverlay = () => {
-            const { snap, snapCycle, basePoint, cursor } = editor.snapshot;
+            const { snap, snapCycle, polar, basePoint, previewPoint, cursor } = editor.snapshot;
             const viewport = viewportRef.current;
             // While moving, the originals show dimmed under the preview, like AutoCAD
             renderer.setDimmed(basePoint ? editor.snapshot.highlighted : NOTHING);
             overlay.render(editor.snapshot);
             snapMarker.show(snap && { viewPoint: viewport.modelToView(snap.point), mode: snap.mode, cycle: snapCycle });
             snapMarker.showBasePoint(basePoint && viewport.modelToView(basePoint));
+            snapMarker.showRubberBand(
+                basePoint &&
+                    previewPoint && { from: viewport.modelToView(basePoint), to: viewport.modelToView(previewPoint) },
+            );
+            snapMarker.showPolar(
+                polar &&
+                    basePoint && {
+                        from: viewport.modelToView(basePoint),
+                        point: viewport.modelToView(polar.point),
+                        distance: polar.distance,
+                        angle: polar.angle,
+                    },
+            );
             crosshair.setMode(cursor);
             if (crosshairAt) {
                 crosshair.moveTo(cursorAt(crosshairAt));
@@ -209,6 +230,11 @@ export function CadCanvas({
         snapSettingsRef.current = snapSettings;
         editorRef.current?.setSnapSettings(snapSettings);
     }, [snapSettings]);
+
+    useEffect(() => {
+        polarSettingsRef.current = polarSettings;
+        editorRef.current?.setPolarSettings(polarSettings);
+    }, [polarSettings]);
 
     useEffect(() => {
         themeRef.current = theme;

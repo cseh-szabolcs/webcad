@@ -3,7 +3,13 @@ import type { SelectionSnapshot } from 'app/cad/editor/SelectionEditor';
 import type { CadDocument } from 'app/cad/model/CadDocument';
 import type { Point } from 'app/cad/model/Point';
 import { CadApiClient } from 'app/cad/persistence/CadApiClient';
-import { DEFAULT_EDITOR_SETTINGS, DEFAULT_SNAP_SETTINGS, type SnapSettings } from 'app/settings/editorSettings';
+import {
+    DEFAULT_EDITOR_SETTINGS,
+    DEFAULT_POLAR_SETTINGS,
+    DEFAULT_SNAP_SETTINGS,
+    type PolarSettings,
+    type SnapSettings,
+} from 'app/settings/editorSettings';
 import type { Viewport } from 'app/cad/renderer/Viewport';
 import { CadCanvas, type CadCanvasHandle } from 'app/ui/CadCanvas';
 import { CommandLine } from 'app/ui/CommandLine';
@@ -35,10 +41,12 @@ function App() {
     const [selection, setSelection] = useState<SelectionSnapshot | null>(null);
     const [state, setState] = useState<LoadState>({ status: 'loading' });
     const [snapSettings, setSnapSettings] = useState<SnapSettings>(DEFAULT_SNAP_SETTINGS);
+    const [polarSettings, setPolarSettings] = useState<PolarSettings>(DEFAULT_POLAR_SETTINGS);
     const { preference, setPreference, theme } = useTheme();
 
     // Shortcuts like AutoCAD: F3 switches the object snap (and must not open the browser's
-    // search), Ctrl/Cmd+Z undoes, Ctrl+Y or Cmd+Shift+Z redoes
+    // search), F10 polar tracking (and must not focus the browser's menu bar), Ctrl/Cmd+Z
+    // undoes, Ctrl+Y or Cmd+Shift+Z redoes
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
             // A key the editor took (e.g. typed on the command line) does nothing else
@@ -52,6 +60,13 @@ function App() {
                 event.preventDefault();
                 if (!event.repeat) {
                     setSnapSettings((settings) => ({ ...settings, enabled: !settings.enabled }));
+                }
+                return;
+            }
+            if (event.key === 'F10') {
+                event.preventDefault();
+                if (!event.repeat) {
+                    setPolarSettings((settings) => ({ ...settings, enabled: !settings.enabled }));
                 }
                 return;
             }
@@ -151,6 +166,7 @@ function App() {
                 theme={theme}
                 settings={DEFAULT_EDITOR_SETTINGS}
                 snapSettings={snapSettings}
+                polarSettings={polarSettings}
                 onViewportChange={setViewport}
                 onPointerChange={setPointer}
                 onSelectionChange={setSelection}
@@ -168,6 +184,8 @@ function App() {
                 pointer={pointer}
                 snapSettings={snapSettings}
                 onSnapSettingsChange={setSnapSettings}
+                polarSettings={polarSettings}
+                onPolarSettingsChange={setPolarSettings}
             />
         </div>
     );

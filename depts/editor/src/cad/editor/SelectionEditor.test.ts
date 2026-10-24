@@ -617,6 +617,81 @@ describe('SelectionEditor SCHIEBEN: typed input', () => {
     });
 });
 
+describe('SelectionEditor SCHIEBEN: polar tracking', () => {
+    /** 8 mm (4 px) right of the vertical path up from the base point 3000,1000, where nothing snaps. */
+    const NEAR_VERTICAL = { x: 3008, y: 1600 };
+
+    /** SCHIEBEN on the table (centre at 4000, 1800), with the base point 3000,1000 typed. */
+    const atSecondPoint = () => {
+        const history = new DocumentHistory(parseDocument(samplePlan));
+        const editor = new SelectionEditor(history);
+        click(editor, TABLE);
+        editor.startMoveCommand();
+        for (const key of '3000,1000') {
+            editor.keyDown({ key });
+        }
+        editor.keyDown({ key: 'Enter' });
+        return { editor, history };
+    };
+
+    it('puts the preview point onto the polar path near the cursor', () => {
+        const { editor } = atSecondPoint();
+        editor.pointerMove(at(NEAR_VERTICAL));
+        expect(editor.snapshot.snap).toBeNull();
+        expect(editor.snapshot.polar).toEqual({ angle: 90, point: { x: 3000, y: 1600 }, distance: 600 });
+        expect(editor.snapshot.previewPoint).toEqual({ x: 3000, y: 1600 });
+        // 15 px off the path
+        editor.pointerMove(at({ x: 3030, y: 1600 }));
+        expect(editor.snapshot.polar).toBeNull();
+        expect(editor.snapshot.previewPoint).toEqual({ x: 3030, y: 1600 });
+    });
+
+    it('moves exactly along the path on a click', () => {
+        const { editor, history } = atSecondPoint();
+        editor.pointerMove(at(NEAR_VERTICAL));
+        click(editor, NEAR_VERTICAL);
+        expect(tableCentre(history)).toEqual({ x: 4000, y: 2400 });
+    });
+
+    it('moves a typed distance along the path (direct distance entry)', () => {
+        const { editor, history } = atSecondPoint();
+        editor.pointerMove(at(NEAR_VERTICAL));
+        for (const key of '250') {
+            editor.keyDown({ key });
+        }
+        editor.keyDown({ key: 'Enter' });
+        expect(tableCentre(history)).toEqual({ x: 4000, y: 2050 });
+    });
+
+    it('gives way to a snap point', () => {
+        const { editor } = atSecondPoint();
+        // The outer wall's midpoint 3000,0 lies on the path down from the base point
+        editor.pointerMove(at({ x: 3004, y: 2 }));
+        expect(editor.snapshot.snap).toMatchObject({ mode: 'MID', point: WALL });
+        expect(editor.snapshot.polar).toBeNull();
+        expect(editor.snapshot.previewPoint).toEqual(WALL);
+    });
+
+    it('works with the object snap off, not at the base point prompt and not while off itself', () => {
+        const history = new DocumentHistory(parseDocument(samplePlan));
+        const editor = new SelectionEditor(history);
+        click(editor, TABLE);
+        editor.startMoveCommand();
+        editor.pointerMove(at(NEAR_VERTICAL));
+        expect(editor.snapshot.polar).toBeNull();
+        const second = atSecondPoint().editor;
+        second.setSnapSettings({ enabled: false, modes: new Set() });
+        second.pointerMove(at(NEAR_VERTICAL));
+        expect(second.snapshot.polar).toMatchObject({ angle: 90 });
+        second.setPolarSettings({ enabled: false, incrementAngle: 90, additionalAngles: [] });
+        expect(second.snapshot.polar).toBeNull();
+        expect(second.snapshot.previewPoint).toEqual(NEAR_VERTICAL);
+        second.setPolarSettings({ enabled: true, incrementAngle: 45, additionalAngles: [] });
+        second.pointerMove(at({ x: 3200, y: 1210 }));
+        expect(second.snapshot.polar).toMatchObject({ angle: 45 });
+    });
+});
+
 describe('SelectionEditor SCHIEBEN: Tab cycling and hysteresis', () => {
     /** A line 12 mm (6 px) long: endpoints at 0 and 12, midpoint at 6. */
     const LINE: CadDocument = {

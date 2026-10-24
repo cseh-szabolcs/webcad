@@ -10,8 +10,6 @@ const GRIP_SIZE_PX = 7;
 const CONTROL_FRAME_DASH = [4, 3];
 /** Crossing areas get a dashed edge (screen px), windows a solid one. */
 const AREA_DASH = { window: [] as number[], crossing: [6, 4] };
-/** Rubber band from the base point to the cursor while moving (screen px). */
-const RUBBER_BAND_DASH = [10, 6];
 /** The move preview copies are slightly see-through, so what lies below stays visible. */
 const PREVIEW_OPACITY = 0.7;
 
@@ -24,8 +22,6 @@ const PALETTES = {
         hovered: '#60a5fa',
         selected: '#2563eb',
         grip: '#1e90ff',
-        /** Orange, as yellow is hard to see on white. */
-        rubberBand: '#ea580c',
         window: { fill: 'rgba(37, 99, 235, 0.15)', stroke: '#2563eb' },
         crossing: { fill: 'rgba(22, 163, 74, 0.15)', stroke: '#16a34a' },
     },
@@ -33,7 +29,6 @@ const PALETTES = {
         hovered: '#93c5fd',
         selected: '#60a5fa',
         grip: '#1e90ff',
-        rubberBand: '#facc15',
         window: { fill: 'rgba(59, 130, 246, 0.25)', stroke: '#60a5fa' },
         crossing: { fill: 'rgba(34, 197, 94, 0.22)', stroke: '#4ade80' },
     },
@@ -54,8 +49,8 @@ export interface OverlayHost {
  * rendered paths, grips as filled squares with the control frame of curves, and the
  * selection rectangle or lasso. While SCHIEBEN asks for the second point, it previews the
  * move like AutoCAD: copies of the selected paths in their own style (slightly
- * see-through), offset from the base point to the preview point, and a dashed rubber band
- * between the two (orange on light, yellow on dark). The originals are then not
+ * see-through), offset from the base point to the preview point (the rubber band between
+ * the two is drawn by SnapMarker, above the polar path). The originals are then not
  * highlighted; the canvas dims them (PaperRenderer.setDimmed); the document stays
  * unchanged. Grips depend on the zoom, so render again after every viewport change (and
  * after setTheme()).
@@ -140,12 +135,6 @@ export class SelectionOverlay {
             copy.data = {};
             layer.addChild(copy);
         }
-        const band = new paper.Path.Line({ from: [from.x, from.y], to: [to.x, to.y], insert: false });
-        band.strokeColor = new paper.Color(this.palette.rubberBand);
-        band.strokeWidth = 1;
-        band.dashArray = RUBBER_BAND_DASH;
-        band.strokeScaling = false;
-        layer.addChild(band);
     }
 
     private highlight(layer: paper.Layer, id: Id, color: string, extraWidth: number): void {

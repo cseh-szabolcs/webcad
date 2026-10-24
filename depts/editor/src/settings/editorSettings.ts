@@ -29,8 +29,13 @@ export interface EditorSettings {
     /** AutoSnap parts, like AUTOSNAP: marker, tooltip with the mode name, magnet. */
     snapMarker: boolean;
     snapTooltip: boolean;
-    /** The crosshair jumps onto the snap point. */
+    /** The crosshair jumps onto the snap point (and onto the polar tracking path). */
     snapMagnet: boolean;
+    /**
+     * Polar tracking tolerance in screen px: a polar path is taken while the cursor is at
+     * most this far from it, so the behaviour does not depend on the zoom.
+     */
+    polarTolerance: number;
 }
 
 export const DEFAULT_EDITOR_SETTINGS: Readonly<EditorSettings> = {
@@ -43,6 +48,7 @@ export const DEFAULT_EDITOR_SETTINGS: Readonly<EditorSettings> = {
     snapMarker: true,
     snapTooltip: true,
     snapMagnet: true,
+    polarTolerance: 10,
 };
 
 /** Running object snaps, switched while the editor runs (status bar, F3). */
@@ -56,4 +62,23 @@ export interface SnapSettings {
 export const DEFAULT_SNAP_SETTINGS: Readonly<SnapSettings> = {
     enabled: true,
     modes: new Set(SNAP_MODES),
+};
+
+/** Polar tracking, switched while the editor runs (status bar, F10), like AutoCAD's POLARMODE. */
+export interface PolarSettings {
+    /** Main switch like F10; the angles are kept while it is off. */
+    enabled: boolean;
+    /** Paths run at every multiple of this angle (degrees), like POLARANG. */
+    incrementAngle: number;
+    /** Further angles (degrees, counter-clockwise from +X), like POLARADDANG; no multiples. */
+    additionalAngles: readonly number[];
+}
+
+/** Increment angles offered in the status bar menu, like AutoCAD's. */
+export const POLAR_INCREMENTS: readonly number[] = [90, 45, 30, 22.5, 18, 15, 10, 5];
+
+export const DEFAULT_POLAR_SETTINGS: Readonly<PolarSettings> = {
+    enabled: true,
+    incrementAngle: 90,
+    additionalAngles: [],
 };

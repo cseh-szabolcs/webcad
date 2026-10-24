@@ -6,7 +6,7 @@ Auf dem Mac entspricht **Option (⌥)** der Taste Alt.
 Tastenkürzel wirken, solange der Fokus nicht in einem Textfeld liegt.
 
 Der Editor zeigt Pläne an, wählt Objekte aus und verschiebt sie mit dem Befehl SCHIEBEN
-(mit Objektfang, Koordinateneingabe und Rückgängig). Gespeichert wird noch nichts; was
+(mit Objektfang, Polarspur, Koordinateneingabe und Rückgängig). Gespeichert wird noch nichts; was
 sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgesetzt).
 
 ## Oberfläche
@@ -19,8 +19,9 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   `Basispunkt angeben oder [Verschiebung] <Verschiebung>:`). Bei Punkt-Aufforderungen
   erscheint dahinter ein Textcursor und, was man tippt (siehe
   [Eingabe in der Kommandozeile](#eingabe-in-der-kommandozeile)).
-- **Statuszeile** (unten): Cursorposition `X … Y …` in mm, der Objektfang-Schalter
-  **OFANG** mit dem Menü **▾** und der Zoom in px/mm.
+- **Statuszeile** (unten): links der Polarspur-Schalter **POLAR** und der
+  Objektfang-Schalter **OFANG**, jeweils mit dem Menü **▾**; rechts die Cursorposition
+  `X … Y …` in mm und der Zoom in px/mm.
 
 ## Ansicht
 
@@ -138,7 +139,8 @@ weiterer Klick darauf bewirkt dann nichts.
    eingetippten Vektor (z. B. `500,-200` oder `1000<30`) oder um die Koordinaten eines
    geklickten Punkts verschoben. Enter ohne Eingabe nimmt `0,0` und verschiebt nichts.
 3. **`Zweiten Punkt angeben oder <ersten Punkt als Verschiebung verwenden>:`** Klick auf
-   den Zielpunkt, ebenfalls mit Objektfang, oder Eingabe wie unten. Bis dahin folgt eine
+   den Zielpunkt, ebenfalls mit Objektfang und [Polarspur](#polarspur-polar), oder Eingabe
+   wie unten. Bis dahin folgt eine
    Vorschau der Objekte dem Cursor. Verschoben wird um (Zielpunkt − Basispunkt), der Befehl
    endet. **Enter** ohne Eingabe nimmt den Basispunkt selbst als Verschiebung (Basispunkt
    `100,50` verschiebt um 100 nach rechts und 50 nach oben).
@@ -165,14 +167,14 @@ Uhrzeigersinn ab der positiven X-Achse; Y zeigt nach oben.
 | `@abstand<winkel`  | Relativ in Polarkoordinaten, z. B. `@1000<90` = 1 m nach oben          |
 | `abstand<winkel`   | Absolut in Polarkoordinaten, vom Ursprung aus                          |
 | `@`                | Der Bezugspunkt selbst                                                 |
-| Zahl, z. B. `250`  | Nur beim zweiten Punkt: so weit vom Basispunkt in Richtung Cursor (bzw. Fangpunkt); negativ in Gegenrichtung (Direkte Distanzeingabe) |
+| Zahl, z. B. `250`  | Nur beim zweiten Punkt: so weit vom Basispunkt in Richtung Cursor (bzw. Fangpunkt oder entlang der Polarspur); negativ in Gegenrichtung (Direkte Distanzeingabe) |
 
 Bei `Verschiebung angeben <0,0>:` ist die Eingabe immer ein Vektor: `500,0` und `@500,0`
 bedeuten dort dasselbe.
 
 Ungültige Eingaben meldet die Kommandozeile mit `Punkt oder Option-Schlüsselwort
 erforderlich.`, die Aufforderung bleibt. Getippte Zeichen lösen keine anderen
-Tastenkürzel aus; Strg/⌘-Kürzel und F3 wirken weiter.
+Tastenkürzel aus; Strg/⌘-Kürzel, F3 und F10 wirken weiter.
 
 ## Objektfang (OFANG)
 
@@ -214,6 +216,39 @@ Die gewählten Modi bleiben erhalten, wenn der Objektfang ausgeschaltet wird.
 - Elemente auf **ausgeblendeten** Layern werden nicht gefangen, auf **gesperrten** schon.
 - Der Fang setzt nur die Position. Elemente werden dadurch nicht miteinander verbunden.
 
+## Polarspur (POLAR)
+
+Beim zweiten Punkt von SCHIEBEN zeigt die Polarspur, wenn der Cursor nahe an einer
+Richtung unter einem Polarwinkel ab dem Basispunkt liegt (Standard: 0°, 90°, 180°, 270°,
+also waagrecht und senkrecht). Der Punkt liegt dann exakt auf dieser Geraden.
+
+| Eingabe                       | Wirkung                                                  |
+|-------------------------------|----------------------------------------------------------|
+| **F10** oder Button **POLAR** | Schaltet die Polarspur ein oder aus (beim Start an)      |
+| Button **▾** neben POLAR      | Menü mit dem Winkelschritt: 90°, 45°, 30°, 22.5°, 18°, 15°, 10° oder 5°; die Wahl schaltet die Polarspur ein |
+| Feld **Zusatzwinkel** im Menü | Weitere Winkel zusätzlich zu den Vielfachen des Schritts, z. B. `30, 60` |
+
+- Der **Winkelschritt** gilt mit allen Vielfachen (45° ergibt 0°, 45°, 90°, …), daher ist
+  immer genau einer gewählt. Einzelne weitere Richtungen kommen ins Feld **Zusatzwinkel**:
+  Winkel in Grad, getrennt durch Komma, Semikolon oder Leerzeichen, Dezimalpunkt (z. B.
+  `30, 60` oder `22.5`), ein `°` dahinter ist erlaubt, höchstens 10 Winkel. Jede gültige
+  Eingabe gilt sofort und schaltet die Polarspur ein; eine ungültige wird rot umrandet,
+  dann bleiben die zuletzt gültigen Winkel. Ein leeres Feld entfernt die Zusatzwinkel.
+- Die Spur greift, wenn der Cursor höchstens **10 px** von ihr entfernt ist (unabhängig
+  vom Zoom) und mindestens so weit vom Basispunkt. Bei mehreren Winkeln gewinnt der
+  nächste; die zuletzt gezeigte Spur bleibt, bis eine andere mehr als 2 px näher liegt.
+- Angezeigt werden eine **grüne gestrichelte Linie** vom Basispunkt bis zum Rand der
+  Zeichenfläche, ein kleines **x** am Punkt auf der Spur und ein **Tooltip** mit Abstand
+  und Winkel, z. B. `Polar: 1000.00 < 90°`. Fadenkreuz und Statuszeile springen auf die
+  Spur (wie beim Magnet des Objektfangs). Vorschau und Gummiband folgen dem Punkt; das Gummiband
+  liegt über der Spurlinie.
+- **Klick** nimmt den Punkt auf der Spur. Eine getippte **Zahl** + Enter geht diesen
+  Abstand entlang der Spur, ohne dass der Winkel eingegeben werden muss.
+- Ein **Fangpunkt** hat Vorrang: Liegt einer im Fangbereich, gilt er und die Spur
+  verschwindet. Getippte Koordinaten haben ebenfalls Vorrang.
+- Die Polarspur wirkt auch bei ausgeschaltetem Objektfang. Beim Basispunkt gibt es keine
+  Spur, weil noch kein Bezugspunkt existiert.
+
 ## Darstellung (Hell / Dunkel)
 
 Rechts in der Toolbar unter **Darstellung**:
@@ -242,7 +277,12 @@ noch nicht ändern; das kommt in einem späteren Schritt.
 | `snapMarkerSize`  | 5        | Halbe Größe des Fangmarkers in px                             | AUTOSNAPSIZE |
 | `snapMarker`      | an       | Fangmarker anzeigen                                           | AUTOSNAP     |
 | `snapTooltip`     | an       | Tooltip mit dem Modusnamen anzeigen                           | AUTOSNAP     |
-| `snapMagnet`      | an       | Fadenkreuz springt auf den Fangpunkt                          | AUTOSNAP     |
+| `snapMagnet`      | an       | Fadenkreuz springt auf den Fangpunkt (und auf die Polarspur)  | AUTOSNAP     |
+| `polarTolerance`  | 10       | Größter Abstand des Cursors von einer Polarspur in px          |              |
+
+Die Winkel der Polarspur stehen in `DEFAULT_POLAR_SETTINGS`: `incrementAngle` (90,
+POLARANG), `additionalAngles` (zusätzliche Winkel, z. B. `[30, 60]`, POLARADDANG). Beide
+lassen sich auch im POLAR-Menü ändern.
 
 ## Noch nicht umgesetzt
 
@@ -254,5 +294,9 @@ noch nicht ändern; das kommt in einem späteren Schritt.
 - Zwischen überlappenden Objekten unter dem Cursor durchschalten.
 - Befehle und Optionen beim Objekte-Wählen in der Kommandozeile eintippen (z. B. `V` für
   „Vorherige“); die Verschiebung merkt sich noch nicht die letzte Eingabe als Vorgabe.
-- Beim Objektfang: weitere Modi und Spurverfolgung.
+- Beim Objektfang: weitere Modi und Objektfangspuren (F11).
+- Ortho-Modus (F8); er schließt sich später mit der Polarspur gegenseitig aus. Bei der
+  Polarspur außerdem: Winkel relativ zum letzten Segment, Schnittpunkte der Spur mit
+  Objekten. Die Polar-Einstellungen werden noch nicht gespeichert (nach dem Neuladen gilt
+  wieder 90° ohne Zusatzwinkel).
 - Die Einstellungen im Editor ändern.
