@@ -4,6 +4,19 @@ import { crosshairParts } from './CrosshairCursor';
 const AREA = { width: 1000, height: 600 };
 
 describe('crosshairParts', () => {
+    it('puts the minus sign off the top right corner of the pick box, 3 px thick', () => {
+        // Pick box spans -5…5; 3 px gap, then the sign, as wide as the box
+        const { minus } = crosshairParts({ crosshairSize: 5, pickboxSize: 5, showPickbox: true }, AREA);
+        expect(minus).toEqual({ x: 9, y: -11, width: 11, height: 3 });
+    });
+
+    it('keeps the minus sign clear of the crosshair lines', () => {
+        const { lines, minus } = crosshairParts({ crosshairSize: 20, pickboxSize: 5, showPickbox: false }, AREA);
+        const overlaps = (a: { x: number; y: number; width: number; height: number }) =>
+            a.x < minus.x + minus.width && minus.x < a.x + a.width && a.y < minus.y + minus.height && minus.y < a.y + a.height;
+        expect(lines.some(overlaps)).toBe(false);
+    });
+
     it('draws four arms that stop at the pick box', () => {
         // 5 % of the larger side (1000 px) = 50 px in total, so 25 px from the centre
         const { lines, pickbox } = crosshairParts({ crosshairSize: 5, pickboxSize: 5, showPickbox: true }, AREA);

@@ -28,7 +28,12 @@ export interface CanvasInputOptions {
      * Drawn cursor that replaces the system pointer over the canvas; hidden while panning
      * (the grab hand shows instead) and while the pointer is outside.
      */
-    crosshair?: { moveTo(viewPoint: Point): void; hide(): void };
+    crosshair?: {
+        moveTo(viewPoint: Point): void;
+        hide(): void;
+        /** Shift is held, so picks remove from the selection. */
+        setRemoving(removing: boolean): void;
+    };
 }
 
 /**
@@ -45,6 +50,8 @@ export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInpu
     let pressedPointer: number | null = null;
     /** Last pointer position in view px while it is over the canvas. */
     let pointer: Point | null = null;
+    /** Shift held: picks remove from the selection, which the crosshair shows. */
+    let shiftHeld = false;
 
     /** System cursor and drawn crosshair for the current state. */
     const updateCursor = () => {
@@ -56,6 +63,7 @@ export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInpu
         if (!crosshair) {
             return;
         }
+        crosshair.setRemoving(shiftHeld);
         if (pointer && !navigating) {
             crosshair.moveTo(pointer);
         } else {
@@ -126,6 +134,8 @@ export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInpu
         }
         // A captured pointer keeps reporting moves outside the canvas
         pointer = isInside(event) ? toViewPoint(event) : null;
+        // Also catches Shift pressed or released while another window had the focus
+        shiftHeld = event.shiftKey;
         updateCursor();
         onPointerMove?.(toViewPoint(event));
     };
@@ -186,6 +196,10 @@ export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInpu
         event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable]') !== null;
 
     const onKeyDown = (event: KeyboardEvent) => {
+        if (event.key === 'Shift') {
+            shiftHeld = true;
+            updateCursor();
+        }
         if (isTextInput(event)) {
             return;
         }
@@ -205,6 +219,10 @@ export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInpu
     };
 
     const onKeyUp = (event: KeyboardEvent) => {
+        if (event.key === 'Shift') {
+            shiftHeld = false;
+            updateCursor();
+        }
         if (event.code === 'Space' && !isTextInput(event)) {
             event.preventDefault();
             spaceHeld = false;
@@ -214,6 +232,7 @@ export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInpu
 
     const onBlur = () => {
         spaceHeld = false;
+        shiftHeld = false;
         updateCursor();
     };
 

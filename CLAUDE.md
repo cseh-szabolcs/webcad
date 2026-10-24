@@ -191,8 +191,9 @@ Structure (all pure TS and unit-tested unless noted):
   `ui/CommandLine.tsx` is display only.
 - Cursor: over the canvas the system pointer is hidden and `ui/CrosshairCursor.ts` draws an
   AutoCAD-like crosshair as a DOM layer (moved by CSS transform, so the drawing is never
-  redrawn for it), with the pick box as a square in its centre; while panning the grab
-  hand shows instead. Colour token `--crosshair`.
+  redrawn for it), with the pick box as a square in its centre and a minus sign off its
+  top right corner while Shift is held (picks then remove); while panning the grab hand
+  shows instead. Colour token `--crosshair`.
 - Central settings: `src/settings/editorSettings.ts` (`EditorSettings`,
   `DEFAULT_EDITOR_SETTINGS`): `crosshairSize` (% of the drawing area's larger side, like
   AutoCAD CURSORSIZE; 100 = across the whole area), `pickboxSize` (half side in px, like

@@ -4,12 +4,28 @@ import type { EditorSettings } from 'app/settings/editorSettings';
 
 type CrosshairSettings = Pick<EditorSettings, 'crosshairSize' | 'pickboxSize' | 'showPickbox'>;
 
+/** Thickness of the minus sign shown while Shift removes from the selection. */
+const MINUS_THICKNESS_PX = 3;
+/** Free pixels between the pick box and the minus sign. */
+const MINUS_GAP_PX = 3;
+
 /**
  * Pixel rectangles of the crosshair, relative to the cursor pixel (its top left corner at
  * 0, 0): 1 px lines, and the pick box as an outlined square of 2 × pickboxSize + 1 px with
- * the lines stopping at its edge, like AutoCAD.
+ * the lines stopping at its edge, like AutoCAD. `minus` is the sign shown while Shift is
+ * held: as wide as the pick box, diagonally off its top right corner, so it touches no line.
  */
-export function crosshairParts(settings: CrosshairSettings, area: Size): { lines: Rect[]; pickbox: Rect | null } {
+export function crosshairParts(
+    settings: CrosshairSettings,
+    area: Size,
+): { lines: Rect[]; pickbox: Rect | null; minus: Rect } {
+    const s = settings.pickboxSize;
+    const minus = {
+        x: s + 1 + MINUS_GAP_PX,
+        y: -s - MINUS_GAP_PX - MINUS_THICKNESS_PX,
+        width: 2 * s + 1,
+        height: MINUS_THICKNESS_PX,
+    };
     const larger = Math.max(area.width, area.height);
     // At 100 % the lines must reach every edge wherever the cursor is
     const half = settings.crosshairSize >= 100 ? larger : Math.round((settings.crosshairSize / 100) * larger / 2);
@@ -20,9 +36,9 @@ export function crosshairParts(settings: CrosshairSettings, area: Size): { lines
                 { x: 0, y: -half, width: 1, height: 2 * half + 1 },
             ],
             pickbox: null,
+            minus,
         };
     }
-    const s = settings.pickboxSize;
     const arm = half - s;
     const lines =
         arm > 0
@@ -33,7 +49,7 @@ export function crosshairParts(settings: CrosshairSettings, area: Size): { lines
                   { x: 0, y: s + 1, width: 1, height: arm },
               ]
             : [];
-    return { lines, pickbox: { x: -s, y: -s, width: 2 * s + 1, height: 2 * s + 1 } };
+    return { lines, pickbox: { x: -s, y: -s, width: 2 * s + 1, height: 2 * s + 1 }, minus };
 }
 
 /**
@@ -43,6 +59,8 @@ export function crosshairParts(settings: CrosshairSettings, area: Size): { lines
 export class CrosshairCursor {
     private readonly root: HTMLDivElement;
     private settings: CrosshairSettings;
+    private minus: HTMLDivElement | null = null;
+    private removing = false;
 
     constructor(container: HTMLElement, settings: CrosshairSettings) {
         this.settings = settings;
@@ -55,11 +73,22 @@ export class CrosshairCursor {
     /** Rebuilds the lines for a new drawing area size or new settings. */
     update(area: Size, settings: CrosshairSettings = this.settings): void {
         this.settings = settings;
-        const { lines, pickbox } = crosshairParts(settings, area);
+        const { lines, pickbox, minus } = crosshairParts(settings, area);
+        this.minus = this.part('crosshair-minus', minus);
+        this.minus.hidden = !this.removing;
         this.root.replaceChildren(
             ...lines.map((rect) => this.part('crosshair-line', rect)),
             ...(pickbox ? [this.part('crosshair-pickbox', pickbox)] : []),
+            this.minus,
         );
+    }
+
+    /** Shows the minus sign while picks remove from the selection (Shift held). */
+    setRemoving(removing: boolean): void {
+        this.removing = removing;
+        if (this.minus) {
+            this.minus.hidden = !removing;
+        }
     }
 
     /** Shows the crosshair at a view point (CSS px relative to the canvas). */

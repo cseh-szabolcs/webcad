@@ -70,11 +70,13 @@
 }
 
 .crosshair-line,
-.crosshair-pickbox {
+.crosshair-pickbox,
+.crosshair-minus {
     position: absolute;
 }
 
-.crosshair-line {
+.crosshair-line,
+.crosshair-minus {
     background: var(--crosshair);
 }
 
