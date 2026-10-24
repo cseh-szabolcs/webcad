@@ -1,8 +1,9 @@
 import { SNAP_MODE_LABELS, type SnapMode } from 'app/cad/editor/snapping/SnapMode';
 import type { Point } from 'app/cad/model/Point';
+import type { DisplayTheme } from 'app/cad/renderer/displayColor';
 import type { EditorSettings } from 'app/settings/editorSettings';
 
-type MarkerSettings = Pick<EditorSettings, 'snapMarkerSize' | 'snapMarker' | 'snapTooltip'>;
+type MarkerSettings = Pick<EditorSettings, 'snapMarkerSize' | 'snapMarker' | 'snapTooltip' | 'previewColor'>;
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 /** Stroke width of the markers in px. */
@@ -17,25 +18,45 @@ const POLAR_MARKER_SIZE_PX = 4;
 const POLAR_PATH_DASH = '6 4';
 /** Dash pattern of the rubber band from the base point while moving, in px. */
 const RUBBER_BAND_DASH = '10 6';
+/** Snap point preview markers relative to the snap marker size. */
+const PREVIEW_MARKER_SCALE = 0.6;
 
 /**
- * SVG path of a snap marker in px around its centre (Y down), with half size `s`, in the
- * AutoCAD shapes: endpoint square, midpoint triangle, centre circle, quadrant diamond,
+ * SVG path of a snap marker in px around its centre `at` (Y down), with half size `s`, in
+ * the AutoCAD shapes: endpoint square, midpoint triangle, centre circle, quadrant diamond,
  * intersection cross.
  */
-export function markerPath(mode: SnapMode, s: number): string {
+export function markerPath(mode: SnapMode, s: number, at: Point = { x: 0, y: 0 }): string {
+    const { x, y } = at;
     switch (mode) {
         case 'END':
-            return `M${-s} ${-s}H${s}V${s}H${-s}Z`;
+            return `M${x - s} ${y - s}H${x + s}V${y + s}H${x - s}Z`;
         case 'MID':
-            return `M0 ${-s}L${s} ${s}H${-s}Z`;
+            return `M${x} ${y - s}L${x + s} ${y + s}H${x - s}Z`;
         case 'CEN':
-            return `M${-s} 0A${s} ${s} 0 1 0 ${s} 0A${s} ${s} 0 1 0 ${-s} 0Z`;
+            return `M${x - s} ${y}A${s} ${s} 0 1 0 ${x + s} ${y}A${s} ${s} 0 1 0 ${x - s} ${y}Z`;
         case 'QUA':
-            return `M0 ${-s}L${s} 0L0 ${s}L${-s} 0Z`;
+            return `M${x} ${y - s}L${x + s} ${y}L${x} ${y + s}L${x - s} ${y}Z`;
         case 'INT':
-            return `M${-s} ${-s}L${s} ${s}M${-s} ${s}L${s} ${-s}`;
+            return `M${x - s} ${y - s}L${x + s} ${y + s}M${x - s} ${y + s}L${x + s} ${y - s}`;
     }
+}
+
+/** A snap point preview marker in view px. */
+export interface PreviewMarker {
+    viewPoint: Point;
+    mode: SnapMode;
+}
+
+/**
+ * One SVG path for all snap point preview markers: the marker shapes, smaller than the snap
+ * marker (PREVIEW_MARKER_SCALE of its half size, at least 1 px).
+ */
+export function previewPath(markers: readonly PreviewMarker[], snapMarkerSize: number): string {
+    const s = Math.max(Math.round(snapMarkerSize * PREVIEW_MARKER_SCALE), 1);
+    return markers
+        .map(({ viewPoint, mode }) => markerPath(mode, s, viewPoint))
+        .join('');
 }
 
 /** Tooltip text: the mode name, with the Tab position while Tab chose the point ("Schnittpunkt (Tab 2/3)"). */
@@ -65,8 +86,11 @@ export interface PolarDisplay {
  * name below right of it, and a small cross at the base point. Polar tracking shows as a
  * dashed path from the base point through the tracking point to the canvas edge, a small x at
  * the point and a tooltip with distance and angle. The dashed rubber band from the base point
- * to the preview point lies above the polar path. Positions are view px; colours come from
- * the `--snap-marker`, `--polar-track`, `--rubber-band` and `--snap-tooltip-*` tokens.
+ * to the preview point lies above the polar path. The snap point preview (small markers at
+ * the snap points of the objects under the aperture) lies below the snap marker and shares
+ * the rubber band's colour, EditorSettings.previewColor for the theme. Positions are view
+ * px; the other colours come from the `--snap-marker`, `--polar-track` and `--snap-tooltip-*`
+ * tokens.
  */
 export class SnapMarker {
     private readonly root: HTMLDivElement;
@@ -76,12 +100,15 @@ export class SnapMarker {
     private readonly tooltip: HTMLDivElement;
     private readonly polarPath: SVGPathElement;
     private readonly rubberBand: SVGPathElement;
+    private readonly preview: SVGPathElement;
     private readonly polarMarker: SVGPathElement;
     private readonly polarTooltip: HTMLDivElement;
     private settings: MarkerSettings;
+    private theme: DisplayTheme;
 
-    constructor(container: HTMLElement, settings: MarkerSettings) {
+    constructor(container: HTMLElement, settings: MarkerSettings, theme: DisplayTheme) {
         this.settings = settings;
+        this.theme = theme;
         this.root = document.createElement('div');
         this.root.className = 'snap-layer';
         this.svg = document.createElementNS(SVG_NS, 'svg');
@@ -99,15 +126,24 @@ export class SnapMarker {
         this.rubberBand = this.path('rubber-band');
         this.rubberBand.setAttribute('stroke-width', '1');
         this.rubberBand.setAttribute('stroke-dasharray', RUBBER_BAND_DASH);
-        this.svg.append(this.polarPath, this.rubberBand, this.polarMarker, this.basePoint, this.marker);
+        this.preview = this.path('snap-preview');
+        this.preview.setAttribute('stroke-width', '1');
+        this.svg.append(this.polarPath, this.rubberBand, this.preview, this.polarMarker, this.basePoint, this.marker);
         this.tooltip = this.tooltipElement();
         this.polarTooltip = this.tooltipElement();
         this.root.append(this.svg, this.tooltip, this.polarTooltip);
         container.appendChild(this.root);
+        this.applyPreviewColor();
     }
 
     setSettings(settings: MarkerSettings): void {
         this.settings = settings;
+        this.applyPreviewColor();
+    }
+
+    setTheme(theme: DisplayTheme): void {
+        this.theme = theme;
+        this.applyPreviewColor();
     }
 
     /**
@@ -165,6 +201,14 @@ export class SnapMarker {
         }
     }
 
+    /** Shows the snap point preview markers; none hides them. */
+    showPreview(markers: readonly PreviewMarker[]): void {
+        this.preview.style.display = markers.length > 0 ? '' : 'none';
+        if (markers.length > 0) {
+            this.preview.setAttribute('d', previewPath(markers, this.settings.snapMarkerSize));
+        }
+    }
+
     /** Shows the base point cross, or hides it with null. */
     showBasePoint(viewPoint: Point | null): void {
         this.basePoint.style.display = viewPoint ? '' : 'none';
@@ -175,6 +219,11 @@ export class SnapMarker {
 
     dispose(): void {
         this.root.remove();
+    }
+
+    /** Rubber band and snap point preview share this colour (see EditorSettings.previewColor). */
+    private applyPreviewColor(): void {
+        this.root.style.setProperty('--preview-color', this.settings.previewColor[this.theme]);
     }
 
     /** Below right of `at`, `offset` px away; flipped to the other side where it would leave the canvas. */

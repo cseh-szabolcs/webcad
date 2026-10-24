@@ -111,9 +111,11 @@
     stroke: var(--polar-track);
 }
 
-.rubber-band {
+/* --preview-color is set by SnapMarker from EditorSettings.previewColor */
+.rubber-band,
+.snap-preview {
     fill: none;
-    stroke: var(--rubber-band);
+    stroke: var(--preview-color);
 }
 
 .snap-tooltip {

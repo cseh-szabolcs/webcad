@@ -19,13 +19,15 @@ import { selectionControlFrames, selectionGrips } from './selection/grips';
 import { buildSelectionUnits, expandToUnits } from './selection/grouping';
 import { pickAt, pickCrossing, pickLasso, pickWindow } from './selection/picking';
 import { ShapeIndex } from './selection/ShapeIndex';
-import { SnapEngine, SnapMemory, sameSnapPoint, type SnapResult } from './snapping/SnapEngine';
+import { SnapEngine, SnapMemory, coincide, sameSnapPoint, type SnapResult } from './snapping/SnapEngine';
+import type { SnapPoint } from './snapping/SnapGeometry';
 import { findPolarTrack, type PolarTrack } from './tracking/PolarTracking';
 
 /** How far a press must travel (screen px) before it counts as a drag. */
 const DRAG_THRESHOLD_PX = 3;
 /** Minimum distance (screen px) between recorded lasso points. */
 const LASSO_STEP_PX = 4;
+const NO_POINTS: readonly SnapPoint[] = [];
 
 /** SCHIEBEN is AutoCAD's MOVE. */
 export type EditorCommand = 'SCHIEBEN';
@@ -93,6 +95,13 @@ export interface SelectionSnapshot {
      * the aperture, for the tooltip; null while the best point snaps.
      */
     snapCycle: { index: number; count: number } | null;
+    /**
+     * Snap point preview at point prompts, a deliberate deviation from AutoCAD: the snap points
+     * of the objects whose outline passes through the aperture, in the enabled modes (see
+     * SnapEngine.previewPoints), without the point that snaps now. Display only; empty with the
+     * object snap or EditorSettings.snapPreview off.
+     */
+    snapPreview: readonly SnapPoint[];
     /**
      * Polar path from the base point the cursor follows at the second point prompt, or null
      * (also while a snap point is found, which wins).
@@ -181,13 +190,15 @@ export class SelectionEditor {
     private units!: ReadonlyMap<Id, readonly Id[]>;
     private snapEngine!: SnapEngine;
     private snapSettings: SnapSettings = DEFAULT_SNAP_SETTINGS;
-    /** Curves touched during the current point prompt (see SnapMemory). */
+    /** Outlines touched during the current point prompt (see SnapMemory). */
     private snapMemory = new SnapMemory();
     private snap: SnapResult | null = null;
     /** Snap points in the aperture at the last cursor position, best first (see SnapEngine.candidates). */
     private snapCandidates: SnapResult[] = [];
     /** Tab cycle: index of the chosen snap point and the view point where Tab was pressed last. */
     private snapCycle: { index: number; anchor: Point } | null = null;
+    /** Snap point preview at the last cursor position (see SnapEngine.previewPoints). */
+    private snapPreview: readonly SnapPoint[] = NO_POINTS;
     private polarSettings: PolarSettings = DEFAULT_POLAR_SETTINGS;
     /** Polar path at the cursor during the second point prompt (see PolarTracking). */
     private polar: PolarTrack | null = null;
@@ -221,15 +232,18 @@ export class SelectionEditor {
     private readonly apertureSize: number;
     /** See EditorSettings.polarTolerance. */
     private readonly polarTolerance: number;
+    /** See EditorSettings.snapPreview. */
+    private readonly showSnapPreview: boolean;
 
     /** Works on the document of `history` (a plain document gets a history of its own). */
     constructor(
         history: DocumentHistory | CadDocument,
-        settings: Pick<EditorSettings, 'pickboxSize' | 'apertureSize' | 'polarTolerance'> = DEFAULT_EDITOR_SETTINGS,
+        settings: Pick<EditorSettings, 'pickboxSize' | 'apertureSize' | 'polarTolerance' | 'snapPreview'> = DEFAULT_EDITOR_SETTINGS,
     ) {
         this.pickboxSize = settings.pickboxSize;
         this.apertureSize = settings.apertureSize;
         this.polarTolerance = settings.polarTolerance;
+        this.showSnapPreview = settings.snapPreview;
         this.history = history instanceof DocumentHistory ? history : new DocumentHistory(history);
         this.derive(this.history.document);
         this.unsubscribeHistory = this.history.subscribe(({ document }) => {
@@ -657,22 +671,25 @@ export class SelectionEditor {
      * in the aperture and the cursor stays within the aperture size of where Tab was pressed;
      * otherwise the best point snaps, with the previous snap point kept by hysteresis. Where
      * nothing snaps at the second point prompt, looks for a polar path from the base point.
+     * Also finds the snap point preview at point prompts.
      */
     private updateSnap(event: EditorPointerEvent | null): void {
         const cycle = this.snapCycle;
-        const candidates =
+        const query =
             event === null || !this.snapSettings.enabled
-                ? []
-                : this.snapEngine.candidates(
-                      {
-                          cursor: event.modelPoint,
-                          pixelSize: event.pixelSize,
-                          aperture: this.apertureSize,
-                          modes: this.snapSettings.modes,
-                      },
-                      this.snapMemory,
-                      cycle === null ? this.snap : null,
-                  );
+                ? null
+                : {
+                      cursor: event.modelPoint,
+                      pixelSize: event.pixelSize,
+                      aperture: this.apertureSize,
+                      modes: this.snapSettings.modes,
+                  };
+        const candidates =
+            query === null ? [] : this.snapEngine.candidates(query, this.snapMemory, cycle === null ? this.snap : null);
+        this.snapPreview =
+            query !== null && this.showSnapPreview && isPointPrompt(this.state)
+                ? this.snapEngine.previewPoints(query, this.snapMemory)
+                : NO_POINTS;
         const chosen = this.snap;
         const cycling =
             cycle !== null &&
@@ -771,6 +788,10 @@ export class SelectionEditor {
         const snapCycle =
             pointPrompt && this.snapCycle !== null ? { index: this.snapCycle.index, count: this.snapCandidates.length } : null;
         const polar = state.kind === 'secondPoint' ? this.polar : null;
+        // Not under the active snap marker
+        const snapPreview = pointPrompt
+            ? this.snapPreview.filter(({ point }) => snap === null || !coincide(point, snap.point))
+            : NO_POINTS;
         const previewPoint = this.previewPoint();
         const idle = state.kind === 'idle' && this.area === null;
         const canUndo = idle && this.history.undoCommand !== null;
@@ -804,6 +825,7 @@ export class SelectionEditor {
             sameIds(hovered, previous.hovered) &&
             sameSnap(snap, previous.snap) &&
             sameCycle(snapCycle, previous.snapCycle) &&
+            sameSnapPoints(snapPreview, previous.snapPreview) &&
             samePolar(polar, previous.polar) &&
             basePoint === previous.basePoint &&
             samePoint(previewPoint, previous.previewPoint) &&
@@ -835,6 +857,7 @@ export class SelectionEditor {
             cursor: pointPrompt ? 'point' : state.kind === 'select' ? 'select' : 'command',
             snap,
             snapCycle,
+            snapPreview,
             polar,
             basePoint,
             previewPoint,
@@ -860,6 +883,10 @@ function samePoint(a: Point | null, b: Point | null): boolean {
 /** Same mode at the same point; a new search returns new objects for an unchanged snap. */
 function sameSnap(a: SnapResult | null, b: SnapResult | null): boolean {
     return a === b || (a !== null && b !== null && a.mode === b.mode && samePoint(a.point, b.point));
+}
+
+function sameSnapPoints(a: readonly SnapPoint[], b: readonly SnapPoint[]): boolean {
+    return a === b || (a.length === b.length && a.every((p, i) => p.mode === b[i].mode && samePoint(p.point, b[i].point)));
 }
 
 function samePolar(a: PolarTrack | null, b: PolarTrack | null): boolean {

@@ -241,3 +241,125 @@ describe('SnapEngine: priority and settings', () => {
         });
     });
 });
+
+describe('SnapEngine: snap point preview', () => {
+    const points = (list: { point: Point; mode: SnapMode }[]) =>
+        list.map(({ point, mode }) => snapped({ point, mode, elementIds: [] }));
+    const onTable = { x: 4000 + 600 * Math.SQRT1_2, y: 1800 + 600 * Math.SQRT1_2 };
+
+    it('shows all snap points of the object under the aperture, wherever they lie', () => {
+        expect(points(engine.previewPoints(query(onTable)))).toEqual([
+            { mode: 'CEN', x: 4000, y: 1800 },
+            { mode: 'QUA', x: 4600, y: 1800 },
+            { mode: 'QUA', x: 4000, y: 2400 },
+            { mode: 'QUA', x: 3400, y: 1800 },
+            { mode: 'QUA', x: 4000, y: 1200 },
+        ]);
+    });
+
+    it('shows nothing outside every object, or with no modes', () => {
+        expect(engine.previewPoints(query({ x: -500, y: -500 }))).toEqual([]);
+        expect(engine.previewPoints(query(onTable, only()))).toEqual([]);
+    });
+
+    /** Memory of a prompt in which the cursor passed over the outlines of these elements. */
+    const touched = (...ids: string[]) => {
+        const memory = new SnapMemory();
+        ids.forEach((id) => memory.touch(id));
+        return memory;
+    };
+    const ALL_TOUCHED = touched(E.table, E.rug, E['wall-inner'], E['wall-outer'], E['door-swing']);
+
+    it('shows the innermost closed object around the cursor where no outline is near', () => {
+        const table = points(engine.previewPoints(query(onTable)));
+        // In the table, which lies on the rug, which lies in the room
+        expect(points(engine.previewPoints(query({ x: 4100, y: 1900 }), ALL_TOUCHED))).toEqual(table);
+        expect(points(engine.previewPoints(query({ x: 4800, y: 1800 }), ALL_TOUCHED))).toEqual([
+            { mode: 'CEN', x: 4000, y: 1800 },
+            { mode: 'QUA', x: 5000, y: 1800 },
+            { mode: 'QUA', x: 4000, y: 2500 },
+            { mode: 'QUA', x: 3000, y: 1800 },
+            { mode: 'QUA', x: 4000, y: 1100 },
+        ]);
+        // In the room: the inner wall's corners and edge midpoints, and where the door meets it
+        const room = points(engine.previewPoints(query({ x: 1500, y: 2000 }), ALL_TOUCHED));
+        expect(room).toHaveLength(10);
+        expect(room).toEqual(
+            expect.arrayContaining([
+                { mode: 'END', x: 240, y: 240 },
+                { mode: 'MID', x: 3000, y: 240 },
+                { mode: 'INT', x: 1900, y: 240 },
+            ]),
+        );
+        // An outline in the aperture wins over the object around the cursor
+        expect(points(engine.previewPoints(query({ x: 4605, y: 1800 }), ALL_TOUCHED))).toEqual(table);
+    });
+
+    it('shows an object around the cursor only after the cursor came in over its outline', () => {
+        const memory = new SnapMemory();
+        expect(engine.previewPoints(query({ x: 4100, y: 1900 }), memory)).toEqual([]);
+        // Over the rug's outline: on the rug, then in the table still the rug
+        engine.previewPoints(query({ x: 5000, y: 1800 }), memory);
+        const rug = points(engine.previewPoints(query({ x: 4800, y: 1800 }), memory));
+        expect(rug).toContainEqual({ mode: 'QUA', x: 5000, y: 1800 });
+        expect(points(engine.previewPoints(query({ x: 4100, y: 1900 }), memory))).toEqual(rug);
+        // Over the table's outline into the table
+        engine.previewPoints(query(onTable), memory);
+        expect(points(engine.previewPoints(query({ x: 4100, y: 1900 }), memory))).toEqual(
+            points(engine.previewPoints(query(onTable))),
+        );
+    });
+
+    it('does not treat open elements as areas', () => {
+        // Below the door swing, between its arc and the leaf
+        expect(points(engine.previewPoints(query({ x: 1300, y: 500 }), ALL_TOUCHED))).toEqual(
+            points(engine.previewPoints(query({ x: 1500, y: 2000 }), ALL_TOUCHED)),
+        );
+    });
+
+    it('only shows the enabled modes', () => {
+        expect(points(engine.previewPoints(query(onTable, only('CEN'))))).toEqual([{ mode: 'CEN', x: 4000, y: 1800 }]);
+    });
+
+    it('adds the intersections with other objects, also far from the cursor', () => {
+        const engine = new SnapEngine(
+            drawing({ a: { x: -100, y: 30 }, b: { x: 100, y: 30 }, c: { x: 0, y: 0 } }, [
+                { type: 'line', startVertexId: 'a', endVertexId: 'b' },
+                { type: 'circle', centerVertexId: 'c', radius: 50 },
+            ]),
+        );
+        const preview = points(engine.previewPoints(query({ x: -95, y: 32 })));
+        expect(preview).toHaveLength(5);
+        expect(preview).toEqual(
+            expect.arrayContaining([
+                { mode: 'END', x: -100, y: 30 },
+                { mode: 'END', x: 100, y: 30 },
+                { mode: 'MID', x: 0, y: 30 },
+                { mode: 'INT', x: -40, y: 30 },
+                { mode: 'INT', x: 40, y: 30 },
+            ]),
+        );
+    });
+
+    it('merges coinciding points into the higher mode', () => {
+        // The door leaf meets the inner wall at the hinge and the door swing at its other end
+        const onLeaf = { x: 1002, y: 600 };
+        expect(points(engine.previewPoints(query(onLeaf)))).toEqual([
+            { mode: 'END', x: 1000, y: 240 },
+            { mode: 'END', x: 1000, y: 1140 },
+            { mode: 'MID', x: 1000, y: 690 },
+        ]);
+        expect(points(engine.previewPoints(query(onLeaf, only('INT'))))).toEqual([
+            { mode: 'INT', x: 1000, y: 240 },
+            { mode: 'INT', x: 1000, y: 1140 },
+        ]);
+    });
+
+    it('skips hidden layers, also for the intersections', () => {
+        const hidden = new SnapEngine(withLayer(L.walls, { visible: false }));
+        expect(hidden.previewPoints(query({ x: 3000, y: 3 }))).toEqual([]);
+        expect(points(hidden.previewPoints(query({ x: 1002, y: 600 }, only('INT'))))).toEqual([
+            { mode: 'INT', x: 1000, y: 1140 },
+        ]);
+    });
+});

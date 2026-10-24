@@ -6,6 +6,7 @@ import samplePlan from '../__fixtures__/sample-plan.json';
 import { sampleIds } from '../__fixtures__/sampleIds';
 import type { EditorPointerEvent } from './EditorPointerEvent';
 import { DocumentHistory } from './commands/DocumentHistory';
+import { DEFAULT_EDITOR_SETTINGS } from '../../settings/editorSettings';
 import { SelectionEditor } from './SelectionEditor';
 
 const { element: E, vertex: V } = sampleIds;
@@ -793,6 +794,103 @@ describe('SelectionEditor SCHIEBEN: Tab cycling and hysteresis', () => {
         expect(editor.snapshot.snap).toMatchObject({ mode: 'MID' });
         editor.pointerMove(at({ x: 0.8, y: 0 }));
         expect(editor.snapshot.snap).toMatchObject({ mode: 'END', point: START });
+    });
+});
+
+describe('SelectionEditor SCHIEBEN: snap point preview', () => {
+    /** On the table's outline at 45°, 20 mm (10 px) aperture: no snap point in reach. */
+    const onTable = (angle = Math.PI / 4) => ({ x: 4000 + 600 * Math.cos(angle), y: 1800 + 600 * Math.sin(angle) });
+    const TABLE_POINTS = [
+        { mode: 'CEN', point: { x: 4000, y: 1800 } },
+        { mode: 'QUA', point: { x: 4600, y: 1800 } },
+        { mode: 'QUA', point: { x: 4000, y: 2400 } },
+        { mode: 'QUA', point: { x: 3400, y: 1800 } },
+        { mode: 'QUA', point: { x: 4000, y: 1200 } },
+    ];
+    const preview = (editor: SelectionEditor) =>
+        editor.snapshot.snapPreview.map(({ mode, point }) => ({
+            mode,
+            point: { x: Math.round(point.x * 1000) / 1000 + 0, y: Math.round(point.y * 1000) / 1000 + 0 },
+        }));
+    const atBasePoint = (editor = create()) => {
+        click(editor, TABLE);
+        editor.startMoveCommand();
+        return editor;
+    };
+
+    it('shows the snap points of the object under the aperture at the base point', () => {
+        const editor = atBasePoint();
+        editor.pointerMove(at(onTable()));
+        expect(editor.snapshot.snap).toBeNull();
+        expect(preview(editor)).toEqual(TABLE_POINTS);
+        editor.pointerMove(at({ x: -1000, y: -1000 }));
+        expect(editor.snapshot.snapPreview).toEqual([]);
+    });
+
+    it('keeps showing an object the cursor came into over its outline, the innermost one first', () => {
+        const editor = atBasePoint();
+        // In the table, but not yet over its outline in this prompt
+        editor.pointerMove(at({ x: 4100, y: 1900 }));
+        expect(editor.snapshot.snapPreview).toEqual([]);
+        // Over the table's outline into the table
+        editor.pointerMove(at(onTable()));
+        editor.pointerMove(at({ x: 4100, y: 1900 }));
+        expect(preview(editor)).toEqual(TABLE_POINTS);
+        // Out over the rug's outline and back in: on the rug, outside the table
+        editor.pointerMove(at({ x: 5000, y: 1800 }));
+        editor.pointerMove(at({ x: 4800, y: 1800 }));
+        expect(preview(editor)).toContainEqual({ mode: 'QUA', point: { x: 5000, y: 1800 } });
+        expect(preview(editor)).not.toContainEqual({ mode: 'QUA', point: { x: 4600, y: 1800 } });
+    });
+
+    it('leaves out the point that snaps now, which keeps its normal marker', () => {
+        const editor = atBasePoint();
+        editor.pointerMove(at({ x: 4600, y: 1810 }));
+        expect(editor.snapshot.snap).toMatchObject({ mode: 'QUA', point: { x: 4600, y: 1800 } });
+        expect(preview(editor)).toEqual(TABLE_POINTS.filter(({ point }) => point.x !== 4600));
+    });
+
+    it('shows the snap points at the second point too, for every object under the aperture', () => {
+        const editor = atBasePoint();
+        click(editor, EMPTY);
+        // On the outer wall, far from its midpoint: its four corners and four edge midpoints
+        editor.pointerMove(at({ x: 3100, y: 4 }));
+        expect(editor.snapshot.snap).toBeNull();
+        expect(preview(editor)).toHaveLength(8);
+        expect(preview(editor)).toEqual(
+            expect.arrayContaining([
+                { mode: 'END', point: { x: 0, y: 0 } },
+                { mode: 'END', point: { x: 6000, y: 4000 } },
+                { mode: 'MID', point: { x: 3000, y: 0 } },
+                { mode: 'MID', point: { x: 6000, y: 2000 } },
+            ]),
+        );
+    });
+
+    it('notifies only when the preview changes', () => {
+        const editor = atBasePoint();
+        const listener = vi.fn();
+        editor.subscribe(listener);
+        editor.pointerMove(at(onTable()));
+        editor.pointerMove(at(onTable(Math.PI / 4 + 0.01)));
+        expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows nothing with the object snap off, outside point prompts or when switched off', () => {
+        const editor = atBasePoint();
+        editor.pointerMove(at(onTable()));
+        editor.setSnapSettings({ enabled: false, modes: new Set(['QUA']) });
+        expect(editor.snapshot.snapPreview).toEqual([]);
+        editor.setSnapSettings({ enabled: true, modes: new Set(['QUA']) });
+        expect(preview(editor)).toEqual(TABLE_POINTS.filter(({ mode }) => mode === 'QUA'));
+        editor.keyDown({ key: 'Escape' });
+        expect(editor.snapshot.snapPreview).toEqual([]);
+        editor.pointerMove(at(onTable(1)));
+        expect(editor.snapshot.snapPreview).toEqual([]);
+
+        const off = atBasePoint(new SelectionEditor(parseDocument(samplePlan), { ...DEFAULT_EDITOR_SETTINGS, snapPreview: false }));
+        off.pointerMove(at(onTable()));
+        expect(off.snapshot.snapPreview).toEqual([]);
     });
 });
 

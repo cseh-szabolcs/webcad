@@ -28,7 +28,7 @@ interface CadCanvasProps {
     document: CadDocument;
     /** Background the drawing is shown on; drawing and overlay colours follow it. */
     theme: DisplayTheme;
-    /** Crosshair, pick box, aperture and snap display; read when the document is loaded. */
+    /** Crosshair, pick box, aperture, snap display and preview colour; read when the document is loaded. */
     settings: EditorSettings;
     /** Running object snaps; may change at any time. */
     snapSettings: SnapSettings;
@@ -61,6 +61,7 @@ export function CadCanvas({
     const rendererRef = useRef<PaperRenderer | null>(null);
     const editorRef = useRef<SelectionEditor | null>(null);
     const overlayRef = useRef<SelectionOverlay | null>(null);
+    const snapMarkerRef = useRef<SnapMarker | null>(null);
     const themeRef = useRef(theme);
     const settingsRef = useRef(settings);
     const snapSettingsRef = useRef(snapSettings);
@@ -125,7 +126,8 @@ export function CadCanvas({
         editor.setSnapSettings(snapSettingsRef.current);
         editor.setPolarSettings(polarSettingsRef.current);
         const crosshair = new CrosshairCursor(container, settingsRef.current);
-        const snapMarker = new SnapMarker(container, settingsRef.current);
+        const snapMarker = new SnapMarker(container, settingsRef.current, themeRef.current);
+        snapMarkerRef.current = snapMarker;
         const overlay = new SelectionOverlay(renderer);
         overlay.setTheme(themeRef.current);
         overlayRef.current = overlay;
@@ -142,11 +144,14 @@ export function CadCanvas({
         /** Pointer position while the crosshair shows, so it can follow snap and zoom changes. */
         let crosshairAt: Point | null = null;
         const refreshOverlay = () => {
-            const { snap, snapCycle, polar, basePoint, previewPoint, cursor } = editor.snapshot;
+            const { snap, snapCycle, snapPreview, polar, basePoint, previewPoint, cursor } = editor.snapshot;
             const viewport = viewportRef.current;
             // While moving, the originals show dimmed under the preview, like AutoCAD
             renderer.setDimmed(basePoint ? editor.snapshot.highlighted : NOTHING);
             overlay.render(editor.snapshot);
+            snapMarker.showPreview(
+                snapPreview.map(({ point, mode }) => ({ viewPoint: viewport.modelToView(point), mode })),
+            );
             snapMarker.show(snap && { viewPoint: viewport.modelToView(snap.point), mode: snap.mode, cycle: snapCycle });
             snapMarker.showBasePoint(basePoint && viewport.modelToView(basePoint));
             snapMarker.showRubberBand(
@@ -211,6 +216,7 @@ export function CadCanvas({
             detachInput();
             crosshair.dispose();
             snapMarker.dispose();
+            snapMarkerRef.current = null;
             unsubscribe();
             editor.dispose();
             unsubscribeHistory();
@@ -240,6 +246,7 @@ export function CadCanvas({
         themeRef.current = theme;
         rendererRef.current?.setTheme(theme);
         overlayRef.current?.setTheme(theme);
+        snapMarkerRef.current?.setTheme(theme);
         refreshOverlayRef.current?.();
     }, [theme]);
 

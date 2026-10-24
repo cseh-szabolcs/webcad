@@ -213,6 +213,17 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   QUA; coinciding points merge. Hidden layers do not snap, locked ones do. Marker (green,
   shape per mode), tooltip and magnet (the crosshair and the status bar coordinates jump to
   the snap point). Status bar "OFANG" switch (also F3) with a menu of the modes.
+  Snap point preview, **a deliberate deviation from AutoCAD** (setting `snapPreview`, on by
+  default): at every point prompt, while the outline of an object passes through the
+  aperture, small markers in the mode shapes show all its snap points in the enabled modes,
+  wherever they lie (endpoints, midpoints, centre, quadrants and its intersections with all
+  other objects; `SnapEngine.previewPoints`, cached per element); where no outline passes
+  through the aperture, those of the innermost closed element around the cursor (smallest
+  enclosed area, e.g. the table rather than the rug under it) whose outline the aperture
+  touched in this point prompt (`SnapMemory` records every touched outline; only curves use
+  it for CEN), so the cursor must come in over the line, in `previewColor` (the
+  rubber band's colour). They have no function; the point that snaps now is left out (the
+  green marker shows it). None with F3 off; hidden layers are skipped like the snap does.
   Hysteresis: the last snap point stays while it is in the aperture and no other point is
   more than 2 px nearer. Tab at a point prompt (Shift+Tab back) cycles through the points in
   the aperture in priority order (bands of points within 2 px, by mode), wrapping around;
@@ -244,7 +255,7 @@ Structure (all pure TS and unit-tested unless noted):
 - `cad/editor/SelectionEditor.ts`: the selection and `SCHIEBEN` state machine, independent
   of Paper.js and React. It gets `EditorPointerEvent`s and key events and publishes an
   immutable `SelectionSnapshot` (prompt, typed input, message, hovered, highlighted, grips, area,
-  cursor mode, snap, Tab cycle position, polar track, base point, preview point, can undo/redo) via
+  cursor mode, snap, Tab cycle position, snap preview, polar track, base point, preview point, can undo/redo) via
   `subscribe()`. It holds the Tab cycle state; the engine stays stateless. It runs
   on a `DocumentHistory`. Before further commands (KOPIEREN, DREHEN …) it should be split
   into an editor core and per-command state machines. Typed text is parsed by the pure
@@ -277,9 +288,11 @@ Structure (all pure TS and unit-tested unless noted):
   editor, pointer capture, lost-release and `pointercancel` handling) and of the cursor.
   `ui/CommandLine.tsx` is display only (prompt, typed input, caret); the editor gets the keys.
 - `ui/SnapMarker.ts`: snap marker, tooltip (flips at the canvas edge), polar path, the move's
-  rubber band (above the polar path) and base point cross
-  as an SVG/DOM layer over the canvas, positioned by `CadCanvas` in view px. Tokens
-  `--snap-marker`, `--polar-track`, `--rubber-band`, `--snap-tooltip-bg|fg|border`. `ui/StatusBar.tsx` holds
+  rubber band (above the polar path), the snap point preview (one path, `previewPath`) and
+  base point cross as an SVG/DOM layer over the canvas, positioned by `CadCanvas` in view px.
+  Tokens `--snap-marker`, `--polar-track`, `--snap-tooltip-bg|fg|border`; rubber band and
+  preview use `--preview-color`, which `SnapMarker` sets from `EditorSettings.previewColor`
+  for the theme (`setTheme`). `ui/StatusBar.tsx` holds
   the POLAR and OFANG switches on the left, position and zoom on the right (so the switches
   never move).
 - Cursor: over the canvas the system pointer is hidden and `ui/CrosshairCursor.ts` draws an
@@ -292,7 +305,8 @@ Structure (all pure TS and unit-tested unless noted):
   AutoCAD CURSORSIZE; 100 = across the whole area), `pickboxSize` (half side in px, like
   PICKBOX; also the hover/click tolerance), `showPickbox`, `apertureSize` (half side in
   px, like APERTURE), `showApertureBox` (APBOX), `snapMarkerSize` (AUTOSNAPSIZE) and
-  `snapMarker`/`snapTooltip`/`snapMagnet` (AUTOSNAP) and `polarTolerance` (px). Code receives the object
+  `snapMarker`/`snapTooltip`/`snapMagnet` (AUTOSNAP), `polarTolerance` (px), `snapPreview`
+  and `previewColor` (per theme: light `#ea580c`, dark `#facc15`). Code receives the object
   (App → `CadCanvas` → editor and crosshair) rather than importing the defaults, so the
   user can change them later; for now they are read when a document is loaded. The running
   snaps (`SnapSettings`: `enabled` like F3, `modes` like OSMODE) and polar tracking

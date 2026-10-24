@@ -213,6 +213,21 @@ Die gewählten Modi bleiben erhalten, wenn der Objektfang ausgeschaltet wird.
 - Angezeigt werden ein **grüner Marker** in der Form des Modus und ein **Tooltip** mit dem
   Namen. Das Fadenkreuz und die Koordinaten in der Statuszeile springen auf den Fangpunkt
   (**Magnet**).
+- **Fangpunkt-Vorschau** (bewusst anders als AutoCAD): Liegt bei einer Punkt-Aufforderung
+  die Kontur eines Objekts im Fangbereich, zeigen kleine Marker in der Form des Modus alle
+  Fangpunkte dieses Objekts in den eingeschalteten Modi, auch weit vom Cursor entfernt:
+  Endpunkte, Mittelpunkte, Zentrum, Quadranten und die Schnittpunkte mit anderen Objekten.
+  Liegt keine Kontur im Fangbereich, gilt das innerste geschlossene Objekt (Kreis, Ellipse,
+  geschlossene Polylinie) um den Cursor, über dessen Linie der Cursor in dieser Aufforderung
+  gefahren ist: Wer über die Tischkante in den Tisch fährt, sieht dort den Tisch, daneben
+  auf dem Teppich den Teppich, sonst im Raum die Innenwand. Beginnt die Aufforderung mitten
+  in einem Objekt, erscheint dessen Vorschau erst, wenn der Cursor seine Linie berührt hat.
+  Sie haben dieselbe Farbe wie das Gummiband (orange bei Hell, gelb bei Dunkel) und keine
+  Funktion; sie zeigen nur, wo gefangen werden kann. Ein Klick nimmt weiterhin den normalen
+  Fangpunkt oder die Cursorposition. Kommt der Cursor in die Nähe eines dieser Punkte, gilt
+  der normale Fang (grüner Marker, Tooltip, Magnet, Tab); an diesem Punkt entfällt dann der
+  Vorschau-Marker. Bei ausgeschaltetem Objektfang (F3) gibt es keine Vorschau, ausschalten
+  lässt sie sich mit der Einstellung `snapPreview`.
 - Elemente auf **ausgeblendeten** Layern werden nicht gefangen, auf **gesperrten** schon.
 - Der Fang setzt nur die Position. Elemente werden dadurch nicht miteinander verbunden.
 
@@ -278,6 +293,8 @@ noch nicht ändern; das kommt in einem späteren Schritt.
 | `snapMarker`      | an       | Fangmarker anzeigen                                           | AUTOSNAP     |
 | `snapTooltip`     | an       | Tooltip mit dem Modusnamen anzeigen                           | AUTOSNAP     |
 | `snapMagnet`      | an       | Fadenkreuz springt auf den Fangpunkt (und auf die Polarspur)  | AUTOSNAP     |
+| `snapPreview`     | an       | Fangpunkt-Vorschau der Objekte unter dem Fangbereich          | (keine)      |
+| `previewColor`    | `#ea580c` / `#facc15` | Farbe von Fangpunkt-Vorschau und Gummiband, bei Hell / Dunkel |  |
 | `polarTolerance`  | 10       | Größter Abstand des Cursors von einer Polarspur in px          |              |
 
 Die Winkel der Polarspur stehen in `DEFAULT_POLAR_SETTINGS`: `incrementAngle` (90,

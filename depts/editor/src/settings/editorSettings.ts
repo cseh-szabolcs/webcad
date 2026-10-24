@@ -1,4 +1,5 @@
 import { SNAP_MODES, type SnapMode } from '../cad/editor/snapping/SnapMode';
+import type { DisplayTheme } from '../cad/renderer/displayColor';
 
 /**
  * Central editor settings. Fixed defaults for now; later the user can change them, so code
@@ -32,6 +33,16 @@ export interface EditorSettings {
     /** The crosshair jumps onto the snap point (and onto the polar tracking path). */
     snapMagnet: boolean;
     /**
+     * Snap point preview, a deliberate deviation from AutoCAD: at point prompts, small markers
+     * show all snap points of the objects under the aperture. They have no function.
+     */
+    snapPreview: boolean;
+    /**
+     * Colour of the snap point preview and of the rubber band while moving, per background, so
+     * the two always match: orange on light, as yellow is hard to see on white.
+     */
+    previewColor: Readonly<Record<DisplayTheme, string>>;
+    /**
      * Polar tracking tolerance in screen px: a polar path is taken while the cursor is at
      * most this far from it, so the behaviour does not depend on the zoom.
      */
@@ -48,6 +59,8 @@ export const DEFAULT_EDITOR_SETTINGS: Readonly<EditorSettings> = {
     snapMarker: true,
     snapTooltip: true,
     snapMagnet: true,
+    snapPreview: true,
+    previewColor: { light: '#ea580c', dark: '#facc15' },
     polarTolerance: 10,
 };
 
