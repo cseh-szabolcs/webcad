@@ -12,6 +12,14 @@ describe('markerPath', () => {
         expect(new Set(SNAP_MODES.map((mode) => markerPath(mode, 5))).size).toBe(SNAP_MODES.length);
     });
 
+    it('draws the geometric centre as a circle with a dot in the middle', () => {
+        expect(markerPath('GCE', 5)).toBe(markerPath('CEN', 5) + 'M-1 0A1 1 0 1 0 1 0A1 1 0 1 0 -1 0Z');
+        // The dot keeps at least 0.5 px radius
+        expect(markerPath('GCE', 1, { x: 10, y: 20 })).toBe(
+            markerPath('CEN', 1, { x: 10, y: 20 }) + 'M9.5 20A0.5 0.5 0 1 0 10.5 20A0.5 0.5 0 1 0 9.5 20Z',
+        );
+    });
+
     it('draws the marker around a given centre', () => {
         expect(markerPath('END', 5, { x: 100, y: 50 })).toBe('M95 45H105V55H95Z');
         expect(markerPath('QUA', 2, { x: 10, y: 20 })).toBe('M10 18L12 20L10 22L8 20Z');

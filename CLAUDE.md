@@ -203,25 +203,28 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
 - Cursor per prompt like AutoCAD: crosshair + pick box with no command, only the pick box
   at "Objekte wählen:", only the crosshair at point prompts (the aperture box only with
   `showApertureBox`).
-- Object snap (AutoSnap): endpoint, midpoint, centre, quadrant, intersection, on the exact
-  geometry (bezier midpoint by arc length; intersections exact for segments/circles/arcs,
+- Object snap (AutoSnap): endpoint, midpoint, centre, geometric centre, quadrant,
+  intersection, on the exact geometry (bezier midpoint by arc length; intersections exact for segments/circles/arcs,
   numeric with Newton refinement for beziers and ellipses). Points must lie in the
   aperture box (`apertureSize` px, square); a point outside never snaps. A centre snaps
   only near the centre and only after its curve was passed over in this point prompt; it is
   deliberately never offered from the curve (a remote centre pulled the snap away from the
-  quadrants the user aimed at). Then nearest, with a 2 px tie going END > INT > CEN > MID >
-  QUA; coinciding points merge. Hidden layers do not snap, locked ones do. Marker (green,
+  quadrants the user aimed at). The geometric centre (GCE, off by default like in AutoCAD) is
+  the area centroid (shoelace, `geometry/polygon.ts`; centre of the bounds without area) of a
+  closed polyline with at least three vertices and snaps under the same rule as a centre.
+  Then nearest, with a 2 px tie going END > INT > CEN > MID > QUA > GCE; coinciding points
+  merge. Hidden layers do not snap, locked ones do. Marker (green,
   shape per mode), tooltip and magnet (the crosshair and the status bar coordinates jump to
   the snap point). Status bar "OFANG" switch (also F3) with a menu of the modes.
   Snap point preview, **a deliberate deviation from AutoCAD** (setting `snapPreview`, on by
   default): at every point prompt, while the outline of an object passes through the
   aperture, small markers in the mode shapes show all its snap points in the enabled modes,
-  wherever they lie (endpoints, midpoints, centre, quadrants and its intersections with all
-  other objects; `SnapEngine.previewPoints`, cached per element); where no outline passes
+  wherever they lie (endpoints, midpoints, centre, geometric centre, quadrants and its
+  intersections with all other objects; `SnapEngine.previewPoints`, cached per element); where no outline passes
   through the aperture, those of the innermost closed element around the cursor (smallest
   enclosed area, e.g. the table rather than the rug under it) whose outline the aperture
-  touched in this point prompt (`SnapMemory` records every touched outline; only curves use
-  it for CEN), so the cursor must come in over the line, in `previewColor` (the
+  touched in this point prompt (`SnapMemory` records every touched outline; CEN and GCE use
+  it too), so the cursor must come in over the line, in `previewColor` (the
   rubber band's colour). They have no function; the point that snaps now is left out (the
   green marker shows it). None with F3 off; hidden layers are skipped like the snap does.
   Hysteresis: the last snap point stays while it is in the aperture and no other point is
@@ -288,12 +291,12 @@ Structure (all pure TS and unit-tested unless noted):
   the editor keeps the previous track for the hysteresis), `parseAngleList`/`formatAngleList`
   for the additional angles field.
 - `cad/editor/snapping/`: `SnapMode` (modes, German labels, precedence), `SnapGeometry`
-  (exact snap primitives per element with sampled polylines and fixed snap points),
-  `intersections`, `SnapEngine` (`candidates(query, SnapMemory, previous)`: all points in
+  (exact snap primitives per element with sampled polylines and fixed snap points; snap
+  points of a whole element, so far only GCE, as `ElementSnapPoint`), `intersections`, `SnapEngine` (`candidates(query, SnapMemory, previous)`: all points in
   the aperture best first, `previous` for the hysteresis; `find` takes the first). Uses the
   generic `ShapeIndex`.
   Built on load like the selection structures. Geometry helpers in `cad/geometry/`
-  (`bezier`, `intersect`, `arc.angleOnArc`); `cad/model/drawOrder.ts` gives the renderer's
+  (`bezier`, `intersect`, `arc.angleOnArc`, `polygon.polygonCentroid`); `cad/model/drawOrder.ts` gives the renderer's
   element order for selection and snapping.
 - `cad/editor/selection/`: `ElementShapes` (flattened outlines), `ShapeIndex` (`rbush`
   R-tree over their bounds), `picking` (point/window/crossing/lasso), `grips`, `grouping`.

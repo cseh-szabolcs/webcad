@@ -194,6 +194,7 @@ Die gewählten Modi bleiben erhalten, wenn der Objektfang ausgeschaltet wird.
 | Endpunkt      | Quadrat  | Enden von Linien, Bögen und Bézier-Kurven, Ecken von Polylinien |
 | Mittelpunkt   | Dreieck  | Mitte von Linien, Polylinien-Segmenten, Bögen und Bézier-Kurven |
 | Zentrum       | Kreis    | Mittelpunkt von Kreisen, Ellipsen und Bögen                    |
+| Geometrisches Zentrum | Kreis mit Punkt | Flächenschwerpunkt geschlossener Polylinien (beim Start aus) |
 | Quadrant      | Raute    | Die vier Außenpunkte von Kreisen und Ellipsen (bei Bögen, soweit sie darauf liegen) |
 | Schnittpunkt  | Kreuz    | Schnittpunkte zweier Elemente                                  |
 
@@ -202,8 +203,15 @@ Die gewählten Modi bleiben erhalten, wenn der Objektfang ausgeschaltet wird.
 - Ein **Zentrum** rastet nur ein, wenn der Mittelpunkt selbst im Fangbereich liegt, und
   erst nachdem der Cursor in dieser Aufforderung einmal über den Kreis, die Ellipse oder
   den Bogen gefahren ist, wie in AutoCAD. Von der Kurve aus wird es nicht angeboten.
+- Das **geometrische Zentrum** ist der Flächenschwerpunkt einer geschlossenen Polylinie mit
+  mindestens drei Ecken (nicht der Mittelwert der Ecken; beim Sofa die Mitte des
+  Rechtecks). Hat die Polylinie keine Fläche (alle Ecken auf einer Geraden), gilt die Mitte
+  ihres umgebenden Rechtecks. Es rastet wie das Zentrum nur ein, wenn es selbst im
+  Fangbereich liegt und der Cursor in dieser Aufforderung schon über die Polylinie gefahren
+  ist. Wie in AutoCAD ist der Modus beim Start aus und wird im Menü **▾** eingeschaltet.
 - Liegen mehrere Fangpunkte im Bereich, gewinnt der nächste. Sind zwei etwa gleich weit
-  entfernt, gilt die Reihenfolge Endpunkt, Schnittpunkt, Zentrum, Mittelpunkt, Quadrant.
+  entfernt, gilt die Reihenfolge Endpunkt, Schnittpunkt, Zentrum, Mittelpunkt, Quadrant,
+  geometrisches Zentrum.
   Fallen Punkte zusammen, wird nur einer angezeigt. Der zuletzt gefangene Punkt bleibt
   gefangen, bis ein anderer mehr als 2 px näher liegt, damit der Fang nicht zwischen fast
   gleich nahen Punkten hin- und herspringt.
@@ -217,7 +225,8 @@ Die gewählten Modi bleiben erhalten, wenn der Objektfang ausgeschaltet wird.
 - **Fangpunkt-Vorschau** (bewusst anders als AutoCAD): Liegt bei einer Punkt-Aufforderung
   die Kontur eines Objekts im Fangbereich, zeigen kleine Marker in der Form des Modus alle
   Fangpunkte dieses Objekts in den eingeschalteten Modi, auch weit vom Cursor entfernt:
-  Endpunkte, Mittelpunkte, Zentrum, Quadranten und die Schnittpunkte mit anderen Objekten.
+  Endpunkte, Mittelpunkte, Zentrum, geometrisches Zentrum, Quadranten und die
+  Schnittpunkte mit anderen Objekten.
   Liegt keine Kontur im Fangbereich, gilt das innerste geschlossene Objekt (Kreis, Ellipse,
   geschlossene Polylinie) um den Cursor, über dessen Linie der Cursor in dieser Aufforderung
   gefahren ist: Wer über die Tischkante in den Tisch fährt, sieht dort den Tisch, daneben

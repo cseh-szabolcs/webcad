@@ -4,7 +4,13 @@ import type { Id, Point } from '../../model/Point';
 import type { Rect } from '../../renderer/Viewport';
 import { ShapeIndex } from '../selection/ShapeIndex';
 import { shapeIntersections } from './intersections';
-import { buildSnapShapes, type SnapPoint, type SnapShape } from './SnapGeometry';
+import {
+    buildElementSnapPoints,
+    buildSnapShapes,
+    type ElementSnapPoint,
+    type SnapPoint,
+    type SnapShape,
+} from './SnapGeometry';
 import { SNAP_MODE_RANK, type SnapMode } from './SnapMode';
 
 /**
@@ -38,8 +44,9 @@ export interface SnapResult {
 
 /**
  * Elements whose outline the aperture touched during the current point prompt. Only the
- * centres of touched curves snap: a centre is acquired by first passing over its curve, so
- * the empty middle of a circle does not snap by accident. Likewise the snap point preview
+ * centres of touched curves and the geometric centres of touched closed polylines snap: a
+ * centre is acquired by first passing over its outline, so the empty middle of a circle does
+ * not snap by accident. Likewise the snap point preview
  * only shows a closed element around the cursor after the cursor came in over its outline.
  * Start a new memory with every point prompt.
  */
@@ -74,9 +81,9 @@ interface Candidate extends SnapResult {
  * Object snap (OSNAP) like AutoCAD's AutoSnap, on the exact element geometry. A snap point
  * only snaps when it lies in the aperture box (a square in screen px around the cursor, so
  * the same size at every zoom); a point outside never pulls the snap away from the cursor.
- * A centre also needs its curve to have been touched by the box during the prompt (see
- * SnapMemory). The nearest point wins; points within TIE_TOLERANCE_PX of it go by mode
- * (END, INT, CEN, MID, QUA), then by distance, then the element drawn on top. Coinciding
+ * A centre or geometric centre also needs its outline to have been touched by the box during
+ * the prompt (see SnapMemory). The nearest point wins; points within TIE_TOLERANCE_PX of it go
+ * by mode (END, INT, CEN, MID, QUA, GCE), then by distance, then the element drawn on top. Coinciding
  * points merge into the higher mode. Beyond the best point, candidates() orders the others
  * the same way for Tab cycling: the next band of points within TIE_TOLERANCE_PX of each
  * other, by mode, and so on.
@@ -94,9 +101,20 @@ export class SnapEngine {
     /** Snap points of an element in all modes, unmerged (see objectSnapPoints); filled on demand. */
     private readonly objectPoints = new Map<Id, SnapPoint[]>();
     private readonly regions: ShapeIndex<Region>;
+    /** Geometric centres of closed polylines (see ElementSnapPoint). */
+    private readonly elementPoints: ShapeIndex<ElementSnapPoint>;
+    private readonly elementPointsById = new Map<Id, ElementSnapPoint[]>();
 
     constructor(doc: CadDocument) {
         const shapes = buildSnapShapes(doc);
+        const elementPoints = buildElementSnapPoints(doc);
+        this.elementPoints = new ShapeIndex(elementPoints);
+        for (const elementPoint of elementPoints) {
+            this.elementPointsById.set(elementPoint.elementId, [
+                ...(this.elementPointsById.get(elementPoint.elementId) ?? []),
+                elementPoint,
+            ]);
+        }
         this.index = new ShapeIndex(shapes);
         for (const shape of shapes) {
             const own = this.shapesByElement.get(shape.elementId);
@@ -133,13 +151,13 @@ export class SnapEngine {
         const box = apertureBox(query);
         const inside = (p: Point) => Math.max(Math.abs(p.x - cursor.x), Math.abs(p.y - cursor.y)) <= half;
         const candidates: Candidate[] = [];
-        const add = (point: Point, mode: SnapMode, shapes: SnapShape[]) =>
+        const add = (point: Point, mode: SnapMode, sources: readonly { elementId: Id; order: number }[]) =>
             candidates.push({
                 point,
                 mode,
                 distance: Math.hypot(point.x - cursor.x, point.y - cursor.y) / pixelSize,
-                order: Math.max(...shapes.map((shape) => shape.order)),
-                elementIds: [...new Set(shapes.map((shape) => shape.elementId))],
+                order: Math.max(...sources.map((source) => source.order)),
+                elementIds: [...new Set(sources.map((source) => source.elementId))],
             });
 
         const shapes = this.index.search(box);
@@ -152,6 +170,12 @@ export class SnapEngine {
                 if (modes.has(mode) && inside(point) && (mode !== 'CEN' || memory.has(shape.elementId))) {
                     add(point, mode, [shape]);
                 }
+            }
+        }
+        for (const elementPoint of this.elementPoints.search(box)) {
+            const { point, mode, elementId } = elementPoint;
+            if (modes.has(mode) && inside(point) && memory.has(elementId)) {
+                add(point, mode, [elementPoint]);
             }
         }
         if (modes.has('INT')) {
@@ -176,8 +200,8 @@ export class SnapEngine {
     /**
      * Snap point preview, a deliberate deviation from AutoCAD: all snap points in the enabled
      * modes of the elements whose outline passes through the aperture, wherever they lie
-     * (endpoints, midpoints, centres, quadrants and the elements' intersections with all
-     * others). Where no outline does, those of the innermost closed element around the cursor
+     * (endpoints, midpoints, centres, geometric centres, quadrants and the elements'
+     * intersections with all others). Where no outline does, those of the innermost closed element around the cursor
      * (the smallest area: in the table, not the rug under it) whose outline the cursor passed
      * over in this prompt (see SnapMemory), so it came in over the outline; an element the
      * prompt started in shows only once its outline was touched. Coinciding points merge into the
@@ -212,14 +236,20 @@ export class SnapEngine {
         );
     }
 
-    /** Fixed snap points of an element and its intersections with every other shape (its own too). */
+    /**
+     * Fixed snap points of an element (its geometric centre included) and its intersections
+     * with every other shape (its own too).
+     */
     private objectSnapPoints(elementId: Id): SnapPoint[] {
         const cached = this.objectPoints.get(elementId);
         if (cached) {
             return cached;
         }
         const shapes = this.shapesByElement.get(elementId) ?? [];
-        const points = shapes.flatMap((shape) => shape.snapPoints);
+        const points: SnapPoint[] = [
+            ...shapes.flatMap((shape) => shape.snapPoints),
+            ...(this.elementPointsById.get(elementId) ?? []).map(({ point, mode }) => ({ point, mode })),
+        ];
         for (const shape of shapes) {
             for (const other of this.index.search(shape.bounds)) {
                 if (other === shape) {

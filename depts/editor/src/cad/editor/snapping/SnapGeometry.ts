@@ -1,6 +1,7 @@
 import { angleOnArc, arcSweep } from '../../geometry/arc';
 import { bezierDerivative, bezierMidpoint, bezierPoint, type CubicBezier } from '../../geometry/bezier';
 import type { ParametricCurve } from '../../geometry/intersect';
+import { polygonCentroid } from '../../geometry/polygon';
 import { boundsOf } from '../../geometry/selectionGeometry';
 import type { CadDocument } from '../../model/CadDocument';
 import type { CadElement } from '../../model/CadElement';
@@ -49,6 +50,18 @@ export interface SnapShape {
 }
 
 /**
+ * Snap point of a whole element rather than of one of its primitives: the geometric centre
+ * of a closed polyline, which no single edge knows. Derived, never persisted.
+ */
+export interface ElementSnapPoint extends SnapPoint {
+    elementId: Id;
+    /** Drawing order of the element, as in SnapShape. */
+    order: number;
+    /** The point as an empty rectangle, for the ShapeIndex. */
+    bounds: Rect;
+}
+
+/**
  * Snap primitives of all elements on visible layers, in drawing order. Unlike selection,
  * elements on locked layers are included: AutoCAD snaps to them, it only does not select
  * them.
@@ -58,6 +71,35 @@ export function buildSnapShapes(doc: CadDocument): SnapShape[] {
     return elementsInDrawOrder(doc, (layer) => layer.visible).flatMap((element, order) =>
         elementPrimitives(element, index).map((primitive) => snapShape(element.id, order, primitive)),
     );
+}
+
+/** Element snap points of all elements on visible layers, like buildSnapShapes. */
+export function buildElementSnapPoints(doc: CadDocument): ElementSnapPoint[] {
+    const index = indexDocument(doc);
+    return elementsInDrawOrder(doc, (layer) => layer.visible).flatMap((element, order) =>
+        elementSnapPoints(element, index).map(({ point, mode }) => ({
+            elementId: element.id,
+            order,
+            point,
+            mode,
+            bounds: { x: point.x, y: point.y, width: 0, height: 0 },
+        })),
+    );
+}
+
+/**
+ * Geometric centre (GCE) of a closed polyline with at least three vertices: the centroid of
+ * its area, or the centre of its bounds where it has none. Other elements have none.
+ */
+export function elementSnapPoints(element: CadElement, index: DocumentIndex): SnapPoint[] {
+    if (element.type !== 'polyline' || !element.closed || element.vertexIds.length < 3) {
+        return [];
+    }
+    const points = element.vertexIds.map((id) => {
+        const { x, y } = requireVertex(index, id);
+        return { x, y };
+    });
+    return [{ point: polygonCentroid(points), mode: 'GCE' }];
 }
 
 export function elementPrimitives(element: CadElement, index: DocumentIndex): SnapPrimitive[] {

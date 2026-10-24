@@ -108,7 +108,8 @@ export interface SnapSettings {
 
 export const DEFAULT_SNAP_SETTINGS: Readonly<SnapSettings> = {
     enabled: true,
-    modes: new Set(SNAP_MODES),
+    // All but the geometric centre, which AutoCAD also leaves off
+    modes: new Set(SNAP_MODES.filter((mode) => mode !== 'GCE')),
 };
 
 /** Polar tracking, switched while the editor runs (status bar, F10), like AutoCAD's POLARMODE. */

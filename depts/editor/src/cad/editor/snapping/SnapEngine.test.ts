@@ -27,6 +27,8 @@ const round3 = (n: number) => Math.round(n * 1000) / 1000 + 0;
 const snapped = (result: SnapResult | null) =>
     result && { mode: result.mode, x: round3(result.point.x), y: round3(result.point.y) };
 const only = (...modes: SnapMode[]) => ({ modes: new Set(modes) });
+const points = (list: { point: Point; mode: SnapMode }[]) =>
+    list.map(({ point, mode }) => snapped({ point, mode, elementIds: [] }));
 
 const withLayer = (layerId: string, change: { visible?: boolean; locked?: boolean }): CadDocument => ({
     ...doc,
@@ -111,6 +113,120 @@ describe('SnapEngine: centre', () => {
 
     it('snaps to the quadrant near the curve', () => {
         expect(snapped(engine.find(query({ x: 4600, y: 1806 })))).toEqual({ mode: 'QUA', x: 4600, y: 1800 });
+    });
+});
+
+describe('SnapEngine: geometric centre', () => {
+    const sofaCentre = { x: 1600, y: 3050 };
+    const onSofa = { x: 2000, y: 3502 };
+    const nearSofaCentre = { x: 1604, y: 3047 };
+
+    it('snaps to the area centroid of a closed polyline only after its outline was touched', () => {
+        const memory = new SnapMemory();
+        expect(engine.find(query(nearSofaCentre), memory)).toBeNull();
+        // Over the sofa's outline: never pulled to the far centre
+        expect(snapped(engine.find(query(onSofa), memory))?.mode).not.toBe('GCE');
+        const result = engine.find(query(nearSofaCentre), memory);
+        expect(snapped(result)).toEqual({ mode: 'GCE', ...sofaCentre });
+        expect(result?.elementIds).toEqual([E.sofa]);
+    });
+
+    it('is off unless chosen', () => {
+        const memory = new SnapMemory();
+        memory.touch(E.sofa);
+        expect(engine.find(query(nearSofaCentre, only('END', 'MID', 'CEN', 'QUA', 'INT')), memory)).toBeNull();
+    });
+
+    /** Engine over one polyline through the given points, outline already touched. */
+    const polyline = (points: Point[], closed = true) => {
+        const vertices = Object.fromEntries(points.map((p, i) => [`v${i}`, p]));
+        const engine = new SnapEngine(
+            drawing(vertices, [{ type: 'polyline', vertexIds: Object.keys(vertices), closed }]),
+        );
+        const memory = new SnapMemory();
+        memory.touch('e0');
+        return { engine, memory };
+    };
+
+    it('takes the area centroid, not the average of the vertices', () => {
+        // L: 4 × 1 bar below, 1 × 3 bar on its left above; areas 4 and 3
+        const { engine, memory } = polyline([
+            { x: 0, y: 0 },
+            { x: 400, y: 0 },
+            { x: 400, y: 100 },
+            { x: 100, y: 100 },
+            { x: 100, y: 400 },
+            { x: 0, y: 400 },
+        ]);
+        const centroid = { x: (4 * 200 + 3 * 50) / 7, y: (4 * 50 + 3 * 250) / 7 };
+        expect(snapped(engine.find(query({ x: 137, y: 134 }), memory))).toEqual({
+            mode: 'GCE',
+            x: round3(centroid.x),
+            y: round3(centroid.y),
+        });
+        // The vertex average (166.7, 166.7) is not a snap point
+        expect(engine.find(query({ x: 166.7, y: 166.7 }, only('GCE')), memory)).toBeNull();
+    });
+
+    it('takes the middle of the bounds for a polyline without area', () => {
+        const { engine, memory } = polyline([
+            { x: 0, y: 0 },
+            { x: 100, y: 100 },
+            { x: 300, y: 300 },
+        ]);
+        expect(snapped(engine.find(query({ x: 152, y: 147 }, only('GCE')), memory))).toEqual({
+            mode: 'GCE',
+            x: 150,
+            y: 150,
+        });
+    });
+
+    it('gives open polylines and closed ones with two vertices none', () => {
+        const square = [
+            { x: 0, y: 0 },
+            { x: 100, y: 0 },
+            { x: 100, y: 100 },
+            { x: 0, y: 100 },
+        ];
+        const open = polyline(square, false);
+        expect(open.engine.find(query({ x: 50, y: 50 }, only('GCE')), open.memory)).toBeNull();
+        const closed = polyline(square);
+        expect(snapped(closed.engine.find(query({ x: 50, y: 50 }, only('GCE')), closed.memory))).toEqual({
+            mode: 'GCE',
+            x: 50,
+            y: 50,
+        });
+        const two = polyline([{ x: 0, y: 0 }, { x: 100, y: 0 }]);
+        expect(two.engine.find(query({ x: 50, y: 0 }, only('GCE')), two.memory)).toBeNull();
+    });
+
+    it('gives way to every other mode at the same place', () => {
+        // The square's corners lie on a circle around its centre: centre and geometric centre coincide
+        const engine = new SnapEngine(
+            drawing(
+                { a: { x: -50, y: -50 }, b: { x: 50, y: -50 }, c: { x: 50, y: 50 }, d: { x: -50, y: 50 }, m: { x: 0, y: 0 } },
+                [
+                    { type: 'polyline', vertexIds: ['a', 'b', 'c', 'd'], closed: true },
+                    { type: 'circle', centerVertexId: 'm', radius: 30 },
+                ],
+            ),
+        );
+        const memory = new SnapMemory();
+        memory.touch('e0');
+        memory.touch('e1');
+        const result = engine.find(query({ x: 3, y: 2 }), memory);
+        expect(snapped(result)).toEqual({ mode: 'CEN', x: 0, y: 0 });
+        expect(result?.elementIds).toEqual(expect.arrayContaining(['e0', 'e1']));
+        expect(snapped(engine.find(query({ x: 3, y: 2 }, only('GCE')), memory))).toEqual({ mode: 'GCE', x: 0, y: 0 });
+    });
+
+    it('shows in the snap point preview, also inside the polyline', () => {
+        expect(points(engine.previewPoints(query(onSofa)))).toContainEqual({ mode: 'GCE', ...sofaCentre });
+        const memory = new SnapMemory();
+        memory.touch(E.sofa);
+        expect(points(engine.previewPoints(query({ x: 1000, y: 3000 }, only('GCE')), memory))).toEqual([
+            { mode: 'GCE', ...sofaCentre },
+        ]);
     });
 });
 
@@ -243,8 +359,6 @@ describe('SnapEngine: priority and settings', () => {
 });
 
 describe('SnapEngine: snap point preview', () => {
-    const points = (list: { point: Point; mode: SnapMode }[]) =>
-        list.map(({ point, mode }) => snapped({ point, mode, elementIds: [] }));
     const onTable = { x: 4000 + 600 * Math.SQRT1_2, y: 1800 + 600 * Math.SQRT1_2 };
 
     it('shows all snap points of the object under the aperture, wherever they lie', () => {
@@ -281,14 +395,15 @@ describe('SnapEngine: snap point preview', () => {
             { mode: 'QUA', x: 3000, y: 1800 },
             { mode: 'QUA', x: 4000, y: 1100 },
         ]);
-        // In the room: the inner wall's corners and edge midpoints, and where the door meets it
+        // In the room: the inner wall's corners, edge midpoints and geometric centre, and where the door meets it
         const room = points(engine.previewPoints(query({ x: 1500, y: 2000 }), ALL_TOUCHED));
-        expect(room).toHaveLength(10);
+        expect(room).toHaveLength(11);
         expect(room).toEqual(
             expect.arrayContaining([
                 { mode: 'END', x: 240, y: 240 },
                 { mode: 'MID', x: 3000, y: 240 },
                 { mode: 'INT', x: 1900, y: 240 },
+                { mode: 'GCE', x: 3000, y: 2000 },
             ]),
         );
         // An outline in the aperture wins over the object around the cursor

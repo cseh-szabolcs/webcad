@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_TRACKING_MODES, withOrtho, withPolar } from './editorSettings';
+import { DEFAULT_SNAP_SETTINGS, DEFAULT_TRACKING_MODES, withOrtho, withPolar } from './editorSettings';
 
 describe('Ortho and polar tracking', () => {
     it('switches polar tracking off when Ortho goes on, keeping its angles', () => {
@@ -19,5 +19,11 @@ describe('Ortho and polar tracking', () => {
             ortho: false,
             polar: { ...modes.polar, enabled: true },
         });
+    });
+});
+
+describe('Running object snaps', () => {
+    it('start with every mode but the geometric centre, like AutoCAD', () => {
+        expect([...DEFAULT_SNAP_SETTINGS.modes]).toEqual(['END', 'MID', 'CEN', 'QUA', 'INT']);
     });
 });

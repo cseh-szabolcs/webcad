@@ -23,8 +23,8 @@ const PREVIEW_MARKER_SCALE = 0.6;
 
 /**
  * SVG path of a snap marker in px around its centre `at` (Y down), with half size `s`, in
- * the AutoCAD shapes: endpoint square, midpoint triangle, centre circle, quadrant diamond,
- * intersection cross.
+ * the AutoCAD shapes: endpoint square, midpoint triangle, centre circle, geometric centre
+ * circle with a dot, quadrant diamond, intersection cross.
  */
 export function markerPath(mode: SnapMode, s: number, at: Point = { x: 0, y: 0 }): string {
     const { x, y } = at;
@@ -35,6 +35,14 @@ export function markerPath(mode: SnapMode, s: number, at: Point = { x: 0, y: 0 }
             return `M${x} ${y - s}L${x + s} ${y + s}H${x - s}Z`;
         case 'CEN':
             return `M${x - s} ${y}A${s} ${s} 0 1 0 ${x + s} ${y}A${s} ${s} 0 1 0 ${x - s} ${y}Z`;
+        case 'GCE': {
+            // The dot is a tiny circle that the stroke fills
+            const r = Math.max(s / 5, 0.5);
+            return (
+                `M${x - s} ${y}A${s} ${s} 0 1 0 ${x + s} ${y}A${s} ${s} 0 1 0 ${x - s} ${y}Z` +
+                `M${x - r} ${y}A${r} ${r} 0 1 0 ${x + r} ${y}A${r} ${r} 0 1 0 ${x - r} ${y}Z`
+            );
+        }
         case 'QUA':
             return `M${x} ${y - s}L${x + s} ${y}L${x} ${y + s}L${x - s} ${y}Z`;
         case 'INT':
