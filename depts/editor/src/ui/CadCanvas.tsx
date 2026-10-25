@@ -13,6 +13,7 @@ import { attachCanvasInput } from './canvasInput';
 import { CrosshairCursor } from './CrosshairCursor';
 import { GridLayer } from './GridLayer';
 import { SnapMarker } from './SnapMarker';
+import { UcsIcon } from './UcsIcon';
 
 const NOTHING: ReadonlySet<string> = new Set();
 
@@ -30,7 +31,7 @@ interface CadCanvasProps {
     document: CadDocument;
     /** Background the drawing is shown on; drawing and overlay colours follow it. */
     theme: DisplayTheme;
-    /** Crosshair, pick box, aperture, snap display and preview colour; read when the document is loaded. */
+    /** Crosshair, pick box, aperture, snap display, preview colour and UCS icon; read when the document is loaded. */
     settings: EditorSettings;
     /** Running object snaps; may change at any time. */
     snapSettings: SnapSettings;
@@ -71,6 +72,7 @@ export function CadCanvas({
     const overlayRef = useRef<SelectionOverlay | null>(null);
     const snapMarkerRef = useRef<SnapMarker | null>(null);
     const gridRef = useRef<GridLayer | null>(null);
+    const ucsIconRef = useRef<UcsIcon | null>(null);
     const themeRef = useRef(theme);
     const settingsRef = useRef(settings);
     const snapSettingsRef = useRef(snapSettings);
@@ -96,6 +98,7 @@ export function CadCanvas({
         viewportRef.current = viewport;
         rendererRef.current?.setViewport(viewport);
         gridRef.current?.setViewport(viewport);
+        ucsIconRef.current?.setViewport(viewport);
         refreshOverlayRef.current?.();
         onViewportChangeRef.current?.(viewport);
     };
@@ -132,6 +135,10 @@ export function CadCanvas({
         const grid = new GridLayer(container, settingsRef.current, themeRef.current, gridSettingsRef.current);
         grid.setViewport(viewportRef.current);
         gridRef.current = grid;
+        // Created before the crosshair and the snap marker, so they lie above it
+        const ucsIcon = new UcsIcon(container, settingsRef.current);
+        ucsIcon.setViewport(viewportRef.current);
+        ucsIconRef.current = ucsIcon;
         const history = new DocumentHistory(document);
         // Subscribed before the editor, so the paths are up to date when its overlay redraws
         const unsubscribeHistory = history.subscribe(({ document, changedElementIds }) =>
@@ -206,6 +213,7 @@ export function CadCanvas({
             sizeRef.current = size;
             renderer.resize(size);
             grid.resize(size);
+            ucsIcon.resize(size);
             crosshair.update(size, settingsRef.current);
             if (needsFitRef.current) {
                 fit();
@@ -239,6 +247,8 @@ export function CadCanvas({
             snapMarkerRef.current = null;
             grid.dispose();
             gridRef.current = null;
+            ucsIcon.dispose();
+            ucsIconRef.current = null;
             i18n.off('languageChanged', refreshTexts);
             unsubscribe();
             editor.dispose();

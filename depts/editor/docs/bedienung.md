@@ -16,7 +16,8 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   Sonne, Mond bzw. Bildschirm als Symbol) und **Sprache** (DE / EN). Sie sehen aus wie
   die Schalter der Statusleiste: Ein Klick auf den angezeigten Wert oder auf **▾** öffnet
   ein Menü nach unten; die Wahl dort schließt es, ebenso **Esc** oder ein Klick daneben.
-- **Zeichenfläche** in der Mitte.
+- **Zeichenfläche** in der Mitte, mit dem [BKS-Symbol](#bks-symbol) am Nullpunkt bzw.
+  unten links.
 - **Kommandozeile** unter der Zeichenfläche: oben in Grau die letzte Meldung (z. B.
   `1 gefunden, 2 gesamt`), darunter die aktuelle Aufforderung (z. B. `Befehl:` oder
   `Basispunkt angeben oder [Verschiebung] <Verschiebung>:`). Bei Punkt-Aufforderungen
@@ -327,6 +328,23 @@ X und Y durch den Nullpunkt; jede zehnte ist eine kräftigere Hauptlinie.
   Hauptlinien der einen Stufe sind die Nebenlinien der nächsten. Feiner als der
   eingestellte Abstand wird es nie.
 
+## BKS-Symbol
+
+Das BKS-Symbol (AutoCAD: UCS-Icon, 2D-Stil) zeigt die Lage des Koordinatensystems: die
+X-Achse nach rechts, die Y-Achse nach oben, beschriftet mit **X** und **Y**. Das kleine
+Quadrat am Ursprung bedeutet, dass das Weltkoordinatensystem (WKS) gilt; ein eigenes BKS
+gibt es noch nicht, das Quadrat ist also immer da.
+
+- Das Symbol sitzt **am Nullpunkt (0,0)** der Zeichnung und wandert beim Zoomen und Pannen
+  mit, solange es dort ganz und mit 10 px Abstand zum Rand in die Zeichenfläche passt.
+- Sonst (Nullpunkt außerhalb oder zu nah am Rand) sitzt es **unten links** in der
+  Zeichenfläche.
+- Es ist nur Anzeige: Es gehört nicht zum Plan, wird nie gedruckt, lässt sich nicht wählen
+  und ist für Klicks durchlässig. Fadenkreuz und Fangmarker liegen darüber.
+- Ein-/Ausblenden, „immer unten links“, die Größe und die Schriftgröße der Beschriftung
+  stehen vorerst nur in den [Einstellungen](#einstellungen) (`ucsIcon`, `ucsIconAtOrigin`,
+  `ucsIconSize`, `ucsIconLabelSize`).
+
 ## Darstellung (Hell / Dunkel)
 
 Rechts in der Toolbar in der Auswahl **Darstellung**:
@@ -374,6 +392,10 @@ noch nicht ändern; das kommt in einem späteren Schritt.
 | `polarTolerance`  | 10       | Größter Abstand des Cursors von einer Polarspur in px          |              |
 | `gridMinSpacing`  | 10       | Kleinster Abstand der Rasterlinien in px; enger wird das Raster gröber |      |
 | `gridColor`       | siehe Datei | Farben der Neben- und Hauptlinien des Rasters, bei Hell / Dunkel | Optionen → Farben |
+| `ucsIcon`         | an       | BKS-Symbol anzeigen                                           | UCSICON Ein/Aus |
+| `ucsIconAtOrigin` | an       | BKS-Symbol am Nullpunkt, solange es dort passt; aus = immer unten links | UCSICON Ursprung / Kein Ursprung |
+| `ucsIconSize`     | 80       | Länge der Achsen des BKS-Symbols in px                         | UCSICON Eigenschaften |
+| `ucsIconLabelSize` | 11      | Schriftgröße der Achsenbeschriftung „X“/„Y“ in px             | UCSICON Eigenschaften |
 
 Die Winkel der Polarspur stehen in `DEFAULT_POLAR_SETTINGS`: `incrementAngle` (90,
 POLARANG), `additionalAngles` (zusätzliche Winkel, z. B. `[30, 60]`, POLARADDANG). Beide
@@ -400,4 +422,8 @@ RASTER-Menü ändern.
 - Beim Raster: Rasterfang (F9), getrennte Abstände für X und Y, Punktraster, isometrisches
   Raster, Limiten. Die Rasterwerte werden noch nicht gespeichert (nach dem Neuladen gilt
   wieder 10 mm, Hauptlinie alle 10, Raster an).
+- Beim BKS-Symbol: eigenes BKS (Befehl BKS, Ursprung verschieben, Drehen) samt Wirkung auf
+  Koordinateneingabe, Ortho, Polarspur und Raster; Symbol wählen, Griffe und Kontextmenü;
+  Befehl BKSYMBOL zum Umschalten; 3D-Darstellung. Die Größe ist fest in px und wächst nicht
+  mit der Zeichenfläche.
 - Die Einstellungen im Editor ändern.

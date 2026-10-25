@@ -13,6 +13,8 @@
     --snap-tooltip-bg: #ffffe1;
     --snap-tooltip-fg: #111827;
     --snap-tooltip-border: #6b7280;
+    /* UCS icon (UcsIcon) */
+    --ucs-icon: #4b5563;
     color-scheme: light;
 
     font: 14px/1.4 system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -36,6 +38,7 @@
     --snap-tooltip-bg: #2d333b;
     --snap-tooltip-fg: #e5e7eb;
     --snap-tooltip-border: #6b7280;
+    --ucs-icon: #d1d5db;
     color-scheme: dark;
 }
 

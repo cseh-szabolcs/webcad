@@ -54,6 +54,17 @@ export interface EditorSettings {
     gridMinSpacing: number;
     /** Colours of the grid's minor and major lines, per background. */
     gridColor: Readonly<Record<DisplayTheme, { minor: string; major: string }>>;
+    /** Whether the UCS icon shows, like UCSICON ON/OFF. */
+    ucsIcon: boolean;
+    /**
+     * The UCS icon sits on the origin while it fits there, else in the lower left corner, like
+     * UCSICON ORigin; off, it always stays in the corner (Noorigin).
+     */
+    ucsIconAtOrigin: boolean;
+    /** Length of the UCS icon's axes in screen px. */
+    ucsIconSize: number;
+    /** Font size of the UCS icon's axis labels ("X", "Y") in screen px. */
+    ucsIconLabelSize: number;
 }
 
 export const DEFAULT_EDITOR_SETTINGS: Readonly<EditorSettings> = {
@@ -74,6 +85,10 @@ export const DEFAULT_EDITOR_SETTINGS: Readonly<EditorSettings> = {
         light: { minor: '#eef0f3', major: '#dde1e6' },
         dark: { minor: '#283039', major: '#343d48' },
     },
+    ucsIcon: true,
+    ucsIconAtOrigin: true,
+    ucsIconSize: 80,
+    ucsIconLabelSize: 16,
 };
 
 /**

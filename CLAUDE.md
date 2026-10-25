@@ -20,7 +20,7 @@ apps in one repo:
   rebuilt from scratch, closer to AutoCAD behaviour.** Everything is rebuilt in small
   steps. So far it loads a plan through the API and displays it (wheel zoom,
   middle/Space+drag pan, status line, light/dark mode), has AutoCAD-like object
-  selection, a grid, object snap, polar tracking and the MOVE command (`SCHIEBEN`) with preview,
+  selection, a grid, a UCS icon, object snap, polar tracking and the MOVE command (`SCHIEBEN`) with preview,
   typed coordinates and undo/redo (see "Editor: current state" below). Changes are not saved to the backend yet; grips
   are drawn but have no function.
 
@@ -269,6 +269,15 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   menu with both values (`parseGridSpacing`, `parseMajorEvery`; valid edits apply at once and
   switch the grid on). Colours per theme in `EditorSettings.gridColor`. No grid snap (F9),
   separate X/Y spacing, dot style, isometric grid or limits yet.
+- UCS icon (2D style, like AutoCAD UCSICON; display only): X axis right, Y axis up, labels
+  "X"/"Y", the WCS square at the origin (always, there is only the WCS). It sits on the model
+  origin while the whole icon fits there with `UCS_ICON_MARGIN_PX` to spare, else in the
+  lower left corner (`cad/renderer/ucsIcon.ts`: `ucsIconExtent`, `ucsIconPosition`).
+  `ui/UcsIcon.ts` draws it as an SVG layer over the drawing and under crosshair and snap
+  marker (`pointer-events: none`), token `--ucs-icon`. Settings `ucsIcon` (ON/OFF),
+  `ucsIconAtOrigin` (ORigin/Noorigin), `ucsIconSize` (axis px), `ucsIconLabelSize` (label font
+  px; the label room in the fit check is gap + font size). No custom UCS (and so no
+  effect on input, Ortho, polar or grid), no selection/grips, no UCSICON command yet.
 - Only outlines are hit, never fills: an element is hit when its outline passes through
   the square pick box around the cursor. Elements on hidden or locked layers are not
   selectable. Picking a grouped element picks its whole group. While a rectangle or lasso
@@ -331,7 +340,8 @@ Structure (all pure TS and unit-tested unless noted):
   px, like APERTURE), `showApertureBox` (APBOX), `snapMarkerSize` (AUTOSNAPSIZE) and
   `snapMarker`/`snapTooltip`/`snapMagnet` (AUTOSNAP), `polarTolerance` (px), `snapPreview`
   and `previewColor` (per theme: light `#ea580c`, dark `#facc15`), `gridMinSpacing` (px) and
-  `gridColor` (minor/major per theme). Code receives the object
+  `gridColor` (minor/major per theme), `ucsIcon`/`ucsIconAtOrigin`/`ucsIconSize`/`ucsIconLabelSize` (UCSICON).
+  Code receives the object
   (App → `CadCanvas` → editor and crosshair) rather than importing the defaults, so the
   user can change them later; for now they are read when a document is loaded. The running
   snaps (`SnapSettings`: `enabled` like F3, `modes` like OSMODE), Ortho and polar tracking
