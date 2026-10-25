@@ -71,6 +71,12 @@
     justify-content: center;
 }
 
+/* Unavailable but still showing its tooltip (aria-disabled rather than disabled) */
+.toolbar-icon-button[aria-disabled='true'] {
+    opacity: 0.4;
+    cursor: default;
+}
+
 /* Toolbar menus open downwards and end at the right edge of their switch */
 .toolbar-select .snap-menu {
     top: calc(100% + 6px);

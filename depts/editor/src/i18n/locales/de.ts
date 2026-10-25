@@ -28,6 +28,7 @@ export const de = {
         language: 'Sprache',
         fullscreen: 'Vollbild',
         fullscreenExit: 'Vollbild beenden',
+        fullscreenUnsupported: 'Vollbild – von diesem Browser nicht vollständig unterstützt (Esc würde es beenden)',
     },
     language: {
         de: 'Deutsch',

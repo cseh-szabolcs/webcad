@@ -27,8 +27,23 @@ describe('angleArcGeometry', () => {
         // Straight up on screen is 90° in the model
         const geometry = angleArcGeometry({ x: 0, y: 0 }, { x: 0, y: -100 })!;
         expect(geometry.path).toBe('M0 0H64M60 0A60 60 0 0 0 0 -60');
-        expect(geometry.label.x).toBeCloseTo(74 * Math.SQRT1_2);
-        expect(geometry.label.y).toBeCloseTo(-74 * Math.SQRT1_2);
+        // Just outside the middle of the arc, the field lying further out
+        expect(geometry.label.x).toBeCloseTo(66 * Math.SQRT1_2);
+        expect(geometry.label.y).toBeCloseTo(-66 * Math.SQRT1_2);
+        expect(geometry.outward.x).toBeCloseTo(Math.SQRT1_2);
+        expect(geometry.outward.y).toBeCloseTo(-Math.SQRT1_2);
+    });
+
+    it('puts the field below the reference line while the angle is too small for it', () => {
+        // 6° up from the base point on screen
+        const small = angleArcGeometry({ x: 0, y: 0 }, { x: 100 * Math.cos(0.1047), y: -100 * Math.sin(0.1047) })!;
+        expect(small.label.y).toBeGreaterThan(0);
+        expect(small.outward.x).toBeGreaterThan(0);
+        expect(small.outward.y).toBeGreaterThan(0);
+        // Wide enough: inside the wedge, above the reference line
+        const wide = angleArcGeometry({ x: 0, y: 0 }, { x: 100, y: -50 })!;
+        expect(wide.label.y).toBeLessThan(0);
+        expect(wide.outward.y).toBeLessThan(0);
     });
 
     it('takes the large arc beyond 180° and runs through a near point', () => {

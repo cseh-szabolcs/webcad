@@ -13,8 +13,13 @@ const EXTENSION_GAP_PX = 3;
 const TICK_SIZE_PX = 4;
 /** Largest radius in px of the angle arc; nearer the base point it runs through the point. */
 const ANGLE_ARC_MAX_RADIUS_PX = 60;
-/** Gap in px between the angle arc and its field. */
-const ANGLE_LABEL_GAP_PX = 14;
+/** Gap in px between the angle arc and the edge of its field. */
+const ANGLE_LABEL_GAP_PX = 6;
+/**
+ * Below this angle (degrees) the wedge between the reference line and the line has no room for
+ * the angle field, so it goes below the reference line instead.
+ */
+const ANGLE_LABEL_MIN_DEGREES = 20;
 /** Half the size in px of the x at a point bound by typed values. */
 const BOUND_MARKER_SIZE_PX = 4;
 
@@ -72,13 +77,21 @@ export function dimensionGeometry(from: Point, to: Point): { path: string; label
     };
 }
 
+/** Where a field goes: centred on `label`, or with `outward` pushed off it by half its size that way. */
+export interface LabelPlace {
+    label: Point;
+    /** Unit vector (view px) the field lies in from `label`, clear of the lines. */
+    outward?: Point;
+}
+
 /**
  * Angle of `from`→`to` in view px: a horizontal reference line to the right of `from` and an arc
  * counter-clockwise (in the model, Y up) from it to the line, at the line's length but at most
- * ANGLE_ARC_MAX_RADIUS_PX, and the place for the angle field outside its middle. Null for a line
- * shorter than a pixel.
+ * ANGLE_ARC_MAX_RADIUS_PX, and the place for the angle field just outside the middle of the arc;
+ * below ANGLE_LABEL_MIN_DEGREES it goes below the reference line, where there is room. Null for
+ * a line shorter than a pixel.
  */
-export function angleArcGeometry(from: Point, to: Point): { path: string; label: Point } | null {
+export function angleArcGeometry(from: Point, to: Point): ({ path: string } & Required<LabelPlace>) | null {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const length = Math.hypot(dx, dy);
@@ -96,7 +109,11 @@ export function angleArcGeometry(from: Point, to: Point): { path: string; label:
     const reference = `M${n(from.x)} ${n(from.y)}H${n(from.x + r + EXTENSION_OVERSHOOT_PX)}`;
     // Counter-clockwise on screen is sweep flag 0 with Y down
     const arc = `M${n(start.x)} ${n(start.y)}A${n(r)} ${n(r)} 0 ${angle > Math.PI ? 1 : 0} 0 ${n(end.x)} ${n(end.y)}`;
-    return { path: reference + arc, label: at(r + ANGLE_LABEL_GAP_PX, angle / 2) };
+    const minimum = (ANGLE_LABEL_MIN_DEGREES * Math.PI) / 180;
+    // Mirrored below the reference line while the wedge is too narrow
+    const middle = angle < minimum ? -minimum / 2 : angle / 2;
+    const label = at(r + ANGLE_LABEL_GAP_PX, middle);
+    return { path: reference + arc, label, outward: { x: Math.cos(middle), y: -Math.sin(middle) } };
 }
 
 /** SVG path of the x at a bound point. */
@@ -189,7 +206,7 @@ export class DynamicInputLayer {
     private showDimension(
         path: SVGPathElement,
         box: HTMLSpanElement,
-        geometry: { path: string; label: Point } | null,
+        geometry: ({ path: string } & LabelPlace) | null,
         field: DynamicField | undefined,
     ): void {
         path.style.display = geometry ? '' : 'none';
@@ -200,8 +217,12 @@ export class DynamicInputLayer {
         path.setAttribute('d', geometry.path);
         fillField(box, field);
         box.classList.add('dyn-dimension-field');
-        // Centred on its place
-        box.style.transform = `translate(${Math.round(geometry.label.x)}px, ${Math.round(geometry.label.y)}px) translate(-50%, -50%)`;
+        // Centred on its place, or pushed off it by half its size so it clears the arc and the lines
+        const { x, y } = geometry.label;
+        const shift = geometry.outward ?? { x: 0, y: 0 };
+        const left = x + (shift.x - 1) * (box.offsetWidth / 2);
+        const top = y + (shift.y - 1) * (box.offsetHeight / 2);
+        box.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
     }
 
     /** Above right of the crosshair; flipped to the other side where it would leave the canvas. */

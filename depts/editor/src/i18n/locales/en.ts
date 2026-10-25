@@ -27,6 +27,7 @@ export const en: Translations = {
         language: 'Language',
         fullscreen: 'Full screen',
         fullscreenExit: 'Exit full screen',
+        fullscreenUnsupported: 'Full screen – not fully supported by this browser (Esc would end it)',
     },
     language: {
         de: 'Deutsch',

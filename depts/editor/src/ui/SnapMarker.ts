@@ -25,7 +25,7 @@ const TRACKING_PATH_DASH = '8 4';
 /** Stroke width of the tracking paths in px, so they stand out from the grid. */
 const TRACKING_PATH_STROKE_PX = 1.5;
 /** Dash pattern of the rubber band from the base point while moving, in px. */
-const RUBBER_BAND_DASH = '10 6';
+const RUBBER_BAND_DASH = '24 6';
 /** Snap point preview markers relative to the snap marker size. */
 const PREVIEW_MARKER_SCALE = 0.6;
 

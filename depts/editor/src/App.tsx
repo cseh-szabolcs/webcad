@@ -64,6 +64,11 @@ function App() {
     const [dynamicInput, setDynamicInput] = useState<DynamicInputSettings>(DEFAULT_DYNAMIC_INPUT_SETTINGS);
     const { preference, setPreference, theme } = useTheme();
     const fullscreen = useFullscreen();
+    const fullscreenTitle = !fullscreen.lockable
+        ? 'toolbar.fullscreenUnsupported'
+        : fullscreen.active
+          ? 'toolbar.fullscreenExit'
+          : 'toolbar.fullscreen';
 
     // Shortcuts like AutoCAD: F3 switches the object snap (and must not open the browser's
     // search), F7 the grid (and must not start caret browsing), F8 Ortho, F10 polar tracking (and must not focus the browser's menu bar),
@@ -221,12 +226,14 @@ function App() {
                         onChange={setLanguage}
                     />
                     {fullscreen.supported && (
+                        // aria-disabled instead of disabled, so the tooltip with the reason still shows
                         <button
                             type="button"
                             className="toolbar-icon-button"
                             onClick={fullscreen.toggle}
-                            title={t(fullscreen.active ? 'toolbar.fullscreenExit' : 'toolbar.fullscreen')}
-                            aria-label={t(fullscreen.active ? 'toolbar.fullscreenExit' : 'toolbar.fullscreen')}
+                            aria-disabled={!fullscreen.lockable}
+                            title={t(fullscreenTitle)}
+                            aria-label={t(fullscreenTitle)}
                         >
                             <FullscreenIcon active={fullscreen.active} />
                         </button>

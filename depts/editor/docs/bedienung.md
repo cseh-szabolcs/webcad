@@ -18,8 +18,12 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   Menü nach unten; die Wahl dort schließt es, ebenso **Esc** oder ein Klick daneben.
   Ganz rechts der Button **Vollbild** (Symbol mit vier Ecken): zeigt den Editor im
   Vollbild des Browsers. Im Vollbild wechselt er zu **Vollbild beenden** (Ecken nach
-  innen); verlassen lässt es sich auch mit **Esc** oder über den Browser. Kann die Seite
-  nicht ins Vollbild (z. B. in einem iframe ohne Erlaubnis), fehlt der Button.
+  innen); verlassen lässt es sich auch, indem man **Esc gedrückt hält**, oder über den
+  Browser. Ein kurzer Druck auf Esc beendet das Vollbild nicht, er wirkt wie sonst im
+  Editor (z. B. Befehl abbrechen). Kann die Seite Esc nicht für sich reservieren (Keyboard
+  Lock, das gibt es nur in Chrome, Edge und anderen Chromium-Browsern, nicht in Safari und
+  Firefox), ist der Button ausgegraut und ohne Funktion; sein Tooltip nennt den Grund. Kann
+  die Seite gar nicht ins Vollbild (z. B. in einem iframe ohne Erlaubnis), fehlt der Button.
 - **Zeichenfläche** in der Mitte, mit dem [BKS-Symbol](#bks-symbol) am Nullpunkt bzw.
   unten links.
 - **Kommandozeile** unter der Zeichenfläche: oben in Grau die letzte Meldung (z. B.
@@ -396,7 +400,10 @@ Ob F12 im Browser stattdessen die Entwicklertools öffnet, hängt vom Browser ab
   zweiten Punkt zeigen sie ohne Bemaßungseingabe **Abstand** und **Winkel** vom Basispunkt.
 - **Bemaßungseingabe**: Beim zweiten Punkt zeigt eine temporäre Bemaßung Abstand und Winkel:
   eine Maßlinie parallel zur Strecke Basispunkt–Punkt mit Architekturstrichen, das
-  Abstandsfeld darauf, und ein gestrichelter Bogen ab der Waagrechten mit dem Winkelfeld.
+  Abstandsfeld darauf, und ein gestrichelter Bogen ab der Waagrechten mit dem Winkelfeld
+  außerhalb der Bogenmitte, also auf der anderen Seite der Linie als das Abstandsfeld. Ist der
+  Winkel kleiner als `ANGLE_LABEL_MIN_DEGREES` (`src/ui/DynamicInputLayer.ts`), passt das Feld
+  nicht zwischen Waagrechte und Linie und steht unter der Waagrechten.
   Winkel in Grad gegen den Uhrzeigersinn ab der positiven X-Achse (0–360°).
 - **Dynamische Eingabeaufforderungen**: Die aktuelle Aufforderung steht über den Feldern
   neben dem Fadenkreuz, auch bei `Objekte wählen:`; bei `Befehl:` der getippte Befehlsname.
@@ -422,7 +429,7 @@ Ob F12 im Browser stattdessen die Entwicklertools öffnet, hängt vom Browser ab
 - Die Felder zeigen Längen mit `DYN_LENGTH_DECIMALS` und Winkel mit höchstens
   `DYN_ANGLE_DECIMALS` Nachkommastellen (`src/cad/editor/dynamicInput.ts`). Abstände und
   Größen der Anzeige (`DYN_OFFSET_PX`, `DIMENSION_OFFSET_PX`, `ANGLE_ARC_MAX_RADIUS_PX`,
-  `TICK_SIZE_PX` …) stehen in `src/ui/DynamicInputLayer.ts`. Am Rand der Zeichenfläche kippt
+  `ANGLE_LABEL_GAP_PX`, `TICK_SIZE_PX` …) stehen in `src/ui/DynamicInputLayer.ts`. Am Rand der Zeichenfläche kippt
   das Feld auf die andere Seite des Fadenkreuzes.
 - Ist DYN aus, oder zeigt die Aufforderung keine Felder (Basispunkt ohne Zeigereingabe), geht
   das Getippte wie bisher in die Kommandozeile. Umschalten während des Tippens verwirft das
