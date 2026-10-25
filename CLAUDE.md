@@ -295,7 +295,7 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   `<` to polar, `#` absolute). Empty fields show live values of the tracked point
   (`trackedPointAt`); typed numbers bind it at once (`dynamicPoint`, applied in `pointAt`, so
   preview, rubber band, click and Enter agree): a lone distance is direct distance entry (from
-  the OTRACK origin on a single path), a lone angle projects onto its ray. Tab switches fields
+  the OTRACK origin on a single path), a lone angle goes along its ray as far as the tracked point is from the reference (never backwards). Tab switches fields
   once something is typed, else it still cycles snaps; non-numeric text goes to `submitText`
   as if typed on the command line (keyword `V`). The snapshot carries `dynamicInput`
   (`DynamicInputView`) and `input` echoes the fields (`dynamicText`). `CadCanvas` draws the

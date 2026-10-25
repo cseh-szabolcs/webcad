@@ -127,9 +127,13 @@ describe('dynamicPoint', () => {
         closeTo(dynamicPoint(typed('50'), tracking, { x: 200, y: 300 }), 50, 300);
     });
 
-    it('projects the point onto the ray of a lone angle', () => {
-        closeTo(dynamicPoint(typed('\t0'), SECOND_POINT, { x: 300, y: 170 }), 300, 100);
-        closeTo(dynamicPoint(typed('\t90'), SECOND_POINT, { x: 300, y: 170 }), 100, 170);
+    it('goes along the ray of a lone angle as far as the point is from the base point', () => {
+        closeTo(dynamicPoint(typed('<0'), SECOND_POINT, { x: 100, y: 300 }), 300, 100);
+        // 200 below the base point, as in a quadrant snap, stays 200 at 12°
+        const twelve = Math.PI / 15;
+        closeTo(dynamicPoint(typed('<12'), SECOND_POINT, { x: 100, y: -100 }), 100 + 200 * Math.cos(twelve), 100 + 200 * Math.sin(twelve));
+        // Never backwards, even with the point behind the ray's origin
+        closeTo(dynamicPoint(typed('<90'), SECOND_POINT, { x: 100, y: 50 }), 100, 150);
         expect(dynamicPoint(typed('\t90'), SECOND_POINT, null)).toBeNull();
     });
 });

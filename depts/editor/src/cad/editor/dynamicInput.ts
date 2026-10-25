@@ -155,7 +155,8 @@ export function isBound(state: DynamicInputState): boolean {
 /**
  * The point the typed values give, with the untyped ones taken from `point` (the point a click
  * would take otherwise): X/Y each typed or from the point; distance and angle both typed is a
- * fixed point; an angle alone projects the point onto its ray; a distance alone goes that far
+ * fixed point; an angle alone goes along its ray as far as the point is from the reference; a
+ * distance alone goes that far
  * towards the point (from the tracking origin on a single tracking path), like direct distance
  * entry. Null where nothing binds or the point is needed but missing.
  */
@@ -187,8 +188,9 @@ export function dynamicPoint(state: DynamicInputState, ctx: DynamicContext, poin
     if (point === null) {
         return null;
     }
-    const along = (point.x - ref.x) * ux + (point.y - ref.y) * uy;
-    return { x: ref.x + along * ux, y: ref.y + along * uy };
+    // Always along the typed direction, as far as the point is from the reference
+    const distance = Math.hypot(point.x - ref.x, point.y - ref.y);
+    return { x: ref.x + distance * ux, y: ref.y + distance * uy };
 }
 
 /**

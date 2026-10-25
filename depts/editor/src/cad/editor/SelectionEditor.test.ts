@@ -1719,14 +1719,15 @@ describe('SelectionEditor SCHIEBEN: Dynamic Input', () => {
         expect(centre.y).toBeCloseTo(preview.y);
     });
 
-    it('projects the cursor onto the ray of a typed angle', () => {
+    it('goes along a typed angle as far as the cursor is from the base point', () => {
         const { editor } = start();
         type(editor, '4000,1800');
         type(editor, '<90', false);
         editor.pointerMove(at(EMPTY));
+        const distance = Math.hypot(1000, 200);
         expect(editor.snapshot.previewPoint?.x).toBeCloseTo(4000);
-        expect(editor.snapshot.previewPoint?.y).toBeCloseTo(2000);
-        expect(texts(editor)).toEqual(['200.00', '90']);
+        expect(editor.snapshot.previewPoint?.y).toBeCloseTo(1800 + distance);
+        expect(texts(editor)).toEqual([distance.toFixed(2), '90']);
     });
 
     it('takes a typed X at the base point with the Y at the cursor', () => {

@@ -415,7 +415,9 @@ Ob F12 im Browser stattdessen die Entwicklertools öffnet, hängt vom Browser ab
 - **Getippte Werte binden sofort**: Vorschau, Gummiband und ein Klick folgen ihnen, der
   gebundene Punkt hat ein kleines **x**. Ist nur der Abstand getippt, bestimmt der Cursor die
   Richtung (z. B. `500`, **Tab**, Maus in die gewünschte Richtung, Klick); ist nur der Winkel
-  getippt (z. B. `<30`), liegt der Punkt auf diesem Strahl und der Cursor bestimmt den Abstand.
+  getippt (z. B. `<30`), liegt der Punkt auf diesem Strahl, so weit vom Basispunkt entfernt wie
+  der Cursor; die Linie zeigt also immer in die getippte Richtung, und die Länge ändert sich
+  nur, wenn der Cursor näher heran oder weiter weg geht.
   Bei X/Y kommt der nicht getippte Wert vom Cursor.
 - Beim zweiten Punkt ist die Eingabe **relativ zum Basispunkt**: `500<90` sind 500 mm nach
   oben, `100,50` 100 mm nach rechts und 50 mm nach oben, ohne `@`. **`#`** vorne macht sie
