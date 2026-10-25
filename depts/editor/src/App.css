@@ -70,6 +70,13 @@
     stroke-linejoin: round;
 }
 
+/* Icon-only toolbar buttons (fullscreen), with the icon centred */
+.toolbar-icon-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 /* Toolbar menus open downwards and end at the right edge of their switch */
 .toolbar-select .snap-menu {
     top: calc(100% + 6px);

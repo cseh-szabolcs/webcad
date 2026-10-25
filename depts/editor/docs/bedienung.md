@@ -16,6 +16,10 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   Sonne, Mond bzw. Bildschirm als Symbol) und **Sprache** (DE / EN). Sie sehen aus wie
   die Schalter der Statusleiste: Ein Klick auf den angezeigten Wert oder auf **▾** öffnet
   ein Menü nach unten; die Wahl dort schließt es, ebenso **Esc** oder ein Klick daneben.
+  Ganz rechts der Button **Vollbild** (Symbol mit vier Ecken): zeigt den Editor im
+  Vollbild des Browsers. Im Vollbild wechselt er zu **Vollbild beenden** (Ecken nach
+  innen); verlassen lässt es sich auch mit **Esc** oder über den Browser. Kann die Seite
+  nicht ins Vollbild (z. B. in einem iframe ohne Erlaubnis), fehlt der Button.
 - **Zeichenfläche** in der Mitte, mit dem [BKS-Symbol](#bks-symbol) am Nullpunkt bzw.
   unten links.
 - **Kommandozeile** unter der Zeichenfläche: oben in Grau die letzte Meldung (z. B.

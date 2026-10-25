@@ -27,6 +27,8 @@ export const en: Translations = {
         themeMenuTitle: 'Light, dark or like the system',
         language: 'Language',
         languageMenuTitle: 'Language of the interface',
+        fullscreen: 'Full screen',
+        fullscreenExit: 'Exit full screen',
     },
     language: {
         de: 'Deutsch',

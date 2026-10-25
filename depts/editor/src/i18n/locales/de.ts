@@ -28,6 +28,8 @@ export const de = {
         themeMenuTitle: 'Hell, Dunkel oder wie das System',
         language: 'Sprache',
         languageMenuTitle: 'Sprache der Oberfläche',
+        fullscreen: 'Vollbild',
+        fullscreenExit: 'Vollbild beenden',
     },
     language: {
         de: 'Deutsch',

@@ -20,6 +20,8 @@ import {
 import type { Viewport } from 'app/cad/renderer/Viewport';
 import { CadCanvas, type CadCanvasHandle } from 'app/ui/CadCanvas';
 import { CommandLine } from 'app/ui/CommandLine';
+import { FullscreenIcon } from 'app/ui/FullscreenIcon';
+import { useFullscreen } from 'app/ui/fullscreen';
 import { StatusBar } from 'app/ui/StatusBar';
 import { ThemeIcon } from 'app/ui/ThemeIcon';
 import { ToolbarSelect } from 'app/ui/ToolbarSelect';
@@ -55,6 +57,7 @@ function App() {
     const [tracking, setTracking] = useState<TrackingModes>(DEFAULT_TRACKING_MODES);
     const [gridSettings, setGridSettings] = useState<GridSettings>(DEFAULT_GRID_SETTINGS);
     const { preference, setPreference, theme } = useTheme();
+    const fullscreen = useFullscreen();
 
     // Shortcuts like AutoCAD: F3 switches the object snap (and must not open the browser's
     // search), F7 the grid (and must not start caret browsing), F8 Ortho, F10 polar tracking (and must not focus the browser's menu bar),
@@ -197,6 +200,17 @@ function App() {
                         }))}
                         onChange={setLanguage}
                     />
+                    {fullscreen.supported && (
+                        <button
+                            type="button"
+                            className="toolbar-icon-button"
+                            onClick={fullscreen.toggle}
+                            title={t(fullscreen.active ? 'toolbar.fullscreenExit' : 'toolbar.fullscreen')}
+                            aria-label={t(fullscreen.active ? 'toolbar.fullscreenExit' : 'toolbar.fullscreen')}
+                        >
+                            <FullscreenIcon active={fullscreen.active} />
+                        </button>
+                    )}
                 </div>
             </header>
             <CadCanvas
