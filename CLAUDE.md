@@ -46,7 +46,14 @@ apps in one repo:
 - **`docs/`**: `docs/todo/setup.md` (architecture concept, German) and
   `docs/architecture/cqrs.md`.
 - **`depts/editor/docs/bedienung.md`**: user guide of the new editor (German), covering
-  every mouse and keyboard action. Keep it in sync when the controls change.
+  every mouse and keyboard action. Keep it in sync when the controls change. It never
+  states values from `src/settings/editorSettings.ts` (defaults, start states, colours,
+  px sizes): it names the setting instead (e.g. "Einstellung `apertureSize`"), so they are
+  kept in one place. New settings get a row (name, meaning, AutoCAD) in its "Einstellungen"
+  table, without a value. The same goes for fixed constants in the code (thresholds,
+  tolerances, limits): name the constant and its file (e.g. "`TIE_TOLERANCE_PX` in
+  `src/cad/editor/snapping/SnapEngine.ts`") instead of its value; renaming or moving such a
+  constant means updating the guide.
 
 ## Running it (Docker)
 

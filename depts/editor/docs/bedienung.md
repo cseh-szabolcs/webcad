@@ -91,7 +91,8 @@ Punkt, gibt es dort nur einen Grip. Die Grips haben noch keine Funktion.
 ### Rechteck: Fenster und Kreuzen
 
 1. Ins Leere drücken und mit gedrückter Maustaste ziehen. Das Rechteck erscheint nach
-   3 Pixeln Bewegung, die Kommandozeile fragt `Entgegengesetzte Ecke angeben:`.
+   wenigen Pixeln Bewegung (`DRAG_THRESHOLD_PX` in `src/cad/editor/SelectionEditor.ts`),
+   die Kommandozeile fragt `Entgegengesetzte Ecke angeben:`.
 2. Die Maustaste darf losgelassen werden: Das Rechteck bleibt offen und folgt dem Cursor.
    So lässt sich zoomen oder pannen, wenn der Bereich größer ist als der Bildausschnitt.
 3. Abschließen mit einem **Klick** (setzt die zweite Ecke) oder **Enter** (an der
@@ -195,7 +196,7 @@ Bei den Punkt-Aufforderungen rastet der Cursor auf markante Punkte der Geometrie
 
 | Eingabe                       | Wirkung                                                  |
 |-------------------------------|----------------------------------------------------------|
-| **F3** oder Button **OFANG**  | Schaltet den Objektfang ein oder aus (beim Start an)     |
+| **F3** oder Button **OFANG**  | Schaltet den Objektfang ein oder aus                     |
 | Button **▾** neben OFANG      | Menü, in dem sich die einzelnen Fangmodi an- und abwählen lassen |
 | **Tab** / **Shift+Tab**       | Schaltet zum nächsten / vorherigen Fangpunkt im Fangbereich |
 
@@ -206,12 +207,12 @@ Die gewählten Modi bleiben erhalten, wenn der Objektfang ausgeschaltet wird.
 | Endpunkt      | Quadrat  | Enden von Linien, Bögen und Bézier-Kurven, Ecken von Polylinien |
 | Mittelpunkt   | Dreieck  | Mitte von Linien, Polylinien-Segmenten, Bögen und Bézier-Kurven |
 | Zentrum       | Kreis    | Mittelpunkt von Kreisen, Ellipsen und Bögen                    |
-| Geometrisches Zentrum | Kreis mit Punkt | Flächenschwerpunkt geschlossener Polylinien (beim Start aus) |
+| Geometrisches Zentrum | Kreis mit Punkt | Flächenschwerpunkt geschlossener Polylinien |
 | Quadrant      | Raute    | Die vier Außenpunkte von Kreisen und Ellipsen (bei Bögen, soweit sie darauf liegen) |
 | Schnittpunkt  | Kreuz    | Schnittpunkte zweier Elemente                                  |
 
-- Gefangen wird, was im **Fangbereich** liegt, einem Quadrat um den Cursor (Standard
-  ±10 px, größer als die Pickbox).
+- Gefangen wird, was im **Fangbereich** liegt, einem Quadrat um den Cursor (Größe:
+  Einstellung `apertureSize`).
 - Ein **Zentrum** rastet nur ein, wenn der Mittelpunkt selbst im Fangbereich liegt, und
   erst nachdem der Cursor in dieser Aufforderung einmal über den Kreis, die Ellipse oder
   den Bogen gefahren ist, wie in AutoCAD. Von der Kurve aus wird es nicht angeboten.
@@ -220,17 +221,19 @@ Die gewählten Modi bleiben erhalten, wenn der Objektfang ausgeschaltet wird.
   Rechtecks). Hat die Polylinie keine Fläche (alle Ecken auf einer Geraden), gilt die Mitte
   ihres umgebenden Rechtecks. Es rastet wie das Zentrum nur ein, wenn es selbst im
   Fangbereich liegt und der Cursor in dieser Aufforderung schon über die Polylinie gefahren
-  ist. Wie in AutoCAD ist der Modus beim Start aus und wird im Menü **▾** eingeschaltet.
+  ist. Ein- und ausgeschaltet wird der Modus wie die anderen im Menü **▾**.
 - Liegen mehrere Fangpunkte im Bereich, gewinnt der nächste. Sind zwei etwa gleich weit
   entfernt, gilt die Reihenfolge Endpunkt, Schnittpunkt, Zentrum, Mittelpunkt, Quadrant,
   geometrisches Zentrum.
   Fallen Punkte zusammen, wird nur einer angezeigt. Der zuletzt gefangene Punkt bleibt
-  gefangen, bis ein anderer mehr als 2 px näher liegt, damit der Fang nicht zwischen fast
-  gleich nahen Punkten hin- und herspringt.
+  gefangen, bis ein anderer um mehr als ein paar Pixel näher liegt, damit der Fang nicht
+  zwischen fast gleich nahen Punkten hin- und herspringt. „Etwa gleich weit“ und „ein paar
+  Pixel“ sind dieselbe Grenze: `TIE_TOLERANCE_PX` in
+  `src/cad/editor/snapping/SnapEngine.ts`.
 - Mit **Tab** wird der Reihe nach zu den anderen Fangpunkten im Bereich geschaltet (nach
   dem letzten wieder der erste), mit **Shift+Tab** zurück. Der Tooltip zeigt dann die
   Position, z. B. „Schnittpunkt (Tab 2/3)“, und ein Klick nimmt diesen Punkt. Wird der
-  Cursor mehr als 10 px (halbe Breite des Fangbereichs) bewegt, gilt wieder der beste Punkt.
+  Cursor weiter als die halbe Breite des Fangbereichs bewegt, gilt wieder der beste Punkt.
 - Angezeigt werden ein **grüner Marker** in der Form des Modus und ein **Tooltip** mit dem
   Namen. Das Fadenkreuz und die Koordinaten in der Statuszeile springen auf den Fangpunkt
   (**Magnet**).
@@ -244,7 +247,7 @@ Die gewählten Modi bleiben erhalten, wenn der Objektfang ausgeschaltet wird.
   gefahren ist: Wer über die Tischkante in den Tisch fährt, sieht dort den Tisch, daneben
   auf dem Teppich den Teppich, sonst im Raum die Innenwand. Beginnt die Aufforderung mitten
   in einem Objekt, erscheint dessen Vorschau erst, wenn der Cursor seine Linie berührt hat.
-  Sie haben dieselbe Farbe wie das Gummiband (orange bei Hell, gelb bei Dunkel) und keine
+  Sie haben dieselbe Farbe wie das Gummiband (Einstellung `previewColor`) und keine
   Funktion; sie zeigen nur, wo gefangen werden kann. Ein Klick nimmt weiterhin den normalen
   Fangpunkt oder die Cursorposition. Kommt der Cursor in die Nähe eines dieser Punkte, gilt
   der normale Fang (grüner Marker, Tooltip, Magnet, Tab); an diesem Punkt entfällt dann der
@@ -256,24 +259,26 @@ Die gewählten Modi bleiben erhalten, wenn der Objektfang ausgeschaltet wird.
 ## Polarspur (POLAR)
 
 Beim zweiten Punkt von SCHIEBEN zeigt die Polarspur, wenn der Cursor nahe an einer
-Richtung unter einem Polarwinkel ab dem Basispunkt liegt (Standard: 0°, 90°, 180°, 270°,
+Richtung unter einem Polarwinkel ab dem Basispunkt liegt (bei einem Winkelschritt von 90°
 also waagrecht und senkrecht). Der Punkt liegt dann exakt auf dieser Geraden.
 
 | Eingabe                       | Wirkung                                                  |
 |-------------------------------|----------------------------------------------------------|
-| **F10** oder Button **POLAR** | Schaltet die Polarspur ein oder aus (beim Start an)      |
-| Button **▾** neben POLAR      | Menü mit dem Winkelschritt: 90°, 45°, 30°, 22.5°, 18°, 15°, 10° oder 5°; die Wahl schaltet die Polarspur ein |
+| **F10** oder Button **POLAR** | Schaltet die Polarspur ein oder aus                      |
+| Button **▾** neben POLAR      | Menü mit den Winkelschritten zur Auswahl; die Wahl schaltet die Polarspur ein |
 | Feld **Zusatzwinkel** im Menü | Weitere Winkel zusätzlich zu den Vielfachen des Schritts, z. B. `30, 60` |
 
 - Der **Winkelschritt** gilt mit allen Vielfachen (45° ergibt 0°, 45°, 90°, …), daher ist
   immer genau einer gewählt. Einzelne weitere Richtungen kommen ins Feld **Zusatzwinkel**:
   Winkel in Grad, getrennt durch Komma, Semikolon oder Leerzeichen, Dezimalpunkt (z. B.
-  `30, 60` oder `22.5`), ein `°` dahinter ist erlaubt, höchstens 10 Winkel. Jede gültige
+  `30, 60` oder `22.5`), ein `°` dahinter ist erlaubt, höchstens so viele Winkel wie
+  `MAX_ADDITIONAL_ANGLES` in `src/cad/editor/tracking/PolarTracking.ts`. Jede gültige
   Eingabe gilt sofort und schaltet die Polarspur ein; eine ungültige wird rot umrandet,
   dann bleiben die zuletzt gültigen Winkel. Ein leeres Feld entfernt die Zusatzwinkel.
-- Die Spur greift, wenn der Cursor höchstens **10 px** von ihr entfernt ist (unabhängig
-  vom Zoom) und mindestens so weit vom Basispunkt. Bei mehreren Winkeln gewinnt der
-  nächste; die zuletzt gezeigte Spur bleibt, bis eine andere mehr als 2 px näher liegt.
+- Die Spur greift, wenn der Cursor nah genug an ihr liegt (Abstand in px, unabhängig vom
+  Zoom: Einstellung `polarTolerance`) und mindestens so weit vom Basispunkt. Bei mehreren Winkeln gewinnt der
+  nächste; die zuletzt gezeigte Spur bleibt, bis eine andere um mehr als ein paar Pixel
+  näher liegt (`HYSTERESIS_PX` in `src/cad/editor/tracking/PolarTracking.ts`).
 - Angezeigt werden eine **grüne gestrichelte Linie** vom Basispunkt bis zum Rand der
   Zeichenfläche, ein kleines **x** am Punkt auf der Spur und ein **Tooltip** mit Abstand
   und Winkel, z. B. `Polar: 1000.00 < 90°`. Fadenkreuz und Statuszeile springen auf die
@@ -294,7 +299,7 @@ als bei der Polarspur gilt das ohne Toleranz, egal wie weit der Cursor daneben l
 
 | Eingabe                       | Wirkung                                                  |
 |-------------------------------|----------------------------------------------------------|
-| **F8** oder Button **ORTHO**  | Schaltet Ortho ein oder aus (beim Start aus)             |
+| **F8** oder Button **ORTHO**  | Schaltet Ortho ein oder aus                              |
 
 - Ortho und Polarspur schließen sich aus: Ortho ein schaltet POLAR aus, POLAR ein (auch
   über die Winkelwahl im Menü) schaltet Ortho aus. Die Polarwinkel bleiben erhalten.
@@ -310,21 +315,22 @@ als bei der Polarspur gilt das ohne Toleranz, egal wie weit der Cursor daneben l
 Ein Linienraster unter der Zeichnung hilft, Abstände und Lage abzuschätzen, wie
 Millimeterpapier. Es ist nur Anzeige: Es gehört nicht zum Plan, wird nie gedruckt und
 beeinflusst weder Auswahl noch Objektfang noch Zoom Grenzen. Die Linien laufen parallel zu
-X und Y durch den Nullpunkt; jede zehnte ist eine kräftigere Hauptlinie.
+X und Y durch den Nullpunkt; regelmäßig ist eine davon eine kräftigere Hauptlinie.
 
 | Eingabe                       | Wirkung                                                  |
 |-------------------------------|----------------------------------------------------------|
-| **F7** oder Button **RASTER** | Schaltet das Raster ein oder aus (beim Start an)         |
+| **F7** oder Button **RASTER** | Schaltet das Raster ein oder aus                         |
 | **▾** neben RASTER            | Menü mit **Rasterabstand (mm)** und **Hauptlinie alle**  |
 
-- **Rasterabstand**: Abstand der Linien in mm (Standard 10), größer als 0, Dezimalpunkt.
-- **Hauptlinie alle**: jede wievielte Linie eine Hauptlinie ist (Standard 10), ganze Zahl
-  von 1 bis 100.
+- **Rasterabstand**: Abstand der Linien in mm, größer als 0, Dezimalpunkt.
+- **Hauptlinie alle**: jede wievielte Linie eine Hauptlinie ist, ganze Zahl ab 1 bis
+  `MAX_MAJOR_EVERY` in `src/cad/renderer/grid.ts`.
 - Jede gültige Eingabe gilt sofort und schaltet das Raster ein. Eine ungültige wird rot
   markiert, bis dahin bleibt der letzte gültige Wert.
 - **Beim Herauszoomen wird das Raster gröber**, wie AutoCAD: Lägen die Linien enger als
-  10 px, wird der Abstand mit „Hauptlinie alle“ multipliziert (bei 1 verdoppelt), bis es
-  passt. Mit den Standardwerten zeigt das Raster also 10 mm, 100 mm, 1 m oder 10 m; die
+  der kleinste Linienabstand in px (Einstellung `gridMinSpacing`), wird der Abstand mit
+  „Hauptlinie alle“ multipliziert (bei 1 verdoppelt), bis es passt. Bei 10 mm Abstand und
+  Hauptlinie alle 10 zeigt das Raster also 10 mm, 100 mm, 1 m oder 10 m; die
   Hauptlinien der einen Stufe sind die Nebenlinien der nächsten. Feiner als der
   eingestellte Abstand wird es nie.
 
@@ -336,7 +342,8 @@ Quadrat am Ursprung bedeutet, dass das Weltkoordinatensystem (WKS) gilt; ein eig
 gibt es noch nicht, das Quadrat ist also immer da.
 
 - Das Symbol sitzt **am Nullpunkt (0,0)** der Zeichnung und wandert beim Zoomen und Pannen
-  mit, solange es dort ganz und mit 10 px Abstand zum Rand in die Zeichenfläche passt.
+  mit, solange es dort ganz und mit etwas Abstand zum Rand in die Zeichenfläche passt
+  (`UCS_ICON_MARGIN_PX` in `src/cad/renderer/ucsIcon.ts`).
 - Sonst (Nullpunkt außerhalb oder zu nah am Rand) sitzt es **unten links** in der
   Zeichenfläche.
 - Es ist nur Anzeige: Es gehört nicht zum Plan, wird nie gedruckt, lässt sich nicht wählen
@@ -372,38 +379,44 @@ werden nicht übersetzt.
 
 ## Einstellungen
 
-Größen und Schalter für Cursor und Objektfang stehen zentral in
-`src/settings/editorSettings.ts` (`DEFAULT_EDITOR_SETTINGS`). Im Editor lassen sie sich
-noch nicht ändern; das kommt in einem späteren Schritt.
+Alle Einstellungen und ihre Standardwerte stehen zentral in
+`src/settings/editorSettings.ts`; dort sind sie auch kommentiert. Diese Anleitung nennt
+bewusst keine Werte, damit sie nicht doppelt gepflegt werden müssen. Im Editor lassen sich
+die Einstellungen noch nicht ändern; das kommt in einem späteren Schritt.
 
-| Einstellung       | Standard | Bedeutung                                                    | AutoCAD      |
-|-------------------|----------|--------------------------------------------------------------|--------------|
-| `crosshairSize`   | 5        | Länge der Fadenkreuzlinien in % der größeren Seite der Zeichenfläche; 100 = über die ganze Fläche | CURSORSIZE |
-| `pickboxSize`     | 5        | Halbe Kantenlänge der Pickbox in px, zugleich der Trefferbereich | PICKBOX   |
-| `showPickbox`     | an       | Pickbox im Fadenkreuz anzeigen                               |              |
-| `apertureSize`    | 10       | Halbe Kantenlänge des Fangbereichs in px                      | APERTURE     |
-| `showApertureBox` | aus      | Fangbereich bei Punkt-Aufforderungen als Quadrat anzeigen     | APBOX        |
-| `snapMarkerSize`  | 5        | Halbe Größe des Fangmarkers in px                             | AUTOSNAPSIZE |
-| `snapMarker`      | an       | Fangmarker anzeigen                                           | AUTOSNAP     |
-| `snapTooltip`     | an       | Tooltip mit dem Modusnamen anzeigen                           | AUTOSNAP     |
-| `snapMagnet`      | an       | Fadenkreuz springt auf den Fangpunkt (und auf die Polarspur)  | AUTOSNAP     |
-| `snapPreview`     | an       | Fangpunkt-Vorschau der Objekte unter dem Fangbereich          | (keine)      |
-| `previewColor`    | `#ea580c` / `#facc15` | Farbe von Fangpunkt-Vorschau und Gummiband, bei Hell / Dunkel |  |
-| `polarTolerance`  | 10       | Größter Abstand des Cursors von einer Polarspur in px          |              |
-| `gridMinSpacing`  | 10       | Kleinster Abstand der Rasterlinien in px; enger wird das Raster gröber |      |
-| `gridColor`       | siehe Datei | Farben der Neben- und Hauptlinien des Rasters, bei Hell / Dunkel | Optionen → Farben |
-| `ucsIcon`         | an       | BKS-Symbol anzeigen                                           | UCSICON Ein/Aus |
-| `ucsIconAtOrigin` | an       | BKS-Symbol am Nullpunkt, solange es dort passt; aus = immer unten links | UCSICON Ursprung / Kein Ursprung |
-| `ucsIconSize`     | 80       | Länge der Achsen des BKS-Symbols in px                         | UCSICON Eigenschaften |
-| `ucsIconLabelSize` | 11      | Schriftgröße der Achsenbeschriftung „X“/„Y“ in px             | UCSICON Eigenschaften |
+`DEFAULT_EDITOR_SETTINGS` – Größen, Schalter und Farben für Cursor, Objektfang, Raster
+und BKS-Symbol, gelesen beim Laden eines Plans:
 
-Die Winkel der Polarspur stehen in `DEFAULT_POLAR_SETTINGS`: `incrementAngle` (90,
-POLARANG), `additionalAngles` (zusätzliche Winkel, z. B. `[30, 60]`, POLARADDANG). Beide
-lassen sich auch im POLAR-Menü ändern.
+| Einstellung        | Bedeutung                                                     | AutoCAD      |
+|--------------------|---------------------------------------------------------------|--------------|
+| `crosshairSize`    | Länge der Fadenkreuzlinien in % der größeren Seite der Zeichenfläche; 100 = über die ganze Fläche | CURSORSIZE |
+| `pickboxSize`      | Halbe Kantenlänge der Pickbox in px, zugleich der Trefferbereich | PICKBOX   |
+| `showPickbox`      | Pickbox im Fadenkreuz anzeigen                                |              |
+| `apertureSize`     | Halbe Kantenlänge des Fangbereichs in px                       | APERTURE     |
+| `showApertureBox`  | Fangbereich bei Punkt-Aufforderungen als Quadrat anzeigen      | APBOX        |
+| `snapMarkerSize`   | Halbe Größe des Fangmarkers in px                              | AUTOSNAPSIZE |
+| `snapMarker`       | Fangmarker anzeigen                                            | AUTOSNAP     |
+| `snapTooltip`      | Tooltip mit dem Modusnamen anzeigen                            | AUTOSNAP     |
+| `snapMagnet`       | Fadenkreuz springt auf den Fangpunkt (und auf die Polarspur)   | AUTOSNAP     |
+| `snapPreview`      | Fangpunkt-Vorschau der Objekte unter dem Fangbereich           | (keine)      |
+| `previewColor`     | Farbe von Fangpunkt-Vorschau und Gummiband, bei Hell / Dunkel  |              |
+| `polarTolerance`   | Größter Abstand des Cursors von einer Polarspur in px          |              |
+| `gridMinSpacing`   | Kleinster Abstand der Rasterlinien in px; enger wird das Raster gröber |      |
+| `gridColor`        | Farben der Neben- und Hauptlinien des Rasters, bei Hell / Dunkel | Optionen → Farben |
+| `ucsIcon`          | BKS-Symbol anzeigen                                            | UCSICON Ein/Aus |
+| `ucsIconAtOrigin`  | BKS-Symbol am Nullpunkt, solange es dort passt; aus = immer unten links | UCSICON Ursprung / Kein Ursprung |
+| `ucsIconSize`      | Länge der Achsen des BKS-Symbols in px                         | UCSICON Eigenschaften |
+| `ucsIconLabelSize` | Schriftgröße der Achsenbeschriftung „X“/„Y“ in px              | UCSICON Eigenschaften |
 
-Die Rasterwerte stehen in `DEFAULT_GRID_SETTINGS`: `enabled` (an, GRIDMODE), `spacing`
-(10 mm, GRIDUNIT), `majorEvery` (10, GRIDMAJOR); `spacing` und `majorEvery` lassen sich im
-RASTER-Menü ändern.
+Die Startwerte der Schalter in der Statuszeile und ihrer Menüs (gelten nach jedem
+Neuladen):
+
+- `DEFAULT_SNAP_SETTINGS`: OFANG `enabled` und die Fangmodi `modes` (OSMODE).
+- `DEFAULT_TRACKING_MODES`: ORTHO `ortho` und die Polarspur `polar` mit `enabled`,
+  `incrementAngle` (POLARANG) und `additionalAngles` (POLARADDANG).
+- `POLAR_INCREMENTS`: die Winkelschritte im POLAR-Menü.
+- `DEFAULT_GRID_SETTINGS`: RASTER `enabled` (GRIDMODE), `spacing` (GRIDUNIT),
+  `majorEvery` (GRIDMAJOR).
 
 ## Noch nicht umgesetzt
 
@@ -417,11 +430,12 @@ RASTER-Menü ändern.
   „Vorherige“); die Verschiebung merkt sich noch nicht die letzte Eingabe als Vorgabe.
 - Beim Objektfang: weitere Modi und Objektfangspuren (F11).
 - Bei der Polarspur: Winkel relativ zum letzten Segment, Schnittpunkte der Spur mit
-  Objekten. Ortho- und Polar-Einstellungen werden noch nicht gespeichert (nach dem
-  Neuladen gilt wieder POLAR an mit 90° ohne Zusatzwinkel, Ortho aus).
+  Objekten.
 - Beim Raster: Rasterfang (F9), getrennte Abstände für X und Y, Punktraster, isometrisches
-  Raster, Limiten. Die Rasterwerte werden noch nicht gespeichert (nach dem Neuladen gilt
-  wieder 10 mm, Hauptlinie alle 10, Raster an).
+  Raster, Limiten.
+- Was in der Statuszeile und ihren Menüs geändert wird (OFANG, Fangmodi, POLAR, ORTHO,
+  RASTER), wird noch nicht gespeichert; nach dem Neuladen gelten wieder die Startwerte aus
+  den [Einstellungen](#einstellungen).
 - Beim BKS-Symbol: eigenes BKS (Befehl BKS, Ursprung verschieben, Drehen) samt Wirkung auf
   Koordinateneingabe, Ortho, Polarspur und Raster; Symbol wählen, Griffe und Kontextmenü;
   Befehl BKSYMBOL zum Umschalten; 3D-Darstellung. Die Größe ist fest in px und wächst nicht
