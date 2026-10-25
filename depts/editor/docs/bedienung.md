@@ -71,6 +71,22 @@ was ein Klick gerade tut:
 Die **Pickbox** ist genau der Trefferbereich: Ein Objekt wird hervorgehoben und per Klick
 gewählt, wenn seine Kontur durch das Quadrat läuft.
 
+## Rechte Maustaste
+
+Die rechte Maustaste wirkt wie **Enter**, so wie in AutoCAD mit der Rechtsklick-Anpassung
+„Letzten Befehl wiederholen“ (ohne Befehl) und „EINGABE“ (im Befehl). Ein Kontextmenü gibt es
+noch nicht.
+
+| Situation                                 | Rechtsklick                                         |
+|-------------------------------------------|-----------------------------------------------------|
+| Kein Befehl (mit oder ohne Auswahl)       | Wiederholt den zuletzt gestarteten Befehl; ist ein Befehlsname getippt, führt er diesen aus. Ohne bisherigen Befehl passiert nichts |
+| `Objekte wählen:`                         | Beendet die Auswahl                                 |
+| Punkt-Aufforderung                        | Wie Enter: nimmt das Getippte, sonst die Vorgabe des Befehls (z. B. bei SCHIEBEN `Basispunkt` die Option Verschiebung, bei LINIE `Ersten Punkt` das Fortsetzen, beim nächsten Punkt das Beenden) |
+| Auswahlrechteck oder Lasso offen          | Wird ignoriert, startet also keinen Befehl          |
+
+So lässt sich z. B. LINIE mit einem Rechtsklick beenden und mit einem zweiten Rechtsklick
+gleich wieder starten.
+
 ## Auswählen
 
 ### Überfahren
@@ -176,8 +192,8 @@ getippt.
    `100,50` verschiebt um 100 nach rechts und 50 nach oben).
 
 **Esc** bricht den Befehl bei jeder Aufforderung ab (`*Abbruch*`); ist schon etwas
-getippt, verwirft das erste Esc nur die Eingabe. Rechtsklick hat bei den
-Punkt-Aufforderungen noch keine Funktion. Ohne laufenden Befehl macht **Strg/⌘+Z** bzw.
+getippt, verwirft das erste Esc nur die Eingabe. Ein Rechtsklick wirkt bei den
+Punkt-Aufforderungen wie Enter (siehe [Rechte Maustaste](#rechte-maustaste)). Ohne laufenden Befehl macht **Strg/⌘+Z** bzw.
 der Button **Rückgängig** das Verschieben rückgängig, **Strg+Y** / **⌘+⇧+Z** bzw.
 **Wiederherstellen** stellt es wieder her.
 
@@ -603,8 +619,9 @@ Neuladen):
 
 ## Noch nicht umgesetzt
 
-- Rechtsklick bei den Punkt-Aufforderungen von SCHIEBEN und beim ersten Punkt von LINIE
-  (AutoCAD: Kontextmenü bzw. wie Enter).
+- Kontextmenüs mit der rechten Maustaste und eine Einstellung dafür wie AutoCADs
+  Rechtsklick-Anpassung (wie Enter, Kontextmenü, zeitabhängiger Rechtsklick: kurz = Enter,
+  lang = Menü).
 - Bei LINIE: Fortsetzen tangential an einen Bogen und an Polylinien (es gibt noch keine
   Befehle BOGEN und PLINIE), aktueller Layer und Stil für neue Objekte, gemeinsame Punkte
   (echte Verbindungen) zwischen den Segmenten, englische Optionen mit `_` im deutschen Editor.

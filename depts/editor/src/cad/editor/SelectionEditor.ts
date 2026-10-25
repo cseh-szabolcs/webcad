@@ -195,7 +195,9 @@ type State =
  * Shift+click removes it and Esc clears it. A command may take over the pickfirst selection;
  * when it selects objects, clicks add to or remove from the command's selection, and Enter or a
  * right click ends the selection (the result becomes the "previous" selection; with nothing
- * selected the command ends).
+ * selected the command ends). A right click acts like Enter everywhere: at a point prompt it
+ * ends the typed text (or takes the tool's default), at "Befehl:" it runs the typed name or
+ * repeats the last command; it is ignored while a rectangle or lasso is being spanned.
  *
  * Points snap to the drawing (see SnapEngine); a click takes the snap point, or the cursor
  * position if there is none. At a `next` prompt (see PointPromptKind) the snapshot carries the
@@ -472,17 +474,24 @@ export class SelectionEditor {
                 this.input = '';
                 this.dynamic = EMPTY_DYNAMIC_INPUT;
                 this.pointGiven(point);
-            } else if (event.button === 2 && state.kind === 'command') {
-                const step = state.tool.rightClick();
-                if (step !== null) {
-                    this.applyStep(step);
-                }
+            } else if (event.button === 2) {
+                // Like Enter, as with AutoCAD's right-click customization "ENTER"
+                this.submitInput();
             }
             return;
         }
         if (event.button === 2) {
-            if (this.area === null && this.selecting()) {
+            // Ignored while a rectangle or lasso is being spanned, so it never starts a command
+            if (this.area !== null || this.press !== null) {
+                return;
+            }
+            if (this.selecting()) {
                 this.finishSelection();
+            } else if (state.kind === 'idle' && this.input !== '') {
+                this.runTypedCommand();
+            } else if (state.kind === 'idle' && this.lastCommand !== null) {
+                // Repeats the last command, like AutoCAD's right-click customization "Repeat Last Command"
+                this.startCommand(this.lastCommand);
             }
             return;
         }

@@ -78,10 +78,6 @@ export class MoveTool implements EditorTool {
         return state.kind === 'displacement' ? moveBy(state.selection, { x: 0, y: 0 }) : null;
     }
 
-    rightClick(): ToolStep | null {
-        return null;
-    }
-
     cancel(): void {}
 
     private askBasePoint(selection: ReadonlySet<Id>): void {

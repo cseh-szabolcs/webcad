@@ -199,8 +199,7 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   selected. Vertices shared with elements that are not moved are detached: those
   neighbours get one copy of the vertex at the old position and stay unchanged, like
   AutoCAD MOVE. Undo/redo with no command running: toolbar "Rückgängig"/"Wiederherstellen",
-  Ctrl/⌘+Z, Ctrl+Y or ⌘+⇧+Z (command line "Rückgängig: SCHIEBEN"). Right click does
-  nothing at the point prompts yet. Esc cancels at every prompt. The selection stays
+  Ctrl/⌘+Z, Ctrl+Y or ⌘+⇧+Z (command line "Rückgängig: SCHIEBEN"). Esc cancels at every prompt. The selection stays
   highlighted at the point prompts, without rollover; the base point shows as a small cross.
 - Typed input at the point prompts (no focus needed; the command line shows the text and a
   caret): absolute `x,y` (also `#x,y`) and `abstand<winkel`, relative `@dx,dy`,
@@ -225,11 +224,17 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   no layer/group/style), so it is drawn and snappable; a point on the last one adds nothing.
   "Zurück"/`Undo` takes the last one back (`DocumentHistory.revertLast`, no redo; with none
   left "Alle Segmente bereits zurückgenommen."), "Schließen"/`Close` adds one to the series
-  start and ends. Enter, right click and Esc (`*Abbruch*`) end, keeping the lines; the run's
+  start and ends. Enter (or right click) and Esc (`*Abbruch*`) end, keeping the lines; the run's
   segments become one undo step (`DocumentHistory.combineLast` → `CompositeCommand`,
   "Rückgängig: LINIE"). Preview: a solid line `from` → preview point in the default style
   (`SelectionOverlay`, `OverlayHost.applyStyleById`). Not yet: tangent continue from arcs,
   polylines, current layer/style, shared vertices.
+- Right click acts like Enter (AutoCAD right-click customization "Repeat Last Command" /
+  "ENTER"; no context menus yet): at a point prompt it calls the same `submitInput` as Enter
+  (typed text, else the tool's default); at "Objekte wählen:" it ends the selection; with no
+  command it runs a typed name or repeats the last command (also with a pickfirst selection).
+  Ignored while a rectangle or lasso is open or being dragged (`area`/`press`). Tools have no
+  right-click hook of their own.
 - Cursor per prompt like AutoCAD: crosshair + pick box with no command, only the pick box
   at "Objekte wählen:", only the crosshair at point prompts (the aperture box only with
   `showApertureBox`).
@@ -362,7 +367,7 @@ Structure (all pure TS and unit-tested unless noted):
 - `cad/editor/tools/`: one state machine per command behind `EditorTool` (`EditorTool.ts`):
   the tool sets its `prompt` (`select`, or `point` with `input` `point` | `next` (measured
   from `from`: polar, Ortho, direct distance, `@`, DYN dimension) | `vector`), gets the
-  selected objects, given points, option text (`''` = Enter) and right clicks, and returns a
+  selected objects, given points and option text (`''` = Enter or right click), and returns a
   `ToolStep` (`done`, `message`, a `DocumentCommand` to run after the end). A new prompt
   object starts a new point prompt. `MoveTool` is SCHIEBEN, `LineTool` LINIE (it runs its
   segments on the history itself).

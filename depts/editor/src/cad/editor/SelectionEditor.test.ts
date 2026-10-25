@@ -265,12 +265,48 @@ describe('SelectionEditor SCHIEBEN: object selection (verb-noun)', () => {
         expect(editor.snapshot.prompt).toBe('SCHIEBEN Objekte wählen:');
     });
 
-    it('does not treat a right click without a command as anything', () => {
+    it('does not treat a right click without a last command as anything', () => {
         const editor = create();
         click(editor, WALL);
         click(editor, EMPTY, { button: 2 });
         expect(ids(editor.snapshot.highlighted)).toEqual([E['wall-outer']]);
         expect(editor.keyDown({ key: 'Enter' })).toBe(false);
+    });
+
+    it('repeats the last command on a right click with no command, taking the pickfirst selection', () => {
+        const editor = create();
+        editor.startCommand('MOVE');
+        editor.keyDown({ key: 'Escape' });
+        click(editor, TABLE);
+        click(editor, EMPTY, { button: 2 });
+        expect(editor.snapshot).toMatchObject({ command: 'MOVE', prompt: BASE_POINT_PROMPT, message: '1 gefunden' });
+    });
+
+    it('runs a typed command name on a right click', () => {
+        const editor = create();
+        for (const key of 'schieben') {
+            editor.keyDown({ key });
+        }
+        click(editor, EMPTY, { button: 2 });
+        expect(editor.snapshot).toMatchObject({ command: 'MOVE', prompt: 'SCHIEBEN Objekte wählen:', input: '' });
+    });
+
+    it('ignores a right click while a rectangle or lasso is being spanned', () => {
+        const editor = create();
+        editor.startCommand('MOVE');
+        editor.keyDown({ key: 'Escape' });
+        // Open rectangle, after the release
+        editor.pointerDown(at(EMPTY));
+        editor.pointerMove(at({ x: 3200, y: 2200 }));
+        editor.pointerUp(at({ x: 3200, y: 2200 }));
+        click(editor, EMPTY, { button: 2 });
+        expect(editor.snapshot).toMatchObject({ command: null, area: { shape: 'rect' } });
+        editor.keyDown({ key: 'Escape' });
+        // Lasso while the button is held
+        editor.pointerDown(at(EMPTY, { altKey: true }));
+        editor.pointerMove(at({ x: 3200, y: 2200 }, { altKey: true }));
+        editor.pointerDown(at({ x: 3200, y: 2200 }, { button: 2 }));
+        expect(editor.snapshot).toMatchObject({ command: null, area: { shape: 'lasso' } });
     });
 });
 
@@ -429,10 +465,15 @@ describe('SelectionEditor SCHIEBEN: base point and second point', () => {
         expect(editor.snapshot).toMatchObject({ command: null, from: null, message: '*Abbruch*' });
     });
 
-    it('ignores right clicks and drags at the point prompts', () => {
+    it('takes a right click at the point prompts as Enter', () => {
         const editor = atBasePoint();
         click(editor, EMPTY, { button: 2 });
-        expect(editor.snapshot.prompt).toBe(BASE_POINT_PROMPT);
+        expect(editor.snapshot.prompt).toBe('Verschiebung angeben <0,0>:');
+    });
+
+    it('ignores drags at the point prompts', () => {
+        const editor = atBasePoint();
+        editor.pointerDown(at(EMPTY));
         editor.pointerMove(at({ x: 3200, y: 2200 }));
         expect(editor.snapshot.area).toBeNull();
         expect(ids(editor.snapshot.highlighted)).toEqual([E.table]);

@@ -55,7 +55,8 @@ export interface ToolStep {
 /**
  * The state machine of one command (SCHIEBEN, LINIE …), driven by the editor (SelectionEditor),
  * which owns the object selection, snapping, tracking, Dynamic Input and typed input, and hands
- * the tool only what was given: the selected objects, a point, an option or Enter.
+ * the tool only what was given: the selected objects, a point, an option or Enter (a right click
+ * counts as Enter).
  */
 export interface EditorTool {
     readonly command: EditorCommand;
@@ -75,8 +76,6 @@ export interface EditorTool {
      * own. Null if the text means nothing here (the editor reports an invalid entry).
      */
     text(text: string): ToolStep | null;
-    /** Right click at a point prompt; null does nothing. */
-    rightClick(): ToolStep | null;
     /** Esc ends the command; the editor reports the cancel. */
     cancel(): void;
 }

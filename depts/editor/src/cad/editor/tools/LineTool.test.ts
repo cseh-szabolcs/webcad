@@ -226,6 +226,30 @@ describe('LineTool (LINIE)', () => {
         }
     });
 
+    it('takes a right click as Enter: continues at the first point, ends the typed text', () => {
+        const { editor, lines } = setup();
+        editor.startCommand('LINE');
+        click(editor, A);
+        click(editor, B);
+        editor.keyDown({ key: 'Enter' });
+        editor.startCommand('LINE');
+        click(editor, A, { button: 2 });
+        expect(editor.snapshot).toMatchObject({ prompt: NEXT_PROMPT, from: B });
+        click(editor, C);
+        click(editor, A);
+        for (const key of 's') {
+            editor.keyDown({ key });
+        }
+        click(editor, A, { button: 2 });
+        expect(lines()).toEqual([
+            [A, B],
+            [B, C],
+            [C, A],
+            [A, B],
+        ]);
+        expect(editor.snapshot.command).toBeNull();
+    });
+
     it('ends at the first point with Esc, without a line', () => {
         const { editor, lines } = setup();
         editor.startCommand('LINE');

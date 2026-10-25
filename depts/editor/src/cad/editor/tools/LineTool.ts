@@ -21,7 +21,7 @@ type State =
  * LINIE (AutoCAD LINE): a series of connected but separate lines. After the first point every
  * point adds a line from the last one at once (see AddLineCommand), so it shows and snaps right
  * away; the option "Zurück" takes the last one back, "Schließen" (from two segments on) adds
- * one back to the first point and ends. Enter or a right click ends, Esc too; the lines drawn
+ * one back to the first point and ends. Enter ends, Esc too; the lines drawn
  * stay and are one undo step together. Enter on its own at the first point continues from the
  * end of the line drawn last.
  */
@@ -82,10 +82,6 @@ export class LineTool implements EditorTool {
             return this.finish(state);
         }
         return null;
-    }
-
-    rightClick(): ToolStep | null {
-        return this.state.kind === 'next' ? this.finish(this.state) : null;
     }
 
     cancel(): void {

@@ -1,0 +1,3 @@
+- Griffe ziehen: Die Griffe haben noch keine Funktion. Erst dort würde ein geteilter Punkt beide Linien mitziehen.
+- SCHIEBEN löst geteilte Punkte bewusst auf, wie in AutoCAD. Eine verschobene Linie reißt sich also ohnehin von ihren Nachbarn los.
+- Löschen, Stutzen, Dehnen und Ähnliches gibt es noch nicht. Dafür bräuchte es Regeln, was mit einem Punkt passiert, den noch ein anderes Objekt nutzt.
