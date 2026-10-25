@@ -65,6 +65,21 @@ describe('buildPathSpec', () => {
         expect(spec.segments[1].handleOut!.x).toBeCloseTo(-552.285, 3);
     });
 
+    it('turns an ellipse with its rotation, the path starting at the end of the first axis', () => {
+        const rug = element(E.rug) as EllipseElement;
+        const spec = buildPathSpec({ ...rug, rotation: Math.PI / 2 }, index);
+        const round = (p: { x: number; y: number }) => ({ x: Math.round(p.x * 1000) / 1000, y: Math.round(p.y * 1000) / 1000 });
+        expect(spec.segments.map((s) => round(s.point))).toEqual([
+            { x: 4000, y: 2800 },
+            { x: 3300, y: 1800 },
+            { x: 4000, y: 800 },
+            { x: 4700, y: 1800 },
+        ]);
+        // The handle at the first axis end runs across the axis, turned with it
+        expect(spec.segments[0].handleOut!.x).toBeCloseTo(-386.599, 3);
+        expect(spec.segments[0].handleOut!.y).toBeCloseTo(0, 9);
+    });
+
     it('builds a polyline in vertex order', () => {
         const spec = buildPathSpec(element(E['wall-outer']), index);
         expect(spec.closed).toBe(true);

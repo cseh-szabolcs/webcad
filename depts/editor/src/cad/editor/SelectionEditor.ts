@@ -28,6 +28,8 @@ import { orthoPoint } from './tracking/ortho';
 import { t } from '../../i18n/i18n';
 import { commandName, findCommand, type EditorCommand } from './commandNames';
 import type { DrawingMemory } from './tools/DrawingMemory';
+import { CircleTool } from './tools/CircleTool';
+import { EllipseTool } from './tools/EllipseTool';
 import { LineTool } from './tools/LineTool';
 import { MoveTool } from './tools/MoveTool';
 import { PolylineTool } from './tools/PolylineTool';
@@ -403,7 +405,7 @@ export class SelectionEditor {
 
     /**
      * Starts a command, e.g. SCHIEBEN (with a pickfirst selection straight at the base point,
-     * otherwise by selecting objects), LINIE or PLINIE. Another running command is cancelled
+     * otherwise by selecting objects), LINIE, PLINIE, KREIS or ELLIPSE. Another running command is cancelled
      * first, like a toolbar click in AutoCAD; the same command keeps running.
      */
     startCommand(command: EditorCommand): void {
@@ -425,6 +427,10 @@ export class SelectionEditor {
                 return new LineTool(this.history, this.drawingMemory);
             case 'PLINE':
                 return new PolylineTool(this.history, this.drawingMemory);
+            case 'CIRCLE':
+                return new CircleTool();
+            case 'ELLIPSE':
+                return new EllipseTool();
         }
     }
 

@@ -5,8 +5,8 @@ Auf dem Mac entspricht **Option (⌥)** der Taste Alt.
 
 Tastenkürzel wirken, solange der Fokus nicht in einem Textfeld liegt.
 
-Der Editor zeigt Pläne an, wählt Objekte aus, zeichnet Linien mit dem Befehl LINIE und
-Polylinien mit PLINIE und verschiebt Objekte mit dem Befehl SCHIEBEN (mit Raster, Objektfang, Polarspur, Ortho, Objektfangspuren, Koordinateneingabe, dynamischer Eingabe und Rückgängig). Gespeichert wird noch nichts; was
+Der Editor zeigt Pläne an, wählt Objekte aus, zeichnet Linien mit dem Befehl LINIE,
+Polylinien mit PLINIE, Kreise mit KREIS und Ellipsen mit ELLIPSE und verschiebt Objekte mit dem Befehl SCHIEBEN (mit Raster, Objektfang, Polarspur, Ortho, Objektfangspuren, Koordinateneingabe, dynamischer Eingabe und Rückgängig). Gespeichert wird noch nichts; was
 sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgesetzt).
 
 ## Oberfläche
@@ -25,8 +25,9 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   Firefox), ist der Button ausgegraut und ohne Funktion; sein Tooltip nennt den Grund. Kann
   die Seite gar nicht ins Vollbild (z. B. in einem iframe ohne Erlaubnis), fehlt der Button.
 - **Werkzeugleiste** (links, senkrecht): ein Symbol-Button je Befehl, gruppiert wie in
-  AutoCAD: **Zeichnen** mit **Linie** (Befehl [LINIE](#befehl-linie)) und **Polylinie**
-  (Befehl [PLINIE](#befehl-plinie)), darunter nach einer
+  AutoCAD: **Zeichnen** mit **Linie** (Befehl [LINIE](#befehl-linie)), **Polylinie**
+  (Befehl [PLINIE](#befehl-plinie)), **Kreis** (Befehl [KREIS](#befehl-kreis)) und **Ellipse**
+  (Befehl [ELLIPSE](#befehl-ellipse)), darunter nach einer
   Trennlinie **Ändern** mit **Verschieben** (Befehl [SCHIEBEN](#befehl-schieben)). Der Name
   steht im Tooltip, z. B. `Linie (LINIE)`. Der Button des laufenden Befehls bleibt gedrückt; ein
   weiterer Klick darauf bewirkt nichts. Ein Klick auf einen anderen bricht den laufenden Befehl
@@ -336,6 +337,76 @@ vorigen Segments** an (wie AutoCAD: die Abfrage eines Abstands ab dem letzten Pu
   des laufenden Befehls.
 - Die **Leertaste** ohne getippten Text verschiebt weiter die Ansicht, wie bei LINIE.
 
+## Befehl KREIS
+
+Zeichnet einen **Kreis**, wie AutoCAD KREIS; danach endet der Befehl. Start mit dem Button
+**Kreis** in der Werkzeugleiste links oder durch Tippen von `KREIS`, `K`, `CIRCLE` oder `C` bei
+`Befehl:`. Eine bestehende Auswahl wird dabei aufgehoben.
+
+1. **`Zentrum für Kreis angeben oder [3P/2P]:`** – der Mittelpunkt, mit Objektfang,
+   Objektfangspuren und Koordinateneingabe wie der erste Punkt von [LINIE](#befehl-linie).
+2. **`Radius für Kreis angeben oder [Durchmesser]:`** – eine Abfrage eines Abstands ab dem
+   Mittelpunkt, wie `Länge der Linie angeben:` bei [PLINIE](#befehl-plinie): eine getippte
+   **Zahl** ist der Radius, ein **Klick** oder getippter **Punkt** gibt ihn als Abstand vom
+   Mittelpunkt (Objektfang, Polarspur, Ortho und Objektfangspuren wirken, auch die Direkte
+   Distanzeingabe). Die dynamische Eingabe zeigt nur das Abstandsfeld.
+   `D` (Durchmesser) + Enter fragt stattdessen **`Durchmesser für Kreis angeben:`**, gemessen
+   genauso; der Radius ist dann die Hälfte.
+
+Während des Radius oder Durchmessers zeigt eine **Vorschau** den Kreis, den ein Klick ergäbe,
+dazu ein gestricheltes **Gummiband** vom Mittelpunkt zum Cursor.
+
+| Eingabe beim Mittelpunkt | Wirkung                                                         |
+|--------------------------|-----------------------------------------------------------------|
+| `2P` + Enter             | Kreis über zwei Endpunkte eines Durchmessers: `Ersten Endpunkt für Kreisdurchmesser angeben:`, `Zweiten Endpunkt für Kreisdurchmesser angeben:` (ab dem ersten Punkt, mit Vorschau) |
+| `3P` + Enter             | Kreis durch drei Punkte: `Ersten Punkt auf Kreis angeben:`, `Zweiten …`, `Dritten …` (jeweils ab dem vorigen Punkt; beim dritten mit Vorschau) |
+
+- `3P` und `2P` müssen ganz getippt werden (Groß-/Kleinschreibung egal); sie heißen in beiden
+  Sprachen so.
+- Nur ein **positiver** Radius oder Durchmesser wird genommen (sonst `Wert muss positiv und
+  ungleich Null sein.`); Enter ohne Eingabe meldet `Erfordert numerischen Abstand oder zweiten
+  Punkt.` (es gibt noch keinen vorgegebenen Radius). Die Abfrage bleibt jeweils stehen.
+- Punkte, die keinen Kreis ergeben (bei 2P auf dem ersten Punkt, bei 3P auf dem vorigen oder
+  alle drei auf einer Geraden), werden ignoriert; die Abfrage bleibt.
+- **Esc** bricht bei jeder Abfrage ab (`*Abbruch*`), ohne Kreis.
+- Der Kreis hat einen eigenen Mittelpunkt, noch keinen Layer und den Standardstil, und ist
+  **ein** Schritt für Rückgängig (`Rückgängig: KREIS`).
+
+Im Englischen heißen die Aufforderungen `Specify center point for circle or [3P/2P]:`,
+`Specify radius of circle or [Diameter]:` und `Specify diameter of circle:`, die Option
+`Diameter` (`D`).
+
+## Befehl ELLIPSE
+
+Zeichnet eine **Ellipse**, wie AutoCAD ELLIPSE; danach endet der Befehl. Start mit dem Button
+**Ellipse** in der Werkzeugleiste links oder durch Tippen von `ELLIPSE` oder `EL` bei `Befehl:`.
+Eine bestehende Auswahl wird dabei aufgehoben.
+
+1. **`Achsenendpunkt der Ellipse angeben oder [Mittelpunkt]:`** – ein Ende der ersten Achse.
+2. **`Anderen Endpunkt der Achse angeben:`** – ab dem ersten Ende, also mit Polarspur, Ortho,
+   `@`, Direkter Distanzeingabe und der Bemaßung der dynamischen Eingabe, dazu ein
+   gestricheltes Gummiband. Die erste Achse legt Mittelpunkt, Länge und Winkel fest; sie darf
+   die längere oder die kürzere Achse sein.
+3. **`Abstand zur anderen Achse angeben:`** – die halbe Länge der anderen Achse, eine Abfrage
+   eines Abstands ab dem **Mittelpunkt** wie der Radius bei [KREIS](#befehl-kreis): eine Zahl,
+   oder der Abstand eines geklickten oder getippten Punkts vom Mittelpunkt. Eine Vorschau zeigt
+   die Ellipse, dazu das Gummiband vom Mittelpunkt zum Cursor.
+
+`M` (Mittelpunkt) + Enter beim ersten Punkt fragt stattdessen **`Mittelpunkt der Ellipse
+angeben:`** und dann **`Endpunkt der Achse angeben:`** (ab dem Mittelpunkt; der Abstand ist die
+halbe erste Achse), danach weiter mit Schritt 3.
+
+- Ein zweites Achsenende auf dem ersten (bzw. ein Achsenende auf dem Mittelpunkt) wird
+  ignoriert; nur ein **positiver** Abstand zur anderen Achse wird genommen, wie bei KREIS.
+- **Esc** bricht bei jeder Abfrage ab, ohne Ellipse.
+- Die Ellipse hat einen eigenen Mittelpunkt, noch keinen Layer und den Standardstil, und ist
+  **ein** Schritt für Rückgängig (`Rückgängig: ELLIPSE`). Gedrehte Ellipsen fangen (Zentrum,
+  Quadranten, Schnittpunkte) und zeigen Griffe an ihren gedrehten Achsenenden.
+
+Im Englischen: `Specify axis endpoint of ellipse or [Center]:` (Option `Center`, `C`),
+`Specify other endpoint of axis:`, `Specify center of ellipse:`, `Specify endpoint of axis:`
+und `Specify distance to other axis:`.
+
 ## Objektfang (OFANG)
 
 Bei den Punkt-Aufforderungen rastet der Cursor auf markante Punkte der Geometrie ein.
@@ -404,9 +475,10 @@ Die gewählten Modi bleiben erhalten, wenn der Objektfang ausgeschaltet wird.
 
 ## Polarspur (POLAR)
 
-Beim zweiten Punkt von SCHIEBEN und beim nächsten Punkt von LINIE und PLINIE zeigt die
+Beim zweiten Punkt von SCHIEBEN, beim nächsten Punkt von LINIE und PLINIE und bei den Punkten
+und Abständen von KREIS und ELLIPSE, die ab einem Punkt gemessen werden, zeigt die
 Polarspur, wenn der Cursor nahe an einer Richtung unter einem Polarwinkel ab dem Basispunkt (bei
-LINIE und PLINIE: ab dem letzten Punkt) liegt (bei einem Winkelschritt von 90°
+LINIE und PLINIE: ab dem letzten Punkt, bei KREIS und ELLIPSE: ab dem Bezugspunkt) liegt (bei einem Winkelschritt von 90°
 also waagrecht und senkrecht). Der Punkt liegt dann exakt auf dieser Geraden.
 
 | Eingabe                       | Wirkung                                                  |
@@ -440,9 +512,10 @@ also waagrecht und senkrecht). Der Punkt liegt dann exakt auf dieser Geraden.
 
 ## Ortho (ORTHO)
 
-Beim zweiten Punkt von SCHIEBEN und beim nächsten Punkt von LINIE und PLINIE liegt der Punkt
+Beim zweiten Punkt von SCHIEBEN und beim nächsten Punkt von LINIE und PLINIE (ebenso bei den ab
+einem Punkt gemessenen Abfragen von KREIS und ELLIPSE) liegt der Punkt
 mit Ortho immer auf der Waagrechten oder der Senkrechten durch den Basispunkt (bei LINIE und
-PLINIE: den letzten Punkt), je nachdem, welche dem Cursor näher liegt. Anders
+PLINIE: den letzten Punkt, bei KREIS und ELLIPSE: den Bezugspunkt), je nachdem, welche dem Cursor näher liegt. Anders
 als bei der Polarspur gilt das ohne Toleranz, egal wie weit der Cursor daneben liegt.
 
 | Eingabe                       | Wirkung                                                  |
@@ -476,7 +549,7 @@ durch die eine und die Waagrechte durch eine andere Ecke sich kreuzen.
 | Cursor auf einem Fangpunkt ruhen lassen | Erfasst den Punkt (kleines **+**); auf einem erfassten Punkt entfernt es ihn wieder |
 
 - Sie wirken bei **allen Punkt-Aufforderungen** von SCHIEBEN (Basispunkt, zweiter Punkt,
-  Verschiebung), LINIE und PLINIE, auch ohne Basispunkt.
+  Verschiebung), LINIE, PLINIE, KREIS und ELLIPSE, auch ohne Basispunkt.
 - **Erfassen:** Bleibt derselbe Fangpunkt eine kurze Zeit lang der Fangpunkt unter dem
   Cursor (Einstellung `trackingAcquireDelay`), wird er erfasst und mit einem kleinen grünen
   **+** markiert. Kurzes Überfahren erfasst nichts. Erneutes Verweilen auf einem erfassten
@@ -704,7 +777,13 @@ Neuladen):
   tangential zum Bogen), Breite und Halbbreite, die Meldung zur aktuellen Linienbreite, Fangen an den
   eigenen Segmenten während des Befehls, aktueller Layer und Stil; Details in
   `docs/todo/Polyline_Draw_NotImplemented.md`.
-- Weitere Zeichenbefehle (KREIS, BOGEN …).
+- Bei KREIS: die Optionen `Ttr` (Tangente, Tangente, Radius) und „Tan, Tan, Tan“ (brauchen den
+  Tangenten-Fang), ein vorgegebener Radius (`<25.0000>`, Enter übernimmt den letzten), ein
+  Dropdown der Methoden am Button, aktueller Layer und Stil.
+- Bei ELLIPSE: die Optionen `Drehung` (Rotation um die erste Achse) und `Bogen` (elliptischer
+  Bogen mit Start- und Endwinkel), aktueller Layer und Stil; Details in
+  `docs/todo/Circle_Ellipse_Draw_NotImplemented.md`.
+- Weitere Zeichenbefehle (BOGEN …).
 - **Grip-Funktionen** (Ziehen an Grips) und alle anderen Bearbeitungsbefehle wie Löschen,
   Gruppieren oder Kopieren.
 - Gruppenauswahl ausschalten (AutoCAD Ctrl+Shift+A), um einzelne Gruppenmitglieder zu

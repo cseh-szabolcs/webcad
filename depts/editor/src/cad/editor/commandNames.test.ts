@@ -13,6 +13,9 @@ describe('commandNames', () => {
         expect(findCommand('Linie')).toBe('LINE');
         expect(findCommand('pl')).toBe('PLINE');
         expect(findCommand('PLinie')).toBe('PLINE');
+        expect(findCommand('k')).toBe('CIRCLE');
+        expect(findCommand('c')).toBe('CIRCLE');
+        expect(findCommand('el')).toBe('ELLIPSE');
     });
 
     it('shows the English name, in German the first alias', () => {
@@ -21,10 +24,15 @@ describe('commandNames', () => {
         expect(commandName('LINE', 'de')).toBe('LINIE');
         expect(commandName('PLINE', 'de')).toBe('PLINIE');
         expect(commandName('PLINE', 'en')).toBe('PLINE');
+        expect(commandName('CIRCLE', 'de')).toBe('KREIS');
+        expect(commandName('ELLIPSE', 'de')).toBe('ELLIPSE');
     });
 
     it('has upper case English names and aliases, none of them twice', () => {
-        const names = [...EDITOR_COMMANDS, ...Object.values(aliases).flat()];
+        // A German name may be the English one (ELLIPSE), so a command's own name counts once
+        const names = EDITOR_COMMANDS.flatMap((command) => [
+            ...new Set([command, ...(aliases as Record<string, string[]>)[command]]),
+        ]);
         expect(names.every((name) => /^[A-Z][A-Z0-9_]*$/.test(name)), names.join()).toBe(true);
         expect(new Set(names).size).toBe(names.length);
     });

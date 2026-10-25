@@ -1,5 +1,7 @@
 {
     "MOVE": ["SCHIEBEN"],
     "LINE": ["LINIE", "L"],
-    "PLINE": ["PLINIE", "PL"]
+    "PLINE": ["PLINIE", "PL"],
+    "CIRCLE": ["KREIS", "K", "C"],
+    "ELLIPSE": ["ELLIPSE", "EL"]
 }

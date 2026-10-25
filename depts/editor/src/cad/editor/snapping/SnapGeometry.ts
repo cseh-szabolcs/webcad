@@ -1,5 +1,6 @@
 import { angleOnArc, arcSweep } from '../../geometry/arc';
 import { bezierDerivative, bezierMidpoint, bezierPoint, type CubicBezier } from '../../geometry/bezier';
+import { ellipsePoint, ellipseQuadrants, ellipseTangent, type EllipseShape } from '../../geometry/ellipse';
 import type { ParametricCurve } from '../../geometry/intersect';
 import { polygonCentroid } from '../../geometry/polygon';
 import { boundsOf } from '../../geometry/selectionGeometry';
@@ -22,8 +23,8 @@ export type SnapPrimitive =
     | { kind: 'segment'; a: Point; b: Point }
     /** Circle (sweep 2π) or circular arc; the sweep is signed, negative for clockwise. */
     | { kind: 'arc'; center: Point; radius: number; startAngle: number; sweep: number }
-    /** Axis-aligned ellipse. */
-    | { kind: 'ellipse'; center: Point; radiusX: number; radiusY: number }
+    /** Ellipse, its `radiusX` axis at `rotation`. */
+    | ({ kind: 'ellipse' } & EllipseShape)
     | { kind: 'bezier'; curve: CubicBezier };
 
 /** Snap point that does not depend on other elements. */
@@ -128,6 +129,7 @@ export function elementPrimitives(element: CadElement, index: DocumentIndex): Sn
                     center: vertex(element.centerVertexId),
                     radiusX: element.radiusX,
                     radiusY: element.radiusY,
+                    rotation: element.rotation ?? 0,
                 },
             ];
         case 'arc': {
@@ -187,16 +189,11 @@ function snapPoints(primitive: SnapPrimitive): SnapPoint[] {
             }
             return points;
         }
-        case 'ellipse': {
-            const { center: c, radiusX: rx, radiusY: ry } = primitive;
+        case 'ellipse':
             return [
-                { point: c, mode: 'CEN' },
-                { point: { x: c.x + rx, y: c.y }, mode: 'QUA' },
-                { point: { x: c.x, y: c.y + ry }, mode: 'QUA' },
-                { point: { x: c.x - rx, y: c.y }, mode: 'QUA' },
-                { point: { x: c.x, y: c.y - ry }, mode: 'QUA' },
+                { point: primitive.center, mode: 'CEN' },
+                ...ellipseQuadrants(primitive).map((point): SnapPoint => ({ point, mode: 'QUA' })),
             ];
-        }
         case 'bezier':
             return [
                 { point: primitive.curve.p0, mode: 'END' },
@@ -226,13 +223,14 @@ function parametricCurve(primitive: SnapPrimitive): ParametricCurve {
                 },
             };
         }
-        case 'ellipse': {
-            const { center, radiusX, radiusY } = primitive;
+        case 'ellipse':
             return {
-                point: (t) => ({ x: center.x + radiusX * Math.cos(TAU * t), y: center.y + radiusY * Math.sin(TAU * t) }),
-                derivative: (t) => ({ x: -TAU * radiusX * Math.sin(TAU * t), y: TAU * radiusY * Math.cos(TAU * t) }),
+                point: (t) => ellipsePoint(primitive, TAU * t),
+                derivative: (t) => {
+                    const { x, y } = ellipseTangent(primitive, TAU * t);
+                    return { x: TAU * x, y: TAU * y };
+                },
             };
-        }
         case 'bezier': {
             const { curve } = primitive;
             return { point: (t) => bezierPoint(curve, t), derivative: (t) => bezierDerivative(curve, t) };

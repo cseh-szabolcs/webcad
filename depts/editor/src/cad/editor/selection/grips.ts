@@ -1,4 +1,5 @@
 import { arcSweep } from '../../geometry/arc';
+import { ellipseQuadrants } from '../../geometry/ellipse';
 import type { CadElement } from '../../model/CadElement';
 import { requireVertex, type DocumentIndex } from '../../model/DocumentIndex';
 import type { Point } from '../../model/Point';
@@ -31,7 +32,7 @@ export function elementGrips(element: CadElement, index: DocumentIndex): Point[]
         case 'circle':
             return centreAndQuadrants(vertex(element.centerVertexId), element.radius, element.radius);
         case 'ellipse':
-            return centreAndQuadrants(vertex(element.centerVertexId), element.radiusX, element.radiusY);
+            return centreAndQuadrants(vertex(element.centerVertexId), element.radiusX, element.radiusY, element.rotation);
         case 'arc': {
             const center = vertex(element.centerVertexId);
             const { radius, startAngle, sweep } = arcSweep(
@@ -92,12 +93,6 @@ function midpoint(a: Point, b: Point): Point {
     return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
 }
 
-function centreAndQuadrants(c: Point, rx: number, ry: number): Point[] {
-    return [
-        c,
-        { x: c.x + rx, y: c.y },
-        { x: c.x, y: c.y + ry },
-        { x: c.x - rx, y: c.y },
-        { x: c.x, y: c.y - ry },
-    ];
+function centreAndQuadrants(center: Point, radiusX: number, radiusY: number, rotation = 0): Point[] {
+    return [center, ...ellipseQuadrants({ center, radiusX, radiusY, rotation })];
 }

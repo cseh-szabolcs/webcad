@@ -222,8 +222,11 @@ export function CadCanvas({
             const viewport = viewportRef.current;
             // While moving, the originals show dimmed under the preview, like AutoCAD
             const basePoint = preview === 'move' ? from : null;
-            // Also from the last point while PLINIE measures a length
-            const rubberBandFrom = basePoint ?? (typeof preview === 'object' && preview?.direction ? from : null);
+            // Also from the last point while PLINIE measures a length, and where KREIS or ELLIPSE ask for one
+            const rubberBand =
+                typeof preview === 'object' &&
+                (preview?.kind === 'polyline' ? preview.direction !== undefined : preview?.rubberBand === true);
+            const rubberBandFrom = basePoint ?? (rubberBand ? from : null);
             renderer.setDimmed(basePoint ? editor.snapshot.highlighted : NOTHING);
             overlay.render(editor.snapshot);
             snapMarker.showPreview(

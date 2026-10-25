@@ -38,6 +38,15 @@ describe('CadSerializer', () => {
         expect(doc.elements[5]).toMatchObject({ type: 'circle', radius: 600 });
         expect(doc.elements[8]).toMatchObject({ type: 'ellipse', radiusX: 1000, radiusY: 700 });
         expect(doc.elements[9]).toMatchObject({ type: 'bezier', startControl: { x: 500, y: -200 } });
+        expect(doc.elements[8]).not.toHaveProperty('rotation');
+    });
+
+    it('reads the optional rotation of an ellipse', () => {
+        const data = structuredClone(samplePlan) as any;
+        data.elements[8].rotation = 0.5;
+        expect(parseDocument(data).elements[8]).toMatchObject({ type: 'ellipse', rotation: 0.5 });
+        data.elements[8].rotation = 'x';
+        expect(() => parseDocument(data)).toThrow('$.elements[8].rotation: expected a finite number');
     });
 
     it.each([

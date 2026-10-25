@@ -20,7 +20,7 @@ apps in one repo:
   rebuilt from scratch, closer to AutoCAD behaviour.** Everything is rebuilt in small
   steps. So far it loads a plan through the API and displays it (wheel zoom,
   middle/Space+drag pan, status line, light/dark mode), has AutoCAD-like object
-  selection, a grid, a UCS icon, object snap, polar tracking, object snap tracking, Dynamic Input, the LINE command (`LINIE`), the PLINE command (`PLINIE`, straight segments only) and the MOVE command (`SCHIEBEN`) with preview,
+  selection, a grid, a UCS icon, object snap, polar tracking, object snap tracking, Dynamic Input, the LINE command (`LINIE`), the PLINE command (`PLINIE`, straight segments only), the CIRCLE command (`KREIS`), the ELLIPSE command and the MOVE command (`SCHIEBEN`) with preview,
   typed coordinates and undo/redo (see "Editor: current state" below). Changes are not saved to the backend yet; grips
   are drawn but have no function.
 
@@ -176,7 +176,7 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   grips), Shift removes, Esc clears. Rectangle to the right = window (completely inside),
   to the left = crossing (touches); lasso direction picks the mode, Space toggles.
 - Commands start from the vertical tool panel on the left (`ui/ToolPanel.tsx`, icon buttons
-  from `ui/ToolIcon.tsx` with the name in the tooltip, groups "Zeichnen": Linie, Polylinie and
+  from `ui/ToolIcon.tsx` with the name in the tooltip, groups "Zeichnen": Linie, Polylinie, Kreis, Ellipse and
   "Ändern": Verschieben; a click on another tool cancels the running command, on the same one does
   nothing) or by typing a name or alias at "Befehl:" (`SelectionEditor.startCommand`). Enter
   with nothing typed at "Befehl:" repeats the last command started (Space keeps panning).
@@ -254,6 +254,30 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   Its preview carries `direction`: the segment along it as long as the preview point is from
   the last point, plus the dashed rubber band to the preview point (`CadCanvas`, SnapMarker).
   Not yet: arcs, width, snapping to its own segments.
+- Tool "Kreis" starts `KREIS` (AutoCAD CIRCLE, id `CIRCLE`, aliases `KREIS`, `K`, `C`;
+  `cad/editor/tools/CircleTool.ts`, spec `depts/editor/docs/specs/CIRCLE_ELLIPSE_Werkzeug_Spezifikation.md`,
+  what is left in `depts/editor/docs/todo/Circle_Ellipse_Draw_NotImplemented.md`). "Zentrum für
+  Kreis angeben oder [3P/2P]:" (`point`), then "Radius für Kreis angeben oder [Durchmesser]:", a
+  `distance` prompt from the centre (typed number, or distance to a point given); "Durchmesser"
+  (`D`) asks "Durchmesser für Kreis angeben:" the same way. `3P`/`2P` are compared whole (not via
+  `matchesKeyword`, where "P" would match both): 2P asks two diameter ends (`point`, then `next`
+  from the first), 3P three points (`next` from the previous one; `geometry/circle.ts`
+  `circleThrough`, `circleOnDiameter`). Points that give no circle are ignored; radius ≤ 0 →
+  "Wert muss positiv und ungleich Null sein."; no default radius yet. The circle ends the command as
+  the step's `AddCircleCommand` (own centre vertex, no layer/group/style; "Rückgängig: KREIS");
+  Esc ends without one. Preview `{ kind: 'curve', curveAt, rubberBand }` (`ToolPreview`): the tool
+  computes the `PreviewCurve` for the preview point, `SelectionOverlay` draws it, `CadCanvas` the
+  dashed rubber band from `from` with `rubberBand`. Not yet: Ttr, TTT, CIRCLERAD default, dropdown.
+- Tool "Ellipse" starts `ELLIPSE` (AutoCAD ELLIPSE, id `ELLIPSE`, aliases `ELLIPSE`, `EL`, the
+  German name being the English one; `cad/editor/tools/EllipseTool.ts`). "Achsenendpunkt der
+  Ellipse angeben oder [Mittelpunkt]:", "Anderen Endpunkt der Achse angeben:" (`next` from the first
+  end, rubber band only), or with "Mittelpunkt" (`M`) "Mittelpunkt der Ellipse angeben:" and
+  "Endpunkt der Achse angeben:"; then "Abstand zur anderen Achse angeben:", a `distance` prompt
+  from the centre (half the other axis, like AutoCAD getdist). The first axis stays `radiusX` at its
+  angle, even when it is the minor one. `EllipseElement.rotation` (optional, radians,
+  counter-clockwise from +X, missing = 0, so older documents stay valid) is drawn, picked, snapped
+  and gripped (`geometry/ellipse.ts`). `AddEllipseCommand` ("Rückgängig: ELLIPSE").
+  Not yet: Drehung (needs an angle prompt), Bogen (needs an elliptical arc model).
 - Right click acts like Enter (AutoCAD right-click customization "Repeat Last Command" /
   "ENTER"; no context menus yet): at a point prompt it calls the same `submitInput` as Enter
   (typed text, else the tool's default); at "Objekte wählen:" it ends the selection; with no
@@ -407,11 +431,12 @@ Structure (all pure TS and unit-tested unless noted):
   `ToolStep` (`done`, `message`, a `DocumentCommand` to run after the end). A new prompt
   object starts a new point prompt. `MoveTool` is SCHIEBEN, `LineTool` LINIE (it runs its
   segments on the history itself), `PolylineTool` PLINIE (it runs its polyline on the history
-  when it ends); `SelectionEditor.newTool` creates them.
+  when it ends), `CircleTool` KREIS and `EllipseTool` ELLIPSE (their element is the step's
+  command); `SelectionEditor.newTool` creates them.
 - `cad/editor/commands/`: `DocumentCommand` (`execute`/`undo` on immutable documents,
   returning the new document and the changed element ids), `DocumentHistory` (current
   document, undo/redo stacks, listeners, `revertLast`, `combineLast`), `MoveCommand`,
-  `AddLineCommand`, `AddPolylineCommand`, `CompositeCommand`. `CadCanvas` keeps the history of
+  `AddLineCommand`, `AddPolylineCommand`, `AddCircleCommand`, `AddEllipseCommand`, `CompositeCommand`. `CadCanvas` keeps the history of
   the loaded document; the editor and the renderer follow it (`PaperRenderer.updateElements`
   replaces only the changed items, subscribed before the editor so its overlay sees the new
   paths). The editor's derived structures are rebuilt as a whole on every change for now.
@@ -425,7 +450,8 @@ Structure (all pure TS and unit-tested unless noted):
   the aperture best first, `previous` for the hysteresis; `find` takes the first). Uses the
   generic `ShapeIndex`.
   Built on load like the selection structures. Geometry helpers in `cad/geometry/`
-  (`bezier`, `intersect`, `arc.angleOnArc`, `polygon.polygonCentroid`); `cad/model/drawOrder.ts` gives the renderer's
+  (`bezier`, `intersect`, `arc.angleOnArc`, `polygon.polygonCentroid`, `ellipse` for rotated
+  ellipses, `circle`); `cad/model/drawOrder.ts` gives the renderer's
   element order for selection and snapping.
 - `cad/editor/selection/`: `ElementShapes` (flattened outlines), `ShapeIndex` (`rbush`
   R-tree over their bounds), `picking` (point/window/crossing/lasso), `grips`, `grouping`.
@@ -433,8 +459,8 @@ Structure (all pure TS and unit-tested unless noted):
 - `cad/editor/overlays/SelectionOverlay.ts` (Paper.js): hover/selection highlights as
   restyled copies of the rendered paths, grips (beziers also get a dashed control frame
   from each end to its control point, as their control grips lie off the curve),
-  rectangle/lasso, the move preview (offset copies), the LINIE/PLINIE previews, one palette per
-  theme.
+  rectangle/lasso, the move preview (offset copies), the LINIE/PLINIE previews, the KREIS/ELLIPSE
+  curve preview (`PathSpec.ellipsePathSpec`), one palette per theme.
 - `ui/canvasInput.ts`: the single owner of canvas input (zoom, pan, forwarding to the
   editor, pointer capture, lost-release and `pointercancel` handling) and of the cursor.
   `ui/CommandLine.tsx` is display only (prompt, typed input, caret); the editor gets the keys.

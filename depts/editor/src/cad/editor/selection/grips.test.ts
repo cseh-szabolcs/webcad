@@ -60,6 +60,21 @@ describe('elementGrips', () => {
         ]);
     });
 
+    it('turns the axis ends of a rotated ellipse', () => {
+        const rug = element(E.rug);
+        const c = Math.cos(Math.PI / 6);
+        const s = Math.sin(Math.PI / 6);
+        expect(round(elementGrips({ ...rug, rotation: Math.PI / 6 } as typeof rug, index))).toEqual(
+            round([
+                { x: 4000, y: 1800 },
+                { x: 4000 + 1000 * c, y: 1800 + 1000 * s },
+                { x: 4000 - 700 * s, y: 1800 + 700 * c },
+                { x: 4000 - 1000 * c, y: 1800 - 1000 * s },
+                { x: 4000 + 700 * s, y: 1800 - 700 * c },
+            ]),
+        );
+    });
+
     it('puts the arc grips on the arc: centre, start, end and middle', () => {
         const r = 900 / Math.SQRT2;
         expect(round(elementGrips(element(E['door-swing']), index))).toEqual(

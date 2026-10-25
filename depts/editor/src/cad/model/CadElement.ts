@@ -15,12 +15,17 @@ export interface LineElement extends BaseElement {
     endVertexId: Id;
 }
 
-/** Axis-aligned ellipse. */
+/**
+ * Ellipse around a centre: `radiusX` along its first axis, `radiusY` across it (either may be the
+ * longer one). `rotation` is the angle of the first axis in radians, counter-clockwise from +X
+ * (Y up); missing means 0, an axis-aligned ellipse.
+ */
 export interface EllipseElement extends BaseElement {
     type: 'ellipse';
     centerVertexId: Id;
     radiusX: number;
     radiusY: number;
+    rotation?: number;
 }
 
 export interface CircleElement extends BaseElement {

@@ -125,6 +125,7 @@ function parseElement(value: unknown, path: string): CadElement {
                 centerVertexId: string(r.centerVertexId, `${path}.centerVertexId`),
                 radiusX: positive(r.radiusX, `${path}.radiusX`),
                 radiusY: positive(r.radiusY, `${path}.radiusY`),
+                ...(r.rotation !== undefined && { rotation: number(r.rotation, `${path}.rotation`) }),
             };
         case 'circle':
             return {

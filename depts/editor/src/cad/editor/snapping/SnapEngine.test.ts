@@ -80,6 +80,22 @@ describe('SnapEngine: snap points', () => {
         expect(snapped(engine.find(query({ x: 4002, y: 2496 })))).toEqual({ mode: 'QUA', x: 4000, y: 2500 });
     });
 
+    it('snaps to the turned axis ends and on the outline of a rotated ellipse', () => {
+        const engine = new SnapEngine(
+            drawing({ c: { x: 0, y: 0 }, a: { x: 0, y: -100 }, b: { x: 0, y: 100 } }, [
+                // First axis at 45°: its ends at ±(60.104, 60.104), the other ones at ±(-21.213, 21.213)
+                { type: 'ellipse', centerVertexId: 'c', radiusX: 85, radiusY: 30, rotation: Math.PI / 4 },
+                { type: 'line', startVertexId: 'a', endVertexId: 'b' },
+            ]),
+        );
+        const r = 85 / Math.SQRT2;
+        expect(snapped(engine.find(query({ x: 57, y: 63 }, only('QUA'))))).toEqual({ mode: 'QUA', x: round3(r), y: round3(r) });
+        expect(snapped(engine.find(query({ x: -20, y: 24 }, only('QUA'))))).toEqual({ mode: 'QUA', x: -21.213, y: 21.213 });
+        // The line x = 0 meets the outline where (y/√2)²/85² + (y/√2)²/30² = 1
+        const y = Math.SQRT2 / Math.sqrt(1 / 85 ** 2 + 1 / 30 ** 2);
+        expect(snapped(engine.find(query({ x: 2, y: y - 3 }, only('INT'))))).toEqual({ mode: 'INT', x: 0, y: round3(y) });
+    });
+
     it('lets an endpoint win over a quadrant at the same place', () => {
         // The door swing runs from 0° to 90°, so both its ends are quadrant points too
         expect(snapped(engine.find(query({ x: 1004, y: 1136 }), new SnapMemory()))).toEqual({

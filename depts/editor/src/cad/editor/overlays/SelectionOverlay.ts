@@ -1,6 +1,8 @@
 import paper from 'paper';
 import type { Id, Point } from '../../model/Point';
 import type { DisplayTheme } from '../../renderer/displayColor';
+import { ellipsePathSpec } from '../../renderer/PathSpec';
+import type { PreviewCurve } from '../tools/EditorTool';
 import type { SelectionArea, SelectionSnapshot } from '../SelectionEditor';
 
 const HOVER_EXTRA_WIDTH = 2;
@@ -56,7 +58,8 @@ export interface OverlayHost {
  * it previews the new line from the last point to the preview point, while PLINIE does, the
  * polyline drawn so far on to the preview point (at its length prompt a segment in the
  * direction of the last one, as long as the preview point is from the last point; the rubber
- * band to the preview point is SnapMarker's). The originals are then not
+ * band to the preview point is SnapMarker's), while KREIS or ELLIPSE ask for a point, the circle
+ * or ellipse a click there would give. The originals are then not
  * highlighted; the canvas dims them (PaperRenderer.setDimmed); the document stays
  * unchanged. Grips depend on the zoom, so render again after every viewport change (and
  * after setTheme()).
@@ -96,6 +99,12 @@ export class SelectionOverlay {
         if (typeof preview === 'object' && preview?.kind === 'polyline') {
             const points = previewPoint ? [...preview.points, polylineEnd(preview, previewPoint)] : preview.points;
             this.polylinePreview(layer, points);
+        }
+        if (typeof preview === 'object' && preview?.kind === 'curve' && previewPoint) {
+            const curve = preview.curveAt(previewPoint);
+            if (curve) {
+                this.curvePreview(layer, curve);
+            }
         }
         // Below the grips, so the grips stay whole at the line ends
         for (const [from, to] of controlFrames) {
@@ -162,6 +171,29 @@ export class SelectionOverlay {
     /** The polyline PLINIE draws, not yet in the document, in the style of new elements. */
     private polylinePreview(layer: paper.Layer, points: readonly Point[]): void {
         const path = new paper.Path({ segments: points.map((p) => [p.x, p.y]), insert: false });
+        path.strokeScaling = false;
+        this.host.applyStyleById(path, null);
+        layer.addChild(path);
+    }
+
+    /** The circle or ellipse KREIS or ELLIPSE would add, in the style of new elements. */
+    private curvePreview(layer: paper.Layer, curve: PreviewCurve): void {
+        const spec =
+            curve.kind === 'circle'
+                ? ellipsePathSpec(curve.center, curve.radius, curve.radius)
+                : ellipsePathSpec(curve.center, curve.radiusX, curve.radiusY, curve.rotation);
+        const path = new paper.Path({
+            segments: spec.segments.map(
+                ({ point, handleIn, handleOut }) =>
+                    new paper.Segment(
+                        new paper.Point(point.x, point.y),
+                        handleIn && new paper.Point(handleIn.x, handleIn.y),
+                        handleOut && new paper.Point(handleOut.x, handleOut.y),
+                    ),
+            ),
+            closed: true,
+            insert: false,
+        });
         path.strokeScaling = false;
         this.host.applyStyleById(path, null);
         layer.addChild(path);

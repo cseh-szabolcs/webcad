@@ -39,6 +39,12 @@ export type ToolPrompt =
     | { kind: 'select'; text: Message }
     | PointPrompt;
 
+/** A circle or ellipse a tool previews, in model coordinates. */
+export type PreviewCurve =
+    | { kind: 'circle'; center: Point; radius: number }
+    /** `radiusX` along the axis at `rotation` (radians, counter-clockwise from +X). */
+    | { kind: 'ellipse'; center: Point; radiusX: number; radiusY: number; rotation: number };
+
 /** How the editor shows the point a click would take at a `next` prompt. */
 export type ToolPreview =
     /** Copies of the highlighted elements offset from `from`, the originals dimmed, a dashed rubber band. */
@@ -51,7 +57,13 @@ export type ToolPreview =
      * segment that way as long as that point is from `from`, plus a dashed rubber band to the
      * point. A tool gives a new object when they change.
      */
-    | { kind: 'polyline'; points: readonly Point[]; direction?: Vector2 };
+    | { kind: 'polyline'; points: readonly Point[]; direction?: Vector2 }
+    /**
+     * The circle or ellipse a click at the point would give (`curveAt`, null where it gives none),
+     * with `rubberBand` also a dashed rubber band from `from` to the point. A tool gives a new
+     * object when what it previews changes.
+     */
+    | { kind: 'curve'; curveAt: (point: Point) => PreviewCurve | null; rubberBand: boolean };
 
 /** What a tool reports after handling an input. */
 export interface ToolStep {
