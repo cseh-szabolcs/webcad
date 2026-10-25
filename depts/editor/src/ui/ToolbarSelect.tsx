@@ -14,18 +14,17 @@ export interface ToolbarSelectOption<T extends string> {
 }
 
 /**
- * Choice of one value in the toolbar, styled like the status bar switches: the chosen value and
- * ▾ both open a menu of radio buttons, which opens downwards and closes after a choice.
+ * Choice of one value in the toolbar: one button with the chosen value and ▾ opens a menu of
+ * radio buttons, which opens downwards and closes after a choice. The label is only shown as
+ * the button's tooltip, like the icon-only toolbar buttons.
  */
 export function ToolbarSelect<T extends string>({
     label,
-    title,
     value,
     options,
     onChange,
 }: {
     label: string;
-    title: string;
     value: T;
     options: readonly ToolbarSelectOption<T>[];
     onChange: (value: T) => void;
@@ -36,20 +35,17 @@ export function ToolbarSelect<T extends string>({
 
     return (
         <div className="snap-switch toolbar-select" ref={rootRef}>
-            <span className="toolbar-select-label">{label}</span>
             <button
                 type="button"
-                lang={current?.lang}
                 aria-expanded={open}
                 aria-haspopup="true"
+                aria-label={label}
                 onClick={() => setOpen(!open)}
-                title={title}
+                title={label}
             >
                 {current?.icon}
-                {current?.label}
-            </button>
-            <button type="button" aria-expanded={open} aria-haspopup="true" onClick={() => setOpen(!open)} title={title}>
-                ▾
+                <span lang={current?.lang}>{current?.label}</span>
+                <span aria-hidden="true">▾</span>
             </button>
             {open && (
                 <div className="snap-menu" role="radiogroup" aria-label={label}>

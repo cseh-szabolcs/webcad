@@ -188,7 +188,6 @@ function App() {
                 <div className="toolbar-settings">
                     <ToolbarSelect
                         label={t('toolbar.theme')}
-                        title={t('toolbar.themeMenuTitle')}
                         value={preference}
                         options={THEME_OPTIONS.map((option) => ({
                             value: option.value,
@@ -201,7 +200,6 @@ function App() {
                     />
                     <ToolbarSelect
                         label={t('toolbar.language')}
-                        title={t('toolbar.languageMenuTitle')}
                         value={language}
                         options={LANGUAGES.map((option) => ({
                             value: option,
