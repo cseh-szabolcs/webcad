@@ -11,12 +11,16 @@ describe('commandNames', () => {
         expect(findCommand('')).toBeNull();
         expect(findCommand('l')).toBe('LINE');
         expect(findCommand('Linie')).toBe('LINE');
+        expect(findCommand('pl')).toBe('PLINE');
+        expect(findCommand('PLinie')).toBe('PLINE');
     });
 
     it('shows the English name, in German the first alias', () => {
         expect(commandName('MOVE', 'en')).toBe('MOVE');
         expect(commandName('MOVE', 'de')).toBe('SCHIEBEN');
         expect(commandName('LINE', 'de')).toBe('LINIE');
+        expect(commandName('PLINE', 'de')).toBe('PLINIE');
+        expect(commandName('PLINE', 'en')).toBe('PLINE');
     });
 
     it('has upper case English names and aliases, none of them twice', () => {

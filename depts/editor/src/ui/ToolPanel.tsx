@@ -4,7 +4,13 @@ import { ToolIcon } from './ToolIcon';
 
 /** The tool buttons, grouped like AutoCAD's Draw and Modify panels. */
 const GROUPS = [
-    { label: 'toolbar.draw', tools: [{ command: 'LINE', label: 'toolbar.line', title: 'toolbar.lineTitle' }] },
+    {
+        label: 'toolbar.draw',
+        tools: [
+            { command: 'LINE', label: 'toolbar.line', title: 'toolbar.lineTitle' },
+            { command: 'PLINE', label: 'toolbar.polyline', title: 'toolbar.polylineTitle' },
+        ],
+    },
     { label: 'toolbar.modify', tools: [{ command: 'MOVE', label: 'toolbar.move', title: 'toolbar.moveTitle' }] },
 ] as const satisfies readonly {
     label: string;

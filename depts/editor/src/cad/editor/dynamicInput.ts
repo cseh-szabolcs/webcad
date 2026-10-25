@@ -8,15 +8,19 @@ export const DYN_LENGTH_DECIMALS = 2;
 /** Most decimals of the live angle in the field (trailing zeros dropped). */
 export const DYN_ANGLE_DECIMALS = 2;
 
-/** Two fields: X and Y, or distance and angle (degrees, counter-clockwise from +X). */
-export type DynamicFormat = 'cartesian' | 'polar';
+/**
+ * Two fields: X and Y, or distance and angle (degrees, counter-clockwise from +X); or, at a
+ * `distance` prompt, the distance field alone.
+ */
+export type DynamicFormat = 'cartesian' | 'polar' | 'distance';
 export type DynamicFieldKind = 'x' | 'y' | 'distance' | 'angle';
 /** Fields at the crosshair, or on a temporary dimension from the prompt's `from` point. */
 export type DynamicLayout = 'pointer' | 'dimension';
 
 /**
- * Text typed into the two Dynamic Input fields at a point prompt, like AutoCAD. Field 0 may
- * start with `#` (absolute) or `@` (relative). Replaced, never mutated.
+ * Text typed into the two Dynamic Input fields at a point prompt, like AutoCAD (only the first at
+ * a `distance` prompt). Field 0 may start with `#` (absolute) or `@` (relative). Replaced, never
+ * mutated.
  */
 export interface DynamicInputState {
     fields: readonly [string, string];
@@ -32,7 +36,7 @@ export const EMPTY_DYNAMIC_INPUT: DynamicInputState = { fields: ['', ''], focus:
 /** Where the fields measure from. */
 export interface DynamicContext {
     prompt: PointPromptKind;
-    /** The point a `next` prompt measures from. */
+    /** The point a `next` or `distance` prompt measures from. */
     from: Point | null;
     /** Last point given (AutoCAD's LASTPOINT), the reference of `@` at a `point` prompt. */
     lastPoint: Point;
@@ -52,14 +56,14 @@ const ORIGIN: Point = { x: 0, y: 0 };
 
 /**
  * Which fields the prompt shows: a `point` (and a `vector`) only with pointer input, a `next`
- * point on a dimension with dimension input, else at the crosshair; null for none, in which case
- * typing goes to the command line as usual.
+ * point or a `distance` on a dimension with dimension input, else at the crosshair; null for
+ * none, in which case typing goes to the command line as usual.
  */
 export function dynamicLayout(settings: DynamicInputSettings, prompt: PointPromptKind): DynamicLayout | null {
     if (!settings.enabled) {
         return null;
     }
-    if (prompt === 'next' && settings.dimensionInput) {
+    if ((prompt === 'next' || prompt === 'distance') && settings.dimensionInput) {
         return 'dimension';
     }
     return settings.pointerInput ? 'pointer' : null;
@@ -69,15 +73,18 @@ export function isEmptyDynamicInput(state: DynamicInputState): boolean {
     return state.fields[0] === '' && state.fields[1] === '';
 }
 
-/** Polar at a `next` prompt, else X/Y; a typed `,` or `<` chooses. */
+/** The distance alone at a `distance` prompt; polar at a `next` prompt, else X/Y; a typed `,` or `<` chooses. */
 export function dynamicFormat(state: DynamicInputState, ctx: DynamicContext): DynamicFormat {
+    if (ctx.prompt === 'distance') {
+        return 'distance';
+    }
     return state.format ?? (ctx.prompt === 'next' ? 'polar' : 'cartesian');
 }
 
-/** Relative to `from` at a `next` prompt unless `#`; elsewhere only with `@`. */
+/** Relative to `from` at a `next` prompt unless `#`, at a `distance` prompt always; elsewhere only with `@`. */
 export function isRelative(state: DynamicInputState, ctx: DynamicContext): boolean {
     const prefix = state.fields[0][0];
-    return prefix === '@' || (ctx.prompt === 'next' && prefix !== '#');
+    return prefix === '@' || ctx.prompt === 'distance' || (ctx.prompt === 'next' && prefix !== '#');
 }
 
 /** The point the values are measured from. */
@@ -85,7 +92,7 @@ export function dynamicReference(state: DynamicInputState, ctx: DynamicContext):
     if (!isRelative(state, ctx)) {
         return ORIGIN;
     }
-    if (ctx.prompt === 'next') {
+    if (ctx.prompt === 'next' || ctx.prompt === 'distance') {
         return ctx.from ?? ORIGIN;
     }
     // A displacement is a vector either way
@@ -94,10 +101,12 @@ export function dynamicReference(state: DynamicInputState, ctx: DynamicContext):
 
 /**
  * A typed character: `,` or `<` in the first field chooses the format and moves to the second
- * field; anything else goes into the focused field (replacing it after Tab back into it).
+ * field (not with `oneField`, at a `distance` prompt, where they stay in the field and so make
+ * it a point for the command line); anything else goes into the focused field (replacing it
+ * after Tab back into it).
  */
-export function typeDynamic(state: DynamicInputState, char: string): DynamicInputState {
-    if (state.focus === 0 && (char === ',' || char === '<')) {
+export function typeDynamic(state: DynamicInputState, char: string, oneField = false): DynamicInputState {
+    if (!oneField && state.focus === 0 && (char === ',' || char === '<')) {
         return { ...state, focus: 1, format: char === ',' ? 'cartesian' : 'polar', replace: state.fields[1] !== '' };
     }
     const current = state.replace ? '' : state.fields[state.focus];
@@ -126,7 +135,7 @@ export function focusNextField(state: DynamicInputState): DynamicInputState {
 /** The typed text as the command line shows it, e.g. `100<45` or `#200,300`. */
 export function dynamicText(state: DynamicInputState, ctx: DynamicContext): string {
     const [first, second] = state.fields;
-    if (state.focus === 0 && second === '') {
+    if ((state.focus === 0 && second === '') || dynamicFormat(state, ctx) === 'distance') {
         return first;
     }
     return first + (dynamicFormat(state, ctx) === 'polar' ? '<' : ',') + second;
@@ -157,7 +166,8 @@ export function isBound(state: DynamicInputState): boolean {
  * fixed point; an angle alone goes along its ray as far as the point is from the reference; a
  * distance alone goes that far
  * towards the point (from the tracking origin on a single tracking path), like direct distance
- * entry. Null where nothing binds or the point is needed but missing.
+ * entry, and so does the distance at a `distance` prompt, always from `from`. Null where nothing
+ * binds or the point is needed but missing.
  */
 export function dynamicPoint(state: DynamicInputState, ctx: DynamicContext, point: Point | null): Point | null {
     const values = typedValues(state);
@@ -169,7 +179,11 @@ export function dynamicPoint(state: DynamicInputState, ctx: DynamicContext, poin
         return null;
     }
     const ref = dynamicReference(state, ctx);
-    if (dynamicFormat(state, ctx) === 'cartesian') {
+    const format = dynamicFormat(state, ctx);
+    if (format === 'distance') {
+        return first === null ? null : point && resolvePointInput({ kind: 'distance', distance: first }, ref, point);
+    }
+    if (format === 'cartesian') {
         if ((first === null || second === null) && point === null) {
             return null;
         }
@@ -193,15 +207,17 @@ export function dynamicPoint(state: DynamicInputState, ctx: DynamicContext, poin
 }
 
 /**
- * Both fields: the typed text, else the live value of `shown` (the bound point, or the point a
- * click would take) measured from the reference; empty without a point.
+ * The fields (both, or the distance alone at a `distance` prompt): the typed text, else the live
+ * value of `shown` (the bound point, or the point a click would take) measured from the
+ * reference; empty without a point.
  */
 export function dynamicFields(
     state: DynamicInputState,
     ctx: DynamicContext,
     shown: Point | null,
-): readonly [DynamicField, DynamicField] {
-    const polar = dynamicFormat(state, ctx) === 'polar';
+): readonly DynamicField[] {
+    const format = dynamicFormat(state, ctx);
+    const polar = format !== 'cartesian';
     const ref = dynamicReference(state, ctx);
     let live: readonly [string, string] = ['', ''];
     if (shown !== null) {
@@ -216,7 +232,7 @@ export function dynamicFields(
         const typed = state.fields[i] !== '';
         return { kind: kinds[i], text: typed ? state.fields[i] : live[i], typed, focused: state.focus === i };
     };
-    return [field(0), field(1)];
+    return format === 'distance' ? [field(0)] : [field(0), field(1)];
 }
 
 /** A length with DYN_LENGTH_DECIMALS decimals, without a negative zero. */

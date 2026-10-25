@@ -15,6 +15,8 @@ export interface InputTarget {
     pointerLeave(): void;
     /** Returns true if the key was handled. */
     keyDown(event: EditorKeyEvent): boolean;
+    /** Shift is pressed or released (also learnt from pointer events); called on every cursor update. */
+    setShiftHeld(held: boolean): void;
 }
 
 export interface CanvasInputOptions {
@@ -52,7 +54,10 @@ export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInpu
     let pressedPointer: number | null = null;
     /** Last pointer position in view px while it is over the canvas. */
     let pointer: Point | null = null;
-    /** Shift held: picks remove from the selection, which the crosshair shows. */
+    /**
+     * Shift held: picks remove from the selection, which the crosshair shows; at point prompts the
+     * target switches Ortho for the moment.
+     */
     let shiftHeld = false;
 
     /** System cursor and drawn crosshair for the current state. */
@@ -62,6 +67,7 @@ export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInpu
         if (canvas.style.cursor !== cursor) {
             canvas.style.cursor = cursor;
         }
+        target.setShiftHeld(shiftHeld);
         if (!crosshair) {
             return;
         }

@@ -158,6 +158,41 @@ describe('LineTool (LINIE)', () => {
         expect(lines()[1]).toEqual([B, { x: 2500, y: 2000 }]);
     });
 
+    it('switches Ortho over while Shift is held', () => {
+        const { editor, lines } = setup();
+        editor.setPolarSettings({ enabled: false, incrementAngle: 90, additionalAngles: [] });
+        editor.startCommand('LINE');
+        click(editor, A);
+        const cursor = { x: 1800, y: 1700 };
+        editor.pointerMove(at(cursor));
+        expect(editor.snapshot.previewPoint).toEqual(cursor);
+        // Pressing Shift alone takes effect at once
+        editor.setShiftHeld(true);
+        expect(editor.snapshot.previewPoint).toEqual({ x: 1800, y: 1500 });
+        editor.setShiftHeld(false);
+        expect(editor.snapshot.previewPoint).toEqual(cursor);
+        // A Shift+click takes the Ortho point
+        click(editor, cursor, { shiftKey: true });
+        expect(lines()).toEqual([[A, { x: 1800, y: 1500 }]]);
+        // With Ortho on, Shift switches it off
+        editor.setOrtho(true);
+        editor.pointerMove(at({ x: 2000, y: 1600 }, { shiftKey: true }));
+        expect(editor.snapshot.previewPoint).toEqual({ x: 2000, y: 1600 });
+        editor.pointerMove(at({ x: 2000, y: 1600 }));
+        expect(editor.snapshot.previewPoint).toEqual({ x: 2000, y: 1500 });
+    });
+
+    it('lets Shift-Ortho win over polar tracking', () => {
+        const { editor } = setup();
+        editor.startCommand('LINE');
+        click(editor, A);
+        // 8 mm off the vertical polar path up from A
+        editor.pointerMove(at({ x: 1508, y: 2000 }));
+        expect(editor.snapshot.polar).toMatchObject({ angle: 90 });
+        editor.setShiftHeld(true);
+        expect(editor.snapshot).toMatchObject({ polar: null, previewPoint: { x: 1500, y: 2000 } });
+    });
+
     it('takes back the last segment with "Zurück", down to the first point', () => {
         const { editor, lines, history } = setup();
         editor.startCommand('LINE');
@@ -273,6 +308,19 @@ describe('LineTool (LINIE)', () => {
             [A, B],
             [B, C],
         ]);
+    });
+
+    it('continues from the end of the polyline drawn last', () => {
+        const { editor, lines } = setup();
+        editor.startCommand('PLINE');
+        click(editor, A);
+        click(editor, B);
+        editor.keyDown({ key: 'Enter' });
+        editor.startCommand('LINE');
+        editor.keyDown({ key: 'Enter' });
+        expect(editor.snapshot).toMatchObject({ prompt: NEXT_PROMPT, from: B });
+        click(editor, C);
+        expect(lines()).toEqual([[B, C]]);
     });
 
     it('reports when there is no line to continue', () => {

@@ -24,6 +24,7 @@ const SECOND_POINT: DynamicContext = {
     lastPoint: { x: 100, y: 100 },
     trackOrigin: null,
 };
+const LENGTH: DynamicContext = { ...SECOND_POINT, prompt: 'distance' };
 
 /** Types each character of `text` (Tab as `\t`). */
 const typed = (text: string, state: DynamicInputState = EMPTY_DYNAMIC_INPUT) =>
@@ -42,6 +43,8 @@ describe('dynamicLayout', () => {
         expect(dynamicLayout(settings, 'vector')).toBe('pointer');
         expect(dynamicLayout(settings, 'next')).toBe('dimension');
         expect(dynamicLayout({ ...settings, dimensionInput: false }, 'next')).toBe('pointer');
+        expect(dynamicLayout(settings, 'distance')).toBe('dimension');
+        expect(dynamicLayout({ ...settings, dimensionInput: false }, 'distance')).toBe('pointer');
     });
 
     it('shows nothing while off, and the first point only with pointer input', () => {
@@ -135,6 +138,30 @@ describe('dynamicPoint', () => {
         // Never backwards, even with the point behind the ray's origin
         closeTo(dynamicPoint(typed('<90'), SECOND_POINT, { x: 100, y: 50 }), 100, 150);
         expect(dynamicPoint(typed('\t90'), SECOND_POINT, null)).toBeNull();
+    });
+});
+
+describe('the distance alone at a distance prompt', () => {
+    it('keeps , and < in the one field, so the text goes to the command line as a point', () => {
+        const state = [...'@30,40'].reduce((next, char) => typeDynamic(next, char, true), EMPTY_DYNAMIC_INPUT);
+        expect(state.fields).toEqual(['@30,40', '']);
+        expect(typedValues(state)).toBe('text');
+        expect(dynamicText(state, LENGTH)).toBe('@30,40');
+    });
+
+    it('goes the typed distance from the base point towards the point, always from there', () => {
+        closeTo(dynamicPoint(typed('50'), LENGTH, { x: 100, y: 400 }), 100, 150);
+        closeTo(dynamicPoint(typed('50'), { ...LENGTH, trackOrigin: { x: 0, y: 300 } }, { x: 200, y: 100 }), 150, 100);
+        expect(dynamicPoint(typed('50'), LENGTH, null)).toBeNull();
+    });
+
+    it('shows one field with the live distance from the base point', () => {
+        expect(dynamicFields(EMPTY_DYNAMIC_INPUT, LENGTH, { x: 130, y: 140 })).toEqual([
+            { kind: 'distance', text: '50.00', typed: false, focused: true },
+        ]);
+        expect(dynamicFields(typed('12'), LENGTH, { x: 130, y: 140 })).toEqual([
+            { kind: 'distance', text: '12', typed: true, focused: true },
+        ]);
     });
 });
 

@@ -15,6 +15,8 @@ export const de = {
         modify: 'Ändern',
         line: 'Linie',
         lineTitle: 'Linie ({{command}})',
+        polyline: 'Polylinie',
+        polylineTitle: 'Polylinie ({{command}})',
         move: 'Verschieben',
         moveTitle: 'Verschieben ({{command}})',
         undo: 'Rückgängig',
@@ -48,19 +50,27 @@ export const de = {
         lineFirst: 'Ersten Punkt angeben:',
         lineNext: 'Nächsten Punkt angeben oder [Zurück]:',
         lineNextClose: 'Nächsten Punkt angeben oder [Schließen/Zurück]:',
+        polylineStart: 'Startpunkt angeben:',
+        polylineNext: 'Nächsten Punkt angeben oder [Zurück]:',
+        polylineNextClose: 'Nächsten Punkt angeben oder [Schließen/sehnenLänge/Zurück]:',
+        polylineLength: 'Länge der Linie angeben:',
         corner: 'Entgegengesetzte Ecke angeben:',
         lasso: 'Lasso – Leertaste wechselt Fenster/Kreuzen',
     },
     message: {
         /** The option of the base point prompt that takes a displacement vector instead. */
         displacementKeyword: 'Verschiebung',
-        /** LINIE: back to the first point of the series, and the command ends. */
+        /** LINIE, PLINIE: back to the first point of the series, and the command ends. */
         closeKeyword: 'Schließen',
-        /** LINIE: takes back the last segment. */
+        /** LINIE, PLINIE: takes back the last segment. */
         undoKeyword: 'Zurück',
+        /** PLINIE: a segment of a typed length in the direction of the last one; `L` is its shortcut. */
+        lengthKeyword: 'sehnenLänge',
         noLineToContinue: 'Keine Linie oder kein Bogen zum Fortsetzen.',
         allSegmentsUndone: 'Alle Segmente bereits zurückgenommen.',
         invalidInput: 'Punkt oder Option-Schlüsselwort erforderlich.',
+        invalidDistance: 'Erfordert numerischen Abstand oder zweiten Punkt.',
+        positiveValue: 'Wert muss positiv und ungleich Null sein.',
         unknownCommand: 'Unbekannter Befehl "{{name}}".',
         cancel: '*Abbruch*',
         undone: 'Rückgängig: {{command}}',

@@ -86,8 +86,13 @@ export function resolvePointInput(input: PointInput, reference: Point, toward: P
     }
 }
 
-/** Typed text chooses an option: a non-empty start of its keyword, in any case. */
+/**
+ * Typed text chooses an option, in any case: a non-empty start of its keyword from its first
+ * capital letter on, which marks the shortcut like in AutoCAD (`L` or `Länge` for
+ * `sehnenLänge`), or the whole keyword.
+ */
 export function matchesKeyword(text: string, keyword: string): boolean {
     const typed = text.trim().toLowerCase();
-    return typed !== '' && keyword.toLowerCase().startsWith(typed);
+    const shortcut = keyword.slice(Math.max(0, keyword.search(/\p{Lu}/u))).toLowerCase();
+    return typed !== '' && (shortcut.startsWith(typed) || typed === keyword.toLowerCase());
 }

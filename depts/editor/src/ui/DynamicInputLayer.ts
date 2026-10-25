@@ -29,8 +29,8 @@ export interface DynamicInputDisplay {
     cursor: Point | null;
     /** Prompt (or typed command) at the crosshair, or null. */
     prompt: string | null;
-    /** Input fields, or null. */
-    fields: readonly [DynamicField, DynamicField] | null;
+    /** Input fields (two, or the distance alone), or null. */
+    fields: readonly DynamicField[] | null;
     /** Fields on a dimension from the base point to the point, else at the crosshair. */
     dimension: { from: Point; to: Point } | null;
     /** The point bound by typed values, marked with an x, or null. */
@@ -125,8 +125,8 @@ export function boundMarkerPath({ x, y }: Point): string {
 /**
  * Dynamic Input as a DOM layer over the canvas, like the snap marker, so it never redraws the
  * drawing: a panel above right of the crosshair with the prompt and (with pointer input) the two
- * fields, or the fields on a temporary dimension from the base point (an aligned dimension for
- * the distance, an arc for the angle). The focused field is highlighted and shows a caret, a
+ * fields (or the distance alone), or the fields on a temporary dimension from the base point (an
+ * aligned dimension for the distance, an arc for the angle). The focused field is highlighted and shows a caret, a
  * typed one a lock, live values are muted. Colours from the `--dyn-*` tokens.
  */
 export class DynamicInputLayer {
@@ -180,9 +180,9 @@ export class DynamicInputLayer {
         this.panelFields.hidden = panelFields === null;
         if (panelFields !== null) {
             this.panelFields.replaceChildren(
-                fieldElement(panelFields[0]),
-                separator(panelFields[0].kind === 'distance' ? '<' : ','),
-                fieldElement(panelFields[1]),
+                ...panelFields.flatMap((field, i) =>
+                    i === 0 ? [fieldElement(field)] : [separator(field.kind === 'angle' ? '<' : ','), fieldElement(field)],
+                ),
             );
         }
         this.panel.hidden = this.prompt.hidden && this.panelFields.hidden;
@@ -190,7 +190,8 @@ export class DynamicInputLayer {
             this.placePanel(cursor);
         }
         const length = dimensionShown ? dimensionGeometry(dimension.from, dimension.to) : null;
-        const angle = dimensionShown ? angleArcGeometry(dimension.from, dimension.to) : null;
+        // No angle arc for the distance alone
+        const angle = dimensionShown && fields.length > 1 ? angleArcGeometry(dimension.from, dimension.to) : null;
         this.showDimension(this.dimension, this.dimensionFields[0], length, fields?.[0]);
         this.showDimension(this.angle, this.dimensionFields[1], angle, fields?.[1]);
         this.boundMarker.style.display = bound ? '' : 'none';

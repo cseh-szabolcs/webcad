@@ -3,14 +3,10 @@ import type { Id, Point } from '../../model/Point';
 import { matchesKeyword } from '../commandInput';
 import { AddLineCommand } from '../commands/AddLineCommand';
 import type { DocumentHistory } from '../commands/DocumentHistory';
+import { continuePoint, type DrawingMemory } from './DrawingMemory';
 import type { EditorTool, ToolPrompt, ToolStep } from './EditorTool';
 
 const NOTHING: ReadonlySet<Id> = new Set();
-
-/** What LINIE remembers between runs: the last line it drew, for "continue" (Enter at the first point). */
-export interface LineMemory {
-    lastLine: Id | null;
-}
 
 type State =
     | { kind: 'first' }
@@ -23,23 +19,23 @@ type State =
  * away; the option "Zurück" takes the last one back, "Schließen" (from two segments on) adds
  * one back to the first point and ends. Enter ends, Esc too; the lines drawn
  * stay and are one undo step together. Enter on its own at the first point continues from the
- * end of the line drawn last.
+ * end of the line or polyline drawn last.
  */
 export class LineTool implements EditorTool {
     readonly command = 'LINE';
     readonly preview = 'line';
     readonly highlighted = NOTHING;
     private readonly history: DocumentHistory;
-    private readonly memory: LineMemory;
-    /** The line drawn last before this run, for "continue" once all its segments are taken back. */
+    private readonly memory: DrawingMemory;
+    /** What was drawn last before this run, for "continue" once all its segments are taken back. */
     private readonly lineBefore: Id | null;
     private state: State = { kind: 'first' };
     prompt: ToolPrompt = { kind: 'point', input: 'point', from: null, text: () => t('prompt.lineFirst') };
 
-    constructor(history: DocumentHistory, memory: LineMemory) {
+    constructor(history: DocumentHistory, memory: DrawingMemory) {
         this.history = history;
         this.memory = memory;
-        this.lineBefore = memory.lastLine;
+        this.lineBefore = memory.lastDrawn;
     }
 
     start(): ToolStep {
@@ -61,6 +57,10 @@ export class LineTool implements EditorTool {
             this.addSegment(state, point);
             this.askNext(state);
         }
+        return {};
+    }
+
+    distance(): ToolStep {
         return {};
     }
 
@@ -93,7 +93,7 @@ export class LineTool implements EditorTool {
     private addSegment(state: Extract<State, { kind: 'next' }>, to: Point): void {
         const segment = new AddLineCommand(state.last, to);
         this.history.execute(segment);
-        this.memory.lastLine = segment.lineId;
+        this.memory.lastDrawn = segment.lineId;
         state.segments.push(segment);
         state.last = to;
     }
@@ -105,21 +105,17 @@ export class LineTool implements EditorTool {
         }
         this.history.revertLast();
         state.last = segment.start;
-        this.memory.lastLine = state.segments.at(-1)?.lineId ?? this.lineBefore;
+        this.memory.lastDrawn = state.segments.at(-1)?.lineId ?? this.lineBefore;
         this.askNext(state);
         return {};
     }
 
-    /** Enter at the first point: on from the end point of the line drawn last, where it is now. */
+    /** Enter at the first point: on from the end point of the line or polyline drawn last, where it is now. */
     private continueLast(): ToolStep {
-        const { lastLine } = this.memory;
-        const doc = this.history.document;
-        const line = doc.elements.find((element) => element.id === lastLine);
-        const end = line?.type === 'line' ? doc.vertices.find((vertex) => vertex.id === line.endVertexId) : undefined;
-        if (!end) {
+        const point = continuePoint(this.history.document, this.memory.lastDrawn);
+        if (!point) {
             return { message: () => t('message.noLineToContinue') };
         }
-        const point = { x: end.x, y: end.y };
         this.askNext({ kind: 'next', start: point, last: point, segments: [] });
         return {};
     }

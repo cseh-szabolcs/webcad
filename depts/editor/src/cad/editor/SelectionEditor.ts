@@ -15,7 +15,7 @@ import {
 import { indexDocument, type DocumentIndex } from '../model/DocumentIndex';
 import type { Id, Point } from '../model/Point';
 import { rectFromCorners } from '../geometry/selectionGeometry';
-import { parsePointInput, resolvePointInput } from './commandInput';
+import { parseNumber, parsePointInput, resolvePointInput } from './commandInput';
 import type { EditorKeyEvent, EditorPointerEvent } from './EditorPointerEvent';
 import { buildElementShapes } from './selection/ElementShapes';
 import { selectionControlFrames, selectionGrips } from './selection/grips';
@@ -27,8 +27,10 @@ import type { SnapPoint } from './snapping/SnapGeometry';
 import { orthoPoint } from './tracking/ortho';
 import { t } from '../../i18n/i18n';
 import { commandName, findCommand, type EditorCommand } from './commandNames';
-import { LineTool, type LineMemory } from './tools/LineTool';
+import type { DrawingMemory } from './tools/DrawingMemory';
+import { LineTool } from './tools/LineTool';
 import { MoveTool } from './tools/MoveTool';
+import { PolylineTool } from './tools/PolylineTool';
 import type { EditorTool, Message, PointPrompt, ToolPreview, ToolStep } from './tools/EditorTool';
 import {
     backspaceDynamic,
@@ -71,6 +73,8 @@ export type { EditorCommand };
 
 /** Typed text that is neither a point nor an option, like AutoCAD. */
 const INVALID_INPUT: Message = () => t('message.invalidInput');
+/** The same at a `distance` prompt. */
+const INVALID_DISTANCE: Message = () => t('message.invalidDistance');
 const CANCEL: Message = () => t('message.cancel');
 
 /** A key that types a character on the command line (Space ends the text instead). */
@@ -146,16 +150,16 @@ export interface SelectionSnapshot {
      */
     objectTrack: ObjectTrack | null;
     /**
-     * The point a `next` point prompt measures from (SCHIEBEN's base point at the second point),
-     * or null: polar paths and the Dynamic Input dimension start there.
+     * The point a `next` or `distance` point prompt measures from (SCHIEBEN's base point at the
+     * second point), or null: polar paths and the Dynamic Input dimension start there.
      */
     from: Point | null;
     /** How the point a click would take is previewed from `from`; null without `from`. */
     preview: ToolPreview | null;
     /**
-     * At a `next` point prompt, the point a click would take now (the snap point, else the
-     * tracking point, else the Ortho point or the point on the polar path, else the cursor), for
-     * the preview; null at other prompts and while the pointer is outside.
+     * At a `next` or `distance` point prompt, the point a click would take now (the snap point,
+     * else the tracking point, else the Ortho point or the point on the polar path, else the
+     * cursor), for the preview; null at other prompts and while the pointer is outside.
      */
     previewPoint: Point | null;
     /** Dynamic Input fields at the current point prompt, or null where none show. */
@@ -171,7 +175,8 @@ export interface DynamicInputView {
     format: DynamicFormat;
     /** Measured from `from` (or the last point), not from the origin. */
     relative: boolean;
-    fields: readonly [DynamicField, DynamicField];
+    /** Two, or the distance alone at a `distance` prompt. */
+    fields: readonly DynamicField[];
     /** The point a click or Enter takes now (also without a pointer once typed values fix it), or null. */
     point: Point | null;
     /** Typed values bind the point. */
@@ -201,8 +206,9 @@ type State =
  *
  * Points snap to the drawing (see SnapEngine); a click takes the snap point, or the cursor
  * position if there is none. At a `next` prompt (see PointPromptKind) the snapshot carries the
- * point for the tool's preview. Where nothing snaps there, Ortho forces the point onto the
- * horizontal or vertical through the prompt's `from` point (see orthoPoint); with Ortho off,
+ * point for the tool's preview. Where nothing snaps there, Ortho (switched over while Shift is
+ * held, like AutoCAD's temporary override) forces the point onto the horizontal or vertical
+ * through the prompt's `from` point (see orthoPoint); with Ortho off,
  * polar tracking (see PolarTracking) puts it on the nearest polar path from it. Both also work
  * with the object snap off. With object snap tracking on (see ObjectSnapTracking), a snap point
  * that stays the snap point for the acquire delay is acquired (dwelling on it again drops it);
@@ -221,14 +227,17 @@ type State =
  * towards the cursor (direct distance entry). Enter on its own and other text that is no point
  * go to the tool (an option, or the default). Direct distance entry follows the Ortho
  * direction, or the polar path while the cursor is on one; on a single object snap tracking
- * path it goes that far from the acquired point along the path.
+ * path it goes that far from the acquired point along the path. A `distance` prompt helps like
+ * a `next` one, but hands the tool a distance: a typed number as is, or the distance from
+ * `from` to a point given.
  *
  * With Dynamic Input on (see dynamicInput), a point prompt that shows fields takes the keys into
  * them instead: X/Y (absolute) at a `point` prompt, distance and angle relative to `from` at a
- * `next` one; untyped fields show the live values at the pointer. Typed numbers bind the point
- * at once, so the preview and a click follow them, and Tab moves between the fields once
- * something is typed (before, it still cycles the snap points). Text that is no number goes on
- * as if typed on the command line (an option keyword, or an invalid entry).
+ * `next` one, the distance alone at a `distance` one; untyped fields show the live values at
+ * the pointer. Typed numbers bind the point at once, so the preview and a click follow them, and
+ * Tab moves between two fields once something is typed (before, and with one field, it still
+ * cycles the snap points); a typed distance goes to the tool as is. Text that is no number goes
+ * on as if typed on the command line (an option keyword, a point, or an invalid entry).
  *
  * The derived structures (outlines, R-tree, groups, snap geometry) follow every document
  * change of the history; they are rebuilt as a whole for now.
@@ -266,6 +275,8 @@ export class SelectionEditor {
     private polarSettings: PolarSettings = DEFAULT_POLAR_SETTINGS;
     /** Polar path at the cursor during a `next` point prompt (see PolarTracking). */
     private polar: PolarTrack | null = null;
+    /** Shift held: switches Ortho for the moment (see orthoActive). */
+    private shiftHeld = false;
     /** Ortho mode (F8); excludes polar tracking. */
     private ortho = false;
     private objectTrackingSettings: ObjectTrackingSettings = DEFAULT_OBJECT_TRACKING_SETTINGS;
@@ -283,7 +294,7 @@ export class SelectionEditor {
     private state: State = { kind: 'idle', pickfirst: new Set() };
     /** The command started last, which Enter at "Befehl:" repeats. */
     private lastCommand: EditorCommand | null = null;
-    private readonly lineMemory: LineMemory = { lastLine: null };
+    private readonly drawingMemory: DrawingMemory = { lastDrawn: null };
     /** The running tool's prompt the editor last started, to notice when the tool asks anew. */
     private prompt: EditorTool['prompt'] | null = null;
     /** Text typed at the current point prompt or the command prompt. */
@@ -392,8 +403,8 @@ export class SelectionEditor {
 
     /**
      * Starts a command, e.g. SCHIEBEN (with a pickfirst selection straight at the base point,
-     * otherwise by selecting objects) or LINIE. Another running command is cancelled first, like
-     * a toolbar click in AutoCAD; the same command keeps running.
+     * otherwise by selecting objects), LINIE or PLINIE. Another running command is cancelled
+     * first, like a toolbar click in AutoCAD; the same command keeps running.
      */
     startCommand(command: EditorCommand): void {
         const state = this.state;
@@ -403,7 +414,18 @@ export class SelectionEditor {
             }
             this.cancelCommand();
         }
-        this.startTool(command === 'LINE' ? new LineTool(this.history, this.lineMemory) : new MoveTool());
+        this.startTool(this.newTool(command));
+    }
+
+    private newTool(command: EditorCommand): EditorTool {
+        switch (command) {
+            case 'MOVE':
+                return new MoveTool();
+            case 'LINE':
+                return new LineTool(this.history, this.drawingMemory);
+            case 'PLINE':
+                return new PolylineTool(this.history, this.drawingMemory);
+        }
     }
 
     /** Publishes the texts again after a language change. */
@@ -440,6 +462,21 @@ export class SelectionEditor {
     }
 
     /**
+     * Shift held or released. While it is held, Ortho is switched over (on when it is off, off
+     * when it is on), like AutoCAD's temporary override; takes effect at the cursor right away.
+     */
+    setShiftHeld(held: boolean): void {
+        if (held === this.shiftHeld) {
+            return;
+        }
+        this.shiftHeld = held;
+        if (this.lastPointer !== null && this.pointPrompt() !== null) {
+            this.updateSnap(this.lastPointer);
+            this.changed();
+        }
+    }
+
+    /**
      * Switches object snap tracking or its angles; takes effect at the cursor right away.
      * Switching it off drops the acquired points.
      */
@@ -465,6 +502,7 @@ export class SelectionEditor {
     }
 
     pointerDown(event: EditorPointerEvent): void {
+        this.shiftHeld = event.shiftKey;
         const state = this.state;
         if (this.pointPrompt() !== null) {
             if (event.button === 0) {
@@ -516,6 +554,7 @@ export class SelectionEditor {
     }
 
     pointerMove(event: EditorPointerEvent): void {
+        this.shiftHeld = event.shiftKey;
         this.lastPointer = event;
         if (this.pointPrompt() !== null) {
             this.updateSnap(event);
@@ -614,7 +653,11 @@ export class SelectionEditor {
                 return false;
             }
             // With typed Dynamic Input values Tab moves between the fields, else it cycles the snap points
-            if (this.dynamicPromptLayout() !== null && !isEmptyDynamicInput(this.dynamic)) {
+            if (
+                this.dynamicPromptLayout() !== null &&
+                !isEmptyDynamicInput(this.dynamic) &&
+                this.pointPrompt()?.input !== 'distance'
+            ) {
                 this.dynamic = focusNextField(this.dynamic);
                 this.changed();
             } else {
@@ -706,10 +749,21 @@ export class SelectionEditor {
         return this.state.kind === 'command' && this.state.tool.prompt.kind === 'select';
     }
 
-    /** The point the current `next` prompt measures from, or null. */
+    /** Ortho applies now: the setting (F8), switched over while Shift is held. */
+    private orthoActive(): boolean {
+        return this.ortho !== this.shiftHeld;
+    }
+
+    /** The point the current `next` or `distance` prompt measures from, or null. */
     private from(): Point | null {
         const prompt = this.pointPrompt();
-        return prompt?.input === 'next' ? prompt.from : null;
+        return prompt?.input === 'next' || prompt?.input === 'distance' ? prompt.from : null;
+    }
+
+    /** Typed text the prompt cannot take. */
+    private invalidInput(): void {
+        this.message = this.pointPrompt()?.input === 'distance' ? INVALID_DISTANCE : INVALID_INPUT;
+        this.changed();
     }
 
     /** Esc: the tool tidies up, the command ends. */
@@ -792,7 +846,7 @@ export class SelectionEditor {
         if (key === 'Backspace') {
             this.dynamic = backspaceDynamic(this.dynamic);
         } else if (isTypedCharacter(event)) {
-            this.dynamic = typeDynamic(this.dynamic, key);
+            this.dynamic = typeDynamic(this.dynamic, key, this.pointPrompt()?.input === 'distance');
         } else {
             return false;
         }
@@ -854,10 +908,13 @@ export class SelectionEditor {
             this.dynamic = EMPTY_DYNAMIC_INPUT;
             const values = typedValues(dynamic);
             if (values !== 'text' && (values[0] !== null || values[1] !== null)) {
+                if (this.pointPrompt()!.input === 'distance' && values[0] !== null) {
+                    this.distanceGiven(values[0]);
+                    return;
+                }
                 const point = this.dynamicBoundPoint(dynamic);
                 if (point === null) {
-                    this.message = INVALID_INPUT;
-                    this.changed();
+                    this.invalidInput();
                 } else {
                     this.pointGiven(point);
                 }
@@ -872,18 +929,22 @@ export class SelectionEditor {
     }
 
     /**
-     * Typed command line text at a point prompt: a point, else an option of the tool or, when
-     * empty, its default.
+     * Typed command line text at a point prompt: a point (at a `distance` prompt a number first),
+     * else an option of the tool or, when empty, its default.
      */
     private submitText(text: string): void {
         const { tool } = this.state as Extract<State, { kind: 'command' }>;
         const prompt = this.pointPrompt()!;
+        const distance = prompt.input === 'distance' && text !== '' ? parseNumber(text) : null;
+        if (distance !== null) {
+            this.distanceGiven(distance);
+            return;
+        }
         const parsed = text === '' ? null : parsePointInput(text);
         if (parsed === null) {
             const step = tool.text(text);
             if (step === null) {
-                this.message = INVALID_INPUT;
-                this.changed();
+                this.invalidInput();
             } else {
                 this.applyStep(step);
             }
@@ -900,8 +961,7 @@ export class SelectionEditor {
                 ? resolvePointInput(parsed, track.paths[0].origin, track.point)
                 : resolvePointInput(parsed, reference, toward);
         if (point === null) {
-            this.message = INVALID_INPUT;
-            this.changed();
+            this.invalidInput();
             return;
         }
         this.pointGiven(point);
@@ -909,12 +969,17 @@ export class SelectionEditor {
 
     /**
      * A point given at a point prompt: clicked (at the snap point or the cursor) or typed. It
-     * becomes the last point (AutoCAD's LASTPOINT) unless it is a vector.
+     * becomes the last point (AutoCAD's LASTPOINT) unless it is a vector; at a `distance` prompt
+     * it only gives its distance from `from`.
      */
     private pointGiven(point: Point): void {
         const state = this.state;
         const prompt = this.pointPrompt();
         if (state.kind !== 'command' || prompt === null) {
+            return;
+        }
+        if (prompt.input === 'distance' && prompt.from !== null) {
+            this.distanceGiven(Math.hypot(point.x - prompt.from.x, point.y - prompt.from.y));
             return;
         }
         if (prompt.input !== 'vector') {
@@ -923,8 +988,16 @@ export class SelectionEditor {
         this.applyStep(state.tool.point(point));
     }
 
+    /** A distance given at a `distance` prompt, typed or measured. */
+    private distanceGiven(distance: number): void {
+        const state = this.state;
+        if (state.kind === 'command') {
+            this.applyStep(state.tool.distance(distance));
+        }
+    }
+
     /**
-     * At a `next` point prompt, the point a click would take now (see pointAt); without a
+     * At a `next` or `distance` point prompt, the point a click would take now (see pointAt); without a
      * pointer only a point fixed by typed Dynamic Input values.
      */
     private previewPoint(): Point | null {
@@ -978,7 +1051,7 @@ export class SelectionEditor {
             return this.objectTrack.point;
         }
         const from = this.from();
-        if (from !== null && this.ortho) {
+        if (from !== null && this.orthoActive()) {
             return orthoPoint(from, cursor);
         }
         return this.polar?.point ?? cursor;
@@ -1087,7 +1160,7 @@ export class SelectionEditor {
         this.snap = candidates[Math.max(index, 0)] ?? null;
         const from = this.from();
         const polar =
-            event !== null && this.snap === null && from !== null && !this.ortho
+            event !== null && this.snap === null && from !== null && !this.orthoActive()
                 ? findPolarTrack(
                       {
                           reference: from,
@@ -1125,7 +1198,7 @@ export class SelectionEditor {
         const basePoint = this.from();
         let cursor = event.modelPoint;
         let base: BasePaths | null = null;
-        if (basePoint !== null && this.ortho) {
+        if (basePoint !== null && this.orthoActive()) {
             cursor = orthoPoint(basePoint, cursor);
             base = { origin: basePoint, angles: cursor.y === basePoint.y ? [0, 180] : [90, 270], source: 'ortho' };
         } else if (basePoint !== null && this.polarSettings.enabled) {
@@ -1418,6 +1491,7 @@ function sameDynamicInput(a: DynamicInputView | null, b: DynamicInputView | null
             a.format === b.format &&
             a.relative === b.relative &&
             a.bound === b.bound &&
+            a.fields.length === b.fields.length &&
             samePoint(a.point, b.point) &&
             a.fields.every(
                 (field, i) =>

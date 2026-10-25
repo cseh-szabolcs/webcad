@@ -53,7 +53,10 @@ export interface OverlayHost {
  * move like AutoCAD: copies of the selected paths in their own style (slightly
  * see-through), offset from the base point to the preview point (the rubber band between
  * the two is drawn by SnapMarker, above the polar path). While LINIE asks for the next point,
- * it previews the new line from the last point to the preview point. The originals are then not
+ * it previews the new line from the last point to the preview point, while PLINIE does, the
+ * polyline drawn so far on to the preview point (at its length prompt a segment in the
+ * direction of the last one, as long as the preview point is from the last point; the rubber
+ * band to the preview point is SnapMarker's). The originals are then not
  * highlighted; the canvas dims them (PaperRenderer.setDimmed); the document stays
  * unchanged. Grips depend on the zoom, so render again after every viewport change (and
  * after setTheme()).
@@ -89,6 +92,10 @@ export class SelectionOverlay {
         }
         if (preview === 'line' && from && previewPoint) {
             this.linePreview(layer, from, previewPoint);
+        }
+        if (typeof preview === 'object' && preview?.kind === 'polyline') {
+            const points = previewPoint ? [...preview.points, polylineEnd(preview, previewPoint)] : preview.points;
+            this.polylinePreview(layer, points);
         }
         // Below the grips, so the grips stay whole at the line ends
         for (const [from, to] of controlFrames) {
@@ -152,6 +159,14 @@ export class SelectionOverlay {
         layer.addChild(line);
     }
 
+    /** The polyline PLINIE draws, not yet in the document, in the style of new elements. */
+    private polylinePreview(layer: paper.Layer, points: readonly Point[]): void {
+        const path = new paper.Path({ segments: points.map((p) => [p.x, p.y]), insert: false });
+        path.strokeScaling = false;
+        this.host.applyStyleById(path, null);
+        layer.addChild(path);
+    }
+
     private highlight(layer: paper.Layer, id: Id, color: string, extraWidth: number): void {
         const source = this.host.getItemPath(id);
         if (!source) {
@@ -166,4 +181,14 @@ export class SelectionOverlay {
         copy.data = {};
         layer.addChild(copy);
     }
+}
+
+/** Where the segment to `point` ends: there, or along `direction` as far as `point` is from the last point. */
+function polylineEnd({ points, direction }: { points: readonly Point[]; direction?: Point }, point: Point): Point {
+    const last = points.at(-1);
+    if (!direction || !last) {
+        return point;
+    }
+    const length = Math.hypot(point.x - last.x, point.y - last.y);
+    return { x: last.x + direction.x * length, y: last.y + direction.y * length };
 }

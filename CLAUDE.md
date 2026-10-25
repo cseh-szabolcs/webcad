@@ -20,7 +20,7 @@ apps in one repo:
   rebuilt from scratch, closer to AutoCAD behaviour.** Everything is rebuilt in small
   steps. So far it loads a plan through the API and displays it (wheel zoom,
   middle/Space+drag pan, status line, light/dark mode), has AutoCAD-like object
-  selection, a grid, a UCS icon, object snap, polar tracking, object snap tracking, Dynamic Input, the LINE command (`LINIE`) and the MOVE command (`SCHIEBEN`) with preview,
+  selection, a grid, a UCS icon, object snap, polar tracking, object snap tracking, Dynamic Input, the LINE command (`LINIE`), the PLINE command (`PLINIE`, straight segments only) and the MOVE command (`SCHIEBEN`) with preview,
   typed coordinates and undo/redo (see "Editor: current state" below). Changes are not saved to the backend yet; grips
   are drawn but have no function.
 
@@ -176,8 +176,8 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   grips), Shift removes, Esc clears. Rectangle to the right = window (completely inside),
   to the left = crossing (touches); lasso direction picks the mode, Space toggles.
 - Commands start from the vertical tool panel on the left (`ui/ToolPanel.tsx`, icon buttons
-  from `ui/ToolIcon.tsx` with the name in the tooltip, groups "Zeichnen": Linie and "Ändern":
-  Verschieben; a click on another tool cancels the running command, on the same one does
+  from `ui/ToolIcon.tsx` with the name in the tooltip, groups "Zeichnen": Linie, Polylinie and
+  "Ändern": Verschieben; a click on another tool cancels the running command, on the same one does
   nothing) or by typing a name or alias at "Befehl:" (`SelectionEditor.startCommand`). Enter
   with nothing typed at "Befehl:" repeats the last command started (Space keeps panning).
 - Tool "Verschieben" starts `SCHIEBEN` (AutoCAD MOVE, id `MOVE`); so does typing
@@ -216,8 +216,10 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   keys), Ctrl/⌘ shortcuts are not (`EditorKeyEvent.ctrlKey`; AltGr counts as typing).
 - Tool "Linie" starts `LINIE` (AutoCAD LINE, id `LINE`, aliases `LINIE`, `L`;
   `cad/editor/tools/LineTool.ts`); the pickfirst selection is dropped. "Ersten Punkt angeben:"
-  (`point` prompt; Enter alone continues from the end vertex of the line LINIE drew last, kept
-  in the core's `LineMemory`, else "Keine Linie oder kein Bogen zum Fortsetzen."), then
+  (`point` prompt; Enter alone continues from the end vertex of the line or polyline LINIE or
+  PLINIE drew last, kept in the core's `DrawingMemory` (`tools/DrawingMemory.ts`,
+  `continuePoint`: an open polyline's last vertex, a closed one's first), else "Keine Linie
+  oder kein Bogen zum Fortsetzen."), then
   "Nächsten Punkt angeben oder [Zurück]:" / "[Schließen/Zurück]:" from two segments on (`next`
   prompt from the last point, so polar, Ortho, OTRACK, `@`, direct distance and the DYN
   dimension work from it). Every point executes an `AddLineCommand` at once (own two vertices,
@@ -228,7 +230,30 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   segments become one undo step (`DocumentHistory.combineLast` → `CompositeCommand`,
   "Rückgängig: LINIE"). Preview: a solid line `from` → preview point in the default style
   (`SelectionOverlay`, `OverlayHost.applyStyleById`). Not yet: tangent continue from arcs,
-  polylines, current layer/style, shared vertices.
+  current layer/style, shared vertices.
+- Tool "Polylinie" starts `PLINIE` (AutoCAD PLINE, id `PLINE`, aliases `PLINIE`, `PL`;
+  `cad/editor/tools/PolylineTool.ts`), straight segments only so far (spec
+  `depts/editor/docs/specs/PLINE_Werkzeug_Spezifikation.md`; what is left, with the proposed
+  `bulges` schema for arcs, in `depts/editor/docs/todo/Polyline_Draw_NotImplemented.md`).
+  "Startpunkt angeben:" like LINIE's first point (Enter continues via `DrawingMemory`), then
+  "Nächsten Punkt angeben oder [Zurück]:" / "[Schließen/sehnenLänge/Zurück]:" from one segment
+  on (`next` prompt from the last point). The points stay in the tool until the command ends: the
+  preview `{ kind: 'polyline', points }` draws them plus the segment to the preview point
+  (`SelectionOverlay`), the document is unchanged and the segments are not snappable (like
+  AutoCAD). A point on the last one adds nothing; "Zurück" drops the last point (with only
+  the start point "Alle Segmente bereits zurückgenommen."); "Schließen" ends with `closed`
+  (a last point on the start point is dropped). Enter, right click, Esc (`*Abbruch*`), and
+  another tool started, end it: the tool itself executes one `AddPolylineCommand` (own
+  vertices, no layer/group/style; nothing with only the start point), so Esc keeps it too;
+  one undo step "Rückgängig: PLINIE". "sehnenLänge"/`Length` (`L`; keyword shortcut from its
+  capital, see `matchesKeyword`) asks "Länge der Linie angeben:", a `distance` prompt from the
+  last point: the tool's `distance()` gets a typed number, or the distance from the last point
+  to a point given (snap, polar, Ortho, OTRACK apply), and adds a segment that long in the
+  direction of the last segment; only a positive one ("Wert muss positiv und ungleich Null
+  sein.", the prompt stays), no options ("Erfordert numerischen Abstand oder zweiten Punkt.").
+  Its preview carries `direction`: the segment along it as long as the preview point is from
+  the last point, plus the dashed rubber band to the preview point (`CadCanvas`, SnapMarker).
+  Not yet: arcs, width, snapping to its own segments.
 - Right click acts like Enter (AutoCAD right-click customization "Repeat Last Command" /
   "ENTER"; no context menus yet): at a point prompt it calls the same `submitInput` as Enter
   (typed text, else the tool's default); at "Objekte wählen:" it ends the selection; with no
@@ -289,7 +314,11 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   with no path, tooltip or crosshair magnet (like AutoCAD). Typed coordinates win. Ortho
   and POLAR exclude each other: App keeps both as `TrackingModes` and switches through
   `withOrtho`/`withPolar` (editorSettings); the editor gets `setOrtho()` and leaves polar
-  tracking out while Ortho is on.
+  tracking out while Ortho is on. Holding Shift switches Ortho over for the moment (AutoCAD's
+  temporary override): `canvasInput` reports it via `InputTarget.setShiftHeld` on every cursor
+  update, pointer events carry it too, and `SelectionEditor.orthoActive()` is
+  `ortho !== shiftHeld`; settings and status bar stay unchanged. Further AutoCAD shortcuts to
+  build later are listed in `depts/editor/docs/todo/Zeichnen_Tastenkuerzel.md`.
 - Object snap tracking (OTRACK, F11, off by default; `cad/editor/tracking/ObjectSnapTracking.ts`):
   at every point prompt, a snap point that stays the editor's snap point for
   `trackingAcquireDelay` ms is acquired (a timer in `SelectionEditor`, `toggleAcquired`;
@@ -314,10 +343,12 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   display in `ui/DynamicInputLayer.ts`): `DynamicInputSettings` (`enabled`, `pointerInput`,
   `dimensionInput`, `prompts`) in App state, status bar "DYN" switch with a checkbox menu. At a
   point prompt that shows fields (`dynamicLayout`: base point/displacement with pointer input;
-  second point on a dimension with dimension input, else at the crosshair) the keys go into two
-  fields (`DynamicInputState`) instead of `input`: X/Y absolute at the first point (`@` relative
+  second point or a distance on a dimension with dimension input, else at the crosshair) the
+  keys go into two fields (`DynamicInputState`) instead of `input`: X/Y absolute at the first point (`@` relative
   to LASTPOINT), distance/angle relative to the base point at the second (`,` switches to X/Y,
-  `<` to polar, `#` absolute). Empty fields show live values of the tracked point
+  `<` to polar, `#` absolute); at a `distance` prompt only the distance field (format
+  `distance`, `fields` has one entry, no angle arc, `,`/`<` stay in it so the text is a point,
+  Tab still cycles snaps, a typed number goes to the tool as is). Empty fields show live values of the tracked point
   (`trackedPointAt`); typed numbers bind it at once (`dynamicPoint`, applied in `pointAt`, so
   preview, rubber band, click and Enter agree): a lone distance is direct distance entry (from
   the OTRACK origin on a single path), a lone angle goes along its ray as far as the tracked point is from the reference (never backwards). Tab switches fields
@@ -363,18 +394,24 @@ Structure (all pure TS and unit-tested unless noted):
   acquired points, object snap track, `from`, `preview`, preview point, Dynamic Input fields,
   can undo/redo) via `subscribe()`. It holds the Tab cycle state and the acquire timer; the
   engine stays stateless. It runs on a `DocumentHistory`. Typed text is parsed by the pure
-  `cad/editor/commandInput.ts` (`parsePointInput`, `resolvePointInput`, `matchesKeyword`).
+  `cad/editor/commandInput.ts` (`parsePointInput`, `resolvePointInput`, `matchesKeyword`: a
+  start of the keyword from its first capital on, or the whole keyword, like AutoCAD's
+  `sehnenLänge` → `L`).
 - `cad/editor/tools/`: one state machine per command behind `EditorTool` (`EditorTool.ts`):
   the tool sets its `prompt` (`select`, or `point` with `input` `point` | `next` (measured
-  from `from`: polar, Ortho, direct distance, `@`, DYN dimension) | `vector`), gets the
-  selected objects, given points and option text (`''` = Enter or right click), and returns a
+  from `from`: polar, Ortho, direct distance, `@`, DYN dimension) | `vector` | `distance`
+  (from `from` like `next`, but the tool gets `distance()`: a typed number as is, or the
+  distance to a point given; invalid text "Erfordert numerischen Abstand oder zweiten
+  Punkt.")), gets the selected objects, given points, distances and option text (`''` = Enter
+  or right click), and returns a
   `ToolStep` (`done`, `message`, a `DocumentCommand` to run after the end). A new prompt
   object starts a new point prompt. `MoveTool` is SCHIEBEN, `LineTool` LINIE (it runs its
-  segments on the history itself).
+  segments on the history itself), `PolylineTool` PLINIE (it runs its polyline on the history
+  when it ends); `SelectionEditor.newTool` creates them.
 - `cad/editor/commands/`: `DocumentCommand` (`execute`/`undo` on immutable documents,
   returning the new document and the changed element ids), `DocumentHistory` (current
   document, undo/redo stacks, listeners, `revertLast`, `combineLast`), `MoveCommand`,
-  `AddLineCommand`, `CompositeCommand`. `CadCanvas` keeps the history of
+  `AddLineCommand`, `AddPolylineCommand`, `CompositeCommand`. `CadCanvas` keeps the history of
   the loaded document; the editor and the renderer follow it (`PaperRenderer.updateElements`
   replaces only the changed items, subscribed before the editor so its overlay sees the new
   paths). The editor's derived structures are rebuilt as a whole on every change for now.
@@ -396,7 +433,8 @@ Structure (all pure TS and unit-tested unless noted):
 - `cad/editor/overlays/SelectionOverlay.ts` (Paper.js): hover/selection highlights as
   restyled copies of the rendered paths, grips (beziers also get a dashed control frame
   from each end to its control point, as their control grips lie off the curve),
-  rectangle/lasso, the move preview (offset copies), one palette per theme.
+  rectangle/lasso, the move preview (offset copies), the LINIE/PLINIE previews, one palette per
+  theme.
 - `ui/canvasInput.ts`: the single owner of canvas input (zoom, pan, forwarding to the
   editor, pointer capture, lost-release and `pointercancel` handling) and of the cursor.
   `ui/CommandLine.tsx` is display only (prompt, typed input, caret); the editor gets the keys.

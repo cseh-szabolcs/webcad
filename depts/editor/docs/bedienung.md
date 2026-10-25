@@ -6,7 +6,7 @@ Auf dem Mac entspricht **Option (⌥)** der Taste Alt.
 Tastenkürzel wirken, solange der Fokus nicht in einem Textfeld liegt.
 
 Der Editor zeigt Pläne an, wählt Objekte aus, zeichnet Linien mit dem Befehl LINIE und
-verschiebt Objekte mit dem Befehl SCHIEBEN (mit Raster, Objektfang, Polarspur, Ortho, Objektfangspuren, Koordinateneingabe, dynamischer Eingabe und Rückgängig). Gespeichert wird noch nichts; was
+Polylinien mit PLINIE und verschiebt Objekte mit dem Befehl SCHIEBEN (mit Raster, Objektfang, Polarspur, Ortho, Objektfangspuren, Koordinateneingabe, dynamischer Eingabe und Rückgängig). Gespeichert wird noch nichts; was
 sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgesetzt).
 
 ## Oberfläche
@@ -25,7 +25,8 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   Firefox), ist der Button ausgegraut und ohne Funktion; sein Tooltip nennt den Grund. Kann
   die Seite gar nicht ins Vollbild (z. B. in einem iframe ohne Erlaubnis), fehlt der Button.
 - **Werkzeugleiste** (links, senkrecht): ein Symbol-Button je Befehl, gruppiert wie in
-  AutoCAD: **Zeichnen** mit **Linie** (Befehl [LINIE](#befehl-linie)), darunter nach einer
+  AutoCAD: **Zeichnen** mit **Linie** (Befehl [LINIE](#befehl-linie)) und **Polylinie**
+  (Befehl [PLINIE](#befehl-plinie)), darunter nach einer
   Trennlinie **Ändern** mit **Verschieben** (Befehl [SCHIEBEN](#befehl-schieben)). Der Name
   steht im Tooltip, z. B. `Linie (LINIE)`. Der Button des laufenden Befehls bleibt gedrückt; ein
   weiterer Klick darauf bewirkt nichts. Ein Klick auf einen anderen bricht den laufenden Befehl
@@ -237,7 +238,8 @@ dabei aufgehoben.
 1. **`Ersten Punkt angeben:`** Klick (mit [Objektfang](#objektfang-ofang) und
    [Objektfangspuren](#objektfangspuren-otrack)) oder Koordinaten eintippen, wie beim
    Basispunkt von SCHIEBEN. **Enter** ohne Eingabe setzt am Endpunkt der zuletzt mit LINIE
-   gezeichneten Linie fort (dort, wo er jetzt liegt). Gibt es keine mehr (z. B. nach
+   oder [PLINIE](#befehl-plinie) gezeichneten Linie oder Polylinie fort (dort, wo er jetzt
+   liegt; bei einer geschlossenen Polylinie an ihrem Startpunkt). Gibt es keine mehr (z. B. nach
    Rückgängig), meldet die Kommandozeile `Keine Linie oder kein Bogen zum Fortsetzen.`, die
    Aufforderung bleibt.
 2. **`Nächsten Punkt angeben oder [Zurück]:`**, ab zwei Segmenten
@@ -259,7 +261,9 @@ dabei aufgehoben.
 | **Esc**                      | Beendet den Befehl (`*Abbruch*`); die gezeichneten Linien bleiben |
 
 Im Englischen heißen die Optionen `Undo` (`U`) und `Close` (`C`). Optionen werden wie in
-AutoCAD mit ihrem Anfang erkannt (`Zur` = `Zurück`).
+AutoCAD mit ihrem Anfang erkannt (`Zur` = `Zurück`). Steht ein Großbuchstabe mitten im
+Schlüsselwort, beginnt dort das Kürzel (`L` oder `Länge` für `sehnenLänge`); ganz ausgeschrieben
+gilt es auch.
 
 - Jedes Segment ist eine eigene Linie mit eigenen Endpunkten; aufeinanderfolgende Linien
   teilen keinen Punkt, ihre Enden liegen nur aufeinander. Neue Linien haben noch keinen Layer
@@ -269,6 +273,68 @@ AutoCAD mit ihrem Anfang erkannt (`Zur` = `Zurück`).
 - Die **Leertaste** ohne getippten Text verschiebt weiter die Ansicht (bewusste Abweichung:
   in AutoCAD wirkt sie wie Enter und würde den Befehl beenden). Ist etwas getippt, schließt sie
   die Eingabe ab.
+
+## Befehl PLINIE
+
+Zeichnet eine **Polylinie**: ein einziges Objekt aus zusammenhängenden Segmenten, wie AutoCAD
+PLINIE. Bisher gibt es nur gerade Segmente (siehe [Noch nicht umgesetzt](#noch-nicht-umgesetzt)).
+Start mit dem Button **Polylinie** in der Werkzeugleiste links oder durch Tippen von `PLINIE`,
+`PLINE` oder `PL` bei `Befehl:` (Enter oder Leertaste). Eine bestehende Auswahl wird dabei
+aufgehoben.
+
+1. **`Startpunkt angeben:`** wie der erste Punkt von [LINIE](#befehl-linie), auch das
+   Fortsetzen mit **Enter** am Endpunkt der zuletzt mit LINIE oder PLINIE gezeichneten Linie
+   oder Polylinie (es setzt nur dort an, die neue Polylinie ist ein eigenes Objekt).
+2. **`Nächsten Punkt angeben oder [Zurück]:`**, ab einem Segment
+   **`Nächsten Punkt angeben oder [Schließen/sehnenLänge/Zurück]:`**. Jeder Punkt fügt ein
+   Segment vom letzten Punkt aus hinzu; Polarspur, Ortho, Objektfangspuren, `@`-Eingaben,
+   Direkte Distanzeingabe und dynamische Eingabe wirken wie beim nächsten Punkt von LINIE. Ein
+   Punkt genau auf dem letzten fügt nichts hinzu.
+
+Anders als bei LINIE kommt die Polylinie erst ins Dokument, wenn der Befehl endet. Bis dahin
+zeigt eine **Vorschau** in durchgezogenen Linien die bisherigen Segmente und das Segment vom
+letzten Punkt zum Punkt, den ein Klick nähme. Die bisherigen Segmente sind deshalb noch **nicht
+fangbar** (wie in AutoCAD, wo die Polylinie während des Befehls noch nicht existiert); auch
+Objektfangspuren lassen sich an ihnen nicht erfassen.
+
+| Eingabe beim nächsten Punkt  | Wirkung                                                         |
+|------------------------------|-----------------------------------------------------------------|
+| `Z` (Zurück) + Enter         | Entfernt das letzte Segment; der letzte Punkt springt zurück. Mehrfach möglich bis zum Startpunkt, danach `Alle Segmente bereits zurückgenommen.` |
+| `S` (Schließen) + Enter      | Ab einem Segment: schließt die Polylinie mit einem Segment zurück zum Startpunkt, der Befehl endet. Liegt der letzte Punkt schon auf dem Startpunkt, ersetzt das schließende Segment das letzte |
+| `L` (sehnenLänge) + Enter    | Ab einem Segment: fragt `Länge der Linie angeben:` (siehe unten) |
+| **Enter** ohne Eingabe oder **Rechtsklick** | Beendet den Befehl; die Polylinie bleibt offen   |
+| **Esc**                      | Beendet den Befehl (`*Abbruch*`); die gezeichnete Polylinie bleibt |
+
+Im Englischen heißen die Optionen `Undo` (`U`), `Close` (`C`) und `Length` (`L`), die
+Aufforderungen `Specify start point:`, `Specify next point or [Close/Length/Undo]:` und
+`Specify length of line:`.
+
+**`Länge der Linie angeben:`** fügt ein Segment der angegebenen Länge in **Richtung des
+vorigen Segments** an (wie AutoCAD: die Abfrage eines Abstands ab dem letzten Punkt):
+
+- Eine getippte **Zahl** + Enter ist die Länge.
+- Ein **Klick** (mit Objektfang, Polarspur, Ortho und Objektfangspuren) oder ein getippter
+  **Punkt** (`x,y`, `@dx,dy`, `abstand<winkel`) gibt die Länge als Abstand vom letzten Punkt
+  zu diesem Punkt; seine Richtung zählt nicht.
+- Die Vorschau zeigt das entstehende Segment, so lang wie der Abstand Cursor–letzter Punkt,
+  dazu ein gestricheltes **Gummiband** vom letzten Punkt zum Cursor, mit dem gemessen wird.
+- Mit der [dynamischen Eingabe](#dynamische-eingabe-dyn) gibt es nur **ein Feld**, den
+  Abstand (mit Bemaßungseingabe auf einer Maßlinie entlang des Gummibands, ohne Winkelbogen).
+  `,` und `<` bleiben im Feld; das Getippte gilt dann als Punkt. Tab schaltet weiter die
+  Fangpunkte durch.
+- Nur eine **positive** Länge wird genommen. `0`, eine negative Zahl oder ein Punkt auf dem
+  letzten Punkt melden `Wert muss positiv und ungleich Null sein.`; anderer Text und Enter
+  ohne Eingabe melden `Erfordert numerischen Abstand oder zweiten Punkt.` Die Abfrage bleibt in
+  beiden Fällen stehen. Optionen gibt es hier nicht; **Esc** beendet den Befehl wie sonst
+  auch, die Polylinie bleibt.
+- Danach geht es mit `Nächsten Punkt angeben` weiter; „Zurück“ nimmt das Segment wieder weg.
+
+- Endet der Befehl mit nur dem Startpunkt (ohne Segment), entsteht nichts.
+- Die Polylinie hat eigene Punkte, die sie mit keinem anderen Objekt teilt, noch keinen Layer
+  und den Standardstil.
+- Sie ist **ein** Schritt für Rückgängig (`Rückgängig: PLINIE`). „Zurück“ wirkt nur innerhalb
+  des laufenden Befehls.
+- Die **Leertaste** ohne getippten Text verschiebt weiter die Ansicht, wie bei LINIE.
 
 ## Objektfang (OFANG)
 
@@ -338,9 +404,9 @@ Die gewählten Modi bleiben erhalten, wenn der Objektfang ausgeschaltet wird.
 
 ## Polarspur (POLAR)
 
-Beim zweiten Punkt von SCHIEBEN und beim nächsten Punkt von LINIE zeigt die Polarspur, wenn
-der Cursor nahe an einer Richtung unter einem Polarwinkel ab dem Basispunkt (bei LINIE: ab dem
-letzten Punkt) liegt (bei einem Winkelschritt von 90°
+Beim zweiten Punkt von SCHIEBEN und beim nächsten Punkt von LINIE und PLINIE zeigt die
+Polarspur, wenn der Cursor nahe an einer Richtung unter einem Polarwinkel ab dem Basispunkt (bei
+LINIE und PLINIE: ab dem letzten Punkt) liegt (bei einem Winkelschritt von 90°
 also waagrecht und senkrecht). Der Punkt liegt dann exakt auf dieser Geraden.
 
 | Eingabe                       | Wirkung                                                  |
@@ -374,16 +440,22 @@ also waagrecht und senkrecht). Der Punkt liegt dann exakt auf dieser Geraden.
 
 ## Ortho (ORTHO)
 
-Beim zweiten Punkt von SCHIEBEN liegt der Punkt mit Ortho immer auf der Waagrechten oder
-der Senkrechten durch den Basispunkt, je nachdem, welche dem Cursor näher liegt. Anders
+Beim zweiten Punkt von SCHIEBEN und beim nächsten Punkt von LINIE und PLINIE liegt der Punkt
+mit Ortho immer auf der Waagrechten oder der Senkrechten durch den Basispunkt (bei LINIE und
+PLINIE: den letzten Punkt), je nachdem, welche dem Cursor näher liegt. Anders
 als bei der Polarspur gilt das ohne Toleranz, egal wie weit der Cursor daneben liegt.
 
 | Eingabe                       | Wirkung                                                  |
 |-------------------------------|----------------------------------------------------------|
 | **F8** oder Button **ORTHO**  | Schaltet Ortho ein oder aus                              |
+| **Shift** gedrückt halten     | Schaltet Ortho vorübergehend um: ist es aus, gilt es, solange Shift gedrückt ist; ist es an, ist es solange aus |
 
 - Ortho und Polarspur schließen sich aus: Ortho ein schaltet POLAR aus, POLAR ein (auch
   über die Winkelwahl im Menü) schaltet Ortho aus. Die Polarwinkel bleiben erhalten.
+- **Shift** wirkt wie AutoCADs temporäre Überschreibung: sofort beim Drücken und Loslassen,
+  auch ohne die Maus zu bewegen, und auch für einen Klick mit gedrückter Shift-Taste. Die
+  Einstellung und der Schalter **ORTHO** in der Statuszeile ändern sich dabei nicht. Solange
+  Ortho per Shift gilt, ruht die Polarspur.
 - Es gibt keine eigene Spurlinie und keinen Tooltip, wie in AutoCAD: Vorschau und Gummiband
   folgen dem Ortho-Punkt, das Fadenkreuz bleibt am Mauszeiger.
 - **Klick** nimmt den Ortho-Punkt. Eine getippte **Zahl** + Enter geht diesen Abstand
@@ -404,7 +476,7 @@ durch die eine und die Waagrechte durch eine andere Ecke sich kreuzen.
 | Cursor auf einem Fangpunkt ruhen lassen | Erfasst den Punkt (kleines **+**); auf einem erfassten Punkt entfernt es ihn wieder |
 
 - Sie wirken bei **allen Punkt-Aufforderungen** von SCHIEBEN (Basispunkt, zweiter Punkt,
-  Verschiebung), auch ohne Basispunkt.
+  Verschiebung), LINIE und PLINIE, auch ohne Basispunkt.
 - **Erfassen:** Bleibt derselbe Fangpunkt eine kurze Zeit lang der Fangpunkt unter dem
   Cursor (Einstellung `trackingAcquireDelay`), wird er erfasst und mit einem kleinen grünen
   **+** markiert. Kurzes Überfahren erfasst nichts. Erneutes Verweilen auf einem erfassten
@@ -619,13 +691,20 @@ Neuladen):
 
 ## Noch nicht umgesetzt
 
+- Weitere temporäre Überschreibungstasten wie in AutoCAD (z. B. Shift+A für den Objektfang,
+  Shift+X für die Polarspur, Shift+E nur Endpunkt); die Liste der geplanten Kürzel steht in
+  `docs/todo/Zeichnen_Tastenkuerzel.md`.
 - Kontextmenüs mit der rechten Maustaste und eine Einstellung dafür wie AutoCADs
   Rechtsklick-Anpassung (wie Enter, Kontextmenü, zeitabhängiger Rechtsklick: kurz = Enter,
   lang = Menü).
-- Bei LINIE: Fortsetzen tangential an einen Bogen und an Polylinien (es gibt noch keine
-  Befehle BOGEN und PLINIE), aktueller Layer und Stil für neue Objekte, gemeinsame Punkte
-  (echte Verbindungen) zwischen den Segmenten, englische Optionen mit `_` im deutschen Editor.
-- Weitere Zeichenbefehle (KREIS, BOGEN, PLINIE …).
+- Bei LINIE: Fortsetzen tangential an einen Bogen (es gibt noch keinen Befehl BOGEN),
+  aktueller Layer und Stil für neue Objekte, gemeinsame Punkte (echte Verbindungen) zwischen
+  den Segmenten, englische Optionen mit `_` im deutschen Editor.
+- Bei PLINIE: Bogensegmente (Option `Kreisbogen` mit ihren Unteroptionen, danach `sehnenLänge`
+  tangential zum Bogen), Breite und Halbbreite, die Meldung zur aktuellen Linienbreite, Fangen an den
+  eigenen Segmenten während des Befehls, aktueller Layer und Stil; Details in
+  `docs/todo/Polyline_Draw_NotImplemented.md`.
+- Weitere Zeichenbefehle (KREIS, BOGEN …).
 - **Grip-Funktionen** (Ziehen an Grips) und alle anderen Bearbeitungsbefehle wie Löschen,
   Gruppieren oder Kopieren.
 - Gruppenauswahl ausschalten (AutoCAD Ctrl+Shift+A), um einzelne Gruppenmitglieder zu

@@ -1,4 +1,5 @@
 {
     "MOVE": ["SCHIEBEN"],
-    "LINE": ["LINIE", "L"]
+    "LINE": ["LINIE", "L"],
+    "PLINE": ["PLINIE", "PL"]
 }

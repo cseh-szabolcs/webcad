@@ -71,4 +71,12 @@ describe('matchesKeyword', () => {
         expect(matchesKeyword('x', 'Verschiebung')).toBe(false);
         expect(matchesKeyword('Verschiebungen', 'Verschiebung')).toBe(false);
     });
+
+    it('takes a keyword with a capital inside from that capital on, or whole', () => {
+        expect(matchesKeyword('l', 'sehnenLänge')).toBe(true);
+        expect(matchesKeyword('LÄNGE', 'sehnenLänge')).toBe(true);
+        expect(matchesKeyword('sehnenlänge', 'sehnenLänge')).toBe(true);
+        expect(matchesKeyword('s', 'sehnenLänge')).toBe(false);
+        expect(matchesKeyword('sehnen', 'sehnenLänge')).toBe(false);
+    });
 });

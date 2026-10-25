@@ -207,7 +207,7 @@ export function CadCanvas({
             }
             const point = dynamicInput?.point ?? null;
             const onDimension =
-                dynamicInput?.layout === 'dimension' && dynamicInput.format === 'polar' && dynamicInput.relative;
+                dynamicInput?.layout === 'dimension' && dynamicInput.format !== 'cartesian' && dynamicInput.relative;
             dynamicLayer.show({
                 cursor: crosshairAt && cursorAt(crosshairAt),
                 prompt: promptText,
@@ -222,6 +222,8 @@ export function CadCanvas({
             const viewport = viewportRef.current;
             // While moving, the originals show dimmed under the preview, like AutoCAD
             const basePoint = preview === 'move' ? from : null;
+            // Also from the last point while PLINIE measures a length
+            const rubberBandFrom = basePoint ?? (typeof preview === 'object' && preview?.direction ? from : null);
             renderer.setDimmed(basePoint ? editor.snapshot.highlighted : NOTHING);
             overlay.render(editor.snapshot);
             snapMarker.showPreview(
@@ -230,8 +232,8 @@ export function CadCanvas({
             snapMarker.show(snap && { viewPoint: viewport.modelToView(snap.point), mode: snap.mode, cycle: snapCycle });
             snapMarker.showBasePoint(basePoint && viewport.modelToView(basePoint));
             snapMarker.showRubberBand(
-                basePoint &&
-                    previewPoint && { from: viewport.modelToView(basePoint), to: viewport.modelToView(previewPoint) },
+                rubberBandFrom &&
+                    previewPoint && { from: viewport.modelToView(rubberBandFrom), to: viewport.modelToView(previewPoint) },
             );
             const view = (point: Point) => viewport.modelToView(point);
             let tracking: TrackingDisplay | null = null;

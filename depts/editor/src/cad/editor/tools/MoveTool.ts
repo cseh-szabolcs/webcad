@@ -60,6 +60,10 @@ export class MoveTool implements EditorTool {
         }
     }
 
+    distance(): ToolStep {
+        return {};
+    }
+
     text(text: string): ToolStep | null {
         const state = this.state;
         if (state.kind === 'basePoint' && (text === '' || matchesKeyword(text, t('message.displacementKeyword')))) {
