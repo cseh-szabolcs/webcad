@@ -65,6 +65,8 @@ export interface EditorSettings {
     ucsIconSize: number;
     /** Font size of the UCS icon's axis labels ("X", "Y") in screen px. */
     ucsIconLabelSize: number;
+    /** Opacity of the whole UCS icon (0–1), so it reads as a marker rather than a drawn line. */
+    ucsIconOpacity: number;
 }
 
 export const DEFAULT_EDITOR_SETTINGS: Readonly<EditorSettings> = {
@@ -89,6 +91,7 @@ export const DEFAULT_EDITOR_SETTINGS: Readonly<EditorSettings> = {
     ucsIconAtOrigin: true,
     ucsIconSize: 80,
     ucsIconLabelSize: 16,
+    ucsIconOpacity: 0.7,
 };
 
 /**

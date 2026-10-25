@@ -2,7 +2,10 @@ import { UCS_ICON_LABEL_GAP_PX, UCS_ICON_SQUARE_PX, ucsIconPosition } from 'app/
 import type { Size, Viewport } from 'app/cad/renderer/Viewport';
 import type { EditorSettings } from 'app/settings/editorSettings';
 
-type UcsIconSettings = Pick<EditorSettings, 'ucsIcon' | 'ucsIconAtOrigin' | 'ucsIconSize' | 'ucsIconLabelSize'>;
+type UcsIconSettings = Pick<
+    EditorSettings,
+    'ucsIcon' | 'ucsIconAtOrigin' | 'ucsIconSize' | 'ucsIconLabelSize' | 'ucsIconOpacity'
+>;
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -36,6 +39,8 @@ export class UcsIcon {
         this.svg.setAttribute('aria-hidden', 'true');
         this.icon = document.createElementNS(SVG_NS, 'g');
         this.icon.style.display = 'none';
+        // On the group, so the square and the axes do not add up where they meet
+        this.icon.style.opacity = String(settings.ucsIconOpacity);
         const axis = settings.ucsIconSize;
         const path = document.createElementNS(SVG_NS, 'path');
         path.setAttribute('d', ucsIconPath(axis, UCS_ICON_SQUARE_PX));

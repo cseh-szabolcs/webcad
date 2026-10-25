@@ -283,7 +283,7 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   `ui/UcsIcon.ts` draws it as an SVG layer over the drawing and under crosshair and snap
   marker (`pointer-events: none`), token `--ucs-icon`. Settings `ucsIcon` (ON/OFF),
   `ucsIconAtOrigin` (ORigin/Noorigin), `ucsIconSize` (axis px), `ucsIconLabelSize` (label font
-  px; the label room in the fit check is gap + font size). No custom UCS (and so no
+  px; the label room in the fit check is gap + font size), `ucsIconOpacity` (on the group). No custom UCS (and so no
   effect on input, Ortho, polar or grid), no selection/grips, no UCSICON command yet.
 - Only outlines are hit, never fills: an element is hit when its outline passes through
   the square pick box around the cursor. Elements on hidden or locked layers are not
@@ -347,7 +347,7 @@ Structure (all pure TS and unit-tested unless noted):
   px, like APERTURE), `showApertureBox` (APBOX), `snapMarkerSize` (AUTOSNAPSIZE) and
   `snapMarker`/`snapTooltip`/`snapMagnet` (AUTOSNAP), `polarTolerance` (px), `snapPreview`
   and `previewColor` (per theme: light `#ea580c`, dark `#facc15`), `gridMinSpacing` (px) and
-  `gridColor` (minor/major per theme), `ucsIcon`/`ucsIconAtOrigin`/`ucsIconSize`/`ucsIconLabelSize` (UCSICON).
+  `gridColor` (minor/major per theme), `ucsIcon`/`ucsIconAtOrigin`/`ucsIconSize`/`ucsIconLabelSize`/`ucsIconOpacity` (UCSICON).
   Code receives the object
   (App → `CadCanvas` → editor and crosshair) rather than importing the defaults, so the
   user can change them later; for now they are read when a document is loaded. The running

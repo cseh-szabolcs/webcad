@@ -348,9 +348,9 @@ gibt es noch nicht, das Quadrat ist also immer da.
   Zeichenfläche.
 - Es ist nur Anzeige: Es gehört nicht zum Plan, wird nie gedruckt, lässt sich nicht wählen
   und ist für Klicks durchlässig. Fadenkreuz und Fangmarker liegen darüber.
-- Ein-/Ausblenden, „immer unten links“, die Größe und die Schriftgröße der Beschriftung
-  stehen vorerst nur in den [Einstellungen](#einstellungen) (`ucsIcon`, `ucsIconAtOrigin`,
-  `ucsIconSize`, `ucsIconLabelSize`).
+- Ein-/Ausblenden, „immer unten links“, die Größe, die Schriftgröße der Beschriftung und
+  die Deckkraft stehen vorerst nur in den [Einstellungen](#einstellungen) (`ucsIcon`,
+  `ucsIconAtOrigin`, `ucsIconSize`, `ucsIconLabelSize`, `ucsIconOpacity`).
 
 ## Darstellung (Hell / Dunkel)
 
@@ -407,6 +407,7 @@ und BKS-Symbol, gelesen beim Laden eines Plans:
 | `ucsIconAtOrigin`  | BKS-Symbol am Nullpunkt, solange es dort passt; aus = immer unten links | UCSICON Ursprung / Kein Ursprung |
 | `ucsIconSize`      | Länge der Achsen des BKS-Symbols in px                         | UCSICON Eigenschaften |
 | `ucsIconLabelSize` | Schriftgröße der Achsenbeschriftung „X“/„Y“ in px              | UCSICON Eigenschaften |
+| `ucsIconOpacity`   | Deckkraft des BKS-Symbols (0–1), damit es sich von gezeichneten Linien abhebt |  |
 
 Die Startwerte der Schalter in der Statuszeile und ihrer Menüs (gelten nach jedem
 Neuladen):
