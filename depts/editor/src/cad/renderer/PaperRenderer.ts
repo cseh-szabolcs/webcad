@@ -3,7 +3,7 @@ import type { CadDocument } from '../model/CadDocument';
 import { indexDocument, type DocumentIndex } from '../model/DocumentIndex';
 import type { Id } from '../model/Point';
 import type { DisplayTheme } from './displayColor';
-import { applyStyle, createItem, styleOf } from './ElementRenderer';
+import { applyStyle, createItem, DEFAULT_STYLE, styleOf } from './ElementRenderer';
 import type { Rect, Size, Viewport } from './Viewport';
 
 const DEFAULT_LAYER = '__default';
@@ -114,6 +114,12 @@ export class PaperRenderer {
         if (element && this.index) {
             applyStyle(this.scope, item, styleOf(element, this.index), this.theme);
         }
+    }
+
+    /** Gives `item` the display style `styleId` (the default style for null), e.g. a preview of a new element. */
+    applyStyleById(item: paper.Path, styleId: Id | null): void {
+        const style = (styleId !== null && this.index?.styles.get(styleId)) || DEFAULT_STYLE;
+        applyStyle(this.scope, item, style, this.theme);
     }
 
     /** Re-colours all elements for the background; geometry stays as it is. */

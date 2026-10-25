@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { commandName } from 'app/cad/editor/commandNames';
 import type { SelectionSnapshot } from 'app/cad/editor/SelectionEditor';
 import type { CadDocument } from 'app/cad/model/CadDocument';
 import { currentLanguage, LANGUAGES, setLanguage } from 'app/i18n/i18n';
@@ -29,6 +28,7 @@ import { useFullscreen } from 'app/ui/fullscreen';
 import { StatusBar } from 'app/ui/StatusBar';
 import { ThemeIcon } from 'app/ui/ThemeIcon';
 import { ToolbarSelect } from 'app/ui/ToolbarSelect';
+import { ToolPanel } from 'app/ui/ToolPanel';
 import { useTheme, type ThemePreference } from 'app/ui/theme';
 import './App.css';
 
@@ -171,15 +171,7 @@ function App() {
     return (
         <div className="app">
             <header className="toolbar">
-                <div className="toolbar-tools" role="toolbar" aria-label={t('toolbar.tools')}>
-                    <button
-                        type="button"
-                        aria-pressed={selection?.command === 'MOVE'}
-                        onClick={() => canvasRef.current?.startMoveCommand()}
-                        title={t('toolbar.moveTitle', { command: commandName('MOVE') })}
-                    >
-                        {t('toolbar.move')}
-                    </button>
+                <div className="toolbar-tools" role="toolbar" aria-label={t('toolbar.history')}>
                     <button
                         type="button"
                         disabled={!selection?.canUndo}
@@ -240,21 +232,27 @@ function App() {
                     )}
                 </div>
             </header>
-            <CadCanvas
-                ref={canvasRef}
-                document={state.document}
-                theme={theme}
-                settings={DEFAULT_EDITOR_SETTINGS}
-                snapSettings={snapSettings}
-                polarSettings={tracking.polar}
-                ortho={tracking.ortho}
-                objectTrackingSettings={objectTracking}
-                gridSettings={gridSettings}
-                dynamicInputSettings={dynamicInput}
-                onViewportChange={setViewport}
-                onPointerChange={setPointer}
-                onSelectionChange={setSelection}
-            />
+            <div className="app-main">
+                <ToolPanel
+                    command={selection?.command ?? null}
+                    onStart={(command) => canvasRef.current?.startCommand(command)}
+                />
+                <CadCanvas
+                    ref={canvasRef}
+                    document={state.document}
+                    theme={theme}
+                    settings={DEFAULT_EDITOR_SETTINGS}
+                    snapSettings={snapSettings}
+                    polarSettings={tracking.polar}
+                    ortho={tracking.ortho}
+                    objectTrackingSettings={objectTracking}
+                    gridSettings={gridSettings}
+                    dynamicInputSettings={dynamicInput}
+                    onViewportChange={setViewport}
+                    onPointerChange={setPointer}
+                    onSelectionChange={setSelection}
+                />
+            </div>
             {selection && (
                 <CommandLine
                     prompt={selection.prompt}

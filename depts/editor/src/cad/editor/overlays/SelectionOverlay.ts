@@ -42,6 +42,8 @@ export interface OverlayHost {
     getItemPath(id: Id): paper.Path | null;
     /** Gives `item` the display style of element `id` (the rendered item may be dimmed). */
     applyElementStyle(item: paper.Path, id: Id): void;
+    /** Gives `item` the display style `styleId`, the default style for null. */
+    applyStyleById(item: paper.Path, styleId: Id | null): void;
 }
 
 /**
@@ -50,7 +52,8 @@ export interface OverlayHost {
  * selection rectangle or lasso. While SCHIEBEN asks for the second point, it previews the
  * move like AutoCAD: copies of the selected paths in their own style (slightly
  * see-through), offset from the base point to the preview point (the rubber band between
- * the two is drawn by SnapMarker, above the polar path). The originals are then not
+ * the two is drawn by SnapMarker, above the polar path). While LINIE asks for the next point,
+ * it previews the new line from the last point to the preview point. The originals are then not
  * highlighted; the canvas dims them (PaperRenderer.setDimmed); the document stays
  * unchanged. Grips depend on the zoom, so render again after every viewport change (and
  * after setTheme()).
@@ -68,8 +71,9 @@ export class SelectionOverlay {
         this.palette = PALETTES[theme];
     }
 
-    render({ hovered, highlighted, grips, controlFrames, area, basePoint, previewPoint }: SelectionSnapshot): void {
+    render({ hovered, highlighted, grips, controlFrames, area, from, preview, previewPoint }: SelectionSnapshot): void {
         const layer = this.host.overlayLayer;
+        const basePoint = preview === 'move' ? from : null;
         layer.removeChildren();
         for (const id of hovered) {
             this.highlight(layer, id, this.palette.hovered, HOVER_EXTRA_WIDTH);
@@ -82,6 +86,9 @@ export class SelectionOverlay {
         }
         if (basePoint && previewPoint) {
             this.movePreview(layer, highlighted, basePoint, previewPoint);
+        }
+        if (preview === 'line' && from && previewPoint) {
+            this.linePreview(layer, from, previewPoint);
         }
         // Below the grips, so the grips stay whole at the line ends
         for (const [from, to] of controlFrames) {
@@ -135,6 +142,14 @@ export class SelectionOverlay {
             copy.data = {};
             layer.addChild(copy);
         }
+    }
+
+    /** The line LINIE would add, solid in the style of new lines, like AutoCAD's rubber band. */
+    private linePreview(layer: paper.Layer, from: Point, to: Point): void {
+        const line = new paper.Path.Line({ from: [from.x, from.y], to: [to.x, to.y], insert: false });
+        line.strokeScaling = false;
+        this.host.applyStyleById(line, null);
+        layer.addChild(line);
     }
 
     private highlight(layer: paper.Layer, id: Id, color: string, extraWidth: number): void {

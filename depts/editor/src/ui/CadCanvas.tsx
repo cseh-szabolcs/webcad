@@ -1,7 +1,7 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import { DocumentHistory } from 'app/cad/editor/commands/DocumentHistory';
 import { SelectionOverlay } from 'app/cad/editor/overlays/SelectionOverlay';
-import { SelectionEditor, type SelectionSnapshot } from 'app/cad/editor/SelectionEditor';
+import { SelectionEditor, type EditorCommand, type SelectionSnapshot } from 'app/cad/editor/SelectionEditor';
 import type { CadDocument } from 'app/cad/model/CadDocument';
 import type { Point } from 'app/cad/model/Point';
 import type { DisplayTheme } from 'app/cad/renderer/displayColor';
@@ -27,8 +27,8 @@ const NOTHING: ReadonlySet<string> = new Set();
 
 export interface CadCanvasHandle {
     fit(): void;
-    /** Starts the SCHIEBEN command, taking over the current pickfirst selection. */
-    startMoveCommand(): void;
+    /** Starts a command (SCHIEBEN takes over the current pickfirst selection); cancels another running one. */
+    startCommand(command: EditorCommand): void;
     /** Undo and redo of document changes; ignored while a command runs. */
     undo(): void;
     redo(): void;
@@ -135,7 +135,7 @@ export function CadCanvas({
 
     useImperativeHandle(ref, () => ({
         fit,
-        startMoveCommand: () => editorRef.current?.startMoveCommand(),
+        startCommand: (command) => editorRef.current?.startCommand(command),
         undo: () => editorRef.current?.undo(),
         redo: () => editorRef.current?.redo(),
     }));
@@ -189,11 +189,11 @@ export function CadCanvas({
         let crosshairAt: Point | null = null;
         /**
          * Dynamic Input next to the crosshair: the prompt (or a typed command name) with the
-         * prompts on, the fields at the crosshair or, for distance and angle from the base point,
-         * on a dimension.
+         * prompts on, the fields at the crosshair or, for distance and angle from the prompt's
+         * `from` point, on a dimension.
          */
         const refreshDynamicInput = () => {
-            const { command, prompt, input, dynamicInput, basePoint } = editor.snapshot;
+            const { command, prompt, input, dynamicInput, from } = editor.snapshot;
             const dynamic = dynamicInputSettingsRef.current;
             const view = (point: Point) => viewportRef.current.modelToView(point);
             let promptText: string | null = null;
@@ -212,15 +212,16 @@ export function CadCanvas({
                 cursor: crosshairAt && cursorAt(crosshairAt),
                 prompt: promptText,
                 fields: dynamicInput?.fields ?? null,
-                dimension: onDimension && basePoint && point ? { from: view(basePoint), to: view(point) } : null,
+                dimension: onDimension && from && point ? { from: view(from), to: view(point) } : null,
                 bound: dynamicInput?.bound && point ? view(point) : null,
             });
         };
         const refreshOverlay = () => {
-            const { snap, snapCycle, snapPreview, polar, acquired, objectTrack, basePoint, previewPoint, cursor } =
+            const { snap, snapCycle, snapPreview, polar, acquired, objectTrack, from, preview, previewPoint, cursor } =
                 editor.snapshot;
             const viewport = viewportRef.current;
             // While moving, the originals show dimmed under the preview, like AutoCAD
+            const basePoint = preview === 'move' ? from : null;
             renderer.setDimmed(basePoint ? editor.snapshot.highlighted : NOTHING);
             overlay.render(editor.snapshot);
             snapMarker.showPreview(
@@ -243,9 +244,9 @@ export function CadCanvas({
                     point: view(objectTrack.point),
                     tooltip: trackingTooltipText(objectTrack),
                 };
-            } else if (polar && basePoint) {
+            } else if (polar && from) {
                 tracking = {
-                    paths: [{ from: view(basePoint), through: view(polar.point) }],
+                    paths: [{ from: view(from), through: view(polar.point) }],
                     point: view(polar.point),
                     tooltip: polarTooltipText(polar.distance, polar.angle),
                 };

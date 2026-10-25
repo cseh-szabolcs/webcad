@@ -17,10 +17,10 @@ import {
     type DynamicInputState,
 } from './dynamicInput';
 
-const BASE_POINT: DynamicContext = { prompt: 'basePoint', basePoint: null, lastPoint: { x: 10, y: 20 }, trackOrigin: null };
+const BASE_POINT: DynamicContext = { prompt: 'point', from: null, lastPoint: { x: 10, y: 20 }, trackOrigin: null };
 const SECOND_POINT: DynamicContext = {
-    prompt: 'secondPoint',
-    basePoint: { x: 100, y: 100 },
+    prompt: 'next',
+    from: { x: 100, y: 100 },
     lastPoint: { x: 100, y: 100 },
     trackOrigin: null,
 };
@@ -38,18 +38,18 @@ const closeTo = (actual: { x: number; y: number } | null, x: number, y: number) 
 describe('dynamicLayout', () => {
     it('shows the second point on a dimension, the others at the crosshair', () => {
         const settings = DEFAULT_DYNAMIC_INPUT_SETTINGS;
-        expect(dynamicLayout(settings, 'basePoint')).toBe('pointer');
-        expect(dynamicLayout(settings, 'displacement')).toBe('pointer');
-        expect(dynamicLayout(settings, 'secondPoint')).toBe('dimension');
-        expect(dynamicLayout({ ...settings, dimensionInput: false }, 'secondPoint')).toBe('pointer');
+        expect(dynamicLayout(settings, 'point')).toBe('pointer');
+        expect(dynamicLayout(settings, 'vector')).toBe('pointer');
+        expect(dynamicLayout(settings, 'next')).toBe('dimension');
+        expect(dynamicLayout({ ...settings, dimensionInput: false }, 'next')).toBe('pointer');
     });
 
     it('shows nothing while off, and the first point only with pointer input', () => {
         const settings = DEFAULT_DYNAMIC_INPUT_SETTINGS;
-        expect(dynamicLayout({ ...settings, enabled: false }, 'secondPoint')).toBeNull();
-        expect(dynamicLayout({ ...settings, pointerInput: false }, 'basePoint')).toBeNull();
-        expect(dynamicLayout({ ...settings, pointerInput: false }, 'secondPoint')).toBe('dimension');
-        expect(dynamicLayout({ ...settings, pointerInput: false, dimensionInput: false }, 'secondPoint')).toBeNull();
+        expect(dynamicLayout({ ...settings, enabled: false }, 'next')).toBeNull();
+        expect(dynamicLayout({ ...settings, pointerInput: false }, 'point')).toBeNull();
+        expect(dynamicLayout({ ...settings, pointerInput: false }, 'next')).toBe('dimension');
+        expect(dynamicLayout({ ...settings, pointerInput: false, dimensionInput: false }, 'next')).toBeNull();
     });
 });
 

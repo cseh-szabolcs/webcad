@@ -1,6 +1,5 @@
 import type { CadDocument } from '../model/CadDocument';
 import { DocumentHistory } from './commands/DocumentHistory';
-import { MoveCommand } from './commands/MoveCommand';
 import {
     DEFAULT_DYNAMIC_INPUT_SETTINGS,
     DEFAULT_EDITOR_SETTINGS,
@@ -16,7 +15,7 @@ import {
 import { indexDocument, type DocumentIndex } from '../model/DocumentIndex';
 import type { Id, Point } from '../model/Point';
 import { rectFromCorners } from '../geometry/selectionGeometry';
-import { matchesKeyword, parsePointInput, resolvePointInput } from './commandInput';
+import { parsePointInput, resolvePointInput } from './commandInput';
 import type { EditorKeyEvent, EditorPointerEvent } from './EditorPointerEvent';
 import { buildElementShapes } from './selection/ElementShapes';
 import { selectionControlFrames, selectionGrips } from './selection/grips';
@@ -28,6 +27,9 @@ import type { SnapPoint } from './snapping/SnapGeometry';
 import { orthoPoint } from './tracking/ortho';
 import { t } from '../../i18n/i18n';
 import { commandName, findCommand, type EditorCommand } from './commandNames';
+import { LineTool, type LineMemory } from './tools/LineTool';
+import { MoveTool } from './tools/MoveTool';
+import type { EditorTool, Message, PointPrompt, ToolPreview, ToolStep } from './tools/EditorTool';
 import {
     backspaceDynamic,
     dynamicFields,
@@ -66,12 +68,6 @@ const NO_POINTS: readonly SnapPoint[] = [];
 const NO_ACQUIRED: readonly AcquiredPoint[] = [];
 
 export type { EditorCommand };
-
-/**
- * Command line message, translated only when a snapshot is built, so a language change shows
- * at once (see refreshTexts).
- */
-type Message = () => string;
 
 /** Typed text that is neither a point nor an option, like AutoCAD. */
 const INVALID_INPUT: Message = () => t('message.invalidInput');
@@ -138,7 +134,7 @@ export interface SelectionSnapshot {
      */
     snapPreview: readonly SnapPoint[];
     /**
-     * Polar path from the base point the cursor follows at the second point prompt, or null
+     * Polar path from `from` the cursor follows at a `next` point prompt, or null
      * (also while a snap point is found or object snap tracking gives the point, which win).
      */
     polar: PolarTrack | null;
@@ -149,12 +145,17 @@ export interface SelectionSnapshot {
      * where two paths cross; null where nothing is tracked (or a snap point wins).
      */
     objectTrack: ObjectTrack | null;
-    /** Base point of SCHIEBEN once given, or null. */
-    basePoint: Point | null;
     /**
-     * At the second point prompt, the point a click would take now (the snap point, else the
-     * tracking point, else the Ortho point or the point on the polar path, else the cursor), for the move preview; null
-     * at other prompts and while the pointer is outside.
+     * The point a `next` point prompt measures from (SCHIEBEN's base point at the second point),
+     * or null: polar paths and the Dynamic Input dimension start there.
+     */
+    from: Point | null;
+    /** How the point a click would take is previewed from `from`; null without `from`. */
+    preview: ToolPreview | null;
+    /**
+     * At a `next` point prompt, the point a click would take now (the snap point, else the
+     * tracking point, else the Ortho point or the point on the polar path, else the cursor), for
+     * the preview; null at other prompts and while the pointer is outside.
      */
     previewPoint: Point | null;
     /** Dynamic Input fields at the current point prompt, or null where none show. */
@@ -168,7 +169,7 @@ export interface SelectionSnapshot {
 export interface DynamicInputView {
     layout: DynamicLayout;
     format: DynamicFormat;
-    /** Measured from the base point (or the last point), not from the origin. */
+    /** Measured from `from` (or the last point), not from the origin. */
     relative: boolean;
     fields: readonly [DynamicField, DynamicField];
     /** The point a click or Enter takes now (also without a pointer once typed values fix it), or null. */
@@ -180,59 +181,49 @@ export interface DynamicInputView {
 type State =
     /** No command; clicks build the pickfirst selection (noun-verb). */
     | { kind: 'idle'; pickfirst: ReadonlySet<Id> }
-    /** SCHIEBEN selects objects; clicks build the command's selection (verb-noun). */
-    | { kind: 'select'; selection: ReadonlySet<Id> }
-    /** SCHIEBEN asks for the base point. */
-    | { kind: 'basePoint'; selection: ReadonlySet<Id> }
-    /** SCHIEBEN asks for the second point. */
-    | { kind: 'secondPoint'; selection: ReadonlySet<Id>; basePoint: Point }
-    /** SCHIEBEN asks for the displacement vector (option "Verschiebung"); a click gives it as a point. */
-    | { kind: 'displacement'; selection: ReadonlySet<Id> };
-
-type PointPromptState = Extract<State, { kind: 'basePoint' | 'secondPoint' | 'displacement' }>;
-
-function isPointPrompt(state: State): state is PointPromptState {
-    return state.kind === 'basePoint' || state.kind === 'secondPoint' || state.kind === 'displacement';
-}
+    /**
+     * A command runs (see EditorTool); while it selects objects, clicks build `selection`
+     * (verb-noun).
+     */
+    | { kind: 'command'; tool: EditorTool; selection: ReadonlySet<Id> };
 
 /**
- * Object selection and the SCHIEBEN (MOVE) command of the editor like AutoCAD, independent
- * of Paper.js and React.
+ * The editor core like AutoCAD, independent of Paper.js and React: object selection, and for
+ * the running command (an EditorTool such as MoveTool) its object selection and point prompts.
  *
  * With no command, a click adds the element under the cursor to the pickfirst selection,
- * Shift+click removes it and Esc clears it. SCHIEBEN takes over the pickfirst selection and
- * then asks for the base point right away; without one it first asks for objects: clicks add
- * to or remove from the command's selection, and Enter or a right click ends the selection
- * (the result becomes the "previous" selection; with nothing selected the command ends).
- * The base point and the second point snap to the drawing (see SnapEngine); a click takes
- * the snap point, or the cursor position if there is none. At the second point the snapshot
- * carries the point for the move preview; the click moves the selection as one undo step
- * (see MoveCommand) and ends the command. Where nothing snaps at the second point, Ortho
- * forces the point onto the horizontal or vertical through the base point (see orthoPoint);
- * with Ortho off, polar tracking (see PolarTracking) puts it on the nearest polar path from
- * the base point. Both also work with the object snap off. With object snap tracking on (see
- * ObjectSnapTracking), a snap point that stays the snap point for the acquire delay is acquired
- * (dwelling on it again drops it); where nothing snaps, the point follows a horizontal or
- * vertical path (or one at the polar angles) from an acquired point, or takes the crossing of
- * two such paths, also with the polar path or the Ortho axis from the base point. The acquired
- * points hold for one point prompt. While several points lie in the aperture, Tab
- * switches to the next one (Shift+Tab back), until the cursor moves more than the aperture
- * size (half the box side) from where Tab was pressed. Esc cancels the command at any prompt. With
- * no command, undo() and redo() step through the document history.
+ * Shift+click removes it and Esc clears it. A command may take over the pickfirst selection;
+ * when it selects objects, clicks add to or remove from the command's selection, and Enter or a
+ * right click ends the selection (the result becomes the "previous" selection; with nothing
+ * selected the command ends).
+ *
+ * Points snap to the drawing (see SnapEngine); a click takes the snap point, or the cursor
+ * position if there is none. At a `next` prompt (see PointPromptKind) the snapshot carries the
+ * point for the tool's preview. Where nothing snaps there, Ortho forces the point onto the
+ * horizontal or vertical through the prompt's `from` point (see orthoPoint); with Ortho off,
+ * polar tracking (see PolarTracking) puts it on the nearest polar path from it. Both also work
+ * with the object snap off. With object snap tracking on (see ObjectSnapTracking), a snap point
+ * that stays the snap point for the acquire delay is acquired (dwelling on it again drops it);
+ * where nothing snaps, the point follows a horizontal or vertical path (or one at the polar
+ * angles) from an acquired point, or takes the crossing of two such paths, also with the polar
+ * path or the Ortho axis from `from`. The acquired points hold for one point prompt. While
+ * several points lie in the aperture, Tab switches to the next one (Shift+Tab back), until the
+ * cursor moves more than the aperture size (half the box side) from where Tab was pressed. Esc
+ * cancels the command at any prompt. With no command, undo() and redo() step through the
+ * document history.
  *
  * At the point prompts the keyboard types on the command line (see commandInput): Enter ends
  * the text (so does Space once something is typed), Backspace edits it and Esc drops it. A
- * typed point is absolute (`x,y`, `abstand<winkel`) or relative (`@…`) to the base point, at
- * the base point prompt to the last point given; a plain number at the second point goes that
- * far from the base point towards the cursor (direct distance entry). Enter on its own (or
- * "V") at the base point prompt asks for the displacement vector instead, and at the second
- * point takes the base point itself as the displacement, like AutoCAD. Direct distance entry
- * follows the Ortho direction, or the polar path while the cursor is on one; on a single
- * object snap tracking path it goes that far from the acquired point along the path.
+ * typed point is absolute (`x,y`, `abstand<winkel`) or relative (`@…`) to `from`, at a `point`
+ * prompt to the last point given; a plain number at a `next` prompt goes that far from `from`
+ * towards the cursor (direct distance entry). Enter on its own and other text that is no point
+ * go to the tool (an option, or the default). Direct distance entry follows the Ortho
+ * direction, or the polar path while the cursor is on one; on a single object snap tracking
+ * path it goes that far from the acquired point along the path.
  *
  * With Dynamic Input on (see dynamicInput), a point prompt that shows fields takes the keys into
- * them instead: X/Y (absolute) at the first point, distance and angle relative to the base point
- * at the second; untyped fields show the live values at the pointer. Typed numbers bind the point
+ * them instead: X/Y (absolute) at a `point` prompt, distance and angle relative to `from` at a
+ * `next` one; untyped fields show the live values at the pointer. Typed numbers bind the point
  * at once, so the preview and a click follow them, and Tab moves between the fields once
  * something is typed (before, it still cycles the snap points). Text that is no number goes on
  * as if typed on the command line (an option keyword, or an invalid entry).
@@ -271,7 +262,7 @@ export class SelectionEditor {
     /** Snap point preview at the last cursor position (see SnapEngine.previewPoints). */
     private snapPreview: readonly SnapPoint[] = NO_POINTS;
     private polarSettings: PolarSettings = DEFAULT_POLAR_SETTINGS;
-    /** Polar path at the cursor during the second point prompt (see PolarTracking). */
+    /** Polar path at the cursor during a `next` point prompt (see PolarTracking). */
     private polar: PolarTrack | null = null;
     /** Ortho mode (F8); excludes polar tracking. */
     private ortho = false;
@@ -288,12 +279,17 @@ export class SelectionEditor {
     /** Last cursor position over the canvas, to snap at once when a point prompt starts. */
     private lastPointer: EditorPointerEvent | null = null;
     private state: State = { kind: 'idle', pickfirst: new Set() };
+    /** The command started last, which Enter at "Befehl:" repeats. */
+    private lastCommand: EditorCommand | null = null;
+    private readonly lineMemory: LineMemory = { lastLine: null };
+    /** The running tool's prompt the editor last started, to notice when the tool asks anew. */
+    private prompt: EditorTool['prompt'] | null = null;
     /** Text typed at the current point prompt or the command prompt. */
     private input = '';
     private dynamicInputSettings: DynamicInputSettings = DEFAULT_DYNAMIC_INPUT_SETTINGS;
     /** Text typed into the Dynamic Input fields, at point prompts that show them (instead of `input`). */
     private dynamic: DynamicInputState = EMPTY_DYNAMIC_INPUT;
-    /** Last point given, the reference of relative input at the base point prompt (AutoCAD's LASTPOINT). */
+    /** Last point given, the reference of relative input at a `point` prompt (AutoCAD's LASTPOINT). */
     private lastPoint: Point = { x: 0, y: 0 };
     private previousSelection: ReadonlySet<Id> = new Set();
     /** Element under the cursor, whether selected or not. */
@@ -356,7 +352,7 @@ export class SelectionEditor {
         return this.current;
     }
 
-    /** Selection the last SCHIEBEN worked on, for later commands ("Vorherige"). */
+    /** Selection the last command worked on, for later commands ("Vorherige"). */
     get previous(): ReadonlySet<Id> {
         return this.previousSelection;
     }
@@ -393,24 +389,19 @@ export class SelectionEditor {
     }
 
     /**
-     * Starts SCHIEBEN: with a pickfirst selection straight at the base point, otherwise by
-     * selecting objects. Does nothing while a command runs.
+     * Starts a command, e.g. SCHIEBEN (with a pickfirst selection straight at the base point,
+     * otherwise by selecting objects) or LINIE. Another running command is cancelled first, like
+     * a toolbar click in AutoCAD; the same command keeps running.
      */
-    startMoveCommand(): void {
-        if (this.state.kind !== 'idle') {
-            return;
+    startCommand(command: EditorCommand): void {
+        const state = this.state;
+        if (state.kind === 'command') {
+            if (state.tool.command === command) {
+                return;
+            }
+            this.cancelCommand();
         }
-        const selection = this.state.pickfirst;
-        this.area = null;
-        this.press = null;
-        if (selection.size > 0) {
-            this.askBasePoint(selection);
-            this.message = () => t('message.found', { count: selection.size });
-        } else {
-            this.state = { kind: 'select', selection };
-            this.message = null;
-        }
-        this.changed();
+        this.startTool(command === 'LINE' ? new LineTool(this.history, this.lineMemory) : new MoveTool());
     }
 
     /** Publishes the texts again after a language change. */
@@ -421,7 +412,7 @@ export class SelectionEditor {
     /** Switches the running object snaps; takes effect at the cursor right away. */
     setSnapSettings(settings: SnapSettings): void {
         this.snapSettings = settings;
-        if (this.lastPointer !== null && isPointPrompt(this.state)) {
+        if (this.lastPointer !== null && this.pointPrompt() !== null) {
             this.snapCycle = null;
             this.updateSnap(this.lastPointer);
             this.changed();
@@ -431,7 +422,7 @@ export class SelectionEditor {
     /** Switches polar tracking or its angles; takes effect at the cursor right away. */
     setPolarSettings(settings: PolarSettings): void {
         this.polarSettings = settings;
-        if (this.lastPointer !== null && isPointPrompt(this.state)) {
+        if (this.lastPointer !== null && this.pointPrompt() !== null) {
             this.updateSnap(this.lastPointer);
             this.changed();
         }
@@ -440,7 +431,7 @@ export class SelectionEditor {
     /** Switches Ortho; takes effect at the cursor right away. Polar tracking is off while it is on. */
     setOrtho(enabled: boolean): void {
         this.ortho = enabled;
-        if (this.lastPointer !== null && isPointPrompt(this.state)) {
+        if (this.lastPointer !== null && this.pointPrompt() !== null) {
             this.updateSnap(this.lastPointer);
             this.changed();
         }
@@ -455,7 +446,7 @@ export class SelectionEditor {
         if (!settings.enabled) {
             this.acquired = NO_ACQUIRED;
         }
-        if (isPointPrompt(this.state)) {
+        if (this.pointPrompt() !== null) {
             this.updateSnap(this.lastPointer);
         }
         this.changed();
@@ -464,7 +455,7 @@ export class SelectionEditor {
     /** Switches Dynamic Input or its parts; text typed at a point prompt is dropped. */
     setDynamicInputSettings(settings: DynamicInputSettings): void {
         this.dynamicInputSettings = settings;
-        if (isPointPrompt(this.state)) {
+        if (this.pointPrompt() !== null) {
             this.input = '';
             this.dynamic = EMPTY_DYNAMIC_INPUT;
         }
@@ -473,7 +464,7 @@ export class SelectionEditor {
 
     pointerDown(event: EditorPointerEvent): void {
         const state = this.state;
-        if (isPointPrompt(state)) {
+        if (this.pointPrompt() !== null) {
             if (event.button === 0) {
                 // A click gives the point, bound by typed Dynamic Input values; other typed text is dropped
                 this.updateSnap(event);
@@ -481,11 +472,16 @@ export class SelectionEditor {
                 this.input = '';
                 this.dynamic = EMPTY_DYNAMIC_INPUT;
                 this.pointGiven(point);
+            } else if (event.button === 2 && state.kind === 'command') {
+                const step = state.tool.rightClick();
+                if (step !== null) {
+                    this.applyStep(step);
+                }
             }
             return;
         }
         if (event.button === 2) {
-            if (this.area === null && state.kind === 'select') {
+            if (this.area === null && this.selecting()) {
                 this.finishSelection();
             }
             return;
@@ -512,7 +508,7 @@ export class SelectionEditor {
 
     pointerMove(event: EditorPointerEvent): void {
         this.lastPointer = event;
-        if (isPointPrompt(this.state)) {
+        if (this.pointPrompt() !== null) {
             this.updateSnap(event);
             this.changed();
             return;
@@ -605,7 +601,7 @@ export class SelectionEditor {
         const state = this.state;
         if (event.key === 'Tab') {
             // Handled at every point prompt, so the browser focus never moves away
-            if (!isPointPrompt(state)) {
+            if (this.pointPrompt() === null) {
                 return false;
             }
             // With typed Dynamic Input values Tab moves between the fields, else it cycles the snap points
@@ -617,15 +613,15 @@ export class SelectionEditor {
             }
             return true;
         }
-        if (isPointPrompt(state)) {
+        if (this.pointPrompt() !== null) {
             return this.typeKey(event);
         }
         if (state.kind !== 'idle') {
             if (event.key === 'Escape') {
-                this.endCommand(CANCEL);
+                this.cancelCommand();
                 return true;
             }
-            if (event.key === 'Enter' && state.kind === 'select') {
+            if (event.key === 'Enter' && this.selecting()) {
                 this.finishSelection();
                 return true;
             }
@@ -642,25 +638,91 @@ export class SelectionEditor {
         return false;
     }
 
-    /** Ends the object selection of SCHIEBEN: on to the base point, or out if nothing is selected. */
-    private finishSelection(): void {
-        if (this.state.kind !== 'select') {
+    /** Starts a command; does nothing while one runs. */
+    private startTool(tool: EditorTool): void {
+        const state = this.state;
+        if (state.kind !== 'idle') {
             return;
         }
-        if (this.state.selection.size === 0) {
-            this.endCommand(null);
+        this.area = null;
+        this.press = null;
+        this.lastCommand = tool.command;
+        this.state = { kind: 'command', tool, selection: new Set() };
+        this.prompt = null;
+        const step = tool.start(state.pickfirst);
+        if (tool.highlighted.size > 0) {
+            this.previousSelection = tool.highlighted;
+        }
+        this.applyStep(step);
+    }
+
+    /**
+     * Follows up what the tool did: ends the command (and runs its document command), or starts
+     * its new prompt; shows its message.
+     */
+    private applyStep(step: ToolStep): void {
+        const state = this.state;
+        if (state.kind !== 'command') {
             return;
         }
-        this.askBasePoint(this.state.selection);
-        this.message = null;
+        if (step.done) {
+            this.endCommand(step.message ?? null);
+            if (step.command) {
+                this.history.execute(step.command);
+            }
+            return;
+        }
+        const prompt = state.tool.prompt;
+        if (prompt !== this.prompt) {
+            this.prompt = prompt;
+            if (prompt.kind === 'select') {
+                this.state = { ...state, selection: new Set() };
+            } else {
+                this.underCursor = null;
+                this.startPointPrompt();
+            }
+        }
+        this.message = step.message ?? null;
         this.changed();
     }
 
-    private askBasePoint(selection: ReadonlySet<Id>): void {
-        this.previousSelection = selection;
-        this.state = { kind: 'basePoint', selection };
-        this.underCursor = null;
-        this.startPointPrompt();
+    /** The running command's point prompt, or null at other prompts. */
+    private pointPrompt(): PointPrompt | null {
+        const state = this.state;
+        return state.kind === 'command' && state.tool.prompt.kind === 'point' ? state.tool.prompt : null;
+    }
+
+    /** The running command selects objects. */
+    private selecting(): boolean {
+        return this.state.kind === 'command' && this.state.tool.prompt.kind === 'select';
+    }
+
+    /** The point the current `next` prompt measures from, or null. */
+    private from(): Point | null {
+        const prompt = this.pointPrompt();
+        return prompt?.input === 'next' ? prompt.from : null;
+    }
+
+    /** Esc: the tool tidies up, the command ends. */
+    private cancelCommand(): void {
+        if (this.state.kind === 'command') {
+            this.state.tool.cancel();
+        }
+        this.endCommand(CANCEL);
+    }
+
+    /** Ends the command's object selection: on to its next prompt, or out if nothing is selected. */
+    private finishSelection(): void {
+        const state = this.state;
+        if (state.kind !== 'command' || !this.selecting()) {
+            return;
+        }
+        if (state.selection.size === 0) {
+            this.endCommand(null);
+            return;
+        }
+        this.previousSelection = state.selection;
+        this.applyStep(state.tool.objectsSelected(state.selection));
     }
 
     /**
@@ -674,7 +736,7 @@ export class SelectionEditor {
         const { key } = event;
         if (key === 'Escape') {
             if (this.input === '') {
-                this.endCommand(CANCEL);
+                this.cancelCommand();
             } else {
                 this.input = '';
                 this.changed();
@@ -707,7 +769,7 @@ export class SelectionEditor {
         const empty = isEmptyDynamicInput(this.dynamic);
         if (key === 'Escape') {
             if (empty) {
-                this.endCommand(CANCEL);
+                this.cancelCommand();
             } else {
                 this.dynamic = EMPTY_DYNAMIC_INPUT;
                 this.changed();
@@ -739,6 +801,11 @@ export class SelectionEditor {
         if (isTypedCharacter(event)) {
             this.input += key;
         } else if (this.input === '') {
+            // Enter on its own repeats the last command, like AutoCAD; Space keeps panning
+            if (key === 'Enter' && this.lastCommand !== null) {
+                this.startCommand(this.lastCommand);
+                return true;
+            }
             return false;
         } else if (key === 'Escape') {
             this.input = '';
@@ -759,8 +826,8 @@ export class SelectionEditor {
         const text = this.input.trim();
         this.input = '';
         const command = findCommand(text);
-        if (command === 'MOVE') {
-            this.startMoveCommand();
+        if (command !== null) {
+            this.startCommand(command);
             return;
         }
         this.message = () => t('message.unknownCommand', { name: text.toUpperCase() });
@@ -795,31 +862,34 @@ export class SelectionEditor {
         this.submitText(text);
     }
 
-    /** Typed command line text at a point prompt: a point, an option, or the default when empty. */
+    /**
+     * Typed command line text at a point prompt: a point, else an option of the tool or, when
+     * empty, its default.
+     */
     private submitText(text: string): void {
-        const state = this.state as PointPromptState;
-        if (state.kind === 'basePoint' && (text === '' || matchesKeyword(text, t('message.displacementKeyword')))) {
-            this.state = { kind: 'displacement', selection: state.selection };
-            this.startPointPrompt();
-            this.message = null;
-            this.changed();
+        const { tool } = this.state as Extract<State, { kind: 'command' }>;
+        const prompt = this.pointPrompt()!;
+        const parsed = text === '' ? null : parsePointInput(text);
+        if (parsed === null) {
+            const step = tool.text(text);
+            if (step === null) {
+                this.message = INVALID_INPUT;
+                this.changed();
+            } else {
+                this.applyStep(step);
+            }
             return;
         }
-        if (text === '') {
-            // The base point as displacement, or the default <0,0>
-            this.moveBy(state.selection, state.kind === 'secondPoint' ? state.basePoint : { x: 0, y: 0 });
-            return;
-        }
-        const parsed = parsePointInput(text);
-        const reference = state.kind === 'secondPoint' ? state.basePoint : state.kind === 'basePoint' ? this.lastPoint : { x: 0, y: 0 };
-        // Direct distance entry needs a base point to measure from
-        const toward = state.kind === 'secondPoint' ? this.previewPoint() : null;
+        const from = this.from();
+        const reference = from ?? (prompt.input === 'point' ? this.lastPoint : { x: 0, y: 0 });
+        // Direct distance entry needs a point to measure from
+        const toward = from !== null ? this.previewPoint() : null;
         // On a single tracking path a distance goes from the acquired point along it, like AutoCAD
         const track = this.objectTrack?.paths.length === 1 ? this.objectTrack : null;
         const point =
-            parsed?.kind === 'distance' && track !== null
+            parsed.kind === 'distance' && track !== null
                 ? resolvePointInput(parsed, track.paths[0].origin, track.point)
-                : parsed && resolvePointInput(parsed, reference, toward);
+                : resolvePointInput(parsed, reference, toward);
         if (point === null) {
             this.message = INVALID_INPUT;
             this.changed();
@@ -828,38 +898,28 @@ export class SelectionEditor {
         this.pointGiven(point);
     }
 
-    /** A point given at a point prompt: clicked (at the snap point or the cursor) or typed. */
+    /**
+     * A point given at a point prompt: clicked (at the snap point or the cursor) or typed. It
+     * becomes the last point (AutoCAD's LASTPOINT) unless it is a vector.
+     */
     private pointGiven(point: Point): void {
         const state = this.state;
-        if (state.kind === 'basePoint') {
-            this.lastPoint = point;
-            this.state = { kind: 'secondPoint', selection: state.selection, basePoint: point };
-            this.startPointPrompt();
-            this.message = null;
-            this.changed();
-        } else if (state.kind === 'secondPoint') {
-            this.lastPoint = point;
-            this.moveBy(state.selection, { x: point.x - state.basePoint.x, y: point.y - state.basePoint.y });
-        } else if (state.kind === 'displacement') {
-            this.moveBy(state.selection, point);
+        const prompt = this.pointPrompt();
+        if (state.kind !== 'command' || prompt === null) {
+            return;
         }
-    }
-
-    /** Ends SCHIEBEN by moving the selection by `delta`. */
-    private moveBy(selection: ReadonlySet<Id>, delta: Point): void {
-        this.endCommand(null);
-        // A zero displacement changes nothing, so it leaves no undo step either
-        if (delta.x !== 0 || delta.y !== 0) {
-            this.history.execute(new MoveCommand(selection, delta));
+        if (prompt.input !== 'vector') {
+            this.lastPoint = point;
         }
+        this.applyStep(state.tool.point(point));
     }
 
     /**
-     * At the second point prompt, the point a click would take now (see pointAt); without a
+     * At a `next` point prompt, the point a click would take now (see pointAt); without a
      * pointer only a point fixed by typed Dynamic Input values.
      */
     private previewPoint(): Point | null {
-        if (this.state.kind !== 'secondPoint') {
+        if (this.from() === null) {
             return null;
         }
         return this.lastPointer !== null ? this.pointAt(this.lastPointer.modelPoint) : this.dynamicBoundPoint(this.dynamic);
@@ -882,15 +942,15 @@ export class SelectionEditor {
 
     /** Which Dynamic Input fields the current prompt shows, or null for none (typing goes to the command line). */
     private dynamicPromptLayout(): DynamicLayout | null {
-        return isPointPrompt(this.state) ? dynamicLayout(this.dynamicInputSettings, this.state.kind) : null;
+        const prompt = this.pointPrompt();
+        return prompt !== null ? dynamicLayout(this.dynamicInputSettings, prompt.input) : null;
     }
 
     private dynamicContext(): DynamicContext {
-        const state = this.state as PointPromptState;
         const track = this.objectTrack?.paths.length === 1 ? this.objectTrack.paths[0] : null;
         return {
-            prompt: state.kind,
-            basePoint: state.kind === 'secondPoint' ? state.basePoint : null,
+            prompt: this.pointPrompt()!.input,
+            from: this.from(),
             lastPoint: this.lastPoint,
             trackOrigin: track?.origin ?? null,
         };
@@ -898,7 +958,7 @@ export class SelectionEditor {
 
     /**
      * The point a click at `cursor` gives without Dynamic Input: the snap point; else the object
-     * snap tracking point; else at the second point the Ortho point or the point on the polar
+     * snap tracking point; else at a `next` prompt the Ortho point or the point on the polar
      * path; else the cursor itself.
      */
     private trackedPointAt(cursor: Point): Point {
@@ -908,8 +968,9 @@ export class SelectionEditor {
         if (this.objectTrack !== null) {
             return this.objectTrack.point;
         }
-        if (this.state.kind === 'secondPoint' && this.ortho) {
-            return orthoPoint(this.state.basePoint, cursor);
+        const from = this.from();
+        if (from !== null && this.ortho) {
+            return orthoPoint(from, cursor);
         }
         return this.polar?.point ?? cursor;
     }
@@ -952,6 +1013,7 @@ export class SelectionEditor {
 
     private endCommand(message: Message | null): void {
         this.state = { kind: 'idle', pickfirst: new Set() };
+        this.prompt = null;
         this.input = '';
         this.dynamic = EMPTY_DYNAMIC_INPUT;
         this.message = message;
@@ -982,8 +1044,8 @@ export class SelectionEditor {
      * Snaps at the cursor (or nowhere with null). A point chosen by Tab stays chosen while it is
      * in the aperture and the cursor stays within the aperture size of where Tab was pressed;
      * otherwise the best point snaps, with the previous snap point kept by hysteresis. Where
-     * nothing snaps, looks for object snap tracking and, at the second point prompt with Ortho
-     * off, for a polar path from the base point; the nearer of a single tracking path and the
+     * nothing snaps, looks for object snap tracking and, at a `next` prompt with Ortho off, for
+     * a polar path from its `from` point; the nearer of a single tracking path and the
      * polar path wins. Also finds the snap point preview at point prompts and keeps the timer
      * that acquires the snap point the cursor dwells on.
      */
@@ -1001,7 +1063,7 @@ export class SelectionEditor {
         const candidates =
             query === null ? [] : this.snapEngine.candidates(query, this.snapMemory, cycle === null ? this.snap : null);
         this.snapPreview =
-            query !== null && this.showSnapPreview && isPointPrompt(this.state)
+            query !== null && this.showSnapPreview && this.pointPrompt() !== null
                 ? this.snapEngine.previewPoints(query, this.snapMemory)
                 : NO_POINTS;
         const chosen = this.snap;
@@ -1014,12 +1076,12 @@ export class SelectionEditor {
         this.snapCandidates = candidates;
         this.snapCycle = index >= 0 ? { ...cycle!, index } : null;
         this.snap = candidates[Math.max(index, 0)] ?? null;
-        const state = this.state;
+        const from = this.from();
         const polar =
-            event !== null && this.snap === null && state.kind === 'secondPoint' && !this.ortho
+            event !== null && this.snap === null && from !== null && !this.ortho
                 ? findPolarTrack(
                       {
-                          reference: state.basePoint,
+                          reference: from,
                           cursor: event.modelPoint,
                           pixelSize: event.pixelSize,
                           tolerance: this.polarTolerance,
@@ -1044,15 +1106,14 @@ export class SelectionEditor {
 
     /**
      * Object snap tracking at the cursor: needs it and the object snap on, a point prompt and
-     * acquired points. At the second point the tracking paths also cross the polar paths from
-     * the base point, or with Ortho its axis, which then is the only place the point may go.
+     * acquired points. At a `next` prompt the tracking paths also cross the polar paths from its
+     * `from` point, or with Ortho its axis, which then is the only place the point may go.
      */
     private findObjectTrack(event: EditorPointerEvent): ObjectTrack | null {
-        const state = this.state;
-        if (!this.objectTrackingSettings.enabled || !this.snapSettings.enabled || !isPointPrompt(state)) {
+        if (!this.objectTrackingSettings.enabled || !this.snapSettings.enabled || this.pointPrompt() === null) {
             return null;
         }
-        const basePoint = state.kind === 'secondPoint' ? state.basePoint : null;
+        const basePoint = this.from();
         let cursor = event.modelPoint;
         let base: BasePaths | null = null;
         if (basePoint !== null && this.ortho) {
@@ -1075,7 +1136,7 @@ export class SelectionEditor {
      */
     private updateDwell(): void {
         const snap =
-            this.objectTrackingSettings.enabled && isPointPrompt(this.state) && this.lastPointer !== null ? this.snap : null;
+            this.objectTrackingSettings.enabled && this.pointPrompt() !== null && this.lastPointer !== null ? this.snap : null;
         if (snap !== null && this.dwell !== null && sameSnapPoint(this.dwell.snap, snap)) {
             return;
         }
@@ -1122,13 +1183,13 @@ export class SelectionEditor {
 
     /**
      * Adds the picked elements and their group members to the current selection, or removes
-     * them with `remove`. While SCHIEBEN selects, reports the counts (of elements, members
+     * them with `remove`. While a command selects, reports the counts (of elements, members
      * included) on the command line like AutoCAD.
      */
     private applyPicked(hits: readonly Id[], remove: boolean): void {
         const picked = expandToUnits(hits, this.units);
         const state = this.state;
-        if (state.kind !== 'idle' && state.kind !== 'select') {
+        if (state.kind !== 'idle' && !this.selecting()) {
             return;
         }
         const before = state.kind === 'idle' ? state.pickfirst : state.selection;
@@ -1143,7 +1204,7 @@ export class SelectionEditor {
         if (state.kind === 'idle') {
             this.state = { kind: 'idle', pickfirst: after };
         } else {
-            this.state = { kind: 'select', selection: after };
+            this.state = { ...state, selection: after };
             const duplicates = picked.filter((id) => before.has(id)).length;
             const counts = { count: picked.length, total: after.size };
             this.message = remove
@@ -1171,14 +1232,16 @@ export class SelectionEditor {
     /** New snapshot, or `previous` itself when nothing changed; reuses its grips if possible. */
     private buildSnapshot(previous: SelectionSnapshot | null): SelectionSnapshot {
         const state = this.state;
-        const command: EditorCommand | null = state.kind === 'idle' ? null : 'MOVE';
-        const highlighted = state.kind === 'idle' ? state.pickfirst : state.selection;
-        const pointPrompt = isPointPrompt(state);
-        const basePoint = state.kind === 'secondPoint' ? state.basePoint : null;
+        const command: EditorCommand | null = state.kind === 'idle' ? null : state.tool.command;
+        const selecting = this.selecting();
+        const highlighted = state.kind === 'idle' ? state.pickfirst : selecting ? state.selection : state.tool.highlighted;
+        const pointPrompt = this.pointPrompt() !== null;
+        const from = this.from();
+        const preview = from !== null && state.kind === 'command' ? state.tool.preview : null;
         const snap = pointPrompt ? this.snap : null;
         const snapCycle =
             pointPrompt && this.snapCycle !== null ? { index: this.snapCycle.index, count: this.snapCandidates.length } : null;
-        const polar = state.kind === 'secondPoint' ? this.polar : null;
+        const polar = from !== null ? this.polar : null;
         const acquired = pointPrompt ? this.acquired : NO_ACQUIRED;
         const objectTrack = pointPrompt ? this.objectTrack : null;
         // Not under the active snap marker
@@ -1192,9 +1255,12 @@ export class SelectionEditor {
         const canUndo = idle && this.history.undoCommand !== null;
         const canRedo = idle && this.history.redoCommand !== null;
         const area = this.area;
-        const prompt = t(`prompt.${area !== null ? (area.shape === 'rect' ? 'corner' : 'lasso') : state.kind}`, {
-            command: command && commandName(command),
-        });
+        const prompt =
+            area !== null
+                ? t(area.shape === 'rect' ? 'prompt.corner' : 'prompt.lasso')
+                : state.kind === 'idle'
+                  ? t('prompt.idle')
+                  : state.tool.prompt.text();
         const message = this.message?.() ?? null;
         let previewed: Id[] = [];
         if (area !== null) {
@@ -1229,7 +1295,8 @@ export class SelectionEditor {
             samePolar(polar, previous.polar) &&
             acquired === previous.acquired &&
             sameObjectTrack(objectTrack, previous.objectTrack) &&
-            basePoint === previous.basePoint &&
+            samePoint(from, previous.from) &&
+            preview === previous.preview &&
             samePoint(previewPoint, previous.previewPoint) &&
             sameDynamicInput(dynamicInput, previous.dynamicInput) &&
             canUndo === previous.canUndo &&
@@ -1258,14 +1325,15 @@ export class SelectionEditor {
             grips,
             controlFrames,
             area,
-            cursor: pointPrompt ? 'point' : state.kind === 'select' ? 'select' : 'command',
+            cursor: pointPrompt ? 'point' : selecting ? 'select' : 'command',
             snap,
             snapCycle,
             snapPreview,
             polar,
             acquired,
             objectTrack,
-            basePoint,
+            from,
+            preview,
             previewPoint,
             dynamicInput,
             canUndo,

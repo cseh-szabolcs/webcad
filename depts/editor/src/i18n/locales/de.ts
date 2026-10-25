@@ -10,8 +10,13 @@ export const de = {
     },
     toolbar: {
         tools: 'Werkzeuge',
+        history: 'Rückgängig und Wiederherstellen',
+        draw: 'Zeichnen',
+        modify: 'Ändern',
+        line: 'Linie',
+        lineTitle: 'Linie ({{command}})',
         move: 'Verschieben',
-        moveTitle: 'Objekte verschieben ({{command}})',
+        moveTitle: 'Verschieben ({{command}})',
         undo: 'Rückgängig',
         undoTitle: 'Rückgängig (Strg/⌘+Z)',
         redo: 'Wiederherstellen',
@@ -40,12 +45,21 @@ export const de = {
         basePoint: 'Basispunkt angeben oder [Verschiebung] <Verschiebung>:',
         displacement: 'Verschiebung angeben <0,0>:',
         secondPoint: 'Zweiten Punkt angeben oder <ersten Punkt als Verschiebung verwenden>:',
+        lineFirst: 'Ersten Punkt angeben:',
+        lineNext: 'Nächsten Punkt angeben oder [Zurück]:',
+        lineNextClose: 'Nächsten Punkt angeben oder [Schließen/Zurück]:',
         corner: 'Entgegengesetzte Ecke angeben:',
         lasso: 'Lasso – Leertaste wechselt Fenster/Kreuzen',
     },
     message: {
         /** The option of the base point prompt that takes a displacement vector instead. */
         displacementKeyword: 'Verschiebung',
+        /** LINIE: back to the first point of the series, and the command ends. */
+        closeKeyword: 'Schließen',
+        /** LINIE: takes back the last segment. */
+        undoKeyword: 'Zurück',
+        noLineToContinue: 'Keine Linie oder kein Bogen zum Fortsetzen.',
+        allSegmentsUndone: 'Alle Segmente bereits zurückgenommen.',
         invalidInput: 'Punkt oder Option-Schlüsselwort erforderlich.',
         unknownCommand: 'Unbekannter Befehl "{{name}}".',
         cancel: '*Abbruch*',

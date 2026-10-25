@@ -1,6 +1,7 @@
 import type { Point } from '../model/Point';
 import type { DynamicInputSettings } from '../../settings/editorSettings';
 import { parseNumber, resolvePointInput } from './commandInput';
+import type { PointPromptKind } from './tools/EditorTool';
 
 /** Decimals of the live lengths and coordinates in the fields. */
 export const DYN_LENGTH_DECIMALS = 2;
@@ -10,9 +11,7 @@ export const DYN_ANGLE_DECIMALS = 2;
 /** Two fields: X and Y, or distance and angle (degrees, counter-clockwise from +X). */
 export type DynamicFormat = 'cartesian' | 'polar';
 export type DynamicFieldKind = 'x' | 'y' | 'distance' | 'angle';
-/** The point prompts that show fields. */
-export type DynamicPrompt = 'basePoint' | 'secondPoint' | 'displacement';
-/** Fields at the crosshair, or on a temporary dimension from the base point. */
+/** Fields at the crosshair, or on a temporary dimension from the prompt's `from` point. */
 export type DynamicLayout = 'pointer' | 'dimension';
 
 /**
@@ -32,10 +31,10 @@ export const EMPTY_DYNAMIC_INPUT: DynamicInputState = { fields: ['', ''], focus:
 
 /** Where the fields measure from. */
 export interface DynamicContext {
-    prompt: DynamicPrompt;
-    /** Base point at the second point prompt. */
-    basePoint: Point | null;
-    /** Last point given (AutoCAD's LASTPOINT), the reference of `@` at the base point prompt. */
+    prompt: PointPromptKind;
+    /** The point a `next` prompt measures from. */
+    from: Point | null;
+    /** Last point given (AutoCAD's LASTPOINT), the reference of `@` at a `point` prompt. */
     lastPoint: Point;
     /** Origin of a single object snap tracking path the point lies on: a lone distance goes from there. */
     trackOrigin: Point | null;
@@ -52,15 +51,15 @@ export interface DynamicField {
 const ORIGIN: Point = { x: 0, y: 0 };
 
 /**
- * Which fields the prompt shows: the first point (and the displacement) only with pointer input,
- * the second point on a dimension with dimension input, else at the crosshair; null for none, in
- * which case typing goes to the command line as usual.
+ * Which fields the prompt shows: a `point` (and a `vector`) only with pointer input, a `next`
+ * point on a dimension with dimension input, else at the crosshair; null for none, in which case
+ * typing goes to the command line as usual.
  */
-export function dynamicLayout(settings: DynamicInputSettings, prompt: DynamicPrompt): DynamicLayout | null {
+export function dynamicLayout(settings: DynamicInputSettings, prompt: PointPromptKind): DynamicLayout | null {
     if (!settings.enabled) {
         return null;
     }
-    if (prompt === 'secondPoint' && settings.dimensionInput) {
+    if (prompt === 'next' && settings.dimensionInput) {
         return 'dimension';
     }
     return settings.pointerInput ? 'pointer' : null;
@@ -70,15 +69,15 @@ export function isEmptyDynamicInput(state: DynamicInputState): boolean {
     return state.fields[0] === '' && state.fields[1] === '';
 }
 
-/** Polar after the first point, else X/Y; a typed `,` or `<` chooses. */
+/** Polar at a `next` prompt, else X/Y; a typed `,` or `<` chooses. */
 export function dynamicFormat(state: DynamicInputState, ctx: DynamicContext): DynamicFormat {
-    return state.format ?? (ctx.prompt === 'secondPoint' ? 'polar' : 'cartesian');
+    return state.format ?? (ctx.prompt === 'next' ? 'polar' : 'cartesian');
 }
 
-/** Relative to the base point at the second point unless `#`; elsewhere only with `@`. */
+/** Relative to `from` at a `next` prompt unless `#`; elsewhere only with `@`. */
 export function isRelative(state: DynamicInputState, ctx: DynamicContext): boolean {
     const prefix = state.fields[0][0];
-    return prefix === '@' || (ctx.prompt === 'secondPoint' && prefix !== '#');
+    return prefix === '@' || (ctx.prompt === 'next' && prefix !== '#');
 }
 
 /** The point the values are measured from. */
@@ -86,11 +85,11 @@ export function dynamicReference(state: DynamicInputState, ctx: DynamicContext):
     if (!isRelative(state, ctx)) {
         return ORIGIN;
     }
-    if (ctx.prompt === 'secondPoint') {
-        return ctx.basePoint ?? ORIGIN;
+    if (ctx.prompt === 'next') {
+        return ctx.from ?? ORIGIN;
     }
     // A displacement is a vector either way
-    return ctx.prompt === 'basePoint' ? ctx.lastPoint : ORIGIN;
+    return ctx.prompt === 'point' ? ctx.lastPoint : ORIGIN;
 }
 
 /**

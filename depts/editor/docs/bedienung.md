@@ -5,13 +5,13 @@ Auf dem Mac entspricht **Option (⌥)** der Taste Alt.
 
 Tastenkürzel wirken, solange der Fokus nicht in einem Textfeld liegt.
 
-Der Editor zeigt Pläne an, wählt Objekte aus und verschiebt sie mit dem Befehl SCHIEBEN
-(mit Raster, Objektfang, Polarspur, Ortho, Objektfangspuren, Koordinateneingabe, dynamischer Eingabe und Rückgängig). Gespeichert wird noch nichts; was
+Der Editor zeigt Pläne an, wählt Objekte aus, zeichnet Linien mit dem Befehl LINIE und
+verschiebt Objekte mit dem Befehl SCHIEBEN (mit Raster, Objektfang, Polarspur, Ortho, Objektfangspuren, Koordinateneingabe, dynamischer Eingabe und Rückgängig). Gespeichert wird noch nichts; was
 sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgesetzt).
 
 ## Oberfläche
 
-- **Toolbar** (oben): Werkzeug **Verschieben** (Befehl SCHIEBEN), Name des Plans, Button
+- **Toolbar** (oben): Buttons **Rückgängig** und **Wiederherstellen**, Name des Plans, Button
   **Zoom Grenzen**, rechts die Auswahlen **Darstellung** (Hell / Dunkel / System, mit
   Sonne, Mond bzw. Bildschirm als Symbol) und **Sprache** (DE / EN). Jede ist ein Button
   mit dem gewählten Wert und **▾**, ihr Name steht nur im Tooltip. Ein Klick öffnet ein
@@ -24,6 +24,12 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   Lock, das gibt es nur in Chrome, Edge und anderen Chromium-Browsern, nicht in Safari und
   Firefox), ist der Button ausgegraut und ohne Funktion; sein Tooltip nennt den Grund. Kann
   die Seite gar nicht ins Vollbild (z. B. in einem iframe ohne Erlaubnis), fehlt der Button.
+- **Werkzeugleiste** (links, senkrecht): ein Symbol-Button je Befehl, gruppiert wie in
+  AutoCAD: **Zeichnen** mit **Linie** (Befehl [LINIE](#befehl-linie)), darunter nach einer
+  Trennlinie **Ändern** mit **Verschieben** (Befehl [SCHIEBEN](#befehl-schieben)). Der Name
+  steht im Tooltip, z. B. `Linie (LINIE)`. Der Button des laufenden Befehls bleibt gedrückt; ein
+  weiterer Klick darauf bewirkt nichts. Ein Klick auf einen anderen bricht den laufenden Befehl
+  ab (`*Abbruch*`) und startet den neuen.
 - **Zeichenfläche** in der Mitte, mit dem [BKS-Symbol](#bks-symbol) am Nullpunkt bzw.
   unten links.
 - **Kommandozeile** unter der Zeichenfläche: oben in Grau die letzte Meldung (z. B.
@@ -137,14 +143,14 @@ Punkt, gibt es dort nur einen Grip. Die Grips haben noch keine Funktion.
 
 ## Befehl SCHIEBEN
 
-Button **Verschieben** in der Toolbar. Er bleibt gedrückt, solange der Befehl läuft; ein
-weiterer Klick darauf bewirkt dann nichts.
+Button **Verschieben** (Pfeilkreuz) in der Werkzeugleiste links.
 
 Oder bei `Befehl:` den Namen tippen, `SCHIEBEN` oder `MOVE` (Groß-/Kleinschreibung egal,
 in jeder Sprache), und mit **Enter** oder **Leertaste** ausführen. Der Text erscheint in
 der Kommandozeile; **Rücktaste** korrigiert, **Esc** verwirft ihn (erst ein zweites **Esc**
-hebt die Auswahl auf). Ohne getippten Text behalten Leertaste (Verschieben der Ansicht),
-Enter und Esc ihre übliche Bedeutung. Ein unbekannter Name meldet
+hebt die Auswahl auf). Ohne getippten Text behalten Leertaste (Verschieben der Ansicht) und
+Esc ihre übliche Bedeutung; **Enter** ohne getippten Text **wiederholt den zuletzt
+gestarteten Befehl** (auch einen abgebrochenen), wie in AutoCAD. Ein unbekannter Name meldet
 `Unbekannter Befehl "XYZ".`. Während ein Auswahlrechteck oder Lasso offen ist, wird nicht
 getippt.
 
@@ -204,6 +210,49 @@ bedeuten dort dasselbe.
 Ungültige Eingaben meldet die Kommandozeile mit `Punkt oder Option-Schlüsselwort
 erforderlich.`, die Aufforderung bleibt. Getippte Zeichen lösen keine anderen
 Tastenkürzel aus; Strg/⌘-Kürzel, F3, F7, F8, F10, F11 und F12 wirken weiter.
+
+## Befehl LINIE
+
+Zeichnet eine Folge zusammenhängender, aber **einzeln bearbeitbarer** Linien, wie AutoCAD
+LINIE. Start mit dem Button **Linie** in der Werkzeugleiste links oder durch Tippen von
+`LINIE`, `LINE` oder `L` bei `Befehl:` (Enter oder Leertaste). Eine bestehende Auswahl wird
+dabei aufgehoben.
+
+1. **`Ersten Punkt angeben:`** Klick (mit [Objektfang](#objektfang-ofang) und
+   [Objektfangspuren](#objektfangspuren-otrack)) oder Koordinaten eintippen, wie beim
+   Basispunkt von SCHIEBEN. **Enter** ohne Eingabe setzt am Endpunkt der zuletzt mit LINIE
+   gezeichneten Linie fort (dort, wo er jetzt liegt). Gibt es keine mehr (z. B. nach
+   Rückgängig), meldet die Kommandozeile `Keine Linie oder kein Bogen zum Fortsetzen.`, die
+   Aufforderung bleibt.
+2. **`Nächsten Punkt angeben oder [Zurück]:`**, ab zwei Segmenten
+   **`Nächsten Punkt angeben oder [Schließen/Zurück]:`**. Jeder Punkt erzeugt **sofort** eine
+   neue Linie vom letzten Punkt aus; sie ist gleich zu sehen und fangbar (z. B. der
+   Mittelpunkt des eben gezeichneten Segments). Dann wird wieder gefragt. Hier gilt alles, was
+   für den zweiten Punkt von SCHIEBEN beschrieben ist, mit dem **letzten Punkt** an Stelle
+   des Basispunkts: [Polarspur](#polarspur-polar), [Ortho](#ortho-ortho), Objektfangspuren,
+   `@`-Eingaben, Direkte Distanzeingabe und die
+   [dynamische Eingabe](#dynamische-eingabe-dyn) mit Abstand und Winkel. Bis zum Klick zeigt
+   eine durchgezogene **Vorschaulinie** vom letzten Punkt zum Punkt, den ein Klick nähme. Ein
+   Punkt genau auf dem letzten erzeugt keine Linie.
+
+| Eingabe beim nächsten Punkt  | Wirkung                                                         |
+|------------------------------|-----------------------------------------------------------------|
+| `Z` (Zurück) + Enter         | Entfernt das letzte Segment; der letzte Punkt springt zurück. Mehrfach möglich bis zum ersten Punkt, danach `Alle Segmente bereits zurückgenommen.` |
+| `S` (Schließen) + Enter      | Ab zwei Segmenten: Linie zurück zum ersten Punkt der Folge, der Befehl endet |
+| **Enter** ohne Eingabe oder **Rechtsklick** | Beendet den Befehl                               |
+| **Esc**                      | Beendet den Befehl (`*Abbruch*`); die gezeichneten Linien bleiben |
+
+Im Englischen heißen die Optionen `Undo` (`U`) und `Close` (`C`). Optionen werden wie in
+AutoCAD mit ihrem Anfang erkannt (`Zur` = `Zurück`).
+
+- Jedes Segment ist eine eigene Linie mit eigenen Endpunkten; aufeinanderfolgende Linien
+  teilen keinen Punkt, ihre Enden liegen nur aufeinander. Neue Linien haben noch keinen Layer
+  und den Standardstil.
+- Alle Linien eines LINIE-Aufrufs sind **ein** Schritt für Rückgängig (`Rückgängig: LINIE`).
+  „Zurück“ wirkt nur innerhalb des laufenden Befehls und lässt sich nicht wiederherstellen.
+- Die **Leertaste** ohne getippten Text verschiebt weiter die Ansicht (bewusste Abweichung:
+  in AutoCAD wirkt sie wie Enter und würde den Befehl beenden). Ist etwas getippt, schließt sie
+  die Eingabe ab.
 
 ## Objektfang (OFANG)
 
@@ -273,8 +322,9 @@ Die gewählten Modi bleiben erhalten, wenn der Objektfang ausgeschaltet wird.
 
 ## Polarspur (POLAR)
 
-Beim zweiten Punkt von SCHIEBEN zeigt die Polarspur, wenn der Cursor nahe an einer
-Richtung unter einem Polarwinkel ab dem Basispunkt liegt (bei einem Winkelschritt von 90°
+Beim zweiten Punkt von SCHIEBEN und beim nächsten Punkt von LINIE zeigt die Polarspur, wenn
+der Cursor nahe an einer Richtung unter einem Polarwinkel ab dem Basispunkt (bei LINIE: ab dem
+letzten Punkt) liegt (bei einem Winkelschritt von 90°
 also waagrecht und senkrecht). Der Punkt liegt dann exakt auf dieser Geraden.
 
 | Eingabe                       | Wirkung                                                  |
@@ -553,7 +603,12 @@ Neuladen):
 
 ## Noch nicht umgesetzt
 
-- Rechtsklick bei den Punkt-Aufforderungen (AutoCAD: Kontextmenü bzw. wie Enter).
+- Rechtsklick bei den Punkt-Aufforderungen von SCHIEBEN und beim ersten Punkt von LINIE
+  (AutoCAD: Kontextmenü bzw. wie Enter).
+- Bei LINIE: Fortsetzen tangential an einen Bogen und an Polylinien (es gibt noch keine
+  Befehle BOGEN und PLINIE), aktueller Layer und Stil für neue Objekte, gemeinsame Punkte
+  (echte Verbindungen) zwischen den Segmenten, englische Optionen mit `_` im deutschen Editor.
+- Weitere Zeichenbefehle (KREIS, BOGEN, PLINIE …).
 - **Grip-Funktionen** (Ziehen an Grips) und alle anderen Bearbeitungsbefehle wie Löschen,
   Gruppieren oder Kopieren.
 - Gruppenauswahl ausschalten (AutoCAD Ctrl+Shift+A), um einzelne Gruppenmitglieder zu

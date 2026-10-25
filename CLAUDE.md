@@ -20,7 +20,7 @@ apps in one repo:
   rebuilt from scratch, closer to AutoCAD behaviour.** Everything is rebuilt in small
   steps. So far it loads a plan through the API and displays it (wheel zoom,
   middle/Space+drag pan, status line, light/dark mode), has AutoCAD-like object
-  selection, a grid, a UCS icon, object snap, polar tracking, object snap tracking, Dynamic Input and the MOVE command (`SCHIEBEN`) with preview,
+  selection, a grid, a UCS icon, object snap, polar tracking, object snap tracking, Dynamic Input, the LINE command (`LINIE`) and the MOVE command (`SCHIEBEN`) with preview,
   typed coordinates and undo/redo (see "Editor: current state" below). Changes are not saved to the backend yet; grips
   are drawn but have no function.
 
@@ -175,9 +175,14 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
 - No command active (noun-verb): click adds to the pickfirst selection (highlight +
   grips), Shift removes, Esc clears. Rectangle to the right = window (completely inside),
   to the left = crossing (touches); lasso direction picks the mode, Space toggles.
-- Toolbar tool "Verschieben" starts `SCHIEBEN` (AutoCAD MOVE, id `MOVE`); so does typing
+- Commands start from the vertical tool panel on the left (`ui/ToolPanel.tsx`, icon buttons
+  from `ui/ToolIcon.tsx` with the name in the tooltip, groups "Zeichnen": Linie and "Ändern":
+  Verschieben; a click on another tool cancels the running command, on the same one does
+  nothing) or by typing a name or alias at "Befehl:" (`SelectionEditor.startCommand`). Enter
+  with nothing typed at "Befehl:" repeats the last command started (Space keeps panning).
+- Tool "Verschieben" starts `SCHIEBEN` (AutoCAD MOVE, id `MOVE`); so does typing
   `SCHIEBEN` or `MOVE` (any case, either language) at "Befehl:" with Enter or Space (Esc and
-  Backspace edit the text; Space/Enter/Esc keep their meaning while nothing is typed;
+  Backspace edit the text; Space/Esc keep their meaning while nothing is typed;
   otherwise "Unbekannter Befehl "XYZ"."; no typing while a rectangle or lasso is open). With a pickfirst selection
   it goes straight to "Basispunkt angeben oder [Verschiebung] <Verschiebung>:" ("N gefunden"); otherwise it first asks
   "Objekte wählen:" (verb-noun: grips disappear, AutoCAD-style counts such as "1 gefunden,
@@ -210,6 +215,21 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   Option-Schlüsselwort erforderlich.", the prompt stays. Every printable key is taken at a
   point prompt (`canvasInput` prevents its default; App's shortcuts skip `defaultPrevented`
   keys), Ctrl/⌘ shortcuts are not (`EditorKeyEvent.ctrlKey`; AltGr counts as typing).
+- Tool "Linie" starts `LINIE` (AutoCAD LINE, id `LINE`, aliases `LINIE`, `L`;
+  `cad/editor/tools/LineTool.ts`); the pickfirst selection is dropped. "Ersten Punkt angeben:"
+  (`point` prompt; Enter alone continues from the end vertex of the line LINIE drew last, kept
+  in the core's `LineMemory`, else "Keine Linie oder kein Bogen zum Fortsetzen."), then
+  "Nächsten Punkt angeben oder [Zurück]:" / "[Schließen/Zurück]:" from two segments on (`next`
+  prompt from the last point, so polar, Ortho, OTRACK, `@`, direct distance and the DYN
+  dimension work from it). Every point executes an `AddLineCommand` at once (own two vertices,
+  no layer/group/style), so it is drawn and snappable; a point on the last one adds nothing.
+  "Zurück"/`Undo` takes the last one back (`DocumentHistory.revertLast`, no redo; with none
+  left "Alle Segmente bereits zurückgenommen."), "Schließen"/`Close` adds one to the series
+  start and ends. Enter, right click and Esc (`*Abbruch*`) end, keeping the lines; the run's
+  segments become one undo step (`DocumentHistory.combineLast` → `CompositeCommand`,
+  "Rückgängig: LINIE"). Preview: a solid line `from` → preview point in the default style
+  (`SelectionOverlay`, `OverlayHost.applyStyleById`). Not yet: tangent continue from arcs,
+  polylines, current layer/style, shared vertices.
 - Cursor per prompt like AutoCAD: crosshair + pick box with no command, only the pick box
   at "Objekte wählen:", only the crosshair at point prompts (the aperture box only with
   `showApertureBox`).
@@ -330,18 +350,26 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
 
 Structure (all pure TS and unit-tested unless noted):
 
-- `cad/editor/SelectionEditor.ts`: the selection and `SCHIEBEN` state machine, independent
-  of Paper.js and React. It gets `EditorPointerEvent`s and key events and publishes an
-  immutable `SelectionSnapshot` (prompt, typed input, message, hovered, highlighted, grips, area,
-  cursor mode, snap, Tab cycle position, snap preview, polar track, acquired points, object
-  snap track, base point, preview point, Dynamic Input fields, can undo/redo) via
-  `subscribe()`. It holds the Tab cycle state and the acquire timer; the engine stays stateless. It runs
-  on a `DocumentHistory`. Before further commands (KOPIEREN, DREHEN …) it should be split
-  into an editor core and per-command state machines. Typed text is parsed by the pure
+- `cad/editor/SelectionEditor.ts`: the editor core, independent of Paper.js and React: the
+  selection, a command's object selection and all point prompt machinery (snap, Tab, polar,
+  Ortho, OTRACK, Dynamic Input, typed input, LASTPOINT). It gets `EditorPointerEvent`s and key
+  events and publishes an immutable `SelectionSnapshot` (prompt, typed input, message, hovered,
+  highlighted, grips, area, cursor mode, snap, Tab cycle position, snap preview, polar track,
+  acquired points, object snap track, `from`, `preview`, preview point, Dynamic Input fields,
+  can undo/redo) via `subscribe()`. It holds the Tab cycle state and the acquire timer; the
+  engine stays stateless. It runs on a `DocumentHistory`. Typed text is parsed by the pure
   `cad/editor/commandInput.ts` (`parsePointInput`, `resolvePointInput`, `matchesKeyword`).
+- `cad/editor/tools/`: one state machine per command behind `EditorTool` (`EditorTool.ts`):
+  the tool sets its `prompt` (`select`, or `point` with `input` `point` | `next` (measured
+  from `from`: polar, Ortho, direct distance, `@`, DYN dimension) | `vector`), gets the
+  selected objects, given points, option text (`''` = Enter) and right clicks, and returns a
+  `ToolStep` (`done`, `message`, a `DocumentCommand` to run after the end). A new prompt
+  object starts a new point prompt. `MoveTool` is SCHIEBEN, `LineTool` LINIE (it runs its
+  segments on the history itself).
 - `cad/editor/commands/`: `DocumentCommand` (`execute`/`undo` on immutable documents,
   returning the new document and the changed element ids), `DocumentHistory` (current
-  document, undo/redo stacks, listeners), `MoveCommand`. `CadCanvas` keeps the history of
+  document, undo/redo stacks, listeners, `revertLast`, `combineLast`), `MoveCommand`,
+  `AddLineCommand`, `CompositeCommand`. `CadCanvas` keeps the history of
   the loaded document; the editor and the renderer follow it (`PaperRenderer.updateElements`
   replaces only the changed items, subscribed before the editor so its overlay sees the new
   paths). The editor's derived structures are rebuilt as a whole on every change for now.

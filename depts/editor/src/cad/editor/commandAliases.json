@@ -1,3 +1,4 @@
 {
-    "MOVE": ["SCHIEBEN"]
+    "MOVE": ["SCHIEBEN"],
+    "LINE": ["LINIE", "L"]
 }

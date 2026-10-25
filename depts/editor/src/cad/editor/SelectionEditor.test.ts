@@ -164,7 +164,7 @@ describe('SelectionEditor control frame', () => {
     it('hides the frame with the grips while SCHIEBEN runs and after Escape', () => {
         const editor = create();
         click(editor, CURTAIN);
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         expect(editor.snapshot.controlFrames).toEqual([]);
         editor.keyDown({ key: 'Escape' });
         click(editor, CURTAIN);
@@ -177,7 +177,7 @@ describe('SelectionEditor SCHIEBEN: object selection (verb-noun)', () => {
     it('shows the prompts of the command line', () => {
         const editor = create();
         expect(editor.snapshot).toMatchObject({ command: null, prompt: 'Befehl:', message: null, cursor: 'command' });
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         expect(editor.snapshot).toMatchObject({
             command: 'MOVE',
             prompt: 'SCHIEBEN Objekte wählen:',
@@ -188,7 +188,7 @@ describe('SelectionEditor SCHIEBEN: object selection (verb-noun)', () => {
 
     it('adds and removes elements with messages, without grips', () => {
         const editor = create();
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         click(editor, WALL);
         expect(editor.snapshot.message).toBe('1 gefunden, 1 gesamt');
         click(editor, TABLE);
@@ -207,7 +207,7 @@ describe('SelectionEditor SCHIEBEN: object selection (verb-noun)', () => {
         const editor = create();
         click(editor, WALL);
         click(editor, TABLE);
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         expect(ids(editor.snapshot.highlighted)).toEqual([E['wall-outer'], E.table]);
         expect(editor.snapshot.grips).toEqual([]);
         expect(editor.snapshot).toMatchObject({ prompt: BASE_POINT_PROMPT, message: '2 gefunden', cursor: 'point' });
@@ -216,7 +216,7 @@ describe('SelectionEditor SCHIEBEN: object selection (verb-noun)', () => {
 
     it('goes on to the base point with Enter; the selection becomes the previous one', () => {
         const editor = create();
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         click(editor, TABLE);
         expect(editor.keyDown({ key: 'Enter' })).toBe(true);
         expect(editor.snapshot).toMatchObject({ command: 'MOVE', prompt: BASE_POINT_PROMPT, message: null });
@@ -226,7 +226,7 @@ describe('SelectionEditor SCHIEBEN: object selection (verb-noun)', () => {
 
     it('goes on with a right click like Enter', () => {
         const editor = create();
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         click(editor, WALL);
         click(editor, EMPTY, { button: 2 });
         expect(editor.snapshot.prompt).toBe(BASE_POINT_PROMPT);
@@ -234,21 +234,21 @@ describe('SelectionEditor SCHIEBEN: object selection (verb-noun)', () => {
 
     it('ends the command when the selection is ended empty', () => {
         const editor = create();
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         expect(editor.keyDown({ key: 'Enter' })).toBe(true);
         expect(editor.snapshot).toMatchObject({ command: null, prompt: 'Befehl:', message: null });
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         click(editor, EMPTY, { button: 2 });
         expect(editor.snapshot.command).toBeNull();
     });
 
     it('cancels with Escape and keeps the previous selection', () => {
         const editor = create();
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         click(editor, WALL);
         editor.keyDown({ key: 'Enter' });
         editor.keyDown({ key: 'Escape' });
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         click(editor, TABLE);
         expect(editor.keyDown({ key: 'Escape' })).toBe(true);
         expect(editor.snapshot).toMatchObject({ command: null, message: '*Abbruch*', cursor: 'command' });
@@ -258,9 +258,9 @@ describe('SelectionEditor SCHIEBEN: object selection (verb-noun)', () => {
 
     it('ignores a second start while the command runs', () => {
         const editor = create();
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         click(editor, WALL);
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         expect(ids(editor.snapshot.highlighted)).toEqual([E['wall-outer']]);
         expect(editor.snapshot.prompt).toBe('SCHIEBEN Objekte wählen:');
     });
@@ -283,7 +283,7 @@ describe('SelectionEditor SCHIEBEN: base point and second point', () => {
     const atBasePoint = () => {
         const editor = create();
         click(editor, TABLE);
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         return editor;
     };
 
@@ -317,7 +317,7 @@ describe('SelectionEditor SCHIEBEN: base point and second point', () => {
         expect(editor.snapshot).toMatchObject({
             command: 'MOVE',
             prompt: 'Zweiten Punkt angeben oder <ersten Punkt als Verschiebung verwenden>:',
-            basePoint: CORNER,
+            from: CORNER,
             cursor: 'point',
         });
         expect(ids(editor.snapshot.highlighted)).toEqual([E.table]);
@@ -328,14 +328,14 @@ describe('SelectionEditor SCHIEBEN: base point and second point', () => {
     it('takes the cursor position where nothing snaps', () => {
         const editor = atBasePoint();
         click(editor, EMPTY);
-        expect(editor.snapshot.basePoint).toEqual(EMPTY);
+        expect(editor.snapshot.from).toEqual(EMPTY);
     });
 
     it('moves the selection at the second point as one undo step and ends', () => {
         const history = new DocumentHistory(parseDocument(samplePlan));
         const editor = new SelectionEditor(history);
         click(editor, TABLE);
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         click(editor, NEAR_CORNER);
         editor.pointerMove(at(WALL));
         click(editor, WALL);
@@ -343,7 +343,7 @@ describe('SelectionEditor SCHIEBEN: base point and second point', () => {
             command: null,
             prompt: 'Befehl:',
             message: null,
-            basePoint: null,
+            from: null,
             snap: null,
             cursor: 'command',
             canUndo: true,
@@ -364,7 +364,7 @@ describe('SelectionEditor SCHIEBEN: base point and second point', () => {
         const history = new DocumentHistory(parseDocument(samplePlan));
         const editor = new SelectionEditor(history);
         click(editor, TABLE);
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         click(editor, NEAR_CORNER);
         click(editor, WALL);
         expect(editor.undo()).toBe(true);
@@ -380,11 +380,11 @@ describe('SelectionEditor SCHIEBEN: base point and second point', () => {
         const history = new DocumentHistory(parseDocument(samplePlan));
         const editor = new SelectionEditor(history);
         click(editor, TABLE);
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         click(editor, NEAR_CORNER);
         click(editor, WALL);
         click(editor, { x: 1600, y: 1800 });
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         expect(editor.snapshot.canUndo).toBe(false);
         expect(editor.undo()).toBe(false);
         expect(tableCentre(history)).toEqual({ x: 1000, y: 1800 });
@@ -394,7 +394,7 @@ describe('SelectionEditor SCHIEBEN: base point and second point', () => {
         const history = new DocumentHistory(parseDocument(samplePlan));
         const editor = new SelectionEditor(history);
         click(editor, TABLE);
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         click(editor, NEAR_CORNER);
         click(editor, NEAR_CORNER);
         expect(editor.snapshot.command).toBeNull();
@@ -423,10 +423,10 @@ describe('SelectionEditor SCHIEBEN: base point and second point', () => {
         expect(editor.keyDown({ key: 'Escape' })).toBe(true);
         expect(editor.snapshot).toMatchObject({ command: null, message: '*Abbruch*' });
         click(editor, TABLE);
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         click(editor, EMPTY);
         expect(editor.keyDown({ key: 'Escape' })).toBe(true);
-        expect(editor.snapshot).toMatchObject({ command: null, basePoint: null, message: '*Abbruch*' });
+        expect(editor.snapshot).toMatchObject({ command: null, from: null, message: '*Abbruch*' });
     });
 
     it('ignores right clicks and drags at the point prompts', () => {
@@ -444,14 +444,14 @@ describe('SelectionEditor SCHIEBEN: base point and second point', () => {
         editor.setSnapSettings({ enabled: false, modes: new Set(['END']) });
         expect(editor.snapshot.snap).toBeNull();
         click(editor, NEAR_CORNER);
-        expect(editor.snapshot.basePoint).toEqual(NEAR_CORNER);
+        expect(editor.snapshot.from).toEqual(NEAR_CORNER);
         editor.setSnapSettings({ enabled: true, modes: new Set(['INT']) });
         expect(editor.snapshot.snap).toMatchObject({ mode: 'INT', point: CORNER });
     });
 
     it('snaps at once when the base point prompt starts under a snap point', () => {
         const editor = create();
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         click(editor, TABLE);
         editor.pointerMove(at(NEAR_CORNER));
         editor.keyDown({ key: 'Enter' });
@@ -473,7 +473,7 @@ describe('SelectionEditor SCHIEBEN: typed input', () => {
         const editor = new SelectionEditor(history);
         editor.setDynamicInputSettings({ ...DEFAULT_DYNAMIC_INPUT_SETTINGS, enabled: false });
         click(editor, TABLE);
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         return { editor, history };
     };
     /** Types each character of `text`, then Enter unless `enter` is false. */
@@ -501,7 +501,7 @@ describe('SelectionEditor SCHIEBEN: typed input', () => {
     it('takes a typed absolute base point and a second point relative to it', () => {
         const { editor, history } = start();
         type(editor, '4000,1800');
-        expect(editor.snapshot).toMatchObject({ prompt: SECOND_POINT_PROMPT, basePoint: { x: 4000, y: 1800 }, input: '' });
+        expect(editor.snapshot).toMatchObject({ prompt: SECOND_POINT_PROMPT, from: { x: 4000, y: 1800 }, input: '' });
         type(editor, '@100,-50');
         expect(editor.snapshot.command).toBeNull();
         expect(tableCentre(history)).toEqual({ x: 4100, y: 1750 });
@@ -525,12 +525,12 @@ describe('SelectionEditor SCHIEBEN: typed input', () => {
     it('takes relative input at the base point from the last point given', () => {
         const { editor, history } = start();
         type(editor, '@10,20');
-        expect(editor.snapshot.basePoint).toEqual({ x: 10, y: 20 });
+        expect(editor.snapshot.from).toEqual({ x: 10, y: 20 });
         type(editor, '@5,0');
         click(editor, { x: 4605, y: 1800 });
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         type(editor, '@');
-        expect(editor.snapshot.basePoint).toEqual({ x: 15, y: 20 });
+        expect(editor.snapshot.from).toEqual({ x: 15, y: 20 });
         expect(tableCentre(history)).toEqual({ x: 4005, y: 1800 });
     });
 
@@ -560,12 +560,12 @@ describe('SelectionEditor SCHIEBEN: typed input', () => {
     it('asks for the displacement on Enter or "V" at the base point and moves by the typed vector', () => {
         const { editor, history } = start();
         editor.keyDown({ key: 'Enter' });
-        expect(editor.snapshot).toMatchObject({ prompt: DISPLACEMENT_PROMPT, cursor: 'point', basePoint: null });
+        expect(editor.snapshot).toMatchObject({ prompt: DISPLACEMENT_PROMPT, cursor: 'point', from: null });
         type(editor, '-500,200');
         expect(editor.snapshot.command).toBeNull();
         expect(tableCentre(history)).toEqual({ x: 3500, y: 2000 });
         click(editor, { x: 4100, y: 2000 });
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         type(editor, 'v');
         expect(editor.snapshot.prompt).toBe(DISPLACEMENT_PROMPT);
         type(editor, '@100<0');
@@ -602,7 +602,7 @@ describe('SelectionEditor SCHIEBEN: typed input', () => {
         expect(editor.keyDown({ key: ' ' })).toBe(false);
         type(editor, '10,20', false);
         expect(editor.keyDown({ key: ' ' })).toBe(true);
-        expect(editor.snapshot.basePoint).toEqual({ x: 10, y: 20 });
+        expect(editor.snapshot.from).toEqual({ x: 10, y: 20 });
         type(editor, '99', false);
         editor.pointerMove(at(EMPTY));
         click(editor, EMPTY);
@@ -619,7 +619,7 @@ describe('SelectionEditor SCHIEBEN: typed input', () => {
         expect(editor.keyDown({ key: '1' })).toBe(true);
         expect(editor.snapshot).toMatchObject({ input: '1', acceptsInput: true });
         editor.keyDown({ key: 'Escape' });
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         expect(editor.snapshot.acceptsInput).toBe(false);
         expect(editor.snapshot.prompt).toBe('SCHIEBEN Objekte wählen:');
         expect(editor.keyDown({ key: '1' })).toBe(false);
@@ -636,7 +636,7 @@ describe('SelectionEditor SCHIEBEN: polar tracking', () => {
         const history = new DocumentHistory(parseDocument(samplePlan));
         const editor = new SelectionEditor(history);
         click(editor, TABLE);
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         for (const key of '3000,1000') {
             editor.keyDown({ key });
         }
@@ -686,7 +686,7 @@ describe('SelectionEditor SCHIEBEN: polar tracking', () => {
         const history = new DocumentHistory(parseDocument(samplePlan));
         const editor = new SelectionEditor(history);
         click(editor, TABLE);
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         editor.pointerMove(at(NEAR_VERTICAL));
         expect(editor.snapshot.polar).toBeNull();
         const second = atSecondPoint().editor;
@@ -709,7 +709,7 @@ describe('SelectionEditor SCHIEBEN: Ortho', () => {
         const editor = new SelectionEditor(history);
         editor.setOrtho(true);
         click(editor, TABLE);
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         for (const key of '3000,1000') {
             editor.keyDown({ key });
         }
@@ -762,9 +762,9 @@ describe('SelectionEditor SCHIEBEN: Ortho', () => {
         const editor = new SelectionEditor(history);
         editor.setOrtho(true);
         click(editor, TABLE);
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         click(editor, EMPTY);
-        expect(editor.snapshot.basePoint).toEqual(EMPTY);
+        expect(editor.snapshot.from).toEqual(EMPTY);
         editor.pointerMove(at({ x: 3300, y: 2200 }));
         expect(editor.snapshot.previewPoint).toEqual({ x: 3300, y: 2000 });
         editor.setOrtho(false);
@@ -794,7 +794,7 @@ describe('SelectionEditor SCHIEBEN: Tab cycling and hysteresis', () => {
     const atBasePoint = () => {
         const editor = new SelectionEditor(LINE);
         click(editor, MIDDLE);
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         return editor;
     };
     const tab = (editor: SelectionEditor, shiftKey = false) => editor.keyDown({ key: 'Tab', shiftKey });
@@ -818,7 +818,7 @@ describe('SelectionEditor SCHIEBEN: Tab cycling and hysteresis', () => {
         editor.pointerMove(at(NEAR_START));
         tab(editor);
         click(editor, NEAR_START);
-        expect(editor.snapshot).toMatchObject({ basePoint: MIDDLE, snapCycle: null });
+        expect(editor.snapshot).toMatchObject({ from: MIDDLE, snapCycle: null });
     });
 
     it('keeps the Tab choice for small moves and resets it beyond the aperture size', () => {
@@ -851,7 +851,7 @@ describe('SelectionEditor SCHIEBEN: Tab cycling and hysteresis', () => {
         editor.pointerMove(at(NEAR_START));
         expect(tab(editor)).toBe(false);
         click(editor, MIDDLE);
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         editor.pointerMove(at({ x: 100, y: 100 }));
         expect(tab(editor)).toBe(true);
         expect(editor.snapshot).toMatchObject({ snap: null, snapCycle: null });
@@ -893,7 +893,7 @@ describe('SelectionEditor SCHIEBEN: snap point preview', () => {
         }));
     const atBasePoint = (editor = create()) => {
         click(editor, TABLE);
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         return editor;
     };
 
@@ -1078,7 +1078,7 @@ describe('SelectionEditor rectangle (press + drag)', () => {
 
     it('reports the counts while SCHIEBEN selects', () => {
         const editor = create();
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         click(editor, TABLE);
         rectangle(editor, UPPER_RIGHT, LOWER_LEFT);
         expect(editor.snapshot.message).toBe('2 gefunden (1 doppelt), 2 gesamt');
@@ -1089,7 +1089,7 @@ describe('SelectionEditor rectangle (press + drag)', () => {
 
     it('drops just the rectangle with Escape, before or after the release', () => {
         const editor = create();
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         click(editor, TABLE);
         // Escape while the button is still held; the release then does nothing
         editor.pointerDown(at(UPPER_RIGHT));
@@ -1108,7 +1108,7 @@ describe('SelectionEditor rectangle (press + drag)', () => {
 
     it('ignores a right click while dragging', () => {
         const editor = create();
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         editor.pointerDown(at(UPPER_RIGHT));
         editor.pointerMove(at(LOWER_LEFT));
         editor.pointerDown(at(LOWER_LEFT, { button: 2 }));
@@ -1220,7 +1220,7 @@ describe('SelectionEditor lasso (Alt + drag)', () => {
 
     it('reports the counts while SCHIEBEN selects', () => {
         const editor = create();
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         drag(editor, AROUND_TABLE_LEFTWARDS, ALT);
         expect(editor.snapshot.message).toBe('2 gefunden, 2 gesamt');
         expect(editor.snapshot.prompt).toBe('SCHIEBEN Objekte wählen:');
@@ -1295,7 +1295,7 @@ describe('SelectionEditor group selection', () => {
 
     it('counts group members in the command line messages', () => {
         const editor = create();
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         click(editor, DOOR_LEAF);
         expect(editor.snapshot.message).toBe('2 gefunden, 2 gesamt');
         click(editor, DOOR_LEAF);
@@ -1361,7 +1361,7 @@ describe('SelectionEditor in English', () => {
     it('republishes prompt and message in the new language, without a state change', async () => {
         const editor = create();
         click(editor, TABLE);
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         const listener = vi.fn();
         editor.subscribe(listener);
         await i18n.changeLanguage('en');
@@ -1380,7 +1380,7 @@ describe('SelectionEditor in English', () => {
         await i18n.changeLanguage('en');
         const editor = create();
         click(editor, TABLE);
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         editor.keyDown({ key: 'v' });
         editor.keyDown({ key: 'Enter' });
         expect(editor.snapshot.message).toBe('Point or option keyword required.');
@@ -1472,7 +1472,7 @@ describe('SelectionEditor SCHIEBEN: object snap tracking', () => {
         const editor = new SelectionEditor(history);
         editor.setObjectTrackingSettings({ enabled: true, allPolarAngles: false });
         click(editor, TABLE);
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         return { editor, history };
     };
     /** As atBasePoint, with the base point 4000,1000 typed. */
@@ -1530,7 +1530,7 @@ describe('SelectionEditor SCHIEBEN: object snap tracking', () => {
             paths: [{ origin: SOFA, angle: 0, distance: 600, source: 'END' }],
         });
         click(editor, RIGHT_OF_SOFA);
-        expect(editor.snapshot.basePoint).toEqual({ x: 3200, y: 2600 });
+        expect(editor.snapshot.from).toEqual({ x: 3200, y: 2600 });
         // A new point prompt starts without acquired points
         expect(editor.snapshot.acquired).toEqual([]);
         expect(editor.snapshot.objectTrack).toBeNull();
@@ -1609,7 +1609,7 @@ describe('SelectionEditor SCHIEBEN: object snap tracking', () => {
         dwell(other, SOFA);
         other.keyDown({ key: 'Escape' });
         expect(other.snapshot.acquired).toEqual([]);
-        other.startMoveCommand();
+        other.startCommand('MOVE');
         expect(other.snapshot.acquired).toEqual([]);
     });
 
@@ -1617,7 +1617,7 @@ describe('SelectionEditor SCHIEBEN: object snap tracking', () => {
         const { editor } = atBasePoint();
         editor.pointerMove(at(near(SOFA)));
         click(editor, near(SOFA));
-        expect(editor.snapshot.basePoint).toEqual(SOFA);
+        expect(editor.snapshot.from).toEqual(SOFA);
         vi.advanceTimersByTime(3 * DELAY);
         expect(editor.snapshot.acquired).toEqual([]);
         editor.pointerMove(at(EMPTY));
@@ -1642,7 +1642,7 @@ describe('SelectionEditor SCHIEBEN: Dynamic Input', () => {
         const history = new DocumentHistory(parseDocument(samplePlan));
         const editor = new SelectionEditor(history);
         click(editor, TABLE);
-        editor.startMoveCommand();
+        editor.startCommand('MOVE');
         return { editor, history };
     };
     /** Types each character of `text` (`\t` is Tab), then Enter unless `enter` is false. */
@@ -1736,7 +1736,7 @@ describe('SelectionEditor SCHIEBEN: Dynamic Input', () => {
         type(editor, '1234', false);
         expect(editor.snapshot.dynamicInput).toMatchObject({ point: { x: 1234, y: 2000 }, bound: true });
         type(editor, '');
-        expect(editor.snapshot.basePoint).toEqual({ x: 1234, y: 2000 });
+        expect(editor.snapshot.from).toEqual({ x: 1234, y: 2000 });
     });
 
     it('cycles the snap points with Tab while nothing is typed, and moves between the fields once something is', () => {
