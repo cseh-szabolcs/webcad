@@ -97,6 +97,15 @@ export const de = {
         otrackAngles: 'Spurwinkel',
         otrackOrthogonal: 'Nur orthogonal spuren',
         otrackPolar: 'Mit allen Polarwinkeln spuren',
+        dyn: 'DYN',
+        dynTitle: 'Dynamische Eingabe ein/aus (F12)',
+        dynMenuTitle: 'Dynamische Eingabe einstellen',
+        dynParts: 'Teile der dynamischen Eingabe',
+        dynPart: {
+            pointerInput: 'Zeigereingabe',
+            dimensionInput: 'Bemaßungseingabe',
+            prompts: 'Dynamische Eingabeaufforderungen',
+        },
         zoom: 'Zoom {{scale}} px/mm',
     },
 };

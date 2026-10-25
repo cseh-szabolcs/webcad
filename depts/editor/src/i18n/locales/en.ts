@@ -95,6 +95,15 @@ export const en: Translations = {
         otrackAngles: 'Tracking angles',
         otrackOrthogonal: 'Track orthogonally only',
         otrackPolar: 'Track using all polar angle settings',
+        dyn: 'DYN',
+        dynTitle: 'Dynamic Input on/off (F12)',
+        dynMenuTitle: 'Dynamic Input settings',
+        dynParts: 'Parts of Dynamic Input',
+        dynPart: {
+            pointerInput: 'Pointer Input',
+            dimensionInput: 'Dimension Input',
+            prompts: 'Dynamic Prompts',
+        },
         zoom: 'Zoom {{scale}} px/mm',
     },
 };

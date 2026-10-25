@@ -6,7 +6,7 @@ Auf dem Mac entspricht **Option (⌥)** der Taste Alt.
 Tastenkürzel wirken, solange der Fokus nicht in einem Textfeld liegt.
 
 Der Editor zeigt Pläne an, wählt Objekte aus und verschiebt sie mit dem Befehl SCHIEBEN
-(mit Raster, Objektfang, Polarspur, Ortho, Objektfangspuren, Koordinateneingabe und Rückgängig). Gespeichert wird noch nichts; was
+(mit Raster, Objektfang, Polarspur, Ortho, Objektfangspuren, Koordinateneingabe, dynamischer Eingabe und Rückgängig). Gespeichert wird noch nichts; was
 sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgesetzt).
 
 ## Oberfläche
@@ -28,8 +28,9 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   erscheint dahinter ein Textcursor und, was man tippt (siehe
   [Eingabe in der Kommandozeile](#eingabe-in-der-kommandozeile)).
 - **Statuszeile** (unten): links der Raster-Schalter **RASTER**, der Schalter **ORTHO**, der
-  Polarspur-Schalter **POLAR**, der Objektfang-Schalter **OFANG** und der Schalter
-  **OTRACK** für die Objektfangspuren; alle außer ORTHO mit dem Menü **▾**; rechts die Cursorposition
+  Polarspur-Schalter **POLAR**, der Objektfang-Schalter **OFANG**, der Schalter
+  **OTRACK** für die Objektfangspuren und **DYN** für die
+  [dynamische Eingabe](#dynamische-eingabe-dyn); alle außer ORTHO mit dem Menü **▾**; rechts die Cursorposition
   `X … Y …` in mm und der Zoom in px/mm.
 
 ## Ansicht
@@ -173,7 +174,12 @@ der Button **Rückgängig** das Verschieben rückgängig, **Strg+Y** / **⌘+⇧
 ### Eingabe in der Kommandozeile
 
 Bei den Punkt-Aufforderungen tippt die Tastatur direkt in die Kommandozeile, ohne sie
-anzuklicken. **Enter** (oder die **Leertaste**, sobald etwas getippt ist) schließt die
+anzuklicken. Mit eingeschalteter [dynamischer Eingabe](#dynamische-eingabe-dyn) geht das
+Getippte stattdessen in deren Felder am Fadenkreuz; dort ist beim zweiten Punkt `x,y` bzw.
+`abstand<winkel` relativ zum Basispunkt, absolut erst mit `#`. Diese Tabelle gilt so, wenn DYN
+aus ist oder die Aufforderung keine Felder zeigt.
+
+**Enter** (oder die **Leertaste**, sobald etwas getippt ist) schließt die
 Eingabe ab, **Backspace** löscht das letzte Zeichen, **Esc** verwirft sie. Ein Klick nimmt
 den geklickten Punkt und verwirft das Getippte. Dezimaltrennzeichen ist der Punkt, das
 Komma trennt die Koordinaten (wie im deutschen AutoCAD). Winkel in Grad, gegen den
@@ -193,7 +199,7 @@ bedeuten dort dasselbe.
 
 Ungültige Eingaben meldet die Kommandozeile mit `Punkt oder Option-Schlüsselwort
 erforderlich.`, die Aufforderung bleibt. Getippte Zeichen lösen keine anderen
-Tastenkürzel aus; Strg/⌘-Kürzel, F3, F7, F8, F10 und F11 wirken weiter.
+Tastenkürzel aus; Strg/⌘-Kürzel, F3, F7, F8, F10, F11 und F12 wirken weiter.
 
 ## Objektfang (OFANG)
 
@@ -365,6 +371,63 @@ durch die eine und die Waagrechte durch eine andere Ecke sich kreuzen.
 - Die erfassten Punkte gelten für eine Punkt-Aufforderung: Ein gegebener Punkt, **Esc**, das
   Ende des Befehls und das Ausschalten von OTRACK verwerfen sie.
 
+## Dynamische Eingabe (DYN)
+
+Die dynamische Eingabe bringt Aufforderung und Eingabe an das Fadenkreuz, damit der Blick nicht
+zur Kommandozeile wandern muss. Die Kommandozeile zeigt weiterhin alles mit.
+
+| Eingabe                       | Wirkung                                                  |
+|-------------------------------|----------------------------------------------------------|
+| **F12** oder Button **DYN**   | Schaltet die dynamische Eingabe ein oder aus             |
+| Button **▾** neben DYN        | Menü mit **Zeigereingabe**, **Bemaßungseingabe** und **Dynamische Eingabeaufforderungen** zum An- und Abwählen |
+| Ziffern, `.`, `-`, `#`, `@`   | Tippen ins hervorgehobene Feld                           |
+| `,` bzw. `<` im ersten Feld   | Wechselt ins zweite Feld: `,` für X/Y, `<` für Abstand und Winkel |
+| **Tab** / **Shift+Tab**       | Wechselt zwischen den Feldern, sobald etwas getippt ist (vorher schaltet Tab wie gewohnt die Fangpunkte durch) |
+| **Enter** (oder **Leertaste**, sobald etwas getippt ist) | Nimmt den Punkt                 |
+| **Backspace**                 | Löscht im Feld; im leeren zweiten Feld zurück ins erste  |
+| **Esc**                       | Verwirft das Getippte, ein zweites Esc bricht den Befehl ab |
+
+Ob F12 im Browser stattdessen die Entwicklertools öffnet, hängt vom Browser ab; der Button
+**DYN** wirkt immer.
+
+- **Zeigereingabe**: Beim Basispunkt (und bei `Verschiebung angeben`) stehen oben rechts neben
+  dem Fadenkreuz zwei Felder mit **X** und **Y** des Punkts, den ein Klick nähme (Fangpunkt,
+  Spur oder Cursor), absolut; mit `@` vorne relativ zum zuletzt angegebenen Punkt. Beim
+  zweiten Punkt zeigen sie ohne Bemaßungseingabe **Abstand** und **Winkel** vom Basispunkt.
+- **Bemaßungseingabe**: Beim zweiten Punkt zeigt eine temporäre Bemaßung Abstand und Winkel:
+  eine Maßlinie parallel zur Strecke Basispunkt–Punkt mit Architekturstrichen, das
+  Abstandsfeld darauf, und ein gestrichelter Bogen ab der Waagrechten mit dem Winkelfeld.
+  Winkel in Grad gegen den Uhrzeigersinn ab der positiven X-Achse (0–360°).
+- **Dynamische Eingabeaufforderungen**: Die aktuelle Aufforderung steht über den Feldern
+  neben dem Fadenkreuz, auch bei `Objekte wählen:`; bei `Befehl:` der getippte Befehlsname.
+  Ohne Befehl und ohne Getipptes erscheint nichts.
+- Leere Felder zeigen die **Live-Werte** in Grau und folgen dem Cursor. Das Feld, in das
+  getippt wird, ist blau umrandet und hat einen Textcursor; ein getipptes Feld, das man mit
+  Tab verlassen hat, zeigt ein **Schloss**. Springt Tab zurück in ein getipptes Feld, ersetzt
+  das erste Zeichen dessen Wert.
+- **Getippte Werte binden sofort**: Vorschau, Gummiband und ein Klick folgen ihnen, der
+  gebundene Punkt hat ein kleines **x**. Ist nur der Abstand getippt, bestimmt der Cursor die
+  Richtung (z. B. `500`, **Tab**, Maus in die gewünschte Richtung, Klick); ist nur der Winkel
+  getippt (z. B. `<30`), liegt der Punkt auf diesem Strahl und der Cursor bestimmt den Abstand.
+  Bei X/Y kommt der nicht getippte Wert vom Cursor.
+- Beim zweiten Punkt ist die Eingabe **relativ zum Basispunkt**: `500<90` sind 500 mm nach
+  oben, `100,50` 100 mm nach rechts und 50 mm nach oben, ohne `@`. **`#`** vorne macht sie
+  absolut (`#200,300`, `#1000<45`).
+- **Nur ein Abstand** + Enter wirkt wie die Direkte Distanzeingabe: entlang der
+  [Polarspur](#polarspur-polar), mit [Ortho](#ortho-ortho) waagrecht bzw. senkrecht, auf einer
+  einzelnen [Objektfangspur](#objektfangspuren-otrack) vom erfassten Punkt aus.
+- Text, der keine Zahl ist, gilt wie in der Kommandozeile: `V` wählt beim Basispunkt die
+  Option **Verschiebung**, sonst meldet die Kommandozeile `Punkt oder
+  Option-Schlüsselwort erforderlich.`
+- Die Felder zeigen Längen mit `DYN_LENGTH_DECIMALS` und Winkel mit höchstens
+  `DYN_ANGLE_DECIMALS` Nachkommastellen (`src/cad/editor/dynamicInput.ts`). Abstände und
+  Größen der Anzeige (`DYN_OFFSET_PX`, `DIMENSION_OFFSET_PX`, `ANGLE_ARC_MAX_RADIUS_PX`,
+  `TICK_SIZE_PX` …) stehen in `src/ui/DynamicInputLayer.ts`. Am Rand der Zeichenfläche kippt
+  das Feld auf die andere Seite des Fadenkreuzes.
+- Ist DYN aus, oder zeigt die Aufforderung keine Felder (Basispunkt ohne Zeigereingabe), geht
+  das Getippte wie bisher in die Kommandozeile. Umschalten während des Tippens verwirft das
+  Getippte.
+
 ## Raster (RASTER)
 
 Ein Linienraster unter der Zeichnung hilft, Abstände und Lage abzuschätzen, wie
@@ -476,6 +539,8 @@ Neuladen):
   allen Polarwinkeln spuren statt nur orthogonal).
 - `DEFAULT_GRID_SETTINGS`: RASTER `enabled` (GRIDMODE), `spacing` (GRIDUNIT),
   `majorEvery` (GRIDMAJOR).
+- `DEFAULT_DYNAMIC_INPUT_SETTINGS`: DYN `enabled` (F12), `pointerInput` und
+  `dimensionInput` (die Bits von DYNMODE), `prompts` (DYNPROMPT).
 
 ## Noch nicht umgesetzt
 
@@ -495,8 +560,13 @@ Neuladen):
   Objekten.
 - Beim Raster: Rasterfang (F9), getrennte Abstände für X und Y, Punktraster, isometrisches
   Raster, Limiten.
+- Bei der dynamischen Eingabe: Optionen-Menü mit der Pfeiltaste ↓, Einstellungen für Format
+  und Koordinaten der Zeigereingabe (polar/kartesisch, relativ/absolut, immer anzeigen) und das
+  Aussehen der Felder, mehrere Bemaßungen (z. B. beim Ziehen an Grips), rote Markierung
+  ungültiger Felder, Einheiten und Genauigkeit, Vervollständigung von Befehlsnamen,
+  Eingabe-Historie mit den Pfeiltasten, Koordinaten am Cursor ohne Befehl.
 - Was in der Statuszeile und ihren Menüs geändert wird (OFANG, Fangmodi, POLAR, ORTHO,
-  OTRACK, RASTER), wird noch nicht gespeichert; nach dem Neuladen gelten wieder die Startwerte aus
+  OTRACK, RASTER, DYN), wird noch nicht gespeichert; nach dem Neuladen gelten wieder die Startwerte aus
   den [Einstellungen](#einstellungen).
 - Beim BKS-Symbol: eigenes BKS (Befehl BKS, Ursprung verschieben, Drehen) samt Wirkung auf
   Koordinateneingabe, Ortho, Polarspur und Raster; Symbol wählen, Griffe und Kontextmenü;

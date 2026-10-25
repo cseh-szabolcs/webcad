@@ -9,6 +9,7 @@ import { i18n } from 'app/i18n/i18n';
 import { PaperRenderer } from 'app/cad/renderer/PaperRenderer';
 import { Viewport, type Size } from 'app/cad/renderer/Viewport';
 import type {
+    DynamicInputSettings,
     EditorSettings,
     GridSettings,
     ObjectTrackingSettings,
@@ -17,6 +18,7 @@ import type {
 } from 'app/settings/editorSettings';
 import { attachCanvasInput } from './canvasInput';
 import { CrosshairCursor } from './CrosshairCursor';
+import { DynamicInputLayer } from './DynamicInputLayer';
 import { GridLayer } from './GridLayer';
 import { polarTooltipText, SnapMarker, trackingTooltipText, type TrackingDisplay } from './SnapMarker';
 import { UcsIcon } from './UcsIcon';
@@ -49,6 +51,8 @@ interface CadCanvasProps {
     objectTrackingSettings: ObjectTrackingSettings;
     /** Grid display (F7); may change at any time. */
     gridSettings: GridSettings;
+    /** Dynamic Input (F12); may change at any time. */
+    dynamicInputSettings: DynamicInputSettings;
     onViewportChange?: (viewport: Viewport) => void;
     /**
      * Pointer position in view px (the snap or tracking point while the magnet holds
@@ -69,6 +73,7 @@ export function CadCanvas({
     ortho,
     objectTrackingSettings,
     gridSettings,
+    dynamicInputSettings,
     onViewportChange,
     onPointerChange,
     onSelectionChange,
@@ -89,6 +94,7 @@ export function CadCanvas({
     const orthoRef = useRef(ortho);
     const objectTrackingSettingsRef = useRef(objectTrackingSettings);
     const gridSettingsRef = useRef(gridSettings);
+    const dynamicInputSettingsRef = useRef(dynamicInputSettings);
     const viewportRef = useRef(new Viewport());
     const sizeRef = useRef<Size | null>(null);
     const needsFitRef = useRef(true);
@@ -159,9 +165,12 @@ export function CadCanvas({
         editor.setPolarSettings(polarSettingsRef.current);
         editor.setOrtho(orthoRef.current);
         editor.setObjectTrackingSettings(objectTrackingSettingsRef.current);
+        editor.setDynamicInputSettings(dynamicInputSettingsRef.current);
         const crosshair = new CrosshairCursor(container, settingsRef.current);
         const snapMarker = new SnapMarker(container, settingsRef.current, themeRef.current);
         snapMarkerRef.current = snapMarker;
+        // Above the snap display, whose tooltips it must not hide
+        const dynamicLayer = new DynamicInputLayer(container);
         const overlay = new SelectionOverlay(renderer);
         overlay.setTheme(themeRef.current);
         overlayRef.current = overlay;
@@ -178,6 +187,35 @@ export function CadCanvas({
         };
         /** Pointer position while the crosshair shows, so it can follow snap and zoom changes. */
         let crosshairAt: Point | null = null;
+        /**
+         * Dynamic Input next to the crosshair: the prompt (or a typed command name) with the
+         * prompts on, the fields at the crosshair or, for distance and angle from the base point,
+         * on a dimension.
+         */
+        const refreshDynamicInput = () => {
+            const { command, prompt, input, dynamicInput, basePoint } = editor.snapshot;
+            const dynamic = dynamicInputSettingsRef.current;
+            const view = (point: Point) => viewportRef.current.modelToView(point);
+            let promptText: string | null = null;
+            if (dynamic.enabled && dynamic.prompts) {
+                if (command !== null) {
+                    // Typed text without fields shows after the prompt, as on the command line
+                    promptText = dynamicInput === null && input !== '' ? `${prompt} ${input}` : prompt;
+                } else if (input !== '') {
+                    promptText = input;
+                }
+            }
+            const point = dynamicInput?.point ?? null;
+            const onDimension =
+                dynamicInput?.layout === 'dimension' && dynamicInput.format === 'polar' && dynamicInput.relative;
+            dynamicLayer.show({
+                cursor: crosshairAt && cursorAt(crosshairAt),
+                prompt: promptText,
+                fields: dynamicInput?.fields ?? null,
+                dimension: onDimension && basePoint && point ? { from: view(basePoint), to: view(point) } : null,
+                bound: dynamicInput?.bound && point ? view(point) : null,
+            });
+        };
         const refreshOverlay = () => {
             const { snap, snapCycle, snapPreview, polar, acquired, objectTrack, basePoint, previewPoint, cursor } =
                 editor.snapshot;
@@ -218,6 +256,7 @@ export function CadCanvas({
             if (crosshairAt) {
                 crosshair.moveTo(cursorAt(crosshairAt));
             }
+            refreshDynamicInput();
         };
         refreshOverlayRef.current = refreshOverlay;
         const unsubscribe = editor.subscribe(() => {
@@ -253,10 +292,12 @@ export function CadCanvas({
                 moveTo: (viewPoint) => {
                     crosshairAt = viewPoint;
                     crosshair.moveTo(cursorAt(viewPoint));
+                    refreshDynamicInput();
                 },
                 hide: () => {
                     crosshairAt = null;
                     crosshair.hide();
+                    refreshDynamicInput();
                 },
                 setRemoving: (removing) => crosshair.setRemoving(removing),
             },
@@ -267,6 +308,7 @@ export function CadCanvas({
         return () => {
             detachInput();
             crosshair.dispose();
+            dynamicLayer.dispose();
             snapMarker.dispose();
             snapMarkerRef.current = null;
             grid.dispose();
@@ -308,6 +350,13 @@ export function CadCanvas({
         objectTrackingSettingsRef.current = objectTrackingSettings;
         editorRef.current?.setObjectTrackingSettings(objectTrackingSettings);
     }, [objectTrackingSettings]);
+
+    useEffect(() => {
+        dynamicInputSettingsRef.current = dynamicInputSettings;
+        editorRef.current?.setDynamicInputSettings(dynamicInputSettings);
+        // Switching the prompts alone leaves the editor's snapshot unchanged
+        refreshOverlayRef.current?.();
+    }, [dynamicInputSettings]);
 
     useEffect(() => {
         gridSettingsRef.current = gridSettings;

@@ -2,10 +2,12 @@ import type { CadDocument } from '../model/CadDocument';
 import { DocumentHistory } from './commands/DocumentHistory';
 import { MoveCommand } from './commands/MoveCommand';
 import {
+    DEFAULT_DYNAMIC_INPUT_SETTINGS,
     DEFAULT_EDITOR_SETTINGS,
     DEFAULT_OBJECT_TRACKING_SETTINGS,
     DEFAULT_POLAR_SETTINGS,
     DEFAULT_SNAP_SETTINGS,
+    type DynamicInputSettings,
     type EditorSettings,
     type ObjectTrackingSettings,
     type PolarSettings,
@@ -26,6 +28,25 @@ import type { SnapPoint } from './snapping/SnapGeometry';
 import { orthoPoint } from './tracking/ortho';
 import { t } from '../../i18n/i18n';
 import { commandName, findCommand, type EditorCommand } from './commandNames';
+import {
+    backspaceDynamic,
+    dynamicFields,
+    dynamicFormat,
+    dynamicLayout,
+    dynamicPoint,
+    dynamicText,
+    EMPTY_DYNAMIC_INPUT,
+    focusNextField,
+    isEmptyDynamicInput,
+    isRelative,
+    typeDynamic,
+    typedValues,
+    type DynamicContext,
+    type DynamicField,
+    type DynamicFormat,
+    type DynamicInputState,
+    type DynamicLayout,
+} from './dynamicInput';
 import { findPolarTrack, polarAngles, type PolarTrack } from './tracking/PolarTracking';
 import {
     findObjectTrack,
@@ -136,9 +157,24 @@ export interface SelectionSnapshot {
      * at other prompts and while the pointer is outside.
      */
     previewPoint: Point | null;
+    /** Dynamic Input fields at the current point prompt, or null where none show. */
+    dynamicInput: DynamicInputView | null;
     /** Undo and redo are possible now (not while a command runs). */
     canUndo: boolean;
     canRedo: boolean;
+}
+
+/** What the Dynamic Input display shows at a point prompt (see dynamicInput). */
+export interface DynamicInputView {
+    layout: DynamicLayout;
+    format: DynamicFormat;
+    /** Measured from the base point (or the last point), not from the origin. */
+    relative: boolean;
+    fields: readonly [DynamicField, DynamicField];
+    /** The point a click or Enter takes now (also without a pointer once typed values fix it), or null. */
+    point: Point | null;
+    /** Typed values bind the point. */
+    bound: boolean;
 }
 
 type State =
@@ -194,6 +230,13 @@ function isPointPrompt(state: State): state is PointPromptState {
  * follows the Ortho direction, or the polar path while the cursor is on one; on a single
  * object snap tracking path it goes that far from the acquired point along the path.
  *
+ * With Dynamic Input on (see dynamicInput), a point prompt that shows fields takes the keys into
+ * them instead: X/Y (absolute) at the first point, distance and angle relative to the base point
+ * at the second; untyped fields show the live values at the pointer. Typed numbers bind the point
+ * at once, so the preview and a click follow them, and Tab moves between the fields once
+ * something is typed (before, it still cycles the snap points). Text that is no number goes on
+ * as if typed on the command line (an option keyword, or an invalid entry).
+ *
  * The derived structures (outlines, R-tree, groups, snap geometry) follow every document
  * change of the history; they are rebuilt as a whole for now.
  *
@@ -247,6 +290,9 @@ export class SelectionEditor {
     private state: State = { kind: 'idle', pickfirst: new Set() };
     /** Text typed at the current point prompt or the command prompt. */
     private input = '';
+    private dynamicInputSettings: DynamicInputSettings = DEFAULT_DYNAMIC_INPUT_SETTINGS;
+    /** Text typed into the Dynamic Input fields, at point prompts that show them (instead of `input`). */
+    private dynamic: DynamicInputState = EMPTY_DYNAMIC_INPUT;
     /** Last point given, the reference of relative input at the base point prompt (AutoCAD's LASTPOINT). */
     private lastPoint: Point = { x: 0, y: 0 };
     private previousSelection: ReadonlySet<Id> = new Set();
@@ -415,14 +461,26 @@ export class SelectionEditor {
         this.changed();
     }
 
+    /** Switches Dynamic Input or its parts; text typed at a point prompt is dropped. */
+    setDynamicInputSettings(settings: DynamicInputSettings): void {
+        this.dynamicInputSettings = settings;
+        if (isPointPrompt(this.state)) {
+            this.input = '';
+            this.dynamic = EMPTY_DYNAMIC_INPUT;
+        }
+        this.changed();
+    }
+
     pointerDown(event: EditorPointerEvent): void {
         const state = this.state;
         if (isPointPrompt(state)) {
             if (event.button === 0) {
-                // A click gives the point; text typed so far is dropped
-                this.input = '';
+                // A click gives the point, bound by typed Dynamic Input values; other typed text is dropped
                 this.updateSnap(event);
-                this.pointGiven(this.pointAt(event.modelPoint));
+                const point = this.pointAt(event.modelPoint);
+                this.input = '';
+                this.dynamic = EMPTY_DYNAMIC_INPUT;
+                this.pointGiven(point);
             }
             return;
         }
@@ -550,7 +608,13 @@ export class SelectionEditor {
             if (!isPointPrompt(state)) {
                 return false;
             }
-            this.cycleSnap(event.shiftKey ? -1 : 1);
+            // With typed Dynamic Input values Tab moves between the fields, else it cycles the snap points
+            if (this.dynamicPromptLayout() !== null && !isEmptyDynamicInput(this.dynamic)) {
+                this.dynamic = focusNextField(this.dynamic);
+                this.changed();
+            } else {
+                this.cycleSnap(event.shiftKey ? -1 : 1);
+            }
             return true;
         }
         if (isPointPrompt(state)) {
@@ -604,6 +668,9 @@ export class SelectionEditor {
      * Every printable key is taken, so none triggers anything else; Ctrl/⌘ shortcuts are not.
      */
     private typeKey(event: EditorKeyEvent): boolean {
+        if (this.dynamicPromptLayout() !== null) {
+            return this.typeDynamicKey(event);
+        }
         const { key } = event;
         if (key === 'Escape') {
             if (this.input === '') {
@@ -629,6 +696,37 @@ export class SelectionEditor {
             return true;
         }
         return false;
+    }
+
+    /**
+     * A key at a point prompt that shows Dynamic Input fields: types into the focused field (`,`
+     * and `<` move on to the second), ends, edits or drops the text like typeKey.
+     */
+    private typeDynamicKey(event: EditorKeyEvent): boolean {
+        const { key } = event;
+        const empty = isEmptyDynamicInput(this.dynamic);
+        if (key === 'Escape') {
+            if (empty) {
+                this.endCommand(CANCEL);
+            } else {
+                this.dynamic = EMPTY_DYNAMIC_INPUT;
+                this.changed();
+            }
+            return true;
+        }
+        if (key === 'Enter' || (key === ' ' && !empty)) {
+            this.submitInput();
+            return true;
+        }
+        if (key === 'Backspace') {
+            this.dynamic = backspaceDynamic(this.dynamic);
+        } else if (isTypedCharacter(event)) {
+            this.dynamic = typeDynamic(this.dynamic, key);
+        } else {
+            return false;
+        }
+        this.changed();
+        return true;
     }
 
     /**
@@ -669,11 +767,37 @@ export class SelectionEditor {
         this.changed();
     }
 
-    /** Enter at a point prompt: takes the typed point, option or default (see the class comment). */
+    /**
+     * Enter at a point prompt: takes the typed point, option or default (see the class comment).
+     * Typed Dynamic Input numbers give the point they bind; other text in the fields counts as
+     * typed on the command line.
+     */
     private submitInput(): void {
-        const state = this.state as PointPromptState;
+        if (this.dynamicPromptLayout() !== null) {
+            const dynamic = this.dynamic;
+            this.dynamic = EMPTY_DYNAMIC_INPUT;
+            const values = typedValues(dynamic);
+            if (values !== 'text' && (values[0] !== null || values[1] !== null)) {
+                const point = this.dynamicBoundPoint(dynamic);
+                if (point === null) {
+                    this.message = INVALID_INPUT;
+                    this.changed();
+                } else {
+                    this.pointGiven(point);
+                }
+                return;
+            }
+            this.submitText(dynamicText(dynamic, this.dynamicContext()).trim());
+            return;
+        }
         const text = this.input.trim();
         this.input = '';
+        this.submitText(text);
+    }
+
+    /** Typed command line text at a point prompt: a point, an option, or the default when empty. */
+    private submitText(text: string): void {
+        const state = this.state as PointPromptState;
         if (state.kind === 'basePoint' && (text === '' || matchesKeyword(text, t('message.displacementKeyword')))) {
             this.state = { kind: 'displacement', selection: state.selection };
             this.startPointPrompt();
@@ -730,17 +854,54 @@ export class SelectionEditor {
         }
     }
 
-    /** At the second point prompt, the point a click would take now (see pointAt). */
+    /**
+     * At the second point prompt, the point a click would take now (see pointAt); without a
+     * pointer only a point fixed by typed Dynamic Input values.
+     */
     private previewPoint(): Point | null {
-        return this.state.kind === 'secondPoint' && this.lastPointer !== null ? this.pointAt(this.lastPointer.modelPoint) : null;
+        if (this.state.kind !== 'secondPoint') {
+            return null;
+        }
+        return this.lastPointer !== null ? this.pointAt(this.lastPointer.modelPoint) : this.dynamicBoundPoint(this.dynamic);
+    }
+
+    /** The point a click at `cursor` gives: the tracked point (see trackedPointAt), bound by typed Dynamic Input values. */
+    private pointAt(cursor: Point): Point {
+        const point = this.trackedPointAt(cursor);
+        if (this.dynamicPromptLayout() === null) {
+            return point;
+        }
+        return dynamicPoint(this.dynamic, this.dynamicContext(), point) ?? point;
+    }
+
+    /** The point typed Dynamic Input values bind, the rest taken at the pointer; null if they bind none. */
+    private dynamicBoundPoint(dynamic: DynamicInputState): Point | null {
+        const point = this.lastPointer !== null ? this.trackedPointAt(this.lastPointer.modelPoint) : null;
+        return dynamicPoint(dynamic, this.dynamicContext(), point);
+    }
+
+    /** Which Dynamic Input fields the current prompt shows, or null for none (typing goes to the command line). */
+    private dynamicPromptLayout(): DynamicLayout | null {
+        return isPointPrompt(this.state) ? dynamicLayout(this.dynamicInputSettings, this.state.kind) : null;
+    }
+
+    private dynamicContext(): DynamicContext {
+        const state = this.state as PointPromptState;
+        const track = this.objectTrack?.paths.length === 1 ? this.objectTrack.paths[0] : null;
+        return {
+            prompt: state.kind,
+            basePoint: state.kind === 'secondPoint' ? state.basePoint : null,
+            lastPoint: this.lastPoint,
+            trackOrigin: track?.origin ?? null,
+        };
     }
 
     /**
-     * The point a click at `cursor` gives: the snap point; else the object snap tracking point;
-     * else at the second point the Ortho point or the point on the polar path; else the cursor
-     * itself.
+     * The point a click at `cursor` gives without Dynamic Input: the snap point; else the object
+     * snap tracking point; else at the second point the Ortho point or the point on the polar
+     * path; else the cursor itself.
      */
-    private pointAt(cursor: Point): Point {
+    private trackedPointAt(cursor: Point): Point {
         if (this.snap !== null) {
             return this.snap.point;
         }
@@ -758,6 +919,7 @@ export class SelectionEditor {
      * the cursor anew.
      */
     private startPointPrompt(): void {
+        this.dynamic = EMPTY_DYNAMIC_INPUT;
         this.snapMemory = new SnapMemory();
         this.snap = null;
         this.snapCycle = null;
@@ -791,6 +953,7 @@ export class SelectionEditor {
     private endCommand(message: Message | null): void {
         this.state = { kind: 'idle', pickfirst: new Set() };
         this.input = '';
+        this.dynamic = EMPTY_DYNAMIC_INPUT;
         this.message = message;
         this.acquired = NO_ACQUIRED;
         this.updateSnap(null);
@@ -1023,6 +1186,8 @@ export class SelectionEditor {
             ? this.snapPreview.filter(({ point }) => snap === null || !coincide(point, snap.point))
             : NO_POINTS;
         const previewPoint = this.previewPoint();
+        const dynamicInput = this.dynamicInputView();
+        const input = dynamicInput !== null ? dynamicText(this.dynamic, this.dynamicContext()) : this.input;
         const idle = state.kind === 'idle' && this.area === null;
         const canUndo = idle && this.history.undoCommand !== null;
         const canRedo = idle && this.history.redoCommand !== null;
@@ -1055,7 +1220,7 @@ export class SelectionEditor {
             sameSelection &&
             prompt === previous.prompt &&
             message === previous.message &&
-            this.input === previous.input &&
+            input === previous.input &&
             area === previous.area &&
             sameIds(hovered, previous.hovered) &&
             sameSnap(snap, previous.snap) &&
@@ -1066,6 +1231,7 @@ export class SelectionEditor {
             sameObjectTrack(objectTrack, previous.objectTrack) &&
             basePoint === previous.basePoint &&
             samePoint(previewPoint, previous.previewPoint) &&
+            sameDynamicInput(dynamicInput, previous.dynamicInput) &&
             canUndo === previous.canUndo &&
             canRedo === previous.canRedo
         ) {
@@ -1084,7 +1250,7 @@ export class SelectionEditor {
         return {
             command,
             prompt,
-            input: this.input,
+            input,
             acceptsInput: pointPrompt || (state.kind === 'idle' && area === null),
             message,
             hovered,
@@ -1101,8 +1267,30 @@ export class SelectionEditor {
             objectTrack,
             basePoint,
             previewPoint,
+            dynamicInput,
             canUndo,
             canRedo,
+        };
+    }
+
+    /** The Dynamic Input fields at the current point prompt, with live values at the pointer. */
+    private dynamicInputView(): DynamicInputView | null {
+        const layout = this.dynamicPromptLayout();
+        if (layout === null) {
+            return null;
+        }
+        const dynamic = this.dynamic;
+        const ctx = this.dynamicContext();
+        const tracked = this.lastPointer !== null ? this.trackedPointAt(this.lastPointer.modelPoint) : null;
+        const bound = dynamicPoint(dynamic, ctx, tracked);
+        const point = bound ?? tracked;
+        return {
+            layout,
+            format: dynamicFormat(dynamic, ctx),
+            relative: isRelative(dynamic, ctx),
+            fields: dynamicFields(dynamic, ctx, point),
+            point,
+            bound: bound !== null,
         };
     }
 }
@@ -1141,6 +1329,26 @@ function sameObjectTrack(a: ObjectTrack | null, b: ObjectTrack | null): boolean 
             samePoint(a.point, b.point) &&
             a.paths.length === b.paths.length &&
             a.paths.every((path, i) => path.angle === b.paths[i].angle && samePoint(path.origin, b.paths[i].origin)))
+    );
+}
+
+function sameDynamicInput(a: DynamicInputView | null, b: DynamicInputView | null): boolean {
+    return (
+        a === b ||
+        (a !== null &&
+            b !== null &&
+            a.layout === b.layout &&
+            a.format === b.format &&
+            a.relative === b.relative &&
+            a.bound === b.bound &&
+            samePoint(a.point, b.point) &&
+            a.fields.every(
+                (field, i) =>
+                    field.kind === b.fields[i].kind &&
+                    field.text === b.fields[i].text &&
+                    field.typed === b.fields[i].typed &&
+                    field.focused === b.fields[i].focused,
+            ))
     );
 }
 

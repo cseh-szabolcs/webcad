@@ -15,6 +15,13 @@
     --snap-tooltip-border: #6b7280;
     /* UCS icon (UcsIcon) */
     --ucs-icon: #4b5563;
+    /* Dynamic Input fields and temporary dimensions (DynamicInputLayer) */
+    --dyn-field-bg: #ffffff;
+    --dyn-field-fg: #111827;
+    --dyn-field-border: #9ca3af;
+    --dyn-live-fg: #4b5563;
+    --dyn-focus: #2563eb;
+    --dyn-dimension: #6b7280;
     color-scheme: light;
 
     font: 14px/1.4 system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -39,6 +46,12 @@
     --snap-tooltip-fg: #e5e7eb;
     --snap-tooltip-border: #6b7280;
     --ucs-icon: #d1d5db;
+    --dyn-field-bg: #1b2028;
+    --dyn-field-fg: #e5e7eb;
+    --dyn-field-border: #6b7280;
+    --dyn-live-fg: #9ca3af;
+    --dyn-focus: #60a5fa;
+    --dyn-dimension: #9ca3af;
     color-scheme: dark;
 }
 

@@ -7,11 +7,13 @@ import { currentLanguage, LANGUAGES, setLanguage } from 'app/i18n/i18n';
 import type { Point } from 'app/cad/model/Point';
 import { CadApiClient } from 'app/cad/persistence/CadApiClient';
 import {
+    DEFAULT_DYNAMIC_INPUT_SETTINGS,
     DEFAULT_EDITOR_SETTINGS,
     DEFAULT_GRID_SETTINGS,
     DEFAULT_OBJECT_TRACKING_SETTINGS,
     DEFAULT_SNAP_SETTINGS,
     DEFAULT_TRACKING_MODES,
+    type DynamicInputSettings,
     type GridSettings,
     type ObjectTrackingSettings,
     type SnapSettings,
@@ -59,12 +61,14 @@ function App() {
     const [tracking, setTracking] = useState<TrackingModes>(DEFAULT_TRACKING_MODES);
     const [objectTracking, setObjectTracking] = useState<ObjectTrackingSettings>(DEFAULT_OBJECT_TRACKING_SETTINGS);
     const [gridSettings, setGridSettings] = useState<GridSettings>(DEFAULT_GRID_SETTINGS);
+    const [dynamicInput, setDynamicInput] = useState<DynamicInputSettings>(DEFAULT_DYNAMIC_INPUT_SETTINGS);
     const { preference, setPreference, theme } = useTheme();
     const fullscreen = useFullscreen();
 
     // Shortcuts like AutoCAD: F3 switches the object snap (and must not open the browser's
     // search), F7 the grid (and must not start caret browsing), F8 Ortho, F10 polar tracking (and must not focus the browser's menu bar),
-    // F11 object snap tracking (and must not switch the browser to full screen),
+    // F11 object snap tracking (and must not switch the browser to full screen), F12 Dynamic Input
+    // (and should not open the developer tools, which not every browser lets a page prevent),
     // Ctrl/Cmd+Z undoes, Ctrl+Y or Cmd+Shift+Z redoes
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
@@ -107,6 +111,13 @@ function App() {
                 event.preventDefault();
                 if (!event.repeat) {
                     setObjectTracking((settings) => ({ ...settings, enabled: !settings.enabled }));
+                }
+                return;
+            }
+            if (event.key === 'F12') {
+                event.preventDefault();
+                if (!event.repeat) {
+                    setDynamicInput((settings) => ({ ...settings, enabled: !settings.enabled }));
                 }
                 return;
             }
@@ -232,6 +243,7 @@ function App() {
                 ortho={tracking.ortho}
                 objectTrackingSettings={objectTracking}
                 gridSettings={gridSettings}
+                dynamicInputSettings={dynamicInput}
                 onViewportChange={setViewport}
                 onPointerChange={setPointer}
                 onSelectionChange={setSelection}
@@ -257,6 +269,8 @@ function App() {
                 onObjectTrackingSettingsChange={setObjectTracking}
                 gridSettings={gridSettings}
                 onGridSettingsChange={setGridSettings}
+                dynamicInputSettings={dynamicInput}
+                onDynamicInputSettingsChange={setDynamicInput}
             />
         </div>
     );

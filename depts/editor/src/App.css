@@ -193,6 +193,106 @@
     border: 1px solid var(--snap-tooltip-border);
 }
 
+/* Dynamic Input (DynamicInputLayer), in view px over the snap display */
+.dyn-layer,
+.dyn-svg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.dyn-svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.dyn-layer[hidden],
+.dyn-layer [hidden] {
+    display: none;
+}
+
+.dyn-dimension {
+    fill: none;
+    stroke: var(--dyn-dimension);
+    stroke-width: 1;
+}
+
+.dyn-angle {
+    stroke-dasharray: 4 3;
+}
+
+.dyn-bound {
+    fill: none;
+    stroke: var(--dyn-focus);
+    stroke-width: 1.5;
+}
+
+.dyn-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 3px 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    color: var(--snap-tooltip-fg);
+    background: var(--snap-tooltip-bg);
+    border: 1px solid var(--snap-tooltip-border);
+}
+
+.dyn-fields {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.dyn-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    min-width: 5em;
+    padding: 0 4px;
+    font: 12px/1.5 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    color: var(--dyn-field-fg);
+    background: var(--dyn-field-bg);
+    border: 1px solid var(--dyn-field-border);
+}
+
+.dyn-dimension-field {
+    position: absolute;
+    top: 0;
+    left: 0;
+    min-width: 0;
+}
+
+.dyn-field-live {
+    color: var(--dyn-live-fg);
+}
+
+.dyn-field-focused {
+    border-color: var(--dyn-focus);
+    box-shadow: 0 0 0 1px var(--dyn-focus);
+}
+
+.dyn-lock {
+    width: 8px;
+    height: 10px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.2;
+}
+
+.dyn-caret {
+    display: inline-block;
+    width: 1px;
+    height: 1.1em;
+    background: var(--dyn-field-fg);
+    animation: commandline-blink 1s steps(1) infinite;
+}
+
 .app-message {
     margin: 0;
     padding: 24px;

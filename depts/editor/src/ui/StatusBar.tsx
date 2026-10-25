@@ -7,6 +7,7 @@ import type { Point } from 'app/cad/model/Point';
 import type { Viewport } from 'app/cad/renderer/Viewport';
 import {
     POLAR_INCREMENTS,
+    type DynamicInputSettings,
     type GridSettings,
     type ObjectTrackingSettings,
     type PolarSettings,
@@ -29,10 +30,12 @@ interface StatusBarProps {
     onObjectTrackingSettingsChange: (settings: ObjectTrackingSettings) => void;
     gridSettings: GridSettings;
     onGridSettingsChange: (settings: GridSettings) => void;
+    dynamicInputSettings: DynamicInputSettings;
+    onDynamicInputSettingsChange: (settings: DynamicInputSettings) => void;
 }
 
 /**
- * The grid, Ortho, polar tracking, object snap and object snap tracking switches on the left (in AutoCAD's order), the cursor position in model space
+ * The grid, Ortho, polar tracking, object snap, object snap tracking and Dynamic Input switches on the left (in AutoCAD's order), the cursor position in model space
  * and the zoom level on the right, so the switches stay put while the numbers change width.
  */
 export function StatusBar({
@@ -48,6 +51,8 @@ export function StatusBar({
     onObjectTrackingSettingsChange,
     gridSettings,
     onGridSettingsChange,
+    dynamicInputSettings,
+    onDynamicInputSettingsChange,
 }: StatusBarProps) {
     const { t } = useTranslation();
     const model = viewport && pointer ? viewport.viewToModel(pointer) : null;
@@ -63,6 +68,7 @@ export function StatusBar({
             <PolarSwitch settings={polarSettings} onChange={onPolarSettingsChange} />
             <SnapSwitch settings={snapSettings} onChange={onSnapSettingsChange} />
             <ObjectTrackingSwitch settings={objectTrackingSettings} onChange={onObjectTrackingSettingsChange} />
+            <DynamicInputSwitch settings={dynamicInputSettings} onChange={onDynamicInputSettingsChange} />
             <b className="statusbar-position">
                 {model ? `X ${formatCoordinate(model.x)}  Y ${formatCoordinate(model.y)}` : 'X –  Y –'}
             </b>
@@ -295,6 +301,57 @@ function ObjectTrackingSwitch({
                                 onChange={() => onChange({ enabled: true, allPolarAngles })}
                             />
                             {t(allPolarAngles ? 'status.otrackPolar' : 'status.otrackOrthogonal')}
+                        </label>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+/** The parts of Dynamic Input in its menu, like AutoCAD's DYNMODE bits and DYNPROMPT. */
+const DYNAMIC_INPUT_PARTS = ['pointerInput', 'dimensionInput', 'prompts'] as const;
+
+/** DYN switch (like F12) with a menu of its parts, like AutoCAD's Dynamic Input settings. */
+function DynamicInputSwitch({
+    settings,
+    onChange,
+}: {
+    settings: DynamicInputSettings;
+    onChange: (settings: DynamicInputSettings) => void;
+}) {
+    const { t } = useTranslation();
+    const { open, setOpen, rootRef } = useMenu();
+
+    return (
+        <div className="snap-switch" ref={rootRef}>
+            <button
+                type="button"
+                aria-pressed={settings.enabled}
+                onClick={() => onChange({ ...settings, enabled: !settings.enabled })}
+                title={t('status.dynTitle')}
+            >
+                {t('status.dyn')}
+            </button>
+            <button
+                type="button"
+                aria-expanded={open}
+                aria-haspopup="true"
+                onClick={() => setOpen(!open)}
+                title={t('status.dynMenuTitle')}
+            >
+                ▾
+            </button>
+            {open && (
+                <div className="snap-menu" role="group" aria-label={t('status.dynParts')}>
+                    {DYNAMIC_INPUT_PARTS.map((part) => (
+                        <label key={part}>
+                            <input
+                                type="checkbox"
+                                checked={settings[part]}
+                                onChange={() => onChange({ ...settings, [part]: !settings[part] })}
+                            />
+                            {t(`status.dynPart.${part}`)}
                         </label>
                     ))}
                 </div>

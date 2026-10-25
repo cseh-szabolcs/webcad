@@ -19,6 +19,12 @@ const CARTESIAN = new RegExp(`^(${NUMBER}),(${NUMBER})$`);
 const POLAR = new RegExp(`^(${NUMBER})<(${NUMBER})$`);
 const DISTANCE = new RegExp(`^${NUMBER}$`);
 
+/** A typed number (spaces ignored, `.` decimals), or null. */
+export function parseNumber(text: string): number | null {
+    const rest = text.replace(/\s+/g, '');
+    return DISTANCE.test(rest) ? Number(rest) : null;
+}
+
 /** Parses typed text (spaces ignored) as a point, or returns null if it is none. */
 export function parsePointInput(text: string): PointInput | null {
     let rest = text.replace(/\s+/g, '');

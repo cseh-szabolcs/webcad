@@ -6,7 +6,7 @@ import samplePlan from '../__fixtures__/sample-plan.json';
 import { sampleIds } from '../__fixtures__/sampleIds';
 import type { EditorPointerEvent } from './EditorPointerEvent';
 import { DocumentHistory } from './commands/DocumentHistory';
-import { DEFAULT_EDITOR_SETTINGS } from '../../settings/editorSettings';
+import { DEFAULT_DYNAMIC_INPUT_SETTINGS, DEFAULT_EDITOR_SETTINGS } from '../../settings/editorSettings';
 import { SelectionEditor } from './SelectionEditor';
 import { i18n } from '../../i18n/i18n';
 
@@ -464,10 +464,14 @@ describe('SelectionEditor SCHIEBEN: typed input', () => {
     const DISPLACEMENT_PROMPT = 'Verschiebung angeben <0,0>:';
     const INVALID = 'Punkt oder Option-Schlüsselwort erforderlich.';
 
-    /** SCHIEBEN on the table (centre at 4000, 1800), at the base point prompt. */
+    /**
+     * SCHIEBEN on the table (centre at 4000, 1800), at the base point prompt. Dynamic Input is
+     * off, as this tests the command line syntax.
+     */
     const start = () => {
         const history = new DocumentHistory(parseDocument(samplePlan));
         const editor = new SelectionEditor(history);
+        editor.setDynamicInputSettings({ ...DEFAULT_DYNAMIC_INPUT_SETTINGS, enabled: false });
         click(editor, TABLE);
         editor.startMoveCommand();
         return { editor, history };
@@ -943,7 +947,10 @@ describe('SelectionEditor SCHIEBEN: snap point preview', () => {
     });
 
     it('notifies only when the preview changes', () => {
-        const editor = atBasePoint();
+        const editor = create();
+        // The live Dynamic Input values change with every move
+        editor.setDynamicInputSettings({ ...DEFAULT_DYNAMIC_INPUT_SETTINGS, enabled: false });
+        atBasePoint(editor);
         const listener = vi.fn();
         editor.subscribe(listener);
         editor.pointerMove(at(onTable()));
@@ -1623,5 +1630,172 @@ describe('SelectionEditor SCHIEBEN: object snap tracking', () => {
         editor.setObjectTrackingSettings({ enabled: false, allPolarAngles: false });
         dwell(editor, SOFA);
         expect(editor.snapshot.acquired).toEqual([]);
+    });
+});
+
+describe('SelectionEditor SCHIEBEN: Dynamic Input', () => {
+    const SECOND_POINT_PROMPT = 'Zweiten Punkt angeben oder <ersten Punkt als Verschiebung verwenden>:';
+    const INVALID = 'Punkt oder Option-Schlüsselwort erforderlich.';
+
+    /** SCHIEBEN on the table (centre at 4000, 1800) with Dynamic Input on (the default), at the base point prompt. */
+    const start = () => {
+        const history = new DocumentHistory(parseDocument(samplePlan));
+        const editor = new SelectionEditor(history);
+        click(editor, TABLE);
+        editor.startMoveCommand();
+        return { editor, history };
+    };
+    /** Types each character of `text` (`\t` is Tab), then Enter unless `enter` is false. */
+    const type = (editor: SelectionEditor, text: string, enter = true) => {
+        for (const key of text) {
+            expect(editor.keyDown({ key: key === '\t' ? 'Tab' : key }), key).toBe(true);
+        }
+        if (enter) {
+            expect(editor.keyDown({ key: 'Enter' })).toBe(true);
+        }
+    };
+    const texts = (editor: SelectionEditor) => editor.snapshot.dynamicInput?.fields.map(({ text }) => text);
+
+    it('shows X/Y at the base point, distance and angle from the base point on a dimension at the second point', () => {
+        const { editor } = start();
+        editor.pointerMove(at(EMPTY));
+        expect(editor.snapshot.dynamicInput).toMatchObject({ layout: 'pointer', format: 'cartesian', relative: false, bound: false });
+        expect(texts(editor)).toEqual(['3000.00', '2000.00']);
+        type(editor, '4000,1000');
+        expect(editor.snapshot.prompt).toBe(SECOND_POINT_PROMPT);
+        editor.pointerMove(at({ x: 4000, y: 1500 }));
+        expect(editor.snapshot.dynamicInput).toMatchObject({ layout: 'dimension', format: 'polar', relative: true });
+        expect(editor.snapshot.dynamicInput?.fields).toEqual([
+            { kind: 'distance', text: '500.00', typed: false, focused: true },
+            { kind: 'angle', text: '90', typed: false, focused: false },
+        ]);
+    });
+
+    it('takes typed distance and angle, and X,Y, relative to the base point; # makes them absolute', () => {
+        const polar = start();
+        type(polar.editor, '4000,1800');
+        type(polar.editor, '100<90');
+        const centre = tableCentre(polar.history);
+        expect(centre.x).toBeCloseTo(4000);
+        expect(centre.y).toBeCloseTo(1900);
+        const cartesian = start();
+        type(cartesian.editor, '4000,1800');
+        type(cartesian.editor, '100,-50');
+        expect(tableCentre(cartesian.history)).toEqual({ x: 4100, y: 1750 });
+        const absolute = start();
+        type(absolute.editor, '4000,1800');
+        type(absolute.editor, '#0,0');
+        expect(tableCentre(absolute.history)).toEqual({ x: 0, y: 0 });
+    });
+
+    it('goes a lone distance along the polar path, like direct distance entry', () => {
+        const { editor, history } = start();
+        type(editor, '3000,1000');
+        // 4 px right of the vertical path from the base point, where nothing snaps
+        editor.pointerMove(at({ x: 3008, y: 1600 }));
+        expect(editor.snapshot.polar?.angle).toBe(90);
+        type(editor, '250');
+        expect(tableCentre(history)).toEqual({ x: 4000, y: 2050 });
+    });
+
+    it('binds the preview to a typed distance; after Tab the cursor still chooses the direction and a click takes it', () => {
+        const { editor, history } = start();
+        type(editor, '4000,1800');
+        editor.pointerMove(at(EMPTY));
+        type(editor, '300\t', false);
+        expect(editor.snapshot.dynamicInput).toMatchObject({ bound: true });
+        expect(editor.snapshot.dynamicInput?.fields).toMatchObject([
+            { text: '300', typed: true, focused: false },
+            { kind: 'angle', typed: false, focused: true },
+        ]);
+        expect(editor.snapshot.input).toBe('300<');
+        const preview = editor.snapshot.previewPoint!;
+        expect(Math.hypot(preview.x - 4000, preview.y - 1800)).toBeCloseTo(300);
+        // Towards the cursor
+        expect(preview.x).toBeLessThan(4000);
+        click(editor, EMPTY);
+        const centre = tableCentre(history);
+        expect(centre.x).toBeCloseTo(preview.x);
+        expect(centre.y).toBeCloseTo(preview.y);
+    });
+
+    it('projects the cursor onto the ray of a typed angle', () => {
+        const { editor } = start();
+        type(editor, '4000,1800');
+        type(editor, '<90', false);
+        editor.pointerMove(at(EMPTY));
+        expect(editor.snapshot.previewPoint?.x).toBeCloseTo(4000);
+        expect(editor.snapshot.previewPoint?.y).toBeCloseTo(2000);
+        expect(texts(editor)).toEqual(['200.00', '90']);
+    });
+
+    it('takes a typed X at the base point with the Y at the cursor', () => {
+        const { editor } = start();
+        editor.pointerMove(at(EMPTY));
+        type(editor, '1234', false);
+        expect(editor.snapshot.dynamicInput).toMatchObject({ point: { x: 1234, y: 2000 }, bound: true });
+        type(editor, '');
+        expect(editor.snapshot.basePoint).toEqual({ x: 1234, y: 2000 });
+    });
+
+    it('cycles the snap points with Tab while nothing is typed, and moves between the fields once something is', () => {
+        const { editor } = start();
+        editor.pointerMove(at(EMPTY));
+        editor.keyDown({ key: 'Tab' });
+        expect(editor.snapshot.dynamicInput?.fields[0].focused).toBe(true);
+        type(editor, '5\t', false);
+        expect(editor.snapshot.dynamicInput?.fields[1].focused).toBe(true);
+        type(editor, '\t', false);
+        expect(editor.snapshot.dynamicInput?.fields[0].focused).toBe(true);
+    });
+
+    it('takes an option keyword typed into a field', () => {
+        const { editor, history } = start();
+        type(editor, 'V');
+        expect(editor.snapshot.prompt).toBe('Verschiebung angeben <0,0>:');
+        expect(editor.snapshot.dynamicInput).toMatchObject({ layout: 'pointer', format: 'cartesian' });
+        type(editor, '500,0');
+        expect(tableCentre(history)).toEqual({ x: 4500, y: 1800 });
+    });
+
+    it('shows the typed text on the command line; Backspace edits, Esc drops it and then cancels', () => {
+        const { editor } = start();
+        type(editor, '12,3', false);
+        expect(editor.snapshot.input).toBe('12,3');
+        editor.keyDown({ key: 'Backspace' });
+        expect(editor.snapshot.input).toBe('12,');
+        editor.keyDown({ key: 'Backspace' });
+        expect(editor.snapshot.input).toBe('12');
+        expect(editor.keyDown({ key: 'Escape' })).toBe(true);
+        expect(editor.snapshot).toMatchObject({ command: 'MOVE', input: '' });
+        expect(editor.keyDown({ key: 'Escape' })).toBe(true);
+        expect(editor.snapshot).toMatchObject({ command: null, message: '*Abbruch*', dynamicInput: null });
+    });
+
+    it('reports text that is neither a point nor an option, and keeps the prompt', () => {
+        const { editor } = start();
+        type(editor, '1,x');
+        expect(editor.snapshot).toMatchObject({ prompt: BASE_POINT_PROMPT, message: INVALID, input: '' });
+    });
+
+    it('types on the command line as before while off, and shows the parts that are on', () => {
+        const { editor, history } = start();
+        editor.setDynamicInputSettings({ ...DEFAULT_DYNAMIC_INPUT_SETTINGS, pointerInput: false });
+        expect(editor.snapshot.dynamicInput).toBeNull();
+        type(editor, '4000,1800');
+        expect(editor.snapshot.dynamicInput?.layout).toBe('dimension');
+        editor.setDynamicInputSettings({ ...DEFAULT_DYNAMIC_INPUT_SETTINGS, enabled: false });
+        expect(editor.snapshot.dynamicInput).toBeNull();
+        // Absolute again, as on the command line
+        type(editor, '0,0');
+        expect(tableCentre(history)).toEqual({ x: 0, y: 0 });
+    });
+
+    it('drops the typed text when switched', () => {
+        const { editor } = start();
+        type(editor, '12', false);
+        editor.setDynamicInputSettings({ ...DEFAULT_DYNAMIC_INPUT_SETTINGS, dimensionInput: false });
+        expect(editor.snapshot.input).toBe('');
+        expect(editor.snapshot.dynamicInput?.fields[0].typed).toBe(false);
     });
 });

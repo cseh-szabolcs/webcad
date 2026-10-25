@@ -174,6 +174,28 @@ export const DEFAULT_OBJECT_TRACKING_SETTINGS: Readonly<ObjectTrackingSettings> 
     allPolarAngles: false,
 };
 
+/**
+ * Dynamic Input, switched while the editor runs (status bar, F12), like AutoCAD's DYNMODE (the
+ * pointer and dimension input bits) and DYNPROMPT.
+ */
+export interface DynamicInputSettings {
+    /** Main switch like F12; the parts are kept while it is off. */
+    enabled: boolean;
+    /** Input fields at the crosshair: X/Y at the first point, distance and angle after it. */
+    pointerInput: boolean;
+    /** Distance and angle fields on a temporary dimension at the second point. */
+    dimensionInput: boolean;
+    /** The prompt (and a typed command name) at the crosshair. */
+    prompts: boolean;
+}
+
+export const DEFAULT_DYNAMIC_INPUT_SETTINGS: Readonly<DynamicInputSettings> = {
+    enabled: true,
+    pointerInput: true,
+    dimensionInput: true,
+    prompts: true,
+};
+
 /** Ortho (F8) and polar tracking (F10), which exclude each other like in AutoCAD. */
 export interface TrackingModes {
     ortho: boolean;

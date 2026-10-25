@@ -20,7 +20,7 @@ apps in one repo:
   rebuilt from scratch, closer to AutoCAD behaviour.** Everything is rebuilt in small
   steps. So far it loads a plan through the API and displays it (wheel zoom,
   middle/Space+drag pan, status line, light/dark mode), has AutoCAD-like object
-  selection, a grid, a UCS icon, object snap, polar tracking, object snap tracking and the MOVE command (`SCHIEBEN`) with preview,
+  selection, a grid, a UCS icon, object snap, polar tracking, object snap tracking, Dynamic Input and the MOVE command (`SCHIEBEN`) with preview,
   typed coordinates and undo/redo (see "Editor: current state" below). Changes are not saved to the backend yet; grips
   are drawn but have no function.
 
@@ -285,6 +285,24 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   menu (orthogonal / all polar angles); `ObjectTrackingSettings` live in App state. Not yet:
   Shift to acquire, tracking × object intersections, EXT/PAR/TT/FROM, aligning the moved
   object's edges.
+- Dynamic Input (DYN, F12, on by default; pure logic in `cad/editor/dynamicInput.ts`,
+  display in `ui/DynamicInputLayer.ts`): `DynamicInputSettings` (`enabled`, `pointerInput`,
+  `dimensionInput`, `prompts`) in App state, status bar "DYN" switch with a checkbox menu. At a
+  point prompt that shows fields (`dynamicLayout`: base point/displacement with pointer input;
+  second point on a dimension with dimension input, else at the crosshair) the keys go into two
+  fields (`DynamicInputState`) instead of `input`: X/Y absolute at the first point (`@` relative
+  to LASTPOINT), distance/angle relative to the base point at the second (`,` switches to X/Y,
+  `<` to polar, `#` absolute). Empty fields show live values of the tracked point
+  (`trackedPointAt`); typed numbers bind it at once (`dynamicPoint`, applied in `pointAt`, so
+  preview, rubber band, click and Enter agree): a lone distance is direct distance entry (from
+  the OTRACK origin on a single path), a lone angle projects onto its ray. Tab switches fields
+  once something is typed, else it still cycles snaps; non-numeric text goes to `submitText`
+  as if typed on the command line (keyword `V`). The snapshot carries `dynamicInput`
+  (`DynamicInputView`) and `input` echoes the fields (`dynamicText`). `CadCanvas` draws the
+  panel above right of the crosshair (prompt, fields, lock on typed fields) or the dimension
+  (aligned dimension with ticks, angle arc), and an x at a bound point; tokens `--dyn-*`. Not
+  yet: ↓ options menu, DYNPIFORMAT/DYNPICOORDS settings, several dimensions, invalid-field
+  marking, units/precision, command autocomplete.
 - Grid (RASTER, F7, on by default; display only, like AutoCAD GRIDMODE): lines parallel to X
   and Y through the model origin, every `majorEvery`-th a major line, on its own canvas under
   the drawing (`ui/GridLayer.ts`, so it is never in the document, the content bounds,
@@ -316,7 +334,7 @@ Structure (all pure TS and unit-tested unless noted):
   of Paper.js and React. It gets `EditorPointerEvent`s and key events and publishes an
   immutable `SelectionSnapshot` (prompt, typed input, message, hovered, highlighted, grips, area,
   cursor mode, snap, Tab cycle position, snap preview, polar track, acquired points, object
-  snap track, base point, preview point, can undo/redo) via
+  snap track, base point, preview point, Dynamic Input fields, can undo/redo) via
   `subscribe()`. It holds the Tab cycle state and the acquire timer; the engine stays stateless. It runs
   on a `DocumentHistory`. Before further commands (KOPIEREN, DREHEN …) it should be split
   into an editor core and per-command state machines. Typed text is parsed by the pure
@@ -356,7 +374,7 @@ Structure (all pure TS and unit-tested unless noted):
   Tokens `--snap-marker`, `--polar-track`, `--snap-tooltip-bg|fg|border`; rubber band and
   preview use `--preview-color`, which `SnapMarker` sets from `EditorSettings.previewColor`
   for the theme (`setTheme`). `ui/StatusBar.tsx` holds
-  the RASTER, ORTHO, POLAR, OFANG and OTRACK switches on the left, position and zoom on the right (so the switches
+  the RASTER, ORTHO, POLAR, OFANG, OTRACK and DYN switches on the left, position and zoom on the right (so the switches
   never move).
 - Cursor: over the canvas the system pointer is hidden and `ui/CrosshairCursor.ts` draws an
   AutoCAD-like crosshair as a DOM layer (moved by CSS transform, so the drawing is never
@@ -376,7 +394,7 @@ Structure (all pure TS and unit-tested unless noted):
   user can change them later; for now they are read when a document is loaded. The running
   snaps (`SnapSettings`: `enabled` like F3, `modes` like OSMODE), Ortho and polar tracking
   (`TrackingModes`: `ortho` like F8, `polar: PolarSettings` with `enabled` like F10 and the
-  angles), object snap tracking (`ObjectTrackingSettings`, F11) and the grid (`GridSettings`, F7) live in App state and may
+  angles), object snap tracking (`ObjectTrackingSettings`, F11), Dynamic Input (`DynamicInputSettings`, F12) and the grid (`GridSettings`, F7) live in App state and may
   change at any time.
 - Translations (German and English): i18next in `src/i18n/i18n.ts` (one instance, also
   used outside React: `t` for the editor core and the DOM layers, `I18nextProvider` in
