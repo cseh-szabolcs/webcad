@@ -1444,3 +1444,184 @@ describe('SelectionEditor typed commands', () => {
         expect(editor.keyDown({ key: 'm' })).toBe(false);
     });
 });
+
+describe('SelectionEditor SCHIEBEN: object snap tracking', () => {
+    const DELAY = DEFAULT_EDITOR_SETTINGS.trackingAcquireDelay;
+    /** The sofa's upper right corner (an endpoint) and the rug's left quadrant. */
+    const SOFA = { x: 2600, y: 2600 };
+    const RUG = { x: 3000, y: 1800 };
+    /** 6 mm (3 px) above the horizontal path from the sofa corner, where nothing snaps. */
+    const RIGHT_OF_SOFA = { x: 3200, y: 2606 };
+    const near = (point: Point) => ({ x: point.x + 4, y: point.y + 4 });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    /** SCHIEBEN on the table (centre at 4000, 1800) with object snap tracking on, at the base point prompt. */
+    const atBasePoint = () => {
+        vi.useFakeTimers();
+        const history = new DocumentHistory(parseDocument(samplePlan));
+        const editor = new SelectionEditor(history);
+        editor.setObjectTrackingSettings({ enabled: true, allPolarAngles: false });
+        click(editor, TABLE);
+        editor.startMoveCommand();
+        return { editor, history };
+    };
+    /** As atBasePoint, with the base point 4000,1000 typed. */
+    const atSecondPoint = () => {
+        const result = atBasePoint();
+        for (const key of '4000,1000') {
+            result.editor.keyDown({ key });
+        }
+        result.editor.keyDown({ key: 'Enter' });
+        return result;
+    };
+    /** Rests the cursor near a snap point until it is acquired. */
+    const dwell = (editor: SelectionEditor, point: Point) => {
+        editor.pointerMove(at(near(point)));
+        vi.advanceTimersByTime(DELAY);
+    };
+
+    it('acquires the snap point the cursor dwells on, after the delay', () => {
+        const { editor } = atBasePoint();
+        const listener = vi.fn();
+        editor.subscribe(listener);
+        editor.pointerMove(at(near(SOFA)));
+        expect(editor.snapshot.snap).toMatchObject({ mode: 'END', point: SOFA });
+        listener.mockClear();
+        vi.advanceTimersByTime(DELAY - 1);
+        expect(editor.snapshot.acquired).toEqual([]);
+        vi.advanceTimersByTime(1);
+        expect(editor.snapshot.acquired).toEqual([{ point: SOFA, mode: 'END' }]);
+        expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not acquire while passing by, and toggles once per dwell', () => {
+        const { editor } = atBasePoint();
+        editor.pointerMove(at(near(SOFA)));
+        vi.advanceTimersByTime(DELAY / 2);
+        editor.pointerMove(at(EMPTY));
+        vi.advanceTimersByTime(DELAY);
+        expect(editor.snapshot.acquired).toEqual([]);
+        dwell(editor, SOFA);
+        vi.advanceTimersByTime(3 * DELAY);
+        expect(editor.snapshot.acquired).toHaveLength(1);
+        // Dwelling on it again drops it
+        editor.pointerMove(at(EMPTY));
+        dwell(editor, SOFA);
+        expect(editor.snapshot.acquired).toEqual([]);
+    });
+
+    it('puts the point onto a path from the acquired point, also at the base point prompt', () => {
+        const { editor } = atBasePoint();
+        dwell(editor, SOFA);
+        editor.pointerMove(at(RIGHT_OF_SOFA));
+        expect(editor.snapshot.snap).toBeNull();
+        expect(editor.snapshot.objectTrack).toEqual({
+            point: { x: 3200, y: 2600 },
+            paths: [{ origin: SOFA, angle: 0, distance: 600, source: 'END' }],
+        });
+        click(editor, RIGHT_OF_SOFA);
+        expect(editor.snapshot.basePoint).toEqual({ x: 3200, y: 2600 });
+        // A new point prompt starts without acquired points
+        expect(editor.snapshot.acquired).toEqual([]);
+        expect(editor.snapshot.objectTrack).toBeNull();
+    });
+
+    it('moves exactly to where the paths of two acquired points cross', () => {
+        const { editor, history } = atSecondPoint();
+        dwell(editor, SOFA);
+        dwell(editor, RUG);
+        expect(editor.snapshot.acquired.map(({ mode }) => mode)).toEqual(['END', 'QUA']);
+        editor.pointerMove(at({ x: 2606, y: 1806 }));
+        expect(editor.snapshot.objectTrack?.point).toEqual({ x: 2600, y: 1800 });
+        expect(editor.snapshot.objectTrack?.paths.map(({ source }) => source)).toEqual(['END', 'QUA']);
+        expect(editor.snapshot.previewPoint).toEqual({ x: 2600, y: 1800 });
+        click(editor, { x: 2606, y: 1806 });
+        expect(tableCentre(history)).toEqual({ x: 2600, y: 2600 });
+    });
+
+    it('crosses a path with the polar path from the base point', () => {
+        const { editor } = atSecondPoint();
+        dwell(editor, SOFA);
+        editor.pointerMove(at({ x: 4006, y: 2606 }));
+        expect(editor.snapshot.objectTrack).toMatchObject({
+            point: { x: 4000, y: 2600 },
+            paths: [{ source: 'END', angle: 0 }, { source: 'polar', angle: 90 }],
+        });
+        expect(editor.snapshot.polar).toBeNull();
+    });
+
+    it('keeps the point on the Ortho axis, taking only its crossings with a path', () => {
+        const { editor } = atSecondPoint();
+        editor.setOrtho(true);
+        dwell(editor, SOFA);
+        editor.pointerMove(at({ x: 2610, y: 1400 }));
+        expect(editor.snapshot.objectTrack).toMatchObject({
+            point: { x: 2600, y: 1000 },
+            paths: [{ source: 'END', angle: 270 }, { source: 'ortho', angle: 180 }],
+        });
+        editor.pointerMove(at({ x: 3200, y: 2000 }));
+        expect(editor.snapshot.objectTrack).toBeNull();
+        expect(editor.snapshot.previewPoint).toEqual({ x: 4000, y: 2000 });
+    });
+
+    it('gives way to a snap point', () => {
+        const { editor } = atSecondPoint();
+        dwell(editor, SOFA);
+        // The sofa's other corner lies on the horizontal path
+        editor.pointerMove(at({ x: 604, y: 2604 }));
+        expect(editor.snapshot.snap).toMatchObject({ mode: 'END', point: { x: 600, y: 2600 } });
+        expect(editor.snapshot.objectTrack).toBeNull();
+    });
+
+    it('moves a typed distance from the acquired point along the path', () => {
+        const { editor, history } = atSecondPoint();
+        dwell(editor, SOFA);
+        editor.pointerMove(at(RIGHT_OF_SOFA));
+        for (const key of '500') {
+            editor.keyDown({ key });
+        }
+        editor.keyDown({ key: 'Enter' });
+        // To 3100,2600: by -900,1600 from the base point
+        expect(tableCentre(history)).toEqual({ x: 3100, y: 3400 });
+    });
+
+    it('needs the object snap on, drops the points when switched off and on Esc', () => {
+        const { editor } = atBasePoint();
+        dwell(editor, SOFA);
+        editor.setSnapSettings({ enabled: false, modes: new Set() });
+        editor.pointerMove(at(RIGHT_OF_SOFA));
+        expect(editor.snapshot.objectTrack).toBeNull();
+        expect(editor.snapshot.acquired).toHaveLength(1);
+        editor.setObjectTrackingSettings({ enabled: false, allPolarAngles: false });
+        expect(editor.snapshot.acquired).toEqual([]);
+
+        const other = atBasePoint().editor;
+        dwell(other, SOFA);
+        other.keyDown({ key: 'Escape' });
+        expect(other.snapshot.acquired).toEqual([]);
+        other.startMoveCommand();
+        expect(other.snapshot.acquired).toEqual([]);
+    });
+
+    it('does not acquire the point the prompt starts on until the cursor came back to it', () => {
+        const { editor } = atBasePoint();
+        editor.pointerMove(at(near(SOFA)));
+        click(editor, near(SOFA));
+        expect(editor.snapshot.basePoint).toEqual(SOFA);
+        vi.advanceTimersByTime(3 * DELAY);
+        expect(editor.snapshot.acquired).toEqual([]);
+        editor.pointerMove(at(EMPTY));
+        dwell(editor, SOFA);
+        expect(editor.snapshot.acquired).toEqual([{ point: SOFA, mode: 'END' }]);
+    });
+
+    it('does not acquire with object snap tracking off', () => {
+        const { editor } = atBasePoint();
+        editor.setObjectTrackingSettings({ enabled: false, allPolarAngles: false });
+        dwell(editor, SOFA);
+        expect(editor.snapshot.acquired).toEqual([]);
+    });
+});

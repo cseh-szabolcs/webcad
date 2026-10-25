@@ -68,6 +68,9 @@ export const de = {
         },
         tabCycle: '{{label}} (Tab {{index}}/{{count}})',
         polar: 'Polar: {{distance}} < {{angle}}°',
+        polarName: 'Polar',
+        tracking: '{{label}}: {{distance}} < {{angle}}°',
+        trackingAngle: '{{label}}: < {{angle}}°',
     },
     status: {
         grid: 'RASTER',
@@ -90,6 +93,12 @@ export const de = {
         snapTitle: 'Objektfang ein/aus (F3)',
         snapMenuTitle: 'Objektfang-Modi wählen',
         snapModes: 'Objektfang-Modi',
+        otrack: 'OTRACK',
+        otrackTitle: 'Objektfangspuren ein/aus (F11)',
+        otrackMenuTitle: 'Objektfangspuren einstellen',
+        otrackAngles: 'Spurwinkel',
+        otrackOrthogonal: 'Nur orthogonal spuren',
+        otrackPolar: 'Mit allen Polarwinkeln spuren',
         zoom: 'Zoom {{scale}} px/mm',
     },
 };

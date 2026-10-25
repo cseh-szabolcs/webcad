@@ -43,10 +43,15 @@ export interface EditorSettings {
      */
     previewColor: Readonly<Record<DisplayTheme, string>>;
     /**
-     * Polar tracking tolerance in screen px: a polar path is taken while the cursor is at
-     * most this far from it, so the behaviour does not depend on the zoom.
+     * Tracking tolerance in screen px: a polar path or an object snap tracking path is taken
+     * while the cursor is at most this far from it, so the behaviour does not depend on the zoom.
      */
     polarTolerance: number;
+    /**
+     * How long (ms) a snap point must stay the snap point under the cursor before object snap
+     * tracking acquires it (or, if acquired, drops it again).
+     */
+    trackingAcquireDelay: number;
     /**
      * Smallest distance in screen px between two grid lines: while the grid spacing would come
      * out closer, the grid is shown coarser (see GridSettings.majorEvery).
@@ -82,6 +87,7 @@ export const DEFAULT_EDITOR_SETTINGS: Readonly<EditorSettings> = {
     snapPreview: true,
     previewColor: { light: '#ea580c', dark: '#facc15' },
     polarTolerance: 10,
+    trackingAcquireDelay: 400,
     gridMinSpacing: 10,
     gridColor: {
         light: { minor: '#eef0f3', major: '#dde1e6' },
@@ -147,6 +153,25 @@ export const DEFAULT_POLAR_SETTINGS: Readonly<PolarSettings> = {
     enabled: true,
     incrementAngle: 90,
     additionalAngles: [],
+};
+
+/**
+ * Object snap tracking, switched while the editor runs (status bar, F11), like AutoCAD's
+ * AUTOSNAP bit for object snap tracking and POLARMODE's tracking option.
+ */
+export interface ObjectTrackingSettings {
+    /** Main switch like F11; needs the object snap on to acquire points. */
+    enabled: boolean;
+    /**
+     * Paths from acquired points at all polar angles (the polar increment and additional
+     * angles, also while polar tracking is off) instead of only horizontal and vertical.
+     */
+    allPolarAngles: boolean;
+}
+
+export const DEFAULT_OBJECT_TRACKING_SETTINGS: Readonly<ObjectTrackingSettings> = {
+    enabled: false,
+    allPolarAngles: false,
 };
 
 /** Ortho (F8) and polar tracking (F10), which exclude each other like in AutoCAD. */

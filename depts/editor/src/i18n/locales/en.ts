@@ -66,6 +66,9 @@ export const en: Translations = {
         },
         tabCycle: '{{label}} (Tab {{index}}/{{count}})',
         polar: 'Polar: {{distance}} < {{angle}}°',
+        polarName: 'Polar',
+        tracking: '{{label}}: {{distance}} < {{angle}}°',
+        trackingAngle: '{{label}}: < {{angle}}°',
     },
     status: {
         grid: 'GRID',
@@ -88,6 +91,12 @@ export const en: Translations = {
         snapTitle: 'Object snap on/off (F3)',
         snapMenuTitle: 'Choose object snap modes',
         snapModes: 'Object snap modes',
+        otrack: 'OTRACK',
+        otrackTitle: 'Object snap tracking on/off (F11)',
+        otrackMenuTitle: 'Object snap tracking settings',
+        otrackAngles: 'Tracking angles',
+        otrackOrthogonal: 'Track orthogonally only',
+        otrackPolar: 'Track using all polar angle settings',
         zoom: 'Zoom {{scale}} px/mm',
     },
 };

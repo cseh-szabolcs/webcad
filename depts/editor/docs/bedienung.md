@@ -6,7 +6,7 @@ Auf dem Mac entspricht **Option (⌥)** der Taste Alt.
 Tastenkürzel wirken, solange der Fokus nicht in einem Textfeld liegt.
 
 Der Editor zeigt Pläne an, wählt Objekte aus und verschiebt sie mit dem Befehl SCHIEBEN
-(mit Raster, Objektfang, Polarspur, Ortho, Koordinateneingabe und Rückgängig). Gespeichert wird noch nichts; was
+(mit Raster, Objektfang, Polarspur, Ortho, Objektfangspuren, Koordinateneingabe und Rückgängig). Gespeichert wird noch nichts; was
 sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgesetzt).
 
 ## Oberfläche
@@ -28,8 +28,8 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   erscheint dahinter ein Textcursor und, was man tippt (siehe
   [Eingabe in der Kommandozeile](#eingabe-in-der-kommandozeile)).
 - **Statuszeile** (unten): links der Raster-Schalter **RASTER**, der Schalter **ORTHO**, der
-  Polarspur-Schalter **POLAR** und der Objektfang-Schalter **OFANG**; RASTER, POLAR und
-  OFANG mit dem Menü **▾**; rechts die Cursorposition
+  Polarspur-Schalter **POLAR**, der Objektfang-Schalter **OFANG** und der Schalter
+  **OTRACK** für die Objektfangspuren; alle außer ORTHO mit dem Menü **▾**; rechts die Cursorposition
   `X … Y …` in mm und der Zoom in px/mm.
 
 ## Ansicht
@@ -150,14 +150,15 @@ getippt.
    `1 gefunden, 1 entfernt, 1 gesamt`). Grips werden dabei nicht gezeigt.
    **Enter** oder **Rechtsklick** beendet die Auswahl; ist nichts gewählt, endet der Befehl.
 2. **`Basispunkt angeben oder [Verschiebung] <Verschiebung>:`** Klick auf einen Punkt,
-   mit [Objektfang](#objektfang-ofang), oder Koordinaten eintippen. Die gewählten Objekte
+   mit [Objektfang](#objektfang-ofang) und [Objektfangspuren](#objektfangspuren-otrack), oder Koordinaten eintippen. Die gewählten Objekte
    bleiben hervorgehoben, der Basispunkt wird als kleines Kreuz markiert.
    **Enter** (ohne Eingabe) oder `V` + Enter wählt die Option **Verschiebung**: Die
    Kommandozeile fragt `Verschiebung angeben <0,0>:`, und die Objekte werden um den
    eingetippten Vektor (z. B. `500,-200` oder `1000<30`) oder um die Koordinaten eines
    geklickten Punkts verschoben. Enter ohne Eingabe nimmt `0,0` und verschiebt nichts.
 3. **`Zweiten Punkt angeben oder <ersten Punkt als Verschiebung verwenden>:`** Klick auf
-   den Zielpunkt, ebenfalls mit Objektfang und [Polarspur](#polarspur-polar), oder Eingabe
+   den Zielpunkt, ebenfalls mit Objektfang, [Polarspur](#polarspur-polar) und
+   Objektfangspuren, oder Eingabe
    wie unten. Bis dahin folgt eine
    Vorschau der Objekte dem Cursor. Verschoben wird um (Zielpunkt − Basispunkt), der Befehl
    endet. **Enter** ohne Eingabe nimmt den Basispunkt selbst als Verschiebung (Basispunkt
@@ -192,7 +193,7 @@ bedeuten dort dasselbe.
 
 Ungültige Eingaben meldet die Kommandozeile mit `Punkt oder Option-Schlüsselwort
 erforderlich.`, die Aufforderung bleibt. Getippte Zeichen lösen keine anderen
-Tastenkürzel aus; Strg/⌘-Kürzel, F3, F7, F8 und F10 wirken weiter.
+Tastenkürzel aus; Strg/⌘-Kürzel, F3, F7, F8, F10 und F11 wirken weiter.
 
 ## Objektfang (OFANG)
 
@@ -314,6 +315,56 @@ als bei der Polarspur gilt das ohne Toleranz, egal wie weit der Cursor daneben l
 - Ein **Fangpunkt** und getippte Koordinaten haben Vorrang. Beim Basispunkt wirkt Ortho
   nicht, weil noch kein Bezugspunkt existiert.
 
+## Objektfangspuren (OTRACK)
+
+Mit den Objektfangspuren lässt sich ein Punkt an bestehenden Fangpunkten ausrichten, ohne
+dass er sie berührt, z. B. waagrecht neben einer Ecke oder genau dort, wo die Senkrechte
+durch die eine und die Waagrechte durch eine andere Ecke sich kreuzen.
+
+| Eingabe                        | Wirkung                                                  |
+|--------------------------------|----------------------------------------------------------|
+| **F11** oder Button **OTRACK** | Schaltet die Objektfangspuren ein oder aus               |
+| Button **▾** neben OTRACK      | Menü: **Nur orthogonal spuren** oder **Mit allen Polarwinkeln spuren**; die Wahl schaltet OTRACK ein |
+| Cursor auf einem Fangpunkt ruhen lassen | Erfasst den Punkt (kleines **+**); auf einem erfassten Punkt entfernt es ihn wieder |
+
+- Sie wirken bei **allen Punkt-Aufforderungen** von SCHIEBEN (Basispunkt, zweiter Punkt,
+  Verschiebung), auch ohne Basispunkt.
+- **Erfassen:** Bleibt derselbe Fangpunkt eine kurze Zeit lang der Fangpunkt unter dem
+  Cursor (Einstellung `trackingAcquireDelay`), wird er erfasst und mit einem kleinen grünen
+  **+** markiert. Kurzes Überfahren erfasst nichts. Erneutes Verweilen auf einem erfassten
+  Punkt entfernt ihn. Es gibt höchstens so viele erfasste Punkte wie `MAX_ACQUIRED_POINTS`
+  in `src/cad/editor/tracking/ObjectSnapTracking.ts`; ein weiterer verdrängt den ältesten.
+  Der Punkt, auf dem der Cursor beim Beginn einer Aufforderung steht (etwa der eben
+  geklickte Basispunkt), wird erst erfasst, wenn der Cursor ihn verlassen hat und
+  zurückkommt.
+- Erfasst werden nur Fangpunkte der eingeschalteten Modi; mit ausgeschaltetem **OFANG**
+  (F3) gibt es weder Erfassen noch Spuren.
+- **Spuren:** Von jedem erfassten Punkt laufen Spuren waagrecht und senkrecht, mit **Mit
+  allen Polarwinkeln spuren** unter allen Winkeln der [Polarspur](#polarspur-polar)
+  (Winkelschritt und Zusatzwinkel, auch wenn POLAR aus ist). Liegt der Cursor nahe einer
+  Spur (Einstellung `polarTolerance`, wie bei der Polarspur), liegt der Punkt genau auf
+  ihr; die nächste Spur gewinnt, die zuletzt gezeigte bleibt, bis eine andere um mehr als
+  ein paar Pixel näher liegt (`HYSTERESIS_PX` in `src/cad/editor/tracking/PolarTracking.ts`).
+- **Schnittpunkte:** Kreuzen sich zwei Spuren verschiedener erfasster Punkte im
+  Fangbereich (Einstellung `apertureSize`), rastet der Punkt auf den Schnittpunkt. Beim
+  zweiten Punkt zählen auch die Polarspuren vom Basispunkt (POLAR ein) bzw. mit ORTHO die
+  Waagrechte oder Senkrechte durch den Basispunkt, auf der der Ortho-Punkt liegt. Mit ORTHO
+  rastet der Punkt nur auf solche Schnittpunkte und bleibt sonst auf der Ortho-Richtung.
+- Angezeigt werden die **grünen gestrichelten Spuren** vom erfassten Punkt (bzw. vom
+  Basispunkt) durch den Punkt bis zum Rand der Zeichenfläche, ein kleines **x** am Punkt und
+  ein **Tooltip**: auf einer Spur Modus, Abstand und Winkel, z. B. `Endpunkt: 250.00 < 0°`;
+  an einem Schnittpunkt Modus und Winkel beider Spuren, z. B. `Endpunkt: < 270°, Polar: <
+  180°` (die Ortho-Richtung ohne Linie und Text). Fadenkreuz und Statuszeile springen auf
+  den Punkt.
+- **Klick** nimmt den Punkt. Eine getippte **Zahl** + Enter auf einer einzelnen Spur geht
+  diesen Abstand **vom erfassten Punkt** entlang der Spur (auch beim Basispunkt); an einem
+  Schnittpunkt gilt die Zahl wie sonst vom Basispunkt aus.
+- **Vorrang:** Ein Fangpunkt im Fangbereich gewinnt, dann ein Schnittpunkt von Spuren, dann
+  die nähere von Objektfangspur und Polarspur, dann Ortho. Getippte Koordinaten haben
+  ebenfalls Vorrang.
+- Die erfassten Punkte gelten für eine Punkt-Aufforderung: Ein gegebener Punkt, **Esc**, das
+  Ende des Befehls und das Ausschalten von OTRACK verwerfen sie.
+
 ## Raster (RASTER)
 
 Ein Linienraster unter der Zeichnung hilft, Abstände und Lage abzuschätzen, wie
@@ -401,10 +452,11 @@ und BKS-Symbol, gelesen beim Laden eines Plans:
 | `snapMarkerSize`   | Halbe Größe des Fangmarkers in px                              | AUTOSNAPSIZE |
 | `snapMarker`       | Fangmarker anzeigen                                            | AUTOSNAP     |
 | `snapTooltip`      | Tooltip mit dem Modusnamen anzeigen                            | AUTOSNAP     |
-| `snapMagnet`       | Fadenkreuz springt auf den Fangpunkt (und auf die Polarspur)   | AUTOSNAP     |
+| `snapMagnet`       | Fadenkreuz springt auf den Fangpunkt (und auf Polar- und Objektfangspuren) | AUTOSNAP |
 | `snapPreview`      | Fangpunkt-Vorschau der Objekte unter dem Fangbereich           | (keine)      |
 | `previewColor`     | Farbe von Fangpunkt-Vorschau und Gummiband, bei Hell / Dunkel  |              |
-| `polarTolerance`   | Größter Abstand des Cursors von einer Polarspur in px          |              |
+| `polarTolerance`   | Größter Abstand des Cursors von einer Polar- oder Objektfangspur in px |      |
+| `trackingAcquireDelay` | Verweildauer in ms, bis ein Fangpunkt für die Objektfangspuren erfasst (bzw. wieder entfernt) wird | (keine) |
 | `gridMinSpacing`   | Kleinster Abstand der Rasterlinien in px; enger wird das Raster gröber |      |
 | `gridColor`        | Farben der Neben- und Hauptlinien des Rasters, bei Hell / Dunkel | Optionen → Farben |
 | `ucsIcon`          | BKS-Symbol anzeigen                                            | UCSICON Ein/Aus |
@@ -420,6 +472,8 @@ Neuladen):
 - `DEFAULT_TRACKING_MODES`: ORTHO `ortho` und die Polarspur `polar` mit `enabled`,
   `incrementAngle` (POLARANG) und `additionalAngles` (POLARADDANG).
 - `POLAR_INCREMENTS`: die Winkelschritte im POLAR-Menü.
+- `DEFAULT_OBJECT_TRACKING_SETTINGS`: OTRACK `enabled` (F11) und `allPolarAngles` (Mit
+  allen Polarwinkeln spuren statt nur orthogonal).
 - `DEFAULT_GRID_SETTINGS`: RASTER `enabled` (GRIDMODE), `spacing` (GRIDUNIT),
   `majorEvery` (GRIDMAJOR).
 
@@ -433,13 +487,16 @@ Neuladen):
 - Zwischen überlappenden Objekten unter dem Cursor durchschalten.
 - Befehle und Optionen beim Objekte-Wählen in der Kommandozeile eintippen (z. B. `V` für
   „Vorherige“); die Verschiebung merkt sich noch nicht die letzte Eingabe als Vorgabe.
-- Beim Objektfang: weitere Modi und Objektfangspuren (F11).
+- Beim Objektfang: weitere Modi, darunter Erweiterung (EXT) und Parallel (PAR), sowie
+  Spurpunkt (TT) und „Von“ (FROM).
+- Bei den Objektfangspuren: Erfassen mit Shift statt durch Verweilen, Schnittpunkte einer
+  Spur mit Objekten, Ausrichten der Kanten des bewegten Objekts an den Spuren.
 - Bei der Polarspur: Winkel relativ zum letzten Segment, Schnittpunkte der Spur mit
   Objekten.
 - Beim Raster: Rasterfang (F9), getrennte Abstände für X und Y, Punktraster, isometrisches
   Raster, Limiten.
 - Was in der Statuszeile und ihren Menüs geändert wird (OFANG, Fangmodi, POLAR, ORTHO,
-  RASTER), wird noch nicht gespeichert; nach dem Neuladen gelten wieder die Startwerte aus
+  OTRACK, RASTER), wird noch nicht gespeichert; nach dem Neuladen gelten wieder die Startwerte aus
   den [Einstellungen](#einstellungen).
 - Beim BKS-Symbol: eigenes BKS (Befehl BKS, Ursprung verschieben, Drehen) samt Wirkung auf
   Koordinateneingabe, Ortho, Polarspur und Raster; Symbol wählen, Griffe und Kontextmenü;

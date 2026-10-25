@@ -9,9 +9,11 @@ import { CadApiClient } from 'app/cad/persistence/CadApiClient';
 import {
     DEFAULT_EDITOR_SETTINGS,
     DEFAULT_GRID_SETTINGS,
+    DEFAULT_OBJECT_TRACKING_SETTINGS,
     DEFAULT_SNAP_SETTINGS,
     DEFAULT_TRACKING_MODES,
     type GridSettings,
+    type ObjectTrackingSettings,
     type SnapSettings,
     type TrackingModes,
     withOrtho,
@@ -55,12 +57,14 @@ function App() {
     const [state, setState] = useState<LoadState>({ status: 'loading' });
     const [snapSettings, setSnapSettings] = useState<SnapSettings>(DEFAULT_SNAP_SETTINGS);
     const [tracking, setTracking] = useState<TrackingModes>(DEFAULT_TRACKING_MODES);
+    const [objectTracking, setObjectTracking] = useState<ObjectTrackingSettings>(DEFAULT_OBJECT_TRACKING_SETTINGS);
     const [gridSettings, setGridSettings] = useState<GridSettings>(DEFAULT_GRID_SETTINGS);
     const { preference, setPreference, theme } = useTheme();
     const fullscreen = useFullscreen();
 
     // Shortcuts like AutoCAD: F3 switches the object snap (and must not open the browser's
     // search), F7 the grid (and must not start caret browsing), F8 Ortho, F10 polar tracking (and must not focus the browser's menu bar),
+    // F11 object snap tracking (and must not switch the browser to full screen),
     // Ctrl/Cmd+Z undoes, Ctrl+Y or Cmd+Shift+Z redoes
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
@@ -96,6 +100,13 @@ function App() {
                 event.preventDefault();
                 if (!event.repeat) {
                     setTracking((modes) => withPolar(modes, { ...modes.polar, enabled: !modes.polar.enabled }));
+                }
+                return;
+            }
+            if (event.key === 'F11') {
+                event.preventDefault();
+                if (!event.repeat) {
+                    setObjectTracking((settings) => ({ ...settings, enabled: !settings.enabled }));
                 }
                 return;
             }
@@ -221,6 +232,7 @@ function App() {
                 snapSettings={snapSettings}
                 polarSettings={tracking.polar}
                 ortho={tracking.ortho}
+                objectTrackingSettings={objectTracking}
                 gridSettings={gridSettings}
                 onViewportChange={setViewport}
                 onPointerChange={setPointer}
@@ -243,6 +255,8 @@ function App() {
                 onPolarSettingsChange={(polar) => setTracking((modes) => withPolar(modes, polar))}
                 ortho={tracking.ortho}
                 onOrthoChange={(ortho) => setTracking((modes) => withOrtho(modes, ortho))}
+                objectTrackingSettings={objectTracking}
+                onObjectTrackingSettingsChange={setObjectTracking}
                 gridSettings={gridSettings}
                 onGridSettingsChange={setGridSettings}
             />

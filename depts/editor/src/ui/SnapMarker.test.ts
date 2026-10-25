@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SNAP_MODES } from 'app/cad/editor/snapping/SnapMode';
-import { markerPath, polarTooltipText, previewPath, snapTooltipText } from './SnapMarker';
+import { acquiredPath, markerPath, polarTooltipText, previewPath, snapTooltipText, trackingTooltipText } from './SnapMarker';
 
 describe('markerPath', () => {
     it('draws the endpoint square and the intersection cross around the centre', () => {
@@ -53,5 +53,43 @@ describe('polarTooltipText', () => {
     it('gives the distance with two decimals and the angle', () => {
         expect(polarTooltipText(125.4, 45)).toBe('Polar: 125.40 < 45°');
         expect(polarTooltipText(1000, 22.5)).toBe('Polar: 1000.00 < 22.5°');
+    });
+});
+
+describe('trackingTooltipText', () => {
+    const origin = { x: 0, y: 0 };
+
+    it('shows mode, distance and angle on one path', () => {
+        const track = { point: { x: 250, y: 0 }, paths: [{ origin, angle: 0, distance: 250, source: 'END' as const }] };
+        expect(trackingTooltipText(track)).toBe('Endpunkt: 250.00 < 0°');
+    });
+
+    it('lists the crossing paths, a polar path as "Polar", the Ortho axis left out', () => {
+        const point = { x: 100, y: 100 };
+        expect(
+            trackingTooltipText({
+                point,
+                paths: [
+                    { origin, angle: 90, distance: 100, source: 'MID' },
+                    { origin, angle: 45, distance: 141, source: 'polar' },
+                ],
+            }),
+        ).toBe('Mittelpunkt: < 90°, Polar: < 45°');
+        expect(
+            trackingTooltipText({
+                point,
+                paths: [
+                    { origin, angle: 270, distance: 100, source: 'END' },
+                    { origin, angle: 180, distance: 100, source: 'ortho' },
+                ],
+            }),
+        ).toBe('Endpunkt: < 270°');
+    });
+});
+
+describe('acquiredPath', () => {
+    it('draws a small + at each acquired point', () => {
+        expect(acquiredPath([{ x: 10, y: 20 }])).toBe('M4 20H16M10 14V26');
+        expect(acquiredPath([])).toBe('');
     });
 });

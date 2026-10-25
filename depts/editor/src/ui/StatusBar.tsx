@@ -5,7 +5,13 @@ import { formatAngleList, MAX_ADDITIONAL_ANGLES, parseAngleList } from 'app/cad/
 import { MAX_MAJOR_EVERY, parseGridSpacing, parseMajorEvery } from 'app/cad/renderer/grid';
 import type { Point } from 'app/cad/model/Point';
 import type { Viewport } from 'app/cad/renderer/Viewport';
-import { POLAR_INCREMENTS, type GridSettings, type PolarSettings, type SnapSettings } from 'app/settings/editorSettings';
+import {
+    POLAR_INCREMENTS,
+    type GridSettings,
+    type ObjectTrackingSettings,
+    type PolarSettings,
+    type SnapSettings,
+} from 'app/settings/editorSettings';
 import { markerPath } from './SnapMarker';
 import { useMenu } from './useMenu';
 
@@ -19,12 +25,14 @@ interface StatusBarProps {
     onPolarSettingsChange: (settings: PolarSettings) => void;
     ortho: boolean;
     onOrthoChange: (ortho: boolean) => void;
+    objectTrackingSettings: ObjectTrackingSettings;
+    onObjectTrackingSettingsChange: (settings: ObjectTrackingSettings) => void;
     gridSettings: GridSettings;
     onGridSettingsChange: (settings: GridSettings) => void;
 }
 
 /**
- * The grid, Ortho, polar tracking and object snap switches on the left (in AutoCAD's order), the cursor position in model space
+ * The grid, Ortho, polar tracking, object snap and object snap tracking switches on the left (in AutoCAD's order), the cursor position in model space
  * and the zoom level on the right, so the switches stay put while the numbers change width.
  */
 export function StatusBar({
@@ -36,6 +44,8 @@ export function StatusBar({
     onPolarSettingsChange,
     ortho,
     onOrthoChange,
+    objectTrackingSettings,
+    onObjectTrackingSettingsChange,
     gridSettings,
     onGridSettingsChange,
 }: StatusBarProps) {
@@ -52,6 +62,7 @@ export function StatusBar({
             </div>
             <PolarSwitch settings={polarSettings} onChange={onPolarSettingsChange} />
             <SnapSwitch settings={snapSettings} onChange={onSnapSettingsChange} />
+            <ObjectTrackingSwitch settings={objectTrackingSettings} onChange={onObjectTrackingSettingsChange} />
             <b className="statusbar-position">
                 {model ? `X ${formatCoordinate(model.x)}  Y ${formatCoordinate(model.y)}` : 'X –  Y –'}
             </b>
@@ -236,6 +247,59 @@ function AdditionalAngles({ angles, onChange }: { angles: readonly number[]; onC
                 onChange={(event) => edit(event.target.value)}
             />
         </label>
+    );
+}
+
+/**
+ * OTRACK switch (like F11) with a menu of the tracking angles, like AutoCAD's "Track
+ * orthogonally only" / "Track using all polar angle settings".
+ */
+function ObjectTrackingSwitch({
+    settings,
+    onChange,
+}: {
+    settings: ObjectTrackingSettings;
+    onChange: (settings: ObjectTrackingSettings) => void;
+}) {
+    const { t } = useTranslation();
+    const { open, setOpen, rootRef } = useMenu();
+
+    return (
+        <div className="snap-switch" ref={rootRef}>
+            <button
+                type="button"
+                aria-pressed={settings.enabled}
+                onClick={() => onChange({ ...settings, enabled: !settings.enabled })}
+                title={t('status.otrackTitle')}
+            >
+                {t('status.otrack')}
+            </button>
+            <button
+                type="button"
+                aria-expanded={open}
+                aria-haspopup="true"
+                onClick={() => setOpen(!open)}
+                title={t('status.otrackMenuTitle')}
+            >
+                ▾
+            </button>
+            {open && (
+                <div className="snap-menu" role="radiogroup" aria-label={t('status.otrackAngles')}>
+                    {[false, true].map((allPolarAngles) => (
+                        <label key={String(allPolarAngles)}>
+                            <input
+                                type="radio"
+                                name="otrack-angles"
+                                checked={settings.allPolarAngles === allPolarAngles}
+                                // Choosing also switches object snap tracking on, like the polar angles
+                                onChange={() => onChange({ enabled: true, allPolarAngles })}
+                            />
+                            {t(allPolarAngles ? 'status.otrackPolar' : 'status.otrackOrthogonal')}
+                        </label>
+                    ))}
+                </div>
+            )}
+        </div>
     );
 }
 

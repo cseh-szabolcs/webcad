@@ -8,11 +8,17 @@ import type { DisplayTheme } from 'app/cad/renderer/displayColor';
 import { i18n } from 'app/i18n/i18n';
 import { PaperRenderer } from 'app/cad/renderer/PaperRenderer';
 import { Viewport, type Size } from 'app/cad/renderer/Viewport';
-import type { EditorSettings, GridSettings, PolarSettings, SnapSettings } from 'app/settings/editorSettings';
+import type {
+    EditorSettings,
+    GridSettings,
+    ObjectTrackingSettings,
+    PolarSettings,
+    SnapSettings,
+} from 'app/settings/editorSettings';
 import { attachCanvasInput } from './canvasInput';
 import { CrosshairCursor } from './CrosshairCursor';
 import { GridLayer } from './GridLayer';
-import { SnapMarker } from './SnapMarker';
+import { polarTooltipText, SnapMarker, trackingTooltipText, type TrackingDisplay } from './SnapMarker';
 import { UcsIcon } from './UcsIcon';
 
 const NOTHING: ReadonlySet<string> = new Set();
@@ -39,11 +45,13 @@ interface CadCanvasProps {
     polarSettings: PolarSettings;
     /** Ortho mode (F8); may change at any time. */
     ortho: boolean;
+    /** Object snap tracking (F11); may change at any time. */
+    objectTrackingSettings: ObjectTrackingSettings;
     /** Grid display (F7); may change at any time. */
     gridSettings: GridSettings;
     onViewportChange?: (viewport: Viewport) => void;
     /**
-     * Pointer position in view px (the snap or polar tracking point while the magnet holds
+     * Pointer position in view px (the snap or tracking point while the magnet holds
      * the cursor there), or null when the pointer left the canvas.
      */
     onPointerChange?: (viewPoint: Point | null) => void;
@@ -59,6 +67,7 @@ export function CadCanvas({
     snapSettings,
     polarSettings,
     ortho,
+    objectTrackingSettings,
     gridSettings,
     onViewportChange,
     onPointerChange,
@@ -78,6 +87,7 @@ export function CadCanvas({
     const snapSettingsRef = useRef(snapSettings);
     const polarSettingsRef = useRef(polarSettings);
     const orthoRef = useRef(ortho);
+    const objectTrackingSettingsRef = useRef(objectTrackingSettings);
     const gridSettingsRef = useRef(gridSettings);
     const viewportRef = useRef(new Viewport());
     const sizeRef = useRef<Size | null>(null);
@@ -148,6 +158,7 @@ export function CadCanvas({
         editor.setSnapSettings(snapSettingsRef.current);
         editor.setPolarSettings(polarSettingsRef.current);
         editor.setOrtho(orthoRef.current);
+        editor.setObjectTrackingSettings(objectTrackingSettingsRef.current);
         const crosshair = new CrosshairCursor(container, settingsRef.current);
         const snapMarker = new SnapMarker(container, settingsRef.current, themeRef.current);
         snapMarkerRef.current = snapMarker;
@@ -157,17 +168,19 @@ export function CadCanvas({
         editorRef.current = editor;
 
         /**
-         * Where the cursor shows: on the snap point or the polar tracking point while the magnet
-         * holds it, else at the pointer.
+         * Where the cursor shows: on the snap point, the object snap tracking point or the polar
+         * tracking point while the magnet holds it, else at the pointer.
          */
         const cursorAt = (viewPoint: Point): Point => {
-            const held = editor.snapshot.snap?.point ?? editor.snapshot.polar?.point;
+            const { snap, objectTrack, polar } = editor.snapshot;
+            const held = snap?.point ?? objectTrack?.point ?? polar?.point;
             return held && settingsRef.current.snapMagnet ? viewportRef.current.modelToView(held) : viewPoint;
         };
         /** Pointer position while the crosshair shows, so it can follow snap and zoom changes. */
         let crosshairAt: Point | null = null;
         const refreshOverlay = () => {
-            const { snap, snapCycle, snapPreview, polar, basePoint, previewPoint, cursor } = editor.snapshot;
+            const { snap, snapCycle, snapPreview, polar, acquired, objectTrack, basePoint, previewPoint, cursor } =
+                editor.snapshot;
             const viewport = viewportRef.current;
             // While moving, the originals show dimmed under the preview, like AutoCAD
             renderer.setDimmed(basePoint ? editor.snapshot.highlighted : NOTHING);
@@ -181,15 +194,26 @@ export function CadCanvas({
                 basePoint &&
                     previewPoint && { from: viewport.modelToView(basePoint), to: viewport.modelToView(previewPoint) },
             );
-            snapMarker.showPolar(
-                polar &&
-                    basePoint && {
-                        from: viewport.modelToView(basePoint),
-                        point: viewport.modelToView(polar.point),
-                        distance: polar.distance,
-                        angle: polar.angle,
-                    },
-            );
+            const view = (point: Point) => viewport.modelToView(point);
+            let tracking: TrackingDisplay | null = null;
+            if (objectTrack) {
+                tracking = {
+                    // The Ortho axis shows no path, like Ortho itself
+                    paths: objectTrack.paths
+                        .filter(({ source }) => source !== 'ortho')
+                        .map(({ origin }) => ({ from: view(origin), through: view(objectTrack.point) })),
+                    point: view(objectTrack.point),
+                    tooltip: trackingTooltipText(objectTrack),
+                };
+            } else if (polar && basePoint) {
+                tracking = {
+                    paths: [{ from: view(basePoint), through: view(polar.point) }],
+                    point: view(polar.point),
+                    tooltip: polarTooltipText(polar.distance, polar.angle),
+                };
+            }
+            snapMarker.showTracking(tracking);
+            snapMarker.showAcquired(acquired.map(({ point }) => view(point)));
             crosshair.setMode(cursor);
             if (crosshairAt) {
                 crosshair.moveTo(cursorAt(crosshairAt));
@@ -279,6 +303,11 @@ export function CadCanvas({
         orthoRef.current = ortho;
         editorRef.current?.setOrtho(ortho);
     }, [ortho]);
+
+    useEffect(() => {
+        objectTrackingSettingsRef.current = objectTrackingSettings;
+        editorRef.current?.setObjectTrackingSettings(objectTrackingSettings);
+    }, [objectTrackingSettings]);
 
     useEffect(() => {
         gridSettingsRef.current = gridSettings;

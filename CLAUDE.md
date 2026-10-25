@@ -20,7 +20,7 @@ apps in one repo:
   rebuilt from scratch, closer to AutoCAD behaviour.** Everything is rebuilt in small
   steps. So far it loads a plan through the API and displays it (wheel zoom,
   middle/Space+drag pan, status line, light/dark mode), has AutoCAD-like object
-  selection, a grid, a UCS icon, object snap, polar tracking and the MOVE command (`SCHIEBEN`) with preview,
+  selection, a grid, a UCS icon, object snap, polar tracking, object snap tracking and the MOVE command (`SCHIEBEN`) with preview,
   typed coordinates and undo/redo (see "Editor: current state" below). Changes are not saved to the backend yet; grips
   are drawn but have no function.
 
@@ -250,7 +250,7 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   like the snap settings), when the cursor is at most `polarTolerance` px from it and at
   least as far from the base point; 2 px hysteresis like the snap. Click, move preview and
   direct distance entry use that point (`previewPoint`), the snapshot carries `polar`
-  (angle, point, distance). Shown by `SnapMarker.showPolar`: dashed path from the base
+  (angle, point, distance). Shown by `SnapMarker.showTracking`: dashed path from the base
   point to the canvas edge, an x and the tooltip "Polar: 1000.00 < 90°" (token
   `--polar-track`); the crosshair magnet (`snapMagnet`) also holds the polar point. Status
   bar "POLAR" switch with a menu of the increments (`POLAR_INCREMENTS`, radio: one increment,
@@ -265,6 +265,26 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   and POLAR exclude each other: App keeps both as `TrackingModes` and switches through
   `withOrtho`/`withPolar` (editorSettings); the editor gets `setOrtho()` and leaves polar
   tracking out while Ortho is on.
+- Object snap tracking (OTRACK, F11, off by default; `cad/editor/tracking/ObjectSnapTracking.ts`):
+  at every point prompt, a snap point that stays the editor's snap point for
+  `trackingAcquireDelay` ms is acquired (a timer in `SelectionEditor`, `toggleAcquired`;
+  dwelling again drops it, at most `MAX_ACQUIRED_POINTS`, FIFO); the point a prompt starts on
+  is only acquired after the snap changed. Needs F3 on. Where no snap point is found, the
+  point goes onto the nearest ray from an acquired point (0/90/180/270°, or all polar angles
+  with `ObjectTrackingSettings.allPolarAngles`; `nearestRay` shared with polar tracking,
+  `polarTolerance`, 2 px hysteresis), or onto where two rays of different origins cross in
+  the aperture box, at the second point also with the polar rays from the base point or the
+  Ortho axis (with Ortho only crossings, so the point stays on the axis). Precedence: snap >
+  crossing > nearer of single tracking path and polar path (`polarWins`) > Ortho. The
+  snapshot carries `acquired` and `objectTrack` (point, paths with origin, angle, distance,
+  source); direct distance entry on a single path goes from the acquired point. Acquired
+  points hold for one point prompt (cleared by the next point, Esc, end of command, OTRACK
+  off). Shown by `SnapMarker.showTracking` (paths from the origins, the Ortho axis left out,
+  tooltip `trackingTooltipText`, e.g. "Endpunkt: < 270°, Polar: < 180°") and `showAcquired`
+  (small + per point); the magnet holds the point. Status bar "OTRACK" switch with a radio
+  menu (orthogonal / all polar angles); `ObjectTrackingSettings` live in App state. Not yet:
+  Shift to acquire, tracking × object intersections, EXT/PAR/TT/FROM, aligning the moved
+  object's edges.
 - Grid (RASTER, F7, on by default; display only, like AutoCAD GRIDMODE): lines parallel to X
   and Y through the model origin, every `majorEvery`-th a major line, on its own canvas under
   the drawing (`ui/GridLayer.ts`, so it is never in the document, the content bounds,
@@ -295,8 +315,9 @@ Structure (all pure TS and unit-tested unless noted):
 - `cad/editor/SelectionEditor.ts`: the selection and `SCHIEBEN` state machine, independent
   of Paper.js and React. It gets `EditorPointerEvent`s and key events and publishes an
   immutable `SelectionSnapshot` (prompt, typed input, message, hovered, highlighted, grips, area,
-  cursor mode, snap, Tab cycle position, snap preview, polar track, base point, preview point, can undo/redo) via
-  `subscribe()`. It holds the Tab cycle state; the engine stays stateless. It runs
+  cursor mode, snap, Tab cycle position, snap preview, polar track, acquired points, object
+  snap track, base point, preview point, can undo/redo) via
+  `subscribe()`. It holds the Tab cycle state and the acquire timer; the engine stays stateless. It runs
   on a `DocumentHistory`. Before further commands (KOPIEREN, DREHEN …) it should be split
   into an editor core and per-command state machines. Typed text is parsed by the pure
   `cad/editor/commandInput.ts` (`parsePointInput`, `resolvePointInput`, `matchesKeyword`).
@@ -306,9 +327,10 @@ Structure (all pure TS and unit-tested unless noted):
   the loaded document; the editor and the renderer follow it (`PaperRenderer.updateElements`
   replaces only the changed items, subscribed before the editor so its overlay sees the new
   paths). The editor's derived structures are rebuilt as a whole on every change for now.
-- `cad/editor/tracking/PolarTracking.ts`: `polarAngles`, `findPolarTrack` (pure, stateless;
+- `cad/editor/tracking/PolarTracking.ts`: `polarAngles`, `nearestRay`, `findPolarTrack` (pure, stateless;
   the editor keeps the previous track for the hysteresis), `parseAngleList`/`formatAngleList`
-  for the additional angles field.
+  for the additional angles field. `ObjectSnapTracking.ts`: `toggleAcquired`,
+  `trackingAngles`, `findObjectTrack`, `polarWins` (pure).
 - `cad/editor/snapping/`: `SnapMode` (modes, German labels, precedence), `SnapGeometry`
   (exact snap primitives per element with sampled polylines and fixed snap points; snap
   points of a whole element, so far only GCE, as `ElementSnapPoint`), `intersections`, `SnapEngine` (`candidates(query, SnapMemory, previous)`: all points in
@@ -327,13 +349,14 @@ Structure (all pure TS and unit-tested unless noted):
 - `ui/canvasInput.ts`: the single owner of canvas input (zoom, pan, forwarding to the
   editor, pointer capture, lost-release and `pointercancel` handling) and of the cursor.
   `ui/CommandLine.tsx` is display only (prompt, typed input, caret); the editor gets the keys.
-- `ui/SnapMarker.ts`: snap marker, tooltip (flips at the canvas edge), polar path, the move's
-  rubber band (above the polar path), the snap point preview (one path, `previewPath`) and
+- `ui/SnapMarker.ts`: snap marker, tooltip (flips at the canvas edge), tracking paths (polar
+  and object snap tracking, `showTracking`), acquired points (`acquiredPath`), the move's
+  rubber band (above the tracking paths), the snap point preview (one path, `previewPath`) and
   base point cross as an SVG/DOM layer over the canvas, positioned by `CadCanvas` in view px.
   Tokens `--snap-marker`, `--polar-track`, `--snap-tooltip-bg|fg|border`; rubber band and
   preview use `--preview-color`, which `SnapMarker` sets from `EditorSettings.previewColor`
   for the theme (`setTheme`). `ui/StatusBar.tsx` holds
-  the RASTER, ORTHO, POLAR and OFANG switches on the left, position and zoom on the right (so the switches
+  the RASTER, ORTHO, POLAR, OFANG and OTRACK switches on the left, position and zoom on the right (so the switches
   never move).
 - Cursor: over the canvas the system pointer is hidden and `ui/CrosshairCursor.ts` draws an
   AutoCAD-like crosshair as a DOM layer (moved by CSS transform, so the drawing is never
@@ -345,7 +368,7 @@ Structure (all pure TS and unit-tested unless noted):
   AutoCAD CURSORSIZE; 100 = across the whole area), `pickboxSize` (half side in px, like
   PICKBOX; also the hover/click tolerance), `showPickbox`, `apertureSize` (half side in
   px, like APERTURE), `showApertureBox` (APBOX), `snapMarkerSize` (AUTOSNAPSIZE) and
-  `snapMarker`/`snapTooltip`/`snapMagnet` (AUTOSNAP), `polarTolerance` (px), `snapPreview`
+  `snapMarker`/`snapTooltip`/`snapMagnet` (AUTOSNAP), `polarTolerance` (px, also for object snap tracking), `trackingAcquireDelay` (ms), `snapPreview`
   and `previewColor` (per theme: light `#ea580c`, dark `#facc15`), `gridMinSpacing` (px) and
   `gridColor` (minor/major per theme), `ucsIcon`/`ucsIconAtOrigin`/`ucsIconSize`/`ucsIconLabelSize`/`ucsIconOpacity` (UCSICON).
   Code receives the object
@@ -353,7 +376,7 @@ Structure (all pure TS and unit-tested unless noted):
   user can change them later; for now they are read when a document is loaded. The running
   snaps (`SnapSettings`: `enabled` like F3, `modes` like OSMODE), Ortho and polar tracking
   (`TrackingModes`: `ortho` like F8, `polar: PolarSettings` with `enabled` like F10 and the
-  angles) and the grid (`GridSettings`, F7) live in App state and may
+  angles), object snap tracking (`ObjectTrackingSettings`, F11) and the grid (`GridSettings`, F7) live in App state and may
   change at any time.
 - Translations (German and English): i18next in `src/i18n/i18n.ts` (one instance, also
   used outside React: `t` for the editor core and the DOM layers, `I18nextProvider` in

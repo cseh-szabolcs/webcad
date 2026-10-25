@@ -173,8 +173,9 @@
     stroke: var(--snap-marker);
 }
 
-.polar-path,
-.polar-marker {
+.tracking-path,
+.tracking-marker,
+.acquired-point {
     fill: none;
     stroke: var(--polar-track);
 }
