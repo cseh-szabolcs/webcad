@@ -20,7 +20,7 @@ apps in one repo:
   rebuilt from scratch, closer to AutoCAD behaviour.** Everything is rebuilt in small
   steps. So far it loads a plan through the API and displays it (wheel zoom,
   middle/Space+drag pan, status line, light/dark mode), has AutoCAD-like object
-  selection, a grid, a UCS icon, object snap, polar tracking, object snap tracking, Dynamic Input, the LINE command (`LINIE`), the PLINE command (`PLINIE`, straight segments only), the CIRCLE command (`KREIS`), the ELLIPSE command and the MOVE command (`SCHIEBEN`) with preview,
+  selection, a grid, a UCS icon, object snap, polar tracking, object snap tracking, Dynamic Input, the LINE command (`LINIE`), the PLINE command (`PLINIE`, straight segments only), the CIRCLE command (`KREIS`), the ELLIPSE command, the RECTANG command (`RECHTECK`) and the MOVE command (`SCHIEBEN`) with preview,
   typed coordinates and undo/redo (see "Editor: current state" below). Changes are not saved to the backend yet; grips
   are drawn but have no function.
 
@@ -176,7 +176,7 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   grips), Shift removes, Esc clears. Rectangle to the right = window (completely inside),
   to the left = crossing (touches); lasso direction picks the mode, Space toggles.
 - Commands start from the vertical tool panel on the left (`ui/ToolPanel.tsx`, icon buttons
-  from `ui/ToolIcon.tsx` with the name in the tooltip, groups "Zeichnen": Linie, Polylinie, Kreis, Ellipse and
+  from `ui/ToolIcon.tsx` with the name in the tooltip, groups "Zeichnen": Linie, Polylinie, Kreis, Ellipse, Rechteck and
   "Ändern": Verschieben; a click on another tool cancels the running command, on the same one does
   nothing) or by typing a name or alias at "Befehl:" (`SelectionEditor.startCommand`). Enter
   with nothing typed at "Befehl:" repeats the last command started (Space keeps panning).
@@ -278,6 +278,18 @@ drops it. The **lasso needs Alt (⌥) held on the press** and ends on release. O
   counter-clockwise from +X, missing = 0, so older documents stay valid) is drawn, picked, snapped
   and gripped (`geometry/ellipse.ts`). `AddEllipseCommand` ("Rückgängig: ELLIPSE").
   Not yet: Drehung (needs an angle prompt), Bogen (needs an elliptical arc model).
+- Tool "Rechteck" starts `RECHTECK` (AutoCAD RECTANG, id `RECTANG`, aliases `RECHTECK`, `REC`;
+  `cad/editor/tools/RectangleTool.ts`, spec `depts/editor/docs/specs/RECTANG_Werkzeug_Spezifikation.md`,
+  what is left in `depts/editor/docs/todo/Rectangle_Draw_NotImplemented.md`). "Ersten Eckpunkt
+  angeben:" (`point`, no options yet), then "Anderen Eckpunkt angeben oder [Abmessungen]:" (`next`
+  from the first corner); the click gives the rectangle with sides along X and Y
+  (`rectangleCorners`: first corner, along X, other corner, along Y; a corner without area is
+  ignored). "Abmessungen"/`Dimensions` (`A`/`D`) asks "Länge der Rechtecke angeben:" and "Breite
+  der Rechtecke angeben:" (`distance` prompts from the first corner, positive only, no default
+  yet), then the same corner prompt, where a point only chooses the quadrant (on an axis the
+  positive side). Preview `{ kind: 'curve' }` with the `PreviewCurve` `{ kind: 'polygon', points }`
+  (closed). The step's command is an `AddPolylineCommand` (closed, label `RECTANG`, "Rückgängig:
+  RECHTECK"). Not yet: Fasen, Abrunden, Breite, Erhebung, Objekthöhe, Fläche, Drehung, defaults.
 - Right click acts like Enter (AutoCAD right-click customization "Repeat Last Command" /
   "ENTER"; no context menus yet): at a point prompt it calls the same `submitInput` as Enter
   (typed text, else the tool's default); at "Objekte wählen:" it ends the selection; with no
@@ -431,12 +443,12 @@ Structure (all pure TS and unit-tested unless noted):
   `ToolStep` (`done`, `message`, a `DocumentCommand` to run after the end). A new prompt
   object starts a new point prompt. `MoveTool` is SCHIEBEN, `LineTool` LINIE (it runs its
   segments on the history itself), `PolylineTool` PLINIE (it runs its polyline on the history
-  when it ends), `CircleTool` KREIS and `EllipseTool` ELLIPSE (their element is the step's
-  command); `SelectionEditor.newTool` creates them.
+  when it ends), `CircleTool` KREIS, `EllipseTool` ELLIPSE and `RectangleTool` RECHTECK (their
+  element is the step's command); `SelectionEditor.newTool` creates them.
 - `cad/editor/commands/`: `DocumentCommand` (`execute`/`undo` on immutable documents,
   returning the new document and the changed element ids), `DocumentHistory` (current
   document, undo/redo stacks, listeners, `revertLast`, `combineLast`), `MoveCommand`,
-  `AddLineCommand`, `AddPolylineCommand`, `AddCircleCommand`, `AddEllipseCommand`, `CompositeCommand`. `CadCanvas` keeps the history of
+  `AddLineCommand`, `AddPolylineCommand` (its `label` names the command, PLINE or RECTANG), `AddCircleCommand`, `AddEllipseCommand`, `CompositeCommand`. `CadCanvas` keeps the history of
   the loaded document; the editor and the renderer follow it (`PaperRenderer.updateElements`
   replaces only the changed items, subscribed before the editor so its overlay sees the new
   paths). The editor's derived structures are rebuilt as a whole on every change for now.
@@ -459,8 +471,8 @@ Structure (all pure TS and unit-tested unless noted):
 - `cad/editor/overlays/SelectionOverlay.ts` (Paper.js): hover/selection highlights as
   restyled copies of the rendered paths, grips (beziers also get a dashed control frame
   from each end to its control point, as their control grips lie off the curve),
-  rectangle/lasso, the move preview (offset copies), the LINIE/PLINIE previews, the KREIS/ELLIPSE
-  curve preview (`PathSpec.ellipsePathSpec`), one palette per theme.
+  rectangle/lasso, the move preview (offset copies), the LINIE/PLINIE previews, the KREIS/ELLIPSE/RECHTECK
+  curve preview (`PathSpec.ellipsePathSpec`, a closed path for a polygon), one palette per theme.
 - `ui/canvasInput.ts`: the single owner of canvas input (zoom, pan, forwarding to the
   editor, pointer capture, lost-release and `pointercancel` handling) and of the cursor.
   `ui/CommandLine.tsx` is display only (prompt, typed input, caret); the editor gets the keys.

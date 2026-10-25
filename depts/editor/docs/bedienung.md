@@ -6,7 +6,7 @@ Auf dem Mac entspricht **Option (⌥)** der Taste Alt.
 Tastenkürzel wirken, solange der Fokus nicht in einem Textfeld liegt.
 
 Der Editor zeigt Pläne an, wählt Objekte aus, zeichnet Linien mit dem Befehl LINIE,
-Polylinien mit PLINIE, Kreise mit KREIS und Ellipsen mit ELLIPSE und verschiebt Objekte mit dem Befehl SCHIEBEN (mit Raster, Objektfang, Polarspur, Ortho, Objektfangspuren, Koordinateneingabe, dynamischer Eingabe und Rückgängig). Gespeichert wird noch nichts; was
+Polylinien mit PLINIE, Kreise mit KREIS, Ellipsen mit ELLIPSE und Rechtecke mit RECHTECK und verschiebt Objekte mit dem Befehl SCHIEBEN (mit Raster, Objektfang, Polarspur, Ortho, Objektfangspuren, Koordinateneingabe, dynamischer Eingabe und Rückgängig). Gespeichert wird noch nichts; was
 sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgesetzt).
 
 ## Oberfläche
@@ -26,8 +26,8 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   die Seite gar nicht ins Vollbild (z. B. in einem iframe ohne Erlaubnis), fehlt der Button.
 - **Werkzeugleiste** (links, senkrecht): ein Symbol-Button je Befehl, gruppiert wie in
   AutoCAD: **Zeichnen** mit **Linie** (Befehl [LINIE](#befehl-linie)), **Polylinie**
-  (Befehl [PLINIE](#befehl-plinie)), **Kreis** (Befehl [KREIS](#befehl-kreis)) und **Ellipse**
-  (Befehl [ELLIPSE](#befehl-ellipse)), darunter nach einer
+  (Befehl [PLINIE](#befehl-plinie)), **Kreis** (Befehl [KREIS](#befehl-kreis)), **Ellipse**
+  (Befehl [ELLIPSE](#befehl-ellipse)) und **Rechteck** (Befehl [RECHTECK](#befehl-rechteck)), darunter nach einer
   Trennlinie **Ändern** mit **Verschieben** (Befehl [SCHIEBEN](#befehl-schieben)). Der Name
   steht im Tooltip, z. B. `Linie (LINIE)`. Der Button des laufenden Befehls bleibt gedrückt; ein
   weiterer Klick darauf bewirkt nichts. Ein Klick auf einen anderen bricht den laufenden Befehl
@@ -407,6 +407,42 @@ Im Englischen: `Specify axis endpoint of ellipse or [Center]:` (Option `Center`,
 `Specify other endpoint of axis:`, `Specify center of ellipse:`, `Specify endpoint of axis:`
 und `Specify distance to other axis:`.
 
+## Befehl RECHTECK
+
+Zeichnet ein **Rechteck** als geschlossene Polylinie mit vier Eckpunkten, wie AutoCAD RECHTECK;
+danach endet der Befehl. Start mit dem Button **Rechteck** in der Werkzeugleiste links oder durch
+Tippen von `RECHTECK`, `REC` oder `RECTANG` bei `Befehl:`. Eine bestehende Auswahl wird dabei
+aufgehoben.
+
+1. **`Ersten Eckpunkt angeben:`** – eine Ecke, mit Objektfang, Objektfangspuren und
+   Koordinateneingabe wie der erste Punkt von [LINIE](#befehl-linie).
+2. **`Anderen Eckpunkt angeben oder [Abmessungen]:`** – die diagonal gegenüberliegende Ecke,
+   ab dem ersten Eckpunkt, also mit Polarspur, Ortho, `@` (z. B. `@1000,500`), Direkter
+   Distanzeingabe (die Diagonale in Richtung Cursor) und der Bemaßung der dynamischen Eingabe
+   (`,` wechselt dort zu X/Y). Eine **Vorschau** zeigt das Rechteck, das ein Klick ergäbe. Der
+   Klick erzeugt es; die Seiten liegen parallel zu X und Y.
+
+`A` (Abmessungen) + Enter beim anderen Eckpunkt fragt **`Länge der Rechtecke angeben:`** (die
+Seite in X-Richtung) und **`Breite der Rechtecke angeben:`** (in Y-Richtung). Beides sind
+Abfragen eines Abstands ab dem ersten Eckpunkt wie der Radius bei [KREIS](#befehl-kreis): eine
+getippte **Zahl**, oder der Abstand eines geklickten oder getippten Punkts vom ersten Eckpunkt,
+dazu ein gestricheltes Gummiband. Danach kommt wieder `Anderen Eckpunkt angeben oder
+[Abmessungen]:`: die Vorschau zeigt das Rechteck mit dieser Länge und Breite in dem Quadranten um
+den ersten Eckpunkt, in dem der Cursor liegt, und ein Klick (oder getippter Punkt) wählt nur
+diesen Quadranten (auf einer Achse gilt die positive Seite). `A` fragt dort erneut nach den
+Abmessungen.
+
+- Ein anderer Eckpunkt mit gleichem X oder Y wie der erste ergibt keine Fläche und wird
+  ignoriert; die Abfrage bleibt. Nur eine **positive** Länge oder Breite wird genommen (sonst
+  `Wert muss positiv und ungleich Null sein.`); Vorgabewerte gibt es noch nicht.
+- Enter ohne Eingabe beim anderen Eckpunkt meldet `Punkt oder Option-Schlüsselwort erforderlich.`
+- **Esc** bricht bei jeder Abfrage ab (`*Abbruch*`), ohne Rechteck.
+- Das Rechteck hat eigene Eckpunkte, noch keinen Layer und den Standardstil, und ist **ein**
+  Schritt für Rückgängig (`Rückgängig: RECHTECK`).
+
+Im Englischen: `Specify first corner point:`, `Specify other corner point or [Dimensions]:`
+(Option `Dimensions`, `D`), `Specify length for rectangles:` und `Specify width for rectangles:`.
+
 ## Objektfang (OFANG)
 
 Bei den Punkt-Aufforderungen rastet der Cursor auf markante Punkte der Geometrie ein.
@@ -476,9 +512,9 @@ Die gewählten Modi bleiben erhalten, wenn der Objektfang ausgeschaltet wird.
 ## Polarspur (POLAR)
 
 Beim zweiten Punkt von SCHIEBEN, beim nächsten Punkt von LINIE und PLINIE und bei den Punkten
-und Abständen von KREIS und ELLIPSE, die ab einem Punkt gemessen werden, zeigt die
+und Abständen von KREIS, ELLIPSE und RECHTECK, die ab einem Punkt gemessen werden, zeigt die
 Polarspur, wenn der Cursor nahe an einer Richtung unter einem Polarwinkel ab dem Basispunkt (bei
-LINIE und PLINIE: ab dem letzten Punkt, bei KREIS und ELLIPSE: ab dem Bezugspunkt) liegt (bei einem Winkelschritt von 90°
+LINIE und PLINIE: ab dem letzten Punkt, bei KREIS, ELLIPSE und RECHTECK: ab dem Bezugspunkt) liegt (bei einem Winkelschritt von 90°
 also waagrecht und senkrecht). Der Punkt liegt dann exakt auf dieser Geraden.
 
 | Eingabe                       | Wirkung                                                  |
@@ -513,9 +549,9 @@ also waagrecht und senkrecht). Der Punkt liegt dann exakt auf dieser Geraden.
 ## Ortho (ORTHO)
 
 Beim zweiten Punkt von SCHIEBEN und beim nächsten Punkt von LINIE und PLINIE (ebenso bei den ab
-einem Punkt gemessenen Abfragen von KREIS und ELLIPSE) liegt der Punkt
+einem Punkt gemessenen Abfragen von KREIS, ELLIPSE und RECHTECK) liegt der Punkt
 mit Ortho immer auf der Waagrechten oder der Senkrechten durch den Basispunkt (bei LINIE und
-PLINIE: den letzten Punkt, bei KREIS und ELLIPSE: den Bezugspunkt), je nachdem, welche dem Cursor näher liegt. Anders
+PLINIE: den letzten Punkt, bei KREIS, ELLIPSE und RECHTECK: den Bezugspunkt), je nachdem, welche dem Cursor näher liegt. Anders
 als bei der Polarspur gilt das ohne Toleranz, egal wie weit der Cursor daneben liegt.
 
 | Eingabe                       | Wirkung                                                  |
@@ -549,7 +585,7 @@ durch die eine und die Waagrechte durch eine andere Ecke sich kreuzen.
 | Cursor auf einem Fangpunkt ruhen lassen | Erfasst den Punkt (kleines **+**); auf einem erfassten Punkt entfernt es ihn wieder |
 
 - Sie wirken bei **allen Punkt-Aufforderungen** von SCHIEBEN (Basispunkt, zweiter Punkt,
-  Verschiebung), LINIE, PLINIE, KREIS und ELLIPSE, auch ohne Basispunkt.
+  Verschiebung), LINIE, PLINIE, KREIS, ELLIPSE und RECHTECK, auch ohne Basispunkt.
 - **Erfassen:** Bleibt derselbe Fangpunkt eine kurze Zeit lang der Fangpunkt unter dem
   Cursor (Einstellung `trackingAcquireDelay`), wird er erfasst und mit einem kleinen grünen
   **+** markiert. Kurzes Überfahren erfasst nichts. Erneutes Verweilen auf einem erfassten
@@ -783,6 +819,10 @@ Neuladen):
 - Bei ELLIPSE: die Optionen `Drehung` (Rotation um die erste Achse) und `Bogen` (elliptischer
   Bogen mit Start- und Endwinkel), aktueller Layer und Stil; Details in
   `docs/todo/Circle_Ellipse_Draw_NotImplemented.md`.
+- Bei RECHTECK: die Optionen `Fasen`, `Abrunden`, `Breite`, `Erhebung` und `Objekthöhe` beim
+  ersten Eckpunkt, `Fläche` und `Drehung` beim anderen, Vorgabewerte für Länge und Breite, die
+  Bemaßung beider Seiten in der dynamischen Eingabe, aktueller Layer und Stil; Details in
+  `docs/todo/Rectangle_Draw_NotImplemented.md`.
 - Weitere Zeichenbefehle (BOGEN …).
 - **Grip-Funktionen** (Ziehen an Grips) und alle anderen Bearbeitungsbefehle wie Löschen,
   Gruppieren oder Kopieren.

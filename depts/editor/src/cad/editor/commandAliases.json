@@ -3,5 +3,6 @@
     "LINE": ["LINIE", "L"],
     "PLINE": ["PLINIE", "PL"],
     "CIRCLE": ["KREIS", "K", "C"],
-    "ELLIPSE": ["ELLIPSE", "EL"]
+    "ELLIPSE": ["ELLIPSE", "EL"],
+    "RECTANG": ["RECHTECK", "REC"]
 }

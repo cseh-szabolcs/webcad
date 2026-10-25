@@ -21,6 +21,8 @@ export const de = {
         circleTitle: 'Kreis ({{command}})',
         ellipse: 'Ellipse',
         ellipseTitle: 'Ellipse ({{command}})',
+        rectangle: 'Rechteck',
+        rectangleTitle: 'Rechteck ({{command}})',
         move: 'Verschieben',
         moveTitle: 'Verschieben ({{command}})',
         undo: 'Rückgängig',
@@ -71,6 +73,10 @@ export const de = {
         ellipseCenter: 'Mittelpunkt der Ellipse angeben:',
         ellipseAxisEnd: 'Endpunkt der Achse angeben:',
         ellipseOtherAxis: 'Abstand zur anderen Achse angeben:',
+        rectangleFirstCorner: 'Ersten Eckpunkt angeben:',
+        rectangleOtherCorner: 'Anderen Eckpunkt angeben oder [Abmessungen]:',
+        rectangleLength: 'Länge der Rechtecke angeben:',
+        rectangleWidth: 'Breite der Rechtecke angeben:',
         corner: 'Entgegengesetzte Ecke angeben:',
         lasso: 'Lasso – Leertaste wechselt Fenster/Kreuzen',
     },
@@ -87,6 +93,8 @@ export const de = {
         diameterKeyword: 'Durchmesser',
         /** ELLIPSE: the centre first, then one end of the first axis. */
         centerKeyword: 'Mittelpunkt',
+        /** RECHTECK: length and width, then a point chooses the quadrant. */
+        dimensionsKeyword: 'Abmessungen',
         noLineToContinue: 'Keine Linie oder kein Bogen zum Fortsetzen.',
         allSegmentsUndone: 'Alle Segmente bereits zurückgenommen.',
         invalidInput: 'Punkt oder Option-Schlüsselwort erforderlich.',

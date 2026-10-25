@@ -16,6 +16,8 @@ describe('commandNames', () => {
         expect(findCommand('k')).toBe('CIRCLE');
         expect(findCommand('c')).toBe('CIRCLE');
         expect(findCommand('el')).toBe('ELLIPSE');
+        expect(findCommand('rec')).toBe('RECTANG');
+        expect(findCommand('Rechteck')).toBe('RECTANG');
     });
 
     it('shows the English name, in German the first alias', () => {
@@ -26,6 +28,7 @@ describe('commandNames', () => {
         expect(commandName('PLINE', 'en')).toBe('PLINE');
         expect(commandName('CIRCLE', 'de')).toBe('KREIS');
         expect(commandName('ELLIPSE', 'de')).toBe('ELLIPSE');
+        expect(commandName('RECTANG', 'de')).toBe('RECHTECK');
     });
 
     it('has upper case English names and aliases, none of them twice', () => {

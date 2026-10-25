@@ -58,8 +58,8 @@ export interface OverlayHost {
  * it previews the new line from the last point to the preview point, while PLINIE does, the
  * polyline drawn so far on to the preview point (at its length prompt a segment in the
  * direction of the last one, as long as the preview point is from the last point; the rubber
- * band to the preview point is SnapMarker's), while KREIS or ELLIPSE ask for a point, the circle
- * or ellipse a click there would give. The originals are then not
+ * band to the preview point is SnapMarker's), while KREIS, ELLIPSE or RECHTECK ask for a point,
+ * the circle, ellipse or rectangle a click there would give. The originals are then not
  * highlighted; the canvas dims them (PaperRenderer.setDimmed); the document stays
  * unchanged. Grips depend on the zoom, so render again after every viewport change (and
  * after setTheme()).
@@ -169,15 +169,19 @@ export class SelectionOverlay {
     }
 
     /** The polyline PLINIE draws, not yet in the document, in the style of new elements. */
-    private polylinePreview(layer: paper.Layer, points: readonly Point[]): void {
-        const path = new paper.Path({ segments: points.map((p) => [p.x, p.y]), insert: false });
+    private polylinePreview(layer: paper.Layer, points: readonly Point[], closed = false): void {
+        const path = new paper.Path({ segments: points.map((p) => [p.x, p.y]), closed, insert: false });
         path.strokeScaling = false;
         this.host.applyStyleById(path, null);
         layer.addChild(path);
     }
 
-    /** The circle or ellipse KREIS or ELLIPSE would add, in the style of new elements. */
+    /** The circle, ellipse or rectangle KREIS, ELLIPSE or RECHTECK would add, in the style of new elements. */
     private curvePreview(layer: paper.Layer, curve: PreviewCurve): void {
+        if (curve.kind === 'polygon') {
+            this.polylinePreview(layer, curve.points, true);
+            return;
+        }
         const spec =
             curve.kind === 'circle'
                 ? ellipsePathSpec(curve.center, curve.radius, curve.radius)

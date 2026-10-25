@@ -1,22 +1,29 @@
 import type { CadDocument } from '../../model/CadDocument';
 import type { PolylineElement } from '../../model/CadElement';
 import type { Id, Point } from '../../model/Point';
+import type { EditorCommand } from '../commandNames';
 import type { DocumentChange, DocumentCommand } from './DocumentCommand';
 
 /**
- * A polyline drawn by PLINIE (AutoCAD PLINE): one element through `points` (at least two), with
- * a vertex of its own per point, open or closed (the closing segment back to the first point is
- * implied, its vertex not repeated). It has no layer, group or style yet. The ids are fixed on
- * construction, so redo repeats them.
+ * A polyline drawn by PLINIE (AutoCAD PLINE), or by another command such as RECHTECK (`label`):
+ * one element through `points` (at least two), with a vertex of its own per point, open or closed
+ * (the closing segment back to the first point is implied, its vertex not repeated). It has no
+ * layer, group or style yet. The ids are fixed on construction, so redo repeats them.
  */
 export class AddPolylineCommand implements DocumentCommand {
-    readonly label = 'PLINE';
+    readonly label: EditorCommand;
     readonly polylineId: Id;
     readonly points: readonly Point[];
     readonly closed: boolean;
     private readonly vertexIds: readonly Id[];
 
-    constructor(points: readonly Point[], closed: boolean, newId: () => Id = () => crypto.randomUUID()) {
+    constructor(
+        points: readonly Point[],
+        closed: boolean,
+        label: EditorCommand = 'PLINE',
+        newId: () => Id = () => crypto.randomUUID(),
+    ) {
+        this.label = label;
         this.points = points;
         this.closed = closed;
         this.vertexIds = points.map(() => newId());

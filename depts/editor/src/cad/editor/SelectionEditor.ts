@@ -33,6 +33,7 @@ import { EllipseTool } from './tools/EllipseTool';
 import { LineTool } from './tools/LineTool';
 import { MoveTool } from './tools/MoveTool';
 import { PolylineTool } from './tools/PolylineTool';
+import { RectangleTool } from './tools/RectangleTool';
 import type { EditorTool, Message, PointPrompt, ToolPreview, ToolStep } from './tools/EditorTool';
 import {
     backspaceDynamic,
@@ -405,7 +406,7 @@ export class SelectionEditor {
 
     /**
      * Starts a command, e.g. SCHIEBEN (with a pickfirst selection straight at the base point,
-     * otherwise by selecting objects), LINIE, PLINIE, KREIS or ELLIPSE. Another running command is cancelled
+     * otherwise by selecting objects), LINIE, PLINIE, KREIS, ELLIPSE or RECHTECK. Another running command is cancelled
      * first, like a toolbar click in AutoCAD; the same command keeps running.
      */
     startCommand(command: EditorCommand): void {
@@ -431,6 +432,8 @@ export class SelectionEditor {
                 return new CircleTool();
             case 'ELLIPSE':
                 return new EllipseTool();
+            case 'RECTANG':
+                return new RectangleTool();
         }
     }
 

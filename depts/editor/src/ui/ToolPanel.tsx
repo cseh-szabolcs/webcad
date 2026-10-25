@@ -11,6 +11,7 @@ const GROUPS = [
             { command: 'PLINE', label: 'toolbar.polyline', title: 'toolbar.polylineTitle' },
             { command: 'CIRCLE', label: 'toolbar.circle', title: 'toolbar.circleTitle' },
             { command: 'ELLIPSE', label: 'toolbar.ellipse', title: 'toolbar.ellipseTitle' },
+            { command: 'RECTANG', label: 'toolbar.rectangle', title: 'toolbar.rectangleTitle' },
         ],
     },
     { label: 'toolbar.modify', tools: [{ command: 'MOVE', label: 'toolbar.move', title: 'toolbar.moveTitle' }] },
