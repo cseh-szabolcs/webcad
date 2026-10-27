@@ -7,6 +7,9 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    # Tenant databases are named <prefix><tenant name><suffix>, see docs/architecture/tenancy.md
+    app.tenant_database_prefix: app_
+    app.tenant_database_suffix: ''
 
 services:
     # default configuration for services in *this* file
@@ -21,3 +24,8 @@ services:
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+
+when@test:
+    parameters:
+        # Like the dbname_suffix of the main connection (config/packages/doctrine.yaml)
+        app.tenant_database_suffix: '_test%env(default::TEST_TOKEN)%'

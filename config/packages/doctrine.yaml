@@ -1,41 +1,77 @@
 doctrine:
     dbal:
-        url: '%env(resolve:DATABASE_URL)%'
-
-        # IMPORTANT: You MUST configure your server version,
-        # either here or in the DATABASE_URL env var (see .env file)
-        #server_version: '16'
-
-        profiling_collect_backtrace: '%kernel.debug%'
+        # Multi-tenancy, see docs/architecture/tenancy.md. Both connections read DATABASE_URL, whose
+        # database is app_main. The tenant connection is the default one, because everything the
+        # application stores belongs to one customer: App\Infrastructure\Tenancy\TenantConnection
+        # rewrites the database name to app_<tenant> and refuses to connect before a tenant is selected.
+        default_connection: tenant
+        connections:
+            tenant:
+                url: '%env(resolve:DATABASE_URL)%'
+                wrapper_class: App\Infrastructure\Tenancy\TenantConnection
+                profiling_collect_backtrace: '%kernel.debug%'
+            # app_main: the tenant registry (later also the users), shared by all customers.
+            main:
+                url: '%env(resolve:DATABASE_URL)%'
+                profiling_collect_backtrace: '%kernel.debug%'
     orm:
-        validate_xml_mapping: true
-        naming_strategy: doctrine.orm.naming_strategy.underscore
-        identity_generation_preferences:
-            Doctrine\DBAL\Platforms\PostgreSQLPlatform: identity
-        auto_mapping: true
-        mappings:
-            Domain:
-                type: attribute
-                is_bundle: false
-                dir: '%kernel.project_dir%/src/Domain/Entity'
-                prefix: 'App\Domain\Entity'
-                alias: Domain
+        default_entity_manager: tenant
+        entity_managers:
+            tenant:
+                connection: tenant
+                validate_xml_mapping: true
+                naming_strategy: doctrine.orm.naming_strategy.underscore
+                identity_generation_preferences:
+                    Doctrine\DBAL\Platforms\PostgreSQLPlatform: identity
+                mappings:
+                    Domain:
+                        type: attribute
+                        is_bundle: false
+                        dir: '%kernel.project_dir%/src/Domain/Entity'
+                        prefix: 'App\Domain\Entity'
+                        alias: Domain
+            main:
+                connection: main
+                validate_xml_mapping: true
+                naming_strategy: doctrine.orm.naming_strategy.underscore
+                identity_generation_preferences:
+                    Doctrine\DBAL\Platforms\PostgreSQLPlatform: identity
+                mappings:
+                    Main:
+                        type: attribute
+                        is_bundle: false
+                        dir: '%kernel.project_dir%/src/Domain/Main/Entity'
+                        prefix: 'App\Domain\Main\Entity'
+                        alias: Main
 
 when@test:
     doctrine:
         dbal:
-            # "TEST_TOKEN" is typically set by ParaTest
-            dbname_suffix: '_test%env(default::TEST_TOKEN)%'
+            connections:
+                # app_main_test. The tenant databases get their suffix from the parameter
+                # app.tenant_database_suffix (config/services.yaml).
+                # "TEST_TOKEN" is typically set by ParaTest
+                main:
+                    dbname_suffix: '_test%env(default::TEST_TOKEN)%'
 
 when@prod:
     doctrine:
         orm:
-            query_cache_driver:
-                type: pool
-                pool: doctrine.system_cache_pool
-            result_cache_driver:
-                type: pool
-                pool: doctrine.result_cache_pool
+            entity_managers:
+                tenant:
+                    query_cache_driver:
+                        type: pool
+                        pool: doctrine.system_cache_pool
+                    result_cache_driver:
+                        type: pool
+                        pool: doctrine.result_cache_pool
+                main:
+                    query_cache_driver:
+                        type: pool
+                        pool: doctrine.system_cache_pool
+                    result_cache_driver:
+                        type: pool
+                        pool: doctrine.result_cache_pool
 
     framework:
         cache:

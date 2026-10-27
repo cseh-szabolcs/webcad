@@ -77,9 +77,26 @@ docker compose exec -T php vendor/bin/mate tools:list # AI Mate diagnostics; alw
 | Mailpit    | http://localhost:8025 (SMTP on 1025)                                 |
 | phpMyAdmin | http://localhost:8210                                               |
 
-The DB container is **MySQL 8.0** (`app`/`app`, database `app`). `.env`'s
-`DATABASE_URL` points at it via the compose host `db`, so it only resolves inside the
-containers.
+The DB container is **MySQL 8.0** (`app`/`app`). The backend is **multi-tenant** (one
+database per customer, see `docs/architecture/tenancy.md`): `app_main` holds the tenant
+registry (later the users), each tenant has `app_<name>`; in test `app_main_test` and
+`app_<name>_test`. `.env`'s `DATABASE_URL` names `app_main` via the compose host `db`, so it
+only resolves inside the containers. The `app` user may use every `app_%` database
+(`docker/map/mysql-init.sql`, run only when the `db-data` volume is created).
+
+```sh
+docker compose exec php composer db:migrate              # app_main, then every tenant
+docker compose exec php bin/console app:tenant:create demo --display-name=Demo
+docker compose exec php bin/console app:tenant:list
+docker compose exec php bin/console app:tenant:delete <name>   # drops the database, asks first
+docker compose exec php bin/console app:tenants:run "doctrine:migrations:status"
+docker compose exec php bin/console <cmd> --tenant=<name>    # any command, on that tenant
+```
+
+Until users can log in, `DEFAULT_TENANT` (`.env.dev`, `.env.test`; `demo`) selects the tenant
+for requests and for commands without `--tenant`. Fresh test setup:
+`docker compose exec -e APP_ENV=test php composer db:migrate:main`, then
+`docker compose exec php bin/console app:tenant:create demo --env=test`.
 
 PHPUnit runs with `failOnDeprecation`, `failOnNotice` and `failOnWarning`, so a
 deprecation fails the suite.
@@ -148,11 +165,18 @@ decisions (still valid for the rebuild):
   synchronous for now (no async transport or worker yet). Pin each handler to its bus
   with `#[AsMessageHandler(bus: 'command.bus'|'query.bus')]`. Command handlers only
   `persist()`, because the `doctrine_transaction` middleware flushes and commits. Query
-  handlers read with DBAL and return DTOs. Doctrine maps entities from
-  `src/Domain/Entity`, not `src/Entity`. The reference example is
+  handlers read with DBAL and return DTOs. Two entity managers: `tenant` (the default, so
+  plain `EntityManagerInterface`/`Connection` autowiring and `doctrine_transaction` hit the
+  tenant's database) maps `src/Domain/Entity`; `main` (app_main) maps `src/Domain/Main/Entity`.
+  `src/Entity` is unused. Tenancy code lives in `src/Infrastructure/Tenancy`
+  (`TenantConnection` refuses queries before a tenant is selected, `TenantSwitcher`,
+  `TenantProvisioner`, console `--tenant` option in `Console/Application`, used by
+  `bin/console`). The reference example is
   `CreateProjectCommand`/`GetProjectQuery`, tested in `tests/Application/ProjectCqrsTest.php`.
-- **Test DB:** `app_test`. After a new migration, run
-  `docker compose exec php bin/console doctrine:migrations:migrate -n --env=test`.
+- **Migrations** are split: `migrations/Tenant` (bundle default; `doctrine:migrations:diff
+  --tenant=demo`) and `migrations/Main` (`--em=main --configuration=config/migrations/main.yaml`).
+  After a new migration, run `composer db:migrate` in the `php` container, and again with
+  `-e APP_ENV=test`.
 - The editor build writes `editor/[name].js` without hashes, because Symfony
   (AssetMapper) is meant to handle cache-busting. Integration of the built editor into
   Twig is not wired up yet.

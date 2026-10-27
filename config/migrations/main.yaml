@@ -1,0 +1,4 @@
+# The migrations of app_main (doctrine/migrations format, paths relative to this file).
+# Use with: bin/console doctrine:migrations:<cmd> --em=main --configuration=config/migrations/main.yaml
+migrations_paths:
+    'DoctrineMigrations\Main': '../../migrations/Main'

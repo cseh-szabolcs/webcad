@@ -5,6 +5,7 @@ namespace App\Tests\Application;
 use App\Application\Command\CreateProjectCommand;
 use App\Application\DTO\ProjectDTO;
 use App\Application\Query\GetProjectQuery;
+use App\Infrastructure\Tenancy\TenantSwitcher;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\Exception\ValidationFailedException;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -13,6 +14,12 @@ use Symfony\Component\Uid\Uuid;
 
 final class ProjectCqrsTest extends KernelTestCase
 {
+    protected function setUp(): void
+    {
+        // Without a request or console command, nothing selects the tenant (see .env.test)
+        static::getContainer()->get(TenantSwitcher::class)->switchTo($_ENV['DEFAULT_TENANT']);
+    }
+
     public function testCreatedProjectCanBeQueried(): void
     {
         $id = Uuid::v7();

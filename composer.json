@@ -84,7 +84,13 @@
         ],
         "post-update-cmd": [
             "@auto-scripts"
-        ]
+        ],
+        "db:migrate": [
+            "@db:migrate:main",
+            "@db:migrate:tenants"
+        ],
+        "db:migrate:main": "bin/console doctrine:migrations:migrate --no-interaction --em=main --configuration=config/migrations/main.yaml",
+        "db:migrate:tenants": "bin/console app:tenants:run doctrine:migrations:migrate"
     },
     "conflict": {
         "symfony/symfony": "*"

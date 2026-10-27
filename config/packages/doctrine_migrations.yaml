@@ -1,6 +1,10 @@
 doctrine_migrations:
+    # The tenant migrations (app_<tenant>), run per tenant with --tenant=<name> or app:tenants:run.
+    # The migrations of app_main live in migrations/Main and are run with
+    # --em=main --configuration=config/migrations/main.yaml (composer db:migrate:main).
+    em: tenant
     migrations_paths:
         # namespace is arbitrary but should be different from App\Migrations
         # as migrations classes should NOT be autoloaded
-        'DoctrineMigrations': '%kernel.project_dir%/migrations'
+        'DoctrineMigrations\Tenant': '%kernel.project_dir%/migrations/Tenant'
     enable_profiler: false

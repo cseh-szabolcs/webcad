@@ -9,7 +9,8 @@ framework:
             command.bus:
                 middleware:
                     - validation
-                    - doctrine_transaction
+                    # the tenant's database (default entity manager)
+                    - doctrine_transaction: ['tenant']
             query.bus:
                 middleware:
                     - validation
