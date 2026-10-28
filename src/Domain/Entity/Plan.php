@@ -3,6 +3,7 @@
 namespace App\Domain\Entity;
 
 use App\Domain\Enum\PlanUnit;
+use App\Infrastructure\Doctrine\Repository\PlanRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -15,7 +16,7 @@ use Symfony\Component\Uid\Uuid;
  * (MySQL has no deferred constraints; Doctrine inserts the plan first and sets draft_id after),
  * and SET NULL on delete, or deleting a plan would be blocked by the versions it cascades to.
  */
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: PlanRepository::class)]
 class Plan
 {
     #[ORM\OneToOne(cascade: ['persist'])]

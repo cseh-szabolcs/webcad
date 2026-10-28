@@ -1,6 +1,12 @@
 [](#cqrs-pattern-in-symfony)CQRS Pattern in Symfony
 ===================================================
 
+> **In this project** the structure below applies (commands, queries, DTOs, two buses), with one
+> deviation: query handlers do not read with DBAL as in the examples below, but load entities
+> through Doctrine repositories (`src/Infrastructure/Doctrine/Repository/`, no repository
+> interfaces) and map them to DTOs, like the command handlers. A separate SQL read model is only
+> worth it for a read that is measured to be too slow. See "Architecture" in `CLAUDE.md`.
+
 [](#introduction)Introduction
 -----------------------------
 

@@ -2,6 +2,7 @@
 
 namespace App\Domain\Entity;
 
+use App\Infrastructure\Doctrine\Repository\VertexRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -9,7 +10,7 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Point with its own identity in model space (mm, Y up); several elements may share it.
  */
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: VertexRepository::class)]
 class Vertex
 {
     public function __construct(

@@ -2,11 +2,12 @@
 
 namespace App\Domain\Entity;
 
+use App\Infrastructure\Doctrine\Repository\LayerRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: LayerRepository::class)]
 #[ORM\Index(columns: ['plan_version_id', 'position'])]
 class Layer
 {

@@ -2,11 +2,12 @@
 
 namespace App\Domain\Entity;
 
+use App\Infrastructure\Doctrine\Repository\ProjectRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: ProjectRepository::class)]
 class Project
 {
     public function __construct(

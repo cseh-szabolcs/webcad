@@ -7,6 +7,7 @@ use App\Application\Factory\PlanVersionCopier;
 use App\Application\Model\Plan\PlanDocument;
 use App\Application\Reader\PlanDocumentReader;
 use App\Domain\Entity\Plan;
+use App\Domain\Entity\PlanVersion;
 use App\Domain\Entity\Project;
 use App\Infrastructure\Fixtures\Console\PlanCreateSampleCommand;
 use App\Infrastructure\Tenancy\TenantSwitcher;
@@ -26,7 +27,7 @@ final class PlanVersionCopierTest extends KernelTestCase
     public function testCopyIsTheSameDocumentWithFreshIds(): void
     {
         $plan = $this->createSample();
-        $draft = $this->read($plan->getDraft()->getId());
+        $draft = $this->read($plan->getDraft());
 
         $copy = $this->copier()->copy($plan->getDraft());
         $this->em()->flush();
@@ -35,8 +36,8 @@ final class PlanVersionCopierTest extends KernelTestCase
         self::assertNotEquals($plan->getDraft()->getId(), $copy->getId());
         self::assertSame($plan->getDraft()->getUnit(), $copy->getUnit());
 
-        $copied = $this->read($copy->getId());
-        self::assertEquals($draft, $this->read($plan->getDraft()->getId()), 'The draft is unchanged');
+        $copied = $this->read($copy);
+        self::assertEquals($draft, $this->read($plan->getDraft()), 'The draft is unchanged');
 
         // Every id is new, and replacing them in order gives the draft again
         $ids = [];
@@ -76,7 +77,7 @@ final class PlanVersionCopierTest extends KernelTestCase
         self::assertSame(1, $first->getNumber());
         self::assertSame('Baueingabe', $first->getName());
         self::assertNull($plan->getHead()->getName());
-        self::assertCount(10, $this->read($first->getId())['elements']);
+        self::assertCount(10, $this->read($first)['elements']);
     }
 
     private function createSample(): Plan
@@ -96,10 +97,10 @@ final class PlanVersionCopierTest extends KernelTestCase
     /**
      * @return array<string, mixed> the version as the API would send it
      */
-    private function read(Uuid $versionId): array
+    private function read(PlanVersion $version): array
     {
         $container = static::getContainer();
-        $document = $container->get(PlanDocumentReader::class)->read($versionId);
+        $document = $container->get(PlanDocumentReader::class)->read($version);
 
         return json_decode($container->get(SerializerInterface::class)->serialize($document, 'json'), true, flags: \JSON_THROW_ON_ERROR);
     }

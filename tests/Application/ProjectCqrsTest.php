@@ -6,6 +6,7 @@ use App\Application\Command\CreateProjectCommand;
 use App\Application\DTO\ProjectDTO;
 use App\Application\Query\GetProjectQuery;
 use App\Infrastructure\Tenancy\TenantSwitcher;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\Exception\ValidationFailedException;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -25,6 +26,8 @@ final class ProjectCqrsTest extends KernelTestCase
         $id = Uuid::v7();
 
         $this->commandBus()->dispatch(new CreateProjectCommand($id, 'Einfamilienhaus'));
+        // So the query reads the stored project, not the one in the identity map
+        static::getContainer()->get(EntityManagerInterface::class)->clear();
         $project = $this->query(new GetProjectQuery($id));
 
         self::assertEquals(new ProjectDTO($id->toRfc4122(), 'Einfamilienhaus'), $project);

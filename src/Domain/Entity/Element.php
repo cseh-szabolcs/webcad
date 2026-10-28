@@ -4,6 +4,7 @@ namespace App\Domain\Entity;
 
 use App\Domain\ElementProps\ElementPropsInterface;
 use App\Infrastructure\Doctrine\JsonDocumentType;
+use App\Infrastructure\Doctrine\Repository\ElementRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -14,7 +15,7 @@ use Symfony\Component\Uid\Uuid;
  * (vertices, layer, group, style) is mapped as columns; the values only needed to draw it are
  * its props, stored as a JSON document (see JsonDocumentType).
  */
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: ElementRepository::class)]
 #[ORM\InheritanceType('SINGLE_TABLE')]
 #[ORM\DiscriminatorColumn(name: 'type', type: 'string', length: 16)]
 #[ORM\DiscriminatorMap([

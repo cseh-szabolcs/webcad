@@ -2,6 +2,7 @@
 
 namespace App\Domain\Entity;
 
+use App\Infrastructure\Doctrine\Repository\GroupRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -9,7 +10,7 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Elements that are picked together. Membership is stored on the element, not here.
  */
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: GroupRepository::class)]
 #[ORM\Table(name: 'element_group')] // "group" is reserved in SQL
 class Group
 {

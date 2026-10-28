@@ -2,6 +2,7 @@
 
 namespace App\Domain\Entity;
 
+use App\Infrastructure\Doctrine\Repository\ElementStyleRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -10,7 +11,7 @@ use Symfony\Component\Uid\Uuid;
  * Stroke width and dash pattern are rendered in screen pixels for now; model vs. paper units
  * for printing are still undecided.
  */
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: ElementStyleRepository::class)]
 class ElementStyle
 {
     /**

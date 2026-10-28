@@ -112,8 +112,11 @@ on the host, set `API_PROXY_TARGET=http://localhost:8080`.
 
 `GET /api/plans/{id}/document` returns the plan from the tenant database as a
 `PlanDocument`: its draft (`GetPlanDocumentHandler`; `PlanDocumentReader` in
-`src/Application/Reader/` reads one version with DBAL; vertices, groups and styles come in id
-order, i.e. creation order for UUIDv7), with the draft's `revision` as `ETag`
+`src/Application/Reader/` maps one version's entities, read through the repositories in
+`src/Infrastructure/Doctrine/Repository/` (`findByPlanVersion`), to the API models; vertices,
+groups and styles come in id order, i.e. creation order for UUIDv7; `ElementRepository`
+fetch-joins the polyline vertices first, so a read needs one query per kind of content, guarded
+by `PlanDocumentReaderTest`), with the draft's `revision` as `ETag`
 (304 on a matching `If-None-Match`). An element without a name is sent with `name: null`,
 which `CadSerializer` reads as no name. In dev the editor loads the plan
 `01994f4e-6f3a-7c2d-9b1e-5a3c2d1e0f42` when the URL names none (`DEV_PLAN_ID` in `App.tsx`);
@@ -194,9 +197,8 @@ decisions (still valid for the rebuild):
   renaming a class stored this way needs a data migration of `"#type"`. As the type needs the
   (private) serializer, the public `JsonDocumentTypeRegistrar` registers an instance of it,
   called from `Kernel::boot()`. Props use the API models' property names and `type`, so
-  `PlanDocumentReader` converts `props` through the Doctrine type, normalizes it and
-  denormalizes it with the columns straight into the flat API element (`"#type"` never reaches
-  the API), and `PlanFactory` makes props from an API element through the serializer. New display
+  `PlanDocumentReader` normalizes an element's props and denormalizes them with its
+  references straight into the flat API element (`"#type"` never reaches the API), and `PlanFactory` makes props from an API element through the serializer. New display
   values: add them to the props class and the API model, no migration needed.
   `schemaVersion` belongs to the wire format, not to the database. Still planned: `User`, `ProjectMember`, REST API under
   `/api/projects` and `/api/plans/{id}/document|versions`, with revision/ETag-based conflict
@@ -262,7 +264,15 @@ decisions (still valid for the rebuild):
   synchronous for now (no async transport or worker yet). Pin each handler to its bus
   with `#[AsMessageHandler(bus: 'command.bus'|'query.bus')]`. Command handlers only
   `persist()`, because the `doctrine_transaction` middleware flushes and commits. Query
-  handlers read with DBAL and return DTOs. Two entity managers: `tenant` (the default, so
+  handlers read entities through repositories and return DTOs. **Entities and repositories,
+  not native SQL:** handlers and readers load through one `ServiceEntityRepository` per entity
+  in `src/Infrastructure/Doctrine/Repository/` (named in the entity's `repositoryClass`, no
+  interfaces), with finders of their own where `find`/`findBy` is not enough (e.g.
+  `findByPlanVersion`); DBAL or SQL only for a measured reason, and only after asking. Load
+  what a read needs in a fixed number of queries (fetch joins instead of a lazy load per
+  entity). A UUID parameter of a DQL query is bound as `setParameter(…, $uuid,
+  UuidType::NAME)`: an entity or a `Uuid` without the type is not bound as BINARY(16) and
+  silently matches nothing (`findBy` is fine). Two entity managers: `tenant` (the default, so
   plain `EntityManagerInterface`/`Connection` autowiring and `doctrine_transaction` hit the
   tenant's database) maps `src/Domain/Entity`; `main` (app_main) maps `src/Domain/Main/Entity`.
   `src/Entity` is unused. Tenancy code lives in `src/Infrastructure/Tenancy`
