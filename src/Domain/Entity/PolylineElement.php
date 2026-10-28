@@ -2,6 +2,7 @@
 
 namespace App\Domain\Entity;
 
+use App\Domain\ElementProps\PolylineProps;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -28,14 +29,13 @@ class PolylineElement extends Element
         PlanVersion $planVersion,
         int $position,
         array $vertices,
-        #[ORM\Column(nullable: true)]
-        private bool $closed,
+        PolylineProps $props,
         ?Layer $layer = null,
         ?Group $group = null,
         ?ElementStyle $style = null,
         ?string $name = null,
     ) {
-        parent::__construct($id, $planVersion, $position, $layer, $group, $style, $name);
+        parent::__construct($id, $planVersion, $position, $props, $layer, $group, $style, $name);
 
         if (\count($vertices) < 2) {
             throw new \InvalidArgumentException('A polyline needs at least 2 vertices.');
@@ -55,8 +55,10 @@ class PolylineElement extends Element
         return array_values($this->vertices->map(static fn (PolylineVertex $v): Vertex => $v->getVertex())->toArray());
     }
 
-    public function isClosed(): bool
+    public function getProps(): PolylineProps
     {
-        return $this->closed;
+        \assert($this->props instanceof PolylineProps);
+
+        return $this->props;
     }
 }

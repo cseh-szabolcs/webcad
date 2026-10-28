@@ -2,11 +2,12 @@
 
 namespace App\Domain\Entity;
 
+use App\Domain\ElementProps\BezierProps;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Cubic Bézier curve. The control vectors are relative to their end vertex, so they move with it.
+ * Cubic Bézier curve between two vertices; its control vectors are its props.
  */
 #[ORM\Entity]
 class BezierElement extends Element
@@ -23,20 +24,20 @@ class BezierElement extends Element
         #[ORM\ManyToOne]
         #[ORM\JoinColumn(onDelete: 'CASCADE')]
         private Vertex $endVertex,
-        #[ORM\Column(nullable: true)]
-        private float $startControlX,
-        #[ORM\Column(nullable: true)]
-        private float $startControlY,
-        #[ORM\Column(nullable: true)]
-        private float $endControlX,
-        #[ORM\Column(nullable: true)]
-        private float $endControlY,
+        BezierProps $props,
         ?Layer $layer = null,
         ?Group $group = null,
         ?ElementStyle $style = null,
         ?string $name = null,
     ) {
-        parent::__construct($id, $planVersion, $position, $layer, $group, $style, $name);
+        parent::__construct($id, $planVersion, $position, $props, $layer, $group, $style, $name);
+    }
+
+    public function getProps(): BezierProps
+    {
+        \assert($this->props instanceof BezierProps);
+
+        return $this->props;
     }
 
     public function getStartVertex(): Vertex
@@ -47,25 +48,5 @@ class BezierElement extends Element
     public function getEndVertex(): Vertex
     {
         return $this->endVertex;
-    }
-
-    public function getStartControlX(): float
-    {
-        return $this->startControlX;
-    }
-
-    public function getStartControlY(): float
-    {
-        return $this->startControlY;
-    }
-
-    public function getEndControlX(): float
-    {
-        return $this->endControlX;
-    }
-
-    public function getEndControlY(): float
-    {
-        return $this->endControlY;
     }
 }

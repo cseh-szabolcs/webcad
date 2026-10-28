@@ -5,6 +5,12 @@ namespace App\Tests\Application\Factory;
 use App\Application\Factory\PlanFactory;
 use App\Application\Model\Plan\LineElement;
 use App\Application\Model\Plan\PlanDocument;
+use App\Domain\ElementProps\ArcProps;
+use App\Domain\ElementProps\BezierProps;
+use App\Domain\ElementProps\CircleProps;
+use App\Domain\ElementProps\EllipseProps;
+use App\Domain\ElementProps\PolylineProps;
+use App\Domain\ElementProps\Vector2;
 use App\Domain\Entity;
 use App\Domain\Entity\Element;
 use App\Domain\Entity\Plan;
@@ -66,13 +72,14 @@ final class PlanFactoryTest extends KernelTestCase
 
         self::assertSame('Walls', $wallOuter->getLayer()->getName());
         self::assertSame('Wall', $wallOuter->getStyle()->getName());
-        self::assertTrue($wallOuter->isClosed());
+        self::assertEquals(new PolylineProps(true), $wallOuter->getProps());
         self::assertSame('Door D1', $doorLeaf->getGroup()->getName());
         self::assertNull($axis->getLayer());
         self::assertNull($axis->getStyle());
-        self::assertSame(600.0, $table->getRadius());
-        self::assertSame([1000.0, 700.0, 0.0], [$rug->getRadiusX(), $rug->getRadiusY(), $rug->getRotation()]);
-        self::assertSame([500.0, -200.0], [$curtain->getStartControlX(), $curtain->getStartControlY()]);
+        self::assertEquals(new CircleProps(600.0), $table->getProps());
+        self::assertEquals(new EllipseProps(1000.0, 700.0, 0.0), $rug->getProps());
+        self::assertEquals(new ArcProps(false), $doorSwing->getProps());
+        self::assertEquals(new BezierProps(new Vector2(500.0, -200.0), new Vector2(-500.0, -200.0)), $curtain->getProps());
     }
 
     public function testFurtherVersionIsAddedToThePlan(): void

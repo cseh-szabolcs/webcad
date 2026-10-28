@@ -2,13 +2,17 @@
 
 namespace App\Domain\Entity;
 
+use App\Domain\ElementProps\ElementPropsInterface;
+use App\Infrastructure\Doctrine\JsonDocumentType;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /**
  * A drawn object. All types share the table "element" (single table inheritance), so the columns
- * of a subclass must be nullable in the database even where its property is not.
+ * of a subclass must be nullable in the database even where its property is not. The structure
+ * (vertices, layer, group, style) is mapped as columns; the values only needed to draw it are
+ * its props, stored as a JSON document (see JsonDocumentType).
  */
 #[ORM\Entity]
 #[ORM\InheritanceType('SINGLE_TABLE')]
@@ -34,6 +38,8 @@ abstract class Element
         /** Document order; within a layer, a higher position is drawn on top. */
         #[ORM\Column]
         private int $position,
+        #[ORM\Column(type: JsonDocumentType::NAME)]
+        protected ElementPropsInterface $props,
         #[ORM\ManyToOne]
         #[ORM\JoinColumn(onDelete: 'SET NULL')]
         private ?Layer $layer = null,
@@ -62,6 +68,11 @@ abstract class Element
     public function getPosition(): int
     {
         return $this->position;
+    }
+
+    public function getProps(): ElementPropsInterface
+    {
+        return $this->props;
     }
 
     public function getLayer(): ?Layer

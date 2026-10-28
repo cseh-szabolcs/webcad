@@ -2,13 +2,13 @@
 
 namespace App\Domain\Entity;
 
+use App\Domain\ElementProps\ArcProps;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
 
 /**
  * Circular arc around a centre. The radius is the distance from centre to start; the end vertex
- * only sets the end angle, so it may lie off the arc. Y up: not clockwise is counter-clockwise
- * on screen.
+ * only sets the end angle, so it may lie off the arc.
  */
 #[ORM\Entity]
 class ArcElement extends Element
@@ -28,14 +28,20 @@ class ArcElement extends Element
         #[ORM\ManyToOne]
         #[ORM\JoinColumn(onDelete: 'CASCADE')]
         private Vertex $endVertex,
-        #[ORM\Column(nullable: true)]
-        private bool $clockwise,
+        ArcProps $props,
         ?Layer $layer = null,
         ?Group $group = null,
         ?ElementStyle $style = null,
         ?string $name = null,
     ) {
-        parent::__construct($id, $planVersion, $position, $layer, $group, $style, $name);
+        parent::__construct($id, $planVersion, $position, $props, $layer, $group, $style, $name);
+    }
+
+    public function getProps(): ArcProps
+    {
+        \assert($this->props instanceof ArcProps);
+
+        return $this->props;
     }
 
     public function getCenterVertex(): Vertex
@@ -51,10 +57,5 @@ class ArcElement extends Element
     public function getEndVertex(): Vertex
     {
         return $this->endVertex;
-    }
-
-    public function isClockwise(): bool
-    {
-        return $this->clockwise;
     }
 }

@@ -179,6 +179,25 @@ decisions (still valid for the rebuild):
   `EllipseElement`, `BezierElement`; subclass columns are nullable in the database, siblings
   share columns such as `start_vertex_id`), and `PolylineVertex` (PK polyline + position).
   Every FK to the version and to vertices is `ON DELETE CASCADE`, layer/group/style `SET NULL`.
+  **Structure as columns, display values as JSON:** the vertex references, `polyline_vertex` and
+  layer/group/style stay columns; the values only needed to draw an element (`closed`,
+  `clockwise`, `radius`, `radiusX`/`radiusY`/`rotation`, `startControl`/`endControl`) are its
+  `props`, one JSON column `element.props`. In PHP they are model classes, never arrays
+  (`src/Domain/ElementProps/`: `ElementPropsInterface` with a serializer `#[DiscriminatorMap]`
+  on `type`, `LineProps` (empty so far), `PolylineProps`, `ArcProps`, `CircleProps`,
+  `EllipseProps`, `BezierProps`, `Vector2`; `final readonly`, so a change replaces the object).
+  Each element subclass takes and returns its own props class (`CircleElement::getProps():
+  CircleProps`). They are stored with the generic Doctrine type **`json_document`**
+  (`src/Infrastructure/Doctrine/JsonDocumentType`, usable for any object): it normalizes the
+  object with the app's serializer and adds its class name under `"#type"`, then denormalizes
+  into that class on read (a Doctrine type does not know the property it converts). Moving or
+  renaming a class stored this way needs a data migration of `"#type"`. As the type needs the
+  (private) serializer, the public `JsonDocumentTypeRegistrar` registers an instance of it,
+  called from `Kernel::boot()`. Props use the API models' property names and `type`, so
+  `PlanDocumentReader` converts `props` through the Doctrine type, normalizes it and
+  denormalizes it with the columns straight into the flat API element (`"#type"` never reaches
+  the API), and `PlanFactory` makes props from an API element through the serializer. New display
+  values: add them to the props class and the API model, no migration needed.
   `schemaVersion` belongs to the wire format, not to the database. Still planned: `User`, `ProjectMember`, REST API under
   `/api/projects` and `/api/plans/{id}/document|versions`, with revision/ETag-based conflict
   detection. Real-time collaboration is out of scope for V1.

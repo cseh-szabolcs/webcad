@@ -2,6 +2,13 @@
 
 namespace App\Tests\Domain;
 
+use App\Domain\ElementProps\ArcProps;
+use App\Domain\ElementProps\BezierProps;
+use App\Domain\ElementProps\CircleProps;
+use App\Domain\ElementProps\EllipseProps;
+use App\Domain\ElementProps\LineProps;
+use App\Domain\ElementProps\PolylineProps;
+use App\Domain\ElementProps\Vector2;
 use App\Domain\Entity\ArcElement;
 use App\Domain\Entity\BezierElement;
 use App\Domain\Entity\CircleElement;
@@ -46,12 +53,12 @@ final class PlanEntityTest extends KernelTestCase
         $c = new Vertex(Uuid::v7(), $draft, 6000.0, 4000.5);
 
         $elements = [
-            $polyline = new PolylineElement(Uuid::v7(), $draft, 0, [$a, $b, $c, $a], false, $walls, name: 'Wall'),
+            $polyline = new PolylineElement(Uuid::v7(), $draft, 0, [$a, $b, $c, $a], new PolylineProps(false), $walls, name: 'Wall'),
             $line = new LineElement(Uuid::v7(), $draft, 1, $a, $c, style: $dashed),
-            $arc = new ArcElement(Uuid::v7(), $draft, 2, $a, $b, $c, true, $hidden, $door),
-            $circle = new CircleElement(Uuid::v7(), $draft, 3, $b, 600.0),
-            $ellipse = new EllipseElement(Uuid::v7(), $draft, 4, $b, 1000.0, 700.0, 0.5),
-            $bezier = new BezierElement(Uuid::v7(), $draft, 5, $a, $b, 500.0, -200.0, -500.0, -200.0),
+            $arc = new ArcElement(Uuid::v7(), $draft, 2, $a, $b, $c, new ArcProps(true), $hidden, $door),
+            $circle = new CircleElement(Uuid::v7(), $draft, 3, $b, new CircleProps(600.0)),
+            $ellipse = new EllipseElement(Uuid::v7(), $draft, 4, $b, new EllipseProps(1000.0, 700.0, 0.5)),
+            $bezier = new BezierElement(Uuid::v7(), $draft, 5, $a, $b, new BezierProps(new Vector2(500.0, -200.0), new Vector2(-500.0, -200.0))),
         ];
 
         foreach ([$project, $plan, $walls, $hidden, $door, $dashed, $a, $b, $c, ...$elements] as $entity) {
@@ -82,21 +89,28 @@ final class PlanEntityTest extends KernelTestCase
         self::assertSame($polyline->getVertices()[0], $line->getStartVertex());
         self::assertSame('Wall', $polyline->getName());
         self::assertSame('Walls', $polyline->getLayer()->getName());
-        self::assertFalse($polyline->isClosed());
+        self::assertEquals(new PolylineProps(false), $polyline->getProps());
+        self::assertEquals(new LineProps(), $line->getProps());
 
         self::assertNull($line->getLayer());
         self::assertSame([8.0, 4.0], $line->getStyle()->getDashPattern());
         self::assertSame('#f3f4f6', $line->getStyle()->getFillColor());
         self::assertSame(4000.5, $line->getEndVertex()->getY());
 
-        self::assertTrue($arc->isClockwise());
+        self::assertEquals(new ArcProps(true), $arc->getProps());
         self::assertSame('Door D1', $arc->getGroup()->getName());
         self::assertFalse($arc->getLayer()->isVisible());
         self::assertTrue($arc->getLayer()->isLocked());
 
-        self::assertSame(600.0, $circle->getRadius());
-        self::assertSame([1000.0, 700.0, 0.5], [$ellipse->getRadiusX(), $ellipse->getRadiusY(), $ellipse->getRotation()]);
-        self::assertSame([500.0, -200.0, -500.0, -200.0], [$bezier->getStartControlX(), $bezier->getStartControlY(), $bezier->getEndControlX(), $bezier->getEndControlY()]);
+        self::assertEquals(new CircleProps(600.0), $circle->getProps());
+        self::assertEquals(new EllipseProps(1000.0, 700.0, 0.5), $ellipse->getProps());
+        self::assertEquals(new BezierProps(new Vector2(500.0, -200.0), new Vector2(-500.0, -200.0)), $bezier->getProps());
+
+        // Stored as a JSON document with the class that it is read back into
+        self::assertJsonStringEqualsJsonString(
+            '{"#type": "App\\\\Domain\\\\ElementProps\\\\EllipseProps", "type": "ellipse", "radiusX": 1000.0, "radiusY": 700.0, "rotation": 0.5}',
+            $em->getConnection()->fetchOne('SELECT props FROM element WHERE id = ?', [$ellipse->getId()->toBinary()]),
+        );
     }
 
     public function testPolylineNeedsTwoVertices(): void
@@ -105,7 +119,7 @@ final class PlanEntityTest extends KernelTestCase
 
         $this->expectException(\InvalidArgumentException::class);
 
-        new PolylineElement(Uuid::v7(), $draft, 0, [new Vertex(Uuid::v7(), $draft, 0.0, 0.0)], false);
+        new PolylineElement(Uuid::v7(), $draft, 0, [new Vertex(Uuid::v7(), $draft, 0.0, 0.0)], new PolylineProps(false));
     }
 
     public function testPublishMakesTheCopyTheNumberedHead(): void

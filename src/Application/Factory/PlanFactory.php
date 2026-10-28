@@ -9,11 +9,14 @@ use App\Application\Model\Plan\EllipseElement;
 use App\Application\Model\Plan\LineElement;
 use App\Application\Model\Plan\PlanDocument;
 use App\Application\Model\Plan\PolylineElement;
+use App\Domain\ElementProps\ElementPropsInterface;
 use App\Domain\Entity;
 use App\Domain\Entity\Plan;
 use App\Domain\Entity\PlanVersion;
 use App\Domain\Entity\Project;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
+use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -25,6 +28,8 @@ final readonly class PlanFactory
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
+        private NormalizerInterface $normalizer,
+        private DenormalizerInterface $denormalizer,
     ) {
     }
 
@@ -89,14 +94,16 @@ final readonly class PlanFactory
             $group = null === $element->groupId ? null : ($groups[$element->groupId] ?? throw self::unknown('group', $element->groupId, $element->id));
             $style = null === $element->styleId ? null : ($styles[$element->styleId] ?? throw self::unknown('style', $element->styleId, $element->id));
             $id = Uuid::v7();
+            // The display values, picked by "type"; ids and references in the element are ignored
+            $props = $this->denormalizer->denormalize($this->normalizer->normalize($element), ElementPropsInterface::class);
 
             $this->persist(match (true) {
-                $element instanceof LineElement => new Entity\LineElement($id, $version, $position, $vertex($element->startVertexId), $vertex($element->endVertexId), $layer, $group, $style, $element->name),
-                $element instanceof PolylineElement => new Entity\PolylineElement($id, $version, $position, array_map($vertex, $element->vertexIds), $element->closed, $layer, $group, $style, $element->name),
-                $element instanceof ArcElement => new Entity\ArcElement($id, $version, $position, $vertex($element->centerVertexId), $vertex($element->startVertexId), $vertex($element->endVertexId), $element->clockwise, $layer, $group, $style, $element->name),
-                $element instanceof CircleElement => new Entity\CircleElement($id, $version, $position, $vertex($element->centerVertexId), $element->radius, $layer, $group, $style, $element->name),
-                $element instanceof EllipseElement => new Entity\EllipseElement($id, $version, $position, $vertex($element->centerVertexId), $element->radiusX, $element->radiusY, $element->rotation, $layer, $group, $style, $element->name),
-                $element instanceof BezierElement => new Entity\BezierElement($id, $version, $position, $vertex($element->startVertexId), $vertex($element->endVertexId), $element->startControl->x, $element->startControl->y, $element->endControl->x, $element->endControl->y, $layer, $group, $style, $element->name),
+                $element instanceof LineElement => new Entity\LineElement($id, $version, $position, $vertex($element->startVertexId), $vertex($element->endVertexId), $props, $layer, $group, $style, $element->name),
+                $element instanceof PolylineElement => new Entity\PolylineElement($id, $version, $position, array_map($vertex, $element->vertexIds), $props, $layer, $group, $style, $element->name),
+                $element instanceof ArcElement => new Entity\ArcElement($id, $version, $position, $vertex($element->centerVertexId), $vertex($element->startVertexId), $vertex($element->endVertexId), $props, $layer, $group, $style, $element->name),
+                $element instanceof CircleElement => new Entity\CircleElement($id, $version, $position, $vertex($element->centerVertexId), $props, $layer, $group, $style, $element->name),
+                $element instanceof EllipseElement => new Entity\EllipseElement($id, $version, $position, $vertex($element->centerVertexId), $props, $layer, $group, $style, $element->name),
+                $element instanceof BezierElement => new Entity\BezierElement($id, $version, $position, $vertex($element->startVertexId), $vertex($element->endVertexId), $props, $layer, $group, $style, $element->name),
                 default => throw new \LogicException(\sprintf('No entity for element type %s.', $element::class)),
             });
         }

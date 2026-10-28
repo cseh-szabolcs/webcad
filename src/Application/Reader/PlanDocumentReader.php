@@ -2,32 +2,31 @@
 
 namespace App\Application\Reader;
 
-use App\Application\Model\Plan\ArcElement;
-use App\Application\Model\Plan\BezierElement;
-use App\Application\Model\Plan\CircleElement;
 use App\Application\Model\Plan\ElementInterface;
 use App\Application\Model\Plan\ElementStyle;
-use App\Application\Model\Plan\EllipseElement;
 use App\Application\Model\Plan\Group;
 use App\Application\Model\Plan\Layer;
-use App\Application\Model\Plan\LineElement;
 use App\Application\Model\Plan\PlanDocument;
-use App\Application\Model\Plan\PolylineElement;
-use App\Application\Model\Plan\Vector2;
 use App\Application\Model\Plan\Vertex;
 use App\Domain\Enum\PlanUnit;
+use App\Infrastructure\Doctrine\JsonDocumentType;
 use Doctrine\DBAL\Connection;
+use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
+use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
  * Reads one version of a plan with all its contents into a document, as stored in the database.
  * Vertices, groups and styles have no order of their own and come in the order of their ids,
- * which for UUIDv7 is the order they were made.
+ * which for UUIDv7 is the order they were made. An element is its columns and its props (read
+ * through their Doctrine type) together, built by the serializer from the props' "type".
  */
 final readonly class PlanDocumentReader
 {
     public function __construct(
         private Connection $connection,
+        private NormalizerInterface $normalizer,
+        private DenormalizerInterface $denormalizer,
     ) {
     }
 
@@ -77,7 +76,7 @@ final readonly class PlanDocumentReader
         }
 
         $elements = array_map(
-            static fn (array $r): ElementInterface => self::element($r, $polylineVertices[$r['id']] ?? []),
+            fn (array $r): ElementInterface => $this->element($r, $polylineVertices[$r['id']] ?? []),
             $this->connection->fetchAllAssociative('SELECT * FROM element WHERE plan_version_id = :version ORDER BY position', $version),
         );
 
@@ -98,33 +97,25 @@ final readonly class PlanDocumentReader
      * @param array<string, mixed> $r         a row of the element table
      * @param list<string>         $vertexIds the polyline's vertices in order
      */
-    private static function element(array $r, array $vertexIds): ElementInterface
+    private function element(array $r, array $vertexIds): ElementInterface
     {
-        $id = self::id($r['id']);
-        $layerId = self::nullableId($r['layer_id']);
-        $groupId = self::nullableId($r['group_id']);
-        $styleId = self::nullableId($r['style_id']);
-        $name = $r['name'];
+        $vertexRefs = array_filter([
+            'startVertexId' => self::nullableId($r['start_vertex_id']),
+            'endVertexId' => self::nullableId($r['end_vertex_id']),
+            'centerVertexId' => self::nullableId($r['center_vertex_id']),
+            'vertexIds' => [] === $vertexIds ? null : $vertexIds,
+        ], static fn (mixed $ref): bool => null !== $ref);
 
-        return match ($r['type']) {
-            LineElement::TYPE => new LineElement($id, $layerId, $groupId, $styleId, self::id($r['start_vertex_id']), self::id($r['end_vertex_id']), $name),
-            PolylineElement::TYPE => new PolylineElement($id, $layerId, $groupId, $styleId, $vertexIds, (bool) $r['closed'], $name),
-            ArcElement::TYPE => new ArcElement($id, $layerId, $groupId, $styleId, self::id($r['center_vertex_id']), self::id($r['start_vertex_id']), self::id($r['end_vertex_id']), (bool) $r['clockwise'], $name),
-            CircleElement::TYPE => new CircleElement($id, $layerId, $groupId, $styleId, self::id($r['center_vertex_id']), (float) $r['radius'], $name),
-            EllipseElement::TYPE => new EllipseElement($id, $layerId, $groupId, $styleId, self::id($r['center_vertex_id']), (float) $r['radius_x'], (float) $r['radius_y'], (float) $r['rotation'], $name),
-            BezierElement::TYPE => new BezierElement(
-                $id,
-                $layerId,
-                $groupId,
-                $styleId,
-                self::id($r['start_vertex_id']),
-                self::id($r['end_vertex_id']),
-                new Vector2((float) $r['start_control_x'], (float) $r['start_control_y']),
-                new Vector2((float) $r['end_control_x'], (float) $r['end_control_y']),
-                $name,
-            ),
-            default => throw new \UnexpectedValueException(\sprintf('Unknown element type "%s".', $r['type'])),
-        };
+        return $this->denormalizer->denormalize([
+            'id' => self::id($r['id']),
+            'layerId' => self::nullableId($r['layer_id']),
+            'groupId' => self::nullableId($r['group_id']),
+            'styleId' => self::nullableId($r['style_id']),
+            'name' => $r['name'],
+            ...$vertexRefs,
+            // The display values, with the "type" that picks the model
+            ...$this->normalizer->normalize($this->connection->convertToPHPValue($r['props'], JsonDocumentType::NAME)),
+        ], ElementInterface::class);
     }
 
     private static function id(string $binary): string

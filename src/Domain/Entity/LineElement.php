@@ -2,6 +2,7 @@
 
 namespace App\Domain\Entity;
 
+use App\Domain\ElementProps\LineProps;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
 
@@ -20,12 +21,20 @@ class LineElement extends Element
         #[ORM\ManyToOne]
         #[ORM\JoinColumn(onDelete: 'CASCADE')]
         private Vertex $endVertex,
+        LineProps $props = new LineProps(),
         ?Layer $layer = null,
         ?Group $group = null,
         ?ElementStyle $style = null,
         ?string $name = null,
     ) {
-        parent::__construct($id, $planVersion, $position, $layer, $group, $style, $name);
+        parent::__construct($id, $planVersion, $position, $props, $layer, $group, $style, $name);
+    }
+
+    public function getProps(): LineProps
+    {
+        \assert($this->props instanceof LineProps);
+
+        return $this->props;
     }
 
     public function getStartVertex(): Vertex
