@@ -4,35 +4,39 @@ namespace App\Application\QueryHandler;
 
 use App\Application\DTO\PlanDocumentDTO;
 use App\Application\Query\GetPlanDocumentQuery;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use App\Application\Reader\PlanDocumentReader;
+use Doctrine\DBAL\Connection;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Uid\Uuid;
 
 /**
- * Temporary: serves plan documents from JSON fixtures until PlanVersion exists.
+ * The document of a plan is its draft, the version the editor works on.
  */
 #[AsMessageHandler(bus: 'query.bus')]
 final readonly class GetPlanDocumentHandler
 {
     public function __construct(
-        #[Autowire('%kernel.project_dir%/fixtures/plans')]
-        private string $fixtureDir,
+        private Connection $connection,
+        private PlanDocumentReader $reader,
     ) {
     }
 
     public function __invoke(GetPlanDocumentQuery $query): ?PlanDocumentDTO
     {
-        $planId = $query->planId->toRfc4122();
-        $file = \sprintf('%s/%s.json', $this->fixtureDir, $planId);
-
-        if (!is_file($file)) {
+        // UuidType stores UUIDs as BINARY(16) on MySQL
+        $draft = $this->connection->fetchAssociative(
+            'SELECT v.id, v.revision FROM plan p JOIN plan_version v ON v.id = p.draft_id WHERE p.id = :plan',
+            ['plan' => $query->planId->toBinary()],
+        );
+        if (false === $draft) {
             return null;
         }
 
-        $json = file_get_contents($file);
-        if (false === $json || !json_validate($json)) {
-            throw new \RuntimeException(\sprintf('Plan fixture "%s" is not valid JSON.', $file));
+        $document = $this->reader->read(Uuid::fromBinary($draft['id']));
+        if (null === $document) {
+            return null;
         }
 
-        return new PlanDocumentDTO(planId: $planId, revision: 1, documentJson: $json);
+        return new PlanDocumentDTO($document, (int) $draft['revision']);
     }
 }

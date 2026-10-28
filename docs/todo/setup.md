@@ -77,35 +77,28 @@ Project
 Mögliche Doctrine-Entities:
 
 - `Project`
-- `Plan`
-- `PlanVersion`
+- `Plan` (mit Layer, Group, ElementStyle, Vertex, Element, PolylineVertex)
+- `PlanVersion` (Draft, Head und Historie eines Plans)
 - `User`
 - `ProjectMember`
 
 ### Dokumentpersistenz
 
-Für den Anfang bietet sich ein **versioniertes JSON-Dokument** an. Nicht jede Linie und jeder Vertex muss als separate Doctrine-Entity gespeichert werden. Das vereinfacht Laden, Speichern und Versionierung. Objektbezogene Datenbanktabellen können bei konkretem Bedarf später ergänzt werden.
+Ursprünglich war ein versioniertes JSON-Dokument pro `PlanVersion` vorgesehen. **Entschieden ist
+jetzt eine relationale Speicherung**: der Arbeitsstand eines Plans liegt als Entitäten in der
+Datenbank (`Plan`, `Layer`, `Group`, `ElementStyle`, `Vertex`, `Element` mit Single Table
+Inheritance pro Typ, `PolylineVertex`), entsprechend dem Dokumentmodell des Editors. Das passt zu
+den Commands des Editors, die die geänderten Element-IDs liefern, und erlaubt später gezieltes
+Speichern.
 
-```php
-class Plan
-{
-    private Uuid $id;
-    private Project $project;
-    private string $name;
-    private int $currentVersion;
-}
+Die Inhalte gehören einer **`PlanVersion`**. Ein Plan hat immer einen **Draft**, an dem der Editor
+arbeitet, und nach dem ersten Publish einen **Head**. Ein Publish kopiert den Draft mit allen
+Inhalten (neue Ids) und macht die Kopie zum Head mit der nächsten Nummer (`Plan.version`); frühere
+Heads bleiben als Historie erhalten. Kopiert wird über das Dokument: Version lesen, mit der Factory
+neu aufbauen.
 
-class PlanVersion
-{
-    private Uuid $id;
-    private Plan $plan;
-    private int $version;
-    private array $documentData;
-    private \DateTimeImmutable $createdAt;
-}
-```
-
-Die konkreten Doctrine-Mappings, Datenbanktypen und Lebenszyklen sind noch festzulegen.
+Die API liefert den Plan weiterhin als ein Dokument in der heutigen JSON-Form; beschrieben wird es
+durch die API-Models in `src/Application/Model/Plan/`.
 
 ### REST API (erster Vorschlag)
 

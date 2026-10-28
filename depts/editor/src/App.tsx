@@ -32,7 +32,10 @@ import { ToolPanel } from 'app/ui/ToolPanel';
 import { useTheme, type ThemePreference } from 'app/ui/theme';
 import './App.css';
 
-/** Plan served from the backend fixtures; used in dev when no ?plan= is given. */
+/**
+ * Plan loaded in dev when no ?plan= is given; create it once with
+ * `bin/console app:plan:create-sample --plan-id=01994f4e-6f3a-7c2d-9b1e-5a3c2d1e0f42`.
+ */
 const DEV_PLAN_ID = '01994f4e-6f3a-7c2d-9b1e-5a3c2d1e0f42';
 
 const api = new CadApiClient();

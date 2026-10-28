@@ -2,49 +2,125 @@
 
 namespace App\Tests\Controller\Api;
 
+use App\Application\Factory\PlanFactory;
+use App\Application\Factory\PlanVersionCopier;
+use App\Application\Model\Plan\EllipseElement;
+use App\Application\Model\Plan\PlanDocument;
+use App\Application\Reader\PlanDocumentReader;
+use App\Domain\Entity\Plan;
+use App\Domain\Entity\Project;
+use App\Domain\Entity\Vertex;
+use App\Infrastructure\Fixtures\Console\PlanCreateSampleCommand;
+use App\Infrastructure\Tenancy\TenantSwitcher;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Uid\Uuid;
 
 final class PlanDocumentControllerTest extends WebTestCase
 {
-    private const string FIXTURE_PLAN_ID = '01994f4e-6f3a-7c2d-9b1e-5a3c2d1e0f42';
+    private KernelBrowser $client;
+    private string $planId;
 
-    public function testReturnsPlanDocumentWithEtag(): void
+    protected function setUp(): void
     {
-        $client = static::createClient();
-        $client->request('GET', '/api/plans/'.self::FIXTURE_PLAN_ID.'/document');
+        $this->client = static::createClient();
+        $container = static::getContainer();
+        // The request selects the tenant itself; creating the plan beforehand needs it too
+        $container->get(TenantSwitcher::class)->switchTo($_ENV['DEFAULT_TENANT']);
+
+        $em = $container->get(EntityManagerInterface::class);
+        $project = new Project(Uuid::v7(), 'Beispielprojekt');
+        $em->persist($project);
+        $plan = $container->get(PlanFactory::class)->create($project, $this->sampleDocument());
+        $em->flush();
+        $em->clear();
+
+        $this->planId = $plan->getId()->toRfc4122();
+    }
+
+    public function testReturnsThePlanFromTheDatabase(): void
+    {
+        $this->client->request('GET', '/api/plans/'.$this->planId.'/document');
 
         self::assertResponseIsSuccessful();
         self::assertResponseHeaderSame('Content-Type', 'application/json');
         self::assertResponseHeaderSame('ETag', '"1"');
 
-        $document = json_decode($client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);
-        self::assertSame(1, $document['schemaVersion']);
-        self::assertSame(self::FIXTURE_PLAN_ID, $document['id']);
-        self::assertNotEmpty($document['elements']);
+        $actual = json_decode($this->client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertSame($this->planId, $actual['id']);
+
+        $expected = json_decode(file_get_contents($this->sampleFile()), true, flags: \JSON_THROW_ON_ERROR);
+        foreach ($expected['elements'] as $i => $element) {
+            if (EllipseElement::TYPE === $element['type']) {
+                $expected['elements'][$i]['rotation'] ??= 0;
+            }
+        }
+
+        // Same document as the sample, with every id replaced by a new one in the same order
+        $ids = [$actual['id'] => $expected['id']];
+        foreach (['vertices', 'layers', 'groups', 'styles', 'elements'] as $list) {
+            self::assertCount(\count($expected[$list]), $actual[$list], $list);
+            foreach ($actual[$list] as $i => $item) {
+                $ids[$item['id']] = $expected[$list][$i]['id'];
+            }
+        }
+        array_walk_recursive($actual, static function (mixed &$value) use ($ids): void {
+            if (\is_string($value) && isset($ids[$value])) {
+                $value = $ids[$value];
+            }
+        });
+
+        self::assertEquals($expected, $actual);
+    }
+
+    public function testServesTheDraftWhenAHeadExists(): void
+    {
+        $container = static::getContainer();
+        $em = $container->get(EntityManagerInterface::class);
+        $plan = $em->find(Plan::class, Uuid::fromString($this->planId));
+        // Built by hand: no service uses it before the publish action exists, so the container drops it
+        $copier = new PlanVersionCopier($container->get(PlanDocumentReader::class), $container->get(PlanFactory::class));
+        $plan->publish($head = $copier->copy($plan->getDraft()));
+        $em->flush();
+
+        $this->client->request('GET', '/api/plans/'.$this->planId.'/document');
+
+        $document = json_decode($this->client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);
+        $draftVertices = $em->getRepository(Vertex::class)->findBy(['planVersion' => $plan->getDraft()]);
+        self::assertContains($document['vertices'][0]['id'], array_map(static fn (Vertex $v): string => $v->getId()->toRfc4122(), $draftVertices));
+        self::assertNotEquals($head->getId(), $plan->getDraft()->getId());
+    }
+
+    public function testMatchingEtagReturns304(): void
+    {
+        $this->client->request('GET', '/api/plans/'.$this->planId.'/document', server: ['HTTP_IF_NONE_MATCH' => '"1"']);
+
+        self::assertResponseStatusCodeSame(304);
     }
 
     public function testUnknownPlanReturns404(): void
     {
-        $client = static::createClient();
-        $client->request('GET', '/api/plans/'.Uuid::v7()->toRfc4122().'/document');
+        $this->client->request('GET', '/api/plans/'.Uuid::v7()->toRfc4122().'/document');
 
         self::assertResponseStatusCodeSame(404);
     }
 
     public function testNonUuidIdReturns404(): void
     {
-        $client = static::createClient();
-        $client->request('GET', '/api/plans/sample-plan/document');
+        $this->client->request('GET', '/api/plans/sample-plan/document');
 
         self::assertResponseStatusCodeSame(404);
     }
 
-    public function testMatchingEtagReturns304(): void
+    private function sampleDocument(): PlanDocument
     {
-        $client = static::createClient();
-        $client->request('GET', '/api/plans/'.self::FIXTURE_PLAN_ID.'/document', server: ['HTTP_IF_NONE_MATCH' => '"1"']);
+        return static::getContainer()->get(SerializerInterface::class)->deserialize(file_get_contents($this->sampleFile()), PlanDocument::class, 'json');
+    }
 
-        self::assertResponseStatusCodeSame(304);
+    private function sampleFile(): string
+    {
+        return static::getContainer()->getParameter('kernel.project_dir').PlanCreateSampleCommand::SAMPLE_PLAN;
     }
 }

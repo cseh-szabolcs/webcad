@@ -33,6 +33,12 @@ describe('CadSerializer', () => {
         expect(doc.elements[1]).not.toHaveProperty('name');
     });
 
+    it('treats a null element name as no name', () => {
+        const data = sample();
+        data.elements[1].name = null;
+        expect(parseDocument(data).elements[1]).not.toHaveProperty('name');
+    });
+
     it('parses circle, ellipse and bezier', () => {
         const doc = parseDocument(samplePlan);
         expect(doc.elements[5]).toMatchObject({ type: 'circle', radius: 600 });

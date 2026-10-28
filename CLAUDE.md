@@ -74,6 +74,7 @@ docker compose exec -T php vendor/bin/mate tools:list # AI Mate diagnostics; alw
 | App        | http://localhost:8080 (nginx → php-fpm, document root `public/`)     |
 | Editor dev | http://localhost:8081 (Vite; the `editor` container runs `npm run dev:init`) |
 | Old editor | http://localhost:8082 (`editor-old` container, reference only)         |
+| API docs   | http://localhost:8080/_doc (Stoplight UI), `/_doc.json` (OpenAPI); dev and test only |
 | Mailpit    | http://localhost:8025 (SMTP on 1025)                                 |
 | phpMyAdmin | http://localhost:8210                                               |
 
@@ -91,6 +92,7 @@ docker compose exec php bin/console app:tenant:list
 docker compose exec php bin/console app:tenant:delete <name>   # drops the database, asks first
 docker compose exec php bin/console app:tenants:run "doctrine:migrations:status"
 docker compose exec php bin/console <cmd> --tenant=<name>    # any command, on that tenant
+docker compose exec php bin/console app:plan:create-sample   # sample plan in a new project (--project=<id>, --project-name=…, --plan-id=<uuid>)
 ```
 
 Until users can log in, `DEFAULT_TENANT` (`.env.dev`, `.env.test`; `demo`) selects the tenant
@@ -103,15 +105,21 @@ deprecation fails the suite.
 
 Editor commands (from `depts/editor/`): `npm run dev`, `npm run build` (`tsc -b && vite build`),
 `npm run lint` (oxlint), `npm test` (Vitest; `*.test.ts` next to sources, pure code
-only, no canvas). Model coordinates are **mm with Y up**; the viewport flips Y for the screen.
+only, no canvas), `npm run generate:api` (see "API documentation" below). Model coordinates are **mm with Y up**; the viewport flips Y for the screen.
 
 Vite proxies `/api` to `http://nginx` (same origin, no CORS). When running `npm run dev`
 on the host, set `API_PROXY_TARGET=http://localhost:8080`.
 
-`GET /api/plans/{id}/document` returns the raw document JSON with the revision as `ETag`.
-For now `GetPlanDocumentHandler` reads `fixtures/plans/{uuid}.json` instead of the DB, and
-only that handler gets replaced once `PlanVersion` exists. The same sample plan exists
-twice, as `fixtures/plans/01994f4e-….json` (backend) and
+`GET /api/plans/{id}/document` returns the plan from the tenant database as a
+`PlanDocument`: its draft (`GetPlanDocumentHandler`; `PlanDocumentReader` in
+`src/Application/Reader/` reads one version with DBAL; vertices, groups and styles come in id
+order, i.e. creation order for UUIDv7), with the draft's `revision` as `ETag`
+(304 on a matching `If-None-Match`). An element without a name is sent with `name: null`,
+which `CadSerializer` reads as no name. In dev the editor loads the plan
+`01994f4e-6f3a-7c2d-9b1e-5a3c2d1e0f42` when the URL names none (`DEV_PLAN_ID` in `App.tsx`);
+create it once with `app:plan:create-sample --plan-id=01994f4e-6f3a-7c2d-9b1e-5a3c2d1e0f42`.
+The same sample plan exists twice, as `fixtures/plans/sample-plan.json` (backend: the source
+of `app:plan:create-sample` and the expected document in the API tests) and
 `depts/editor/src/cad/__fixtures__/sample-plan.json` (frontend unit tests), because the
 `php` container cannot see `depts/`. Keep them byte-identical. Ids are numbered fixture
 UUIDs `00000000-0000-7000-8000-000000000NNN` (vertices 001+, elements 101+, layers 201+,
@@ -152,11 +160,81 @@ decisions (still valid for the rebuild):
 - Target frontend layout is `src/cad/{model,geometry,renderer,editor/{tools,commands,snapping,overlays},persistence}`.
   It is a target, not a mandate to scaffold everything up front. `app/*` is a Vite
   alias for `depts/editor/src/*`.
-- **Backend persistence:** a plan's drawing is stored as a **versioned JSON document**
-  (`PlanVersion.documentData`), not one entity per line or vertex. Planned entities:
-  `Project`, `Plan`, `PlanVersion`, `User`, `ProjectMember`. Planned REST API under
-  `/api/projects` and `/api/plans/{id}/document|versions`, with revision/ETag-based
-  conflict detection. Real-time collaboration is out of scope for V1.
+- **Backend persistence:** a plan's drawing is stored **relationally**, one entity per
+  object, mirroring the editor's document model (tenant EM, `src/Domain/Entity`), and
+  **versioned**: `Plan` (belongs to a `Project`; `name`, `draft`, `head`, `version` = number of
+  the last publish, 0 at first) and `PlanVersion` (`plan`, `unit`, `revision` (the ETag),
+  `number`: null for a draft, else the publish number, `name`: optional, given on publishing to
+  find the version again, `createdAt`). The contents belong to a
+  version (`planVersion`, column `plan_version_id`). A new `Plan` makes its own draft; the editor
+  works on the draft. Publishing (the action itself comes later) is
+  `$plan->publish($copier->copy($plan->getDraft()), $name)`: the copy becomes the head with the
+  next number and the name, if given; earlier heads stay as history, the draft stays. `plan.draft_id`/`head_id` and
+  `plan_version.plan_id` refer to each other, so draft/head are nullable and `SET NULL` on delete
+  in the database (else deleting a plan is blocked by the versions it cascades to). `unit` is
+  `App\Domain\Enum\PlanUnit`, kept outside the entity folder because `EntityMappingTest` treats
+  every file there as an entity. Contents: `Layer` and `Element` with a `position` (drawing/document order), `Group` (table
+  `element_group`), `ElementStyle`, `Vertex` (shared by elements), `Element` with single table
+  inheritance on `type` (`LineElement`, `PolylineElement`, `ArcElement`, `CircleElement`,
+  `EllipseElement`, `BezierElement`; subclass columns are nullable in the database, siblings
+  share columns such as `start_vertex_id`), and `PolylineVertex` (PK polyline + position).
+  Every FK to the version and to vertices is `ON DELETE CASCADE`, layer/group/style `SET NULL`.
+  `schemaVersion` belongs to the wire format, not to the database. Still planned: `User`, `ProjectMember`, REST API under
+  `/api/projects` and `/api/plans/{id}/document|versions`, with revision/ETag-based conflict
+  detection. Real-time collaboration is out of scope for V1.
+- **API models** (`src/Application/Model/Plan/`, no suffix, as the class name becomes the
+  OpenAPI schema name and later `ApiSchema['…']` in the editor): `final readonly` classes
+  describing exactly the JSON `CadSerializer.parseDocument` reads (`PlanDocument`, `Vertex`,
+  `Layer`, `Group`, `ElementStyle`, `Vector2`, the element union `ElementInterface` with a
+  serializer `#[DiscriminatorMap]` on `type`, shared properties in `AbstractElement`).
+  `EllipseElement.rotation` is always sent (0 = axis-aligned). `PlanDocumentModelTest`
+  round-trips the sample plan through them. `PlanDocumentController` sends them.
+- **API documentation** (NelmioApiDocBundle, `config/packages/nelmio_api_doc.yaml`): the models
+  and controller attributes are the only source; the OpenAPI document and from it the editor's
+  TypeScript types are generated. Rules:
+  - A documented action carries `#[Areas(['default'])]`, `#[OA\Tag]` (described under
+    `documentation.tags`) and `#[OA\Get|Post|…]` with only `summary` and `responses`; the
+    success response names its model (`new OA\JsonContent(ref: new Model(type: …))`), as
+    nothing else tells Nelmio the response schema. Only paths under `path_patterns` (`^/api/`)
+    are documented.
+  - Models: `final readonly`, constructor promotion, required parameters before optional ones;
+    a parameter without default is required, **except a nullable one**: Nelmio leaves those out
+    of `required`, so a nullable property the API always sends is named in the class's
+    `#[OA\Schema(required: …)]` (`AbstractElement::ALWAYS_SENT`, `ElementStyle.fillColor`).
+    Limits as `#[Assert\…]`, prose in `#[OA\Schema]`/`#[OA\Property]`, no prose on a property
+    whose type is another model (a `$ref`), `@param list<…>` for lists, `#[Assert\Valid]` on
+    lists of models.
+  - A union is an interface with the serializer's `#[DiscriminatorMap]`, shared properties in an
+    abstract base class. Processors in `src/OpenApi/` (tagged in `config/services.yaml`):
+    `SchemaNameProcessor` drops the `Interface` suffix (`ElementInterface` → `Element`),
+    `DiscriminatorBranchProcessor` gives each branch a title and its `type` as a required
+    one-value enum, `RefSiblingProcessor` keeps prose next to a `$ref` via `allOf`,
+    `GeneratedDefaultProcessor` drops object defaults. `ApiDocumentationTest` checks the
+    endpoint, the names, every union branch and the always-sent properties.
+  - Editor types: `npm run generate:api` (host, backend running; `scripts/generate-api-types.mjs`,
+    openapi-typescript, `API_DOC_URL` overrides `http://localhost:8080/_doc.json`) writes
+    `depts/editor/src/api/schema.d.ts`: checked in, never edited by hand, ignored by oxlint. A
+    model change is done only once it ran and the diff of `schema.d.ts` is committed with it.
+    Code uses `ApiSchema['…']` from `src/api/types.ts`, no alias per model. openapi-typescript
+    7.13 declares a TypeScript 5 peer; `overrides` in `package.json` lets it use the editor's
+    TypeScript 6 (drop it once a release supports 6).
+  - The editor keeps its own document model (`cad/model`); the API types meet it at
+    `CadApiClient`, which types the response as `ApiSchema['PlanDocument']` and still validates
+    it with `parseDocument`. `ApiDocumentFitsModel` there fails `tsc` when the generated types no
+    longer fit `CadDocument` (renamed, retyped or removed property, new enum value, changed
+    `type`); the API's `name: null` counts as a missing name.
+- **`PlanFactory`** (`src/Application/Factory/`) builds from a `PlanDocument` a new `Plan` with
+  its draft filled (`create`) or a further version of a plan (`createVersion`), with a fresh
+  UUIDv7 for every entity and the references rewritten (shared vertices stay shared); it
+  persists, the caller flushes. Unknown references or another `schemaVersion` throw.
+  **`PlanVersionCopier`** copies a version through the document (reader, then
+  `createVersion`) instead of `__clone`, which could not rewrite the references between the
+  copies; it copies the stored state, so flush first. No service uses it before the publish
+  action exists, so the container drops it and tests build it by hand. The dev command `app:plan:create-sample`
+  (`src/Infrastructure/Fixtures/Console/PlanCreateSampleCommand.php`) reads the backend copy of
+  the sample plan through the serializer, creates it in a new or given project, and prints the
+  editor link from `EDITOR_URL` (`.env.dev`), i.e. `?plan=<id>`, which `App.tsx` reads.
+  `--plan-id` gives the plan a fixed id (refused when it exists).
 - **Backend uses CQRS** following `docs/architecture/cqrs.md`: `App\Application\{Command,
   CommandHandler,Query,QueryHandler,DTO}`, `App\Domain\{Entity,Event}`,
   `App\Infrastructure\…`, with separate Messenger `command.bus` / `query.bus`. Queries

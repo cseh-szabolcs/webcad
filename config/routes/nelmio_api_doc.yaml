@@ -1,0 +1,17 @@
+# The API documentation, in dev and test only: the routes are public.
+when@dev: &doc_routes
+    app_api_doc_json:
+        path: /_doc.json
+        methods: GET
+        defaults: { _controller: nelmio_api_doc.controller.swagger }
+
+    app_api_doc_ui:
+        path: /_doc{path}
+        methods: GET
+        controller: nelmio_api_doc.controller.stoplight
+        requirements:
+            path: '(/.*)?'
+        defaults:
+            path: ''
+
+when@test: *doc_routes

@@ -103,7 +103,8 @@ function parseElement(value: unknown, path: string): CadElement {
     const r = record(value, path);
     const base: BaseElement = {
         id: uuid(r.id, `${path}.id`),
-        ...(r.name !== undefined && { name: string(r.name, `${path}.name`) }),
+        // The API sends null for no name; the model leaves it out
+        ...(r.name !== undefined && r.name !== null && { name: string(r.name, `${path}.name`) }),
         layerId: nullable(r.layerId, `${path}.layerId`, string),
         groupId: nullable(r.groupId, `${path}.groupId`, string),
         styleId: nullable(r.styleId, `${path}.styleId`, string),
