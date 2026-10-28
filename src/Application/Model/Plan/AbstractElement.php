@@ -6,8 +6,8 @@ use OpenApi\Attributes as OA;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
- * The properties every element type has. A base class rather than properties on the interface,
- * because a discriminator on a class would publish its properties next to the oneOf.
+ * The properties every element type has, as ElementInterface declares them. A base class rather
+ * than a discriminator on a class, which would publish its properties next to the oneOf.
  */
 abstract readonly class AbstractElement implements ElementInterface
 {

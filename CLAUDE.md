@@ -92,7 +92,7 @@ docker compose exec php bin/console app:tenant:list
 docker compose exec php bin/console app:tenant:delete <name>   # drops the database, asks first
 docker compose exec php bin/console app:tenants:run "doctrine:migrations:status"
 docker compose exec php bin/console <cmd> --tenant=<name>    # any command, on that tenant
-docker compose exec php bin/console app:plan:create-sample   # sample plan in a new project (--project=<id>, --project-name=…, --plan-id=<uuid>)
+docker compose exec php bin/console app:fixture:create      # dev only: reset the tenant database, then the sample plan in a new project (asks first; -f, --project-name=…, --plan-id=<uuid>)
 ```
 
 Until users can log in, `DEFAULT_TENANT` (`.env.dev`, `.env.test`; `demo`) selects the tenant
@@ -120,9 +120,9 @@ by `PlanDocumentReaderTest`), with the draft's `revision` as `ETag`
 (304 on a matching `If-None-Match`). An element without a name is sent with `name: null`,
 which `CadSerializer` reads as no name. In dev the editor loads the plan
 `01994f4e-6f3a-7c2d-9b1e-5a3c2d1e0f42` when the URL names none (`DEV_PLAN_ID` in `App.tsx`);
-create it once with `app:plan:create-sample --plan-id=01994f4e-6f3a-7c2d-9b1e-5a3c2d1e0f42`.
+`app:fixture:create` creates it under that id (`FixtureCreateCommand::DEV_PLAN_ID`).
 The same sample plan exists twice, as `fixtures/plans/sample-plan.json` (backend: the source
-of `app:plan:create-sample` and the expected document in the API tests) and
+of `app:fixture:create` and the expected document in the API tests) and
 `depts/editor/src/cad/__fixtures__/sample-plan.json` (frontend unit tests), because the
 `php` container cannot see `depts/`. Keep them byte-identical. Ids are numbered fixture
 UUIDs `00000000-0000-7000-8000-000000000NNN` (vertices 001+, elements 101+, layers 201+,
@@ -225,12 +225,14 @@ decisions (still valid for the rebuild):
     Limits as `#[Assert\…]`, prose in `#[OA\Schema]`/`#[OA\Property]`, no prose on a property
     whose type is another model (a `$ref`), `@param list<…>` for lists, `#[Assert\Valid]` on
     lists of models.
-  - A union is an interface with the serializer's `#[DiscriminatorMap]`, shared properties in an
-    abstract base class. Processors in `src/OpenApi/` (tagged in `config/services.yaml`):
+  - A union is an interface with the serializer's `#[DiscriminatorMap]`, declaring the shared
+    properties (`public ?string $layerId { get; }`, so code holding the interface can read them),
+    implemented in an abstract base class. Processors in `src/OpenApi/` (tagged in `config/services.yaml`):
     `SchemaNameProcessor` drops the `Interface` suffix (`ElementInterface` → `Element`),
     `DiscriminatorBranchProcessor` gives each branch a title and its `type` as a required
     one-value enum, `RefSiblingProcessor` keeps prose next to a `$ref` via `allOf`,
-    `GeneratedDefaultProcessor` drops object defaults. `ApiDocumentationTest` checks the
+    `GeneratedDefaultProcessor` drops object defaults, `UnionPropertiesProcessor` drops the
+    interface's properties from the union (each branch documents them). `ApiDocumentationTest` checks the
     endpoint, the names, every union branch and the always-sent properties.
   - Editor types: `npm run generate:api` (host, backend running; `scripts/generate-api-types.mjs`,
     openapi-typescript, `API_DOC_URL` overrides `http://localhost:8080/_doc.json`) writes
@@ -251,11 +253,15 @@ decisions (still valid for the rebuild):
   **`PlanVersionCopier`** copies a version through the document (reader, then
   `createVersion`) instead of `__clone`, which could not rewrite the references between the
   copies; it copies the stored state, so flush first. No service uses it before the publish
-  action exists, so the container drops it and tests build it by hand. The dev command `app:plan:create-sample`
-  (`src/Infrastructure/Fixtures/Console/PlanCreateSampleCommand.php`) reads the backend copy of
-  the sample plan through the serializer, creates it in a new or given project, and prints the
-  editor link from `EDITOR_URL` (`.env.dev`), i.e. `?plan=<id>`, which `App.tsx` reads.
-  `--plan-id` gives the plan a fixed id (refused when it exists).
+  action exists, so the container drops it and tests build it by hand. The console command `app:fixture:create`
+  (`src/Infrastructure/Fixtures/Console/FixtureCreateCommand.php`, not a command bus message) is
+  registered only in dev (and test, for its test: `#[When]`), never in prod. After a
+  confirmation (`-f` skips it) it resets the selected tenant's database
+  (`TenantProvisioner::reset`: every table dropped, schema rebuilt from the migrations, run in a
+  kernel of its own like the migrations of a new tenant), reads the backend copy of the sample
+  plan through the serializer, creates it in a new project under `DEV_PLAN_ID` (`--plan-id`
+  names another id), and prints the editor link from `EDITOR_URL` (`.env.dev`), i.e.
+  `?plan=<id>`, which `App.tsx` reads. Its test runs on a tenant of its own.
 - **Backend uses CQRS** following `docs/architecture/cqrs.md`: `App\Application\{Command,
   CommandHandler,Query,QueryHandler,DTO}`, `App\Domain\{Entity,Event}`,
   `App\Infrastructure\…`, with separate Messenger `command.bus` / `query.bus`. Queries

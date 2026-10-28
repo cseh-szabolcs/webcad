@@ -39,4 +39,14 @@ final readonly class TenantSwitcher
         $this->tenantEntityManager->clear();
         $this->tenantConnection->selectDatabase($database);
     }
+
+    /**
+     * The selected tenant, or null before one is selected.
+     */
+    public function current(): ?string
+    {
+        $database = $this->tenantConnection->getTenantDatabase();
+
+        return null === $database ? null : $this->naming->tenantName($database);
+    }
 }

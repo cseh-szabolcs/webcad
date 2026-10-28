@@ -9,12 +9,14 @@ use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
- * Creates and deletes tenants: the registry row in app_main and the database app_<name>. A new
- * database gets its schema from the tenant migrations, so they stay the only source of the schema.
+ * Creates, resets and deletes tenants: the registry row in app_main and the database app_<name>. A
+ * new or reset database gets its schema from the tenant migrations, so they stay the only source of
+ * the schema.
  */
 final readonly class TenantProvisioner
 {
     private const string MIGRATE = 'doctrine:migrations:migrate --allow-no-migration';
+    private const string DROP_TABLES = 'doctrine:schema:drop --full-database --force';
 
     public function __construct(
         #[Autowire(service: 'doctrine.orm.main_entity_manager')]
@@ -70,6 +72,23 @@ final readonly class TenantProvisioner
     }
 
     /**
+     * Empties the tenant's database: drops every table (the migration versions too) and builds the
+     * schema again from the migrations. The database itself stays, so open connections keep working.
+     *
+     * @throws TenantNotFoundException
+     * @throws TenantProvisioningException when dropping or migrating failed
+     */
+    public function reset(string $name): void
+    {
+        if (!$this->tenantRepository->findByName($name) instanceof Tenant) {
+            throw new TenantNotFoundException($name);
+        }
+
+        $this->run($name, self::DROP_TABLES);
+        $this->migrate($name);
+    }
+
+    /**
      * Drops the tenant's database and removes it from the registry.
      *
      * @throws TenantNotFoundException
@@ -92,16 +111,24 @@ final readonly class TenantProvisioner
      */
     private function migrate(string $name): void
     {
+        $this->run($name, self::MIGRATE);
+    }
+
+    /**
+     * @throws TenantProvisioningException
+     */
+    private function run(string $name, string $commandLine): void
+    {
         $output = new BufferedOutput();
 
         try {
-            $exitCode = $this->commandRunner->run($name, self::MIGRATE, $output);
+            $exitCode = $this->commandRunner->run($name, $commandLine, $output);
         } catch (\Throwable $e) {
-            throw TenantProvisioningException::fromThrowable(self::MIGRATE, $e, $output->fetch());
+            throw TenantProvisioningException::fromThrowable($commandLine, $e, $output->fetch());
         }
 
         if (0 !== $exitCode) {
-            throw TenantProvisioningException::fromExitCode(self::MIGRATE, $exitCode, $output->fetch());
+            throw TenantProvisioningException::fromExitCode($commandLine, $exitCode, $output->fetch());
         }
     }
 

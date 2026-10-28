@@ -10,7 +10,7 @@ use App\Application\Reader\PlanDocumentReader;
 use App\Domain\Entity\Plan;
 use App\Domain\Entity\Project;
 use App\Domain\Entity\Vertex;
-use App\Infrastructure\Fixtures\Console\PlanCreateSampleCommand;
+use App\Infrastructure\Fixtures\Console\FixtureCreateCommand;
 use App\Infrastructure\Tenancy\TenantSwitcher;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -121,6 +121,6 @@ final class PlanDocumentControllerTest extends WebTestCase
 
     private function sampleFile(): string
     {
-        return static::getContainer()->getParameter('kernel.project_dir').PlanCreateSampleCommand::SAMPLE_PLAN;
+        return static::getContainer()->getParameter('kernel.project_dir').FixtureCreateCommand::SAMPLE_PLAN;
     }
 }

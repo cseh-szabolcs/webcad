@@ -48,4 +48,22 @@ final readonly class TenantNaming
 
         return $this->prefix.$name.$this->suffix;
     }
+
+    /**
+     * The tenant a database belongs to, the reverse of databaseName(); null for any other database.
+     */
+    public function tenantName(string $database): ?string
+    {
+        if (!str_starts_with($database, $this->prefix) || !str_ends_with($database, $this->suffix)) {
+            return null;
+        }
+
+        $name = substr($database, \strlen($this->prefix), \strlen($database) - \strlen($this->prefix) - \strlen($this->suffix));
+
+        try {
+            return $database === $this->databaseName($name) ? $name : null;
+        } catch (InvalidTenantNameException) {
+            return null;
+        }
+    }
 }

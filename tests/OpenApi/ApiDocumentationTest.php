@@ -44,6 +44,9 @@ final class ApiDocumentationTest extends WebTestCase
         foreach ($unions as $union) {
             $property = $union['discriminator']['propertyName'];
             self::assertCount(\count($union['discriminator']['mapping']), $union['oneOf']);
+            // The interface's shared properties are documented on each branch only
+            self::assertArrayNotHasKey('properties', $union);
+            self::assertArrayNotHasKey('required', $union);
 
             foreach ($union['discriminator']['mapping'] as $value => $ref) {
                 $name = substr($ref, \strlen(self::SCHEMA_REF));

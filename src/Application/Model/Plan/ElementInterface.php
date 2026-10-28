@@ -16,4 +16,14 @@ use Symfony\Component\Serializer\Attribute\DiscriminatorMap;
 #[OA\Schema(description: 'A drawn object of the plan, told apart by its type.')]
 interface ElementInterface
 {
+    // The properties every element type has, declared in AbstractElement
+    public string $id { get; }
+
+    public ?string $layerId { get; }
+
+    public ?string $groupId { get; }
+
+    public ?string $styleId { get; }
+
+    public ?string $name { get; }
 }

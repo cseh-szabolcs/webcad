@@ -16,7 +16,7 @@ use App\Domain\Entity\Element;
 use App\Domain\Entity\Plan;
 use App\Domain\Entity\Project;
 use App\Domain\Enum\PlanUnit;
-use App\Infrastructure\Fixtures\Console\PlanCreateSampleCommand;
+use App\Infrastructure\Fixtures\Console\FixtureCreateCommand;
 use App\Infrastructure\Tenancy\TenantSwitcher;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -124,7 +124,7 @@ final class PlanFactoryTest extends KernelTestCase
 
     private function sampleDocument(): PlanDocument
     {
-        $json = file_get_contents(static::getContainer()->getParameter('kernel.project_dir').PlanCreateSampleCommand::SAMPLE_PLAN);
+        $json = file_get_contents(static::getContainer()->getParameter('kernel.project_dir').FixtureCreateCommand::SAMPLE_PLAN);
 
         return static::getContainer()->get(SerializerInterface::class)->deserialize($json, PlanDocument::class, 'json');
     }

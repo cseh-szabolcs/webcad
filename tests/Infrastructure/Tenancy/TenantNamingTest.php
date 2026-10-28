@@ -15,6 +15,16 @@ final class TenantNamingTest extends TestCase
         self::assertSame('app_acme_2_test', (new TenantNaming('app_', '_test'))->databaseName('acme_2'));
     }
 
+    public function testTenantNameIsTheReverseOfDatabaseName(): void
+    {
+        self::assertSame('acme', (new TenantNaming('app_', ''))->tenantName('app_acme'));
+        self::assertSame('acme_2', (new TenantNaming('app_', '_test'))->tenantName('app_acme_2_test'));
+
+        self::assertNull((new TenantNaming('app_', ''))->tenantName('app_main'));
+        self::assertNull((new TenantNaming('app_', ''))->tenantName('other_acme'));
+        self::assertNull((new TenantNaming('app_', '_test'))->tenantName('app_acme'));
+    }
+
     #[DataProvider('invalidNames')]
     public function testRejectsInvalidNames(string $name): void
     {
