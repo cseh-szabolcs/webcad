@@ -26,20 +26,20 @@ services:
     # please note that last definitions always *replace* previous ones
 
     # swagger-php processors that correct the generated API document (see each class)
-    App\OpenApi\SchemaNameProcessor:
+    App\Core\OpenApi\SchemaNameProcessor:
         tags: [{ name: nelmio_api_doc.swagger.processor }]
 
-    App\OpenApi\RefSiblingProcessor:
+    App\Core\OpenApi\RefSiblingProcessor:
         tags: [{ name: nelmio_api_doc.swagger.processor }]
 
-    App\OpenApi\GeneratedDefaultProcessor:
+    App\Core\OpenApi\GeneratedDefaultProcessor:
         tags: [{ name: nelmio_api_doc.swagger.processor }]
 
-    App\OpenApi\UnionPropertiesProcessor:
+    App\Core\OpenApi\UnionPropertiesProcessor:
         tags: [{ name: nelmio_api_doc.swagger.processor }]
 
     # Runs last, so it works with the names SchemaNameProcessor settled on
-    App\OpenApi\DiscriminatorBranchProcessor:
+    App\Core\OpenApi\DiscriminatorBranchProcessor:
         tags: [{ name: nelmio_api_doc.swagger.processor, priority: -10 }]
 
 when@test:

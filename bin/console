@@ -1,7 +1,7 @@
 #!/usr/bin/env php
 <?php
 
-use App\Infrastructure\Tenancy\Console\Application;
+use App\Core\Tenancy\Console\Application;
 use App\Kernel;
 
 if (!is_dir(dirname(__DIR__).'/vendor')) {

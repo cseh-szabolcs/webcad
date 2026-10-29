@@ -64,7 +64,7 @@ on the host. This overrides the `symfony serve -d` advice in AGENTS.md.
 docker compose up -d
 docker compose exec php bin/console <cmd>          # e.g. debug:router, make:*, doctrine:migrations:migrate
 docker compose exec php bin/phpunit                # all tests
-docker compose exec php bin/phpunit --filter testIndex tests/Controller/IndexControllerTest.php
+docker compose exec php bin/phpunit --filter testIndex tests/Core/Controller/IndexControllerTest.php
 docker compose exec php vendor/bin/php-cs-fixer fix   # @Symfony ruleset (php-cs-fixer/shim)
 docker compose exec -T php vendor/bin/mate tools:list # AI Mate diagnostics; always run Mate this way
 ```
@@ -112,8 +112,8 @@ on the host, set `API_PROXY_TARGET=http://localhost:8080`.
 
 `GET /api/plans/{id}/document` returns the plan from the tenant database as a
 `PlanDocument`: its draft (`GetPlanDocumentHandler`; `PlanDocumentReader` in
-`src/Application/Reader/` maps one version's entities, read through the repositories in
-`src/Infrastructure/Doctrine/Repository/` (`findByPlanVersion`), to the API models; vertices,
+`src/Plan/Api/` maps one version's entities, read through the repositories in
+`src/Plan/Repository/` (`findByPlanVersion`), to the API models; vertices,
 groups and styles come in id order, i.e. creation order for UUIDv7; `ElementRepository`
 fetch-joins the polyline vertices first, so a read needs one query per kind of content, guarded
 by `PlanDocumentReaderTest`), with the draft's `revision` as `ETag`
@@ -164,7 +164,7 @@ decisions (still valid for the rebuild):
   It is a target, not a mandate to scaffold everything up front. `app/*` is a Vite
   alias for `depts/editor/src/*`.
 - **Backend persistence:** a plan's drawing is stored **relationally**, one entity per
-  object, mirroring the editor's document model (tenant EM, `src/Domain/Entity`), and
+  object, mirroring the editor's document model (tenant EM, `src/Plan/Entity`), and
   **versioned**: `Plan` (belongs to a `Project`; `name`, `draft`, `head`, `version` = number of
   the last publish, 0 at first) and `PlanVersion` (`plan`, `unit`, `revision` (the ETag),
   `number`: null for a draft, else the publish number, `name`: optional, given on publishing to
@@ -175,7 +175,7 @@ decisions (still valid for the rebuild):
   next number and the name, if given; earlier heads stay as history, the draft stays. `plan.draft_id`/`head_id` and
   `plan_version.plan_id` refer to each other, so draft/head are nullable and `SET NULL` on delete
   in the database (else deleting a plan is blocked by the versions it cascades to). `unit` is
-  `App\Domain\Enum\PlanUnit`, kept outside the entity folder because `EntityMappingTest` treats
+  `App\Plan\Enum\PlanUnit`, kept outside the entity folder because `EntityMappingTest` treats
   every file there as an entity. Contents: `Layer` and `Element` with a `position` (drawing/document order), `Group` (table
   `element_group`), `ElementStyle`, `Vertex` (shared by elements), `Element` with single table
   inheritance on `type` (`LineElement`, `PolylineElement`, `ArcElement`, `CircleElement`,
@@ -186,15 +186,16 @@ decisions (still valid for the rebuild):
   layer/group/style stay columns; the values only needed to draw an element (`closed`,
   `clockwise`, `radius`, `radiusX`/`radiusY`/`rotation`, `startControl`/`endControl`) are its
   `props`, one JSON column `element.props`. In PHP they are model classes, never arrays
-  (`src/Domain/ElementProps/`: `ElementPropsInterface` with a serializer `#[DiscriminatorMap]`
+  (`src/Plan/Props/`: `ElementPropsInterface` with a serializer `#[DiscriminatorMap]`
   on `type`, `LineProps` (empty so far), `PolylineProps`, `ArcProps`, `CircleProps`,
   `EllipseProps`, `BezierProps`, `Vector2`; `final readonly`, so a change replaces the object).
   Each element subclass takes and returns its own props class (`CircleElement::getProps():
   CircleProps`). They are stored with the generic Doctrine type **`json_document`**
-  (`src/Infrastructure/Doctrine/JsonDocumentType`, usable for any object): it normalizes the
+  (`src/Core/Doctrine/JsonDocumentType`, usable for any object): it normalizes the
   object with the app's serializer and adds its class name under `"#type"`, then denormalizes
   into that class on read (a Doctrine type does not know the property it converts). Moving or
-  renaming a class stored this way needs a data migration of `"#type"`. As the type needs the
+  renaming a class stored this way needs a data migration of `"#type"` (example:
+  `migrations/Tenant/Version20261029220621.php`). As the type needs the
   (private) serializer, the public `JsonDocumentTypeRegistrar` registers an instance of it,
   called from `Kernel::boot()`. Props use the API models' property names and `type`, so
   `PlanDocumentReader` normalizes an element's props and denormalizes them with its
@@ -203,7 +204,7 @@ decisions (still valid for the rebuild):
   `schemaVersion` belongs to the wire format, not to the database. Still planned: `User`, `ProjectMember`, REST API under
   `/api/projects` and `/api/plans/{id}/document|versions`, with revision/ETag-based conflict
   detection. Real-time collaboration is out of scope for V1.
-- **API models** (`src/Application/Model/Plan/`, no suffix, as the class name becomes the
+- **API models** (`src/Plan/Api/Model/`, no suffix, as the class name becomes the
   OpenAPI schema name and later `ApiSchema['…']` in the editor): `final readonly` classes
   describing exactly the JSON `CadSerializer.parseDocument` reads (`PlanDocument`, `Vertex`,
   `Layer`, `Group`, `ElementStyle`, `Vector2`, the element union `ElementInterface` with a
@@ -227,7 +228,7 @@ decisions (still valid for the rebuild):
     lists of models.
   - A union is an interface with the serializer's `#[DiscriminatorMap]`, declaring the shared
     properties (`public ?string $layerId { get; }`, so code holding the interface can read them),
-    implemented in an abstract base class. Processors in `src/OpenApi/` (tagged in `config/services.yaml`):
+    implemented in an abstract base class. Processors in `src/Core/OpenApi/` (tagged in `config/services.yaml`):
     `SchemaNameProcessor` drops the `Interface` suffix (`ElementInterface` → `Element`),
     `DiscriminatorBranchProcessor` gives each branch a title and its `type` as a required
     one-value enum, `RefSiblingProcessor` keeps prose next to a `$ref` via `allOf`,
@@ -246,7 +247,7 @@ decisions (still valid for the rebuild):
     it with `parseDocument`. `ApiDocumentFitsModel` there fails `tsc` when the generated types no
     longer fit `CadDocument` (renamed, retyped or removed property, new enum value, changed
     `type`); the API's `name: null` counts as a missing name.
-- **`PlanFactory`** (`src/Application/Factory/`) builds from a `PlanDocument` a new `Plan` with
+- **`PlanFactory`** (`src/Plan/`) builds from a `PlanDocument` a new `Plan` with
   its draft filled (`create`) or a further version of a plan (`createVersion`), with a fresh
   UUIDv7 for every entity and the references rewritten (shared vertices stay shared); it
   persists, the caller flushes. Unknown references or another `schemaVersion` throw.
@@ -254,7 +255,7 @@ decisions (still valid for the rebuild):
   `createVersion`) instead of `__clone`, which could not rewrite the references between the
   copies; it copies the stored state, so flush first. No service uses it before the publish
   action exists, so the container drops it and tests build it by hand. The console command `app:fixture:create`
-  (`src/Infrastructure/Fixtures/Console/FixtureCreateCommand.php`, not a command bus message) is
+  (`src/Fixtures/FixtureCreateCommand.php`, not a command bus message) is
   registered only in dev (and test, for its test: `#[When]`), never in prod. After a
   confirmation (`-f` skips it) it resets the selected tenant's database
   (`TenantProvisioner::reset`: every table dropped, schema rebuilt from the migrations, run in a
@@ -262,9 +263,20 @@ decisions (still valid for the rebuild):
   plan through the serializer, creates it in a new project under `DEV_PLAN_ID` (`--plan-id`
   names another id), and prints the editor link from `EDITOR_URL` (`.env.dev`), i.e.
   `?plan=<id>`, which `App.tsx` reads. Its test runs on a tenant of its own.
-- **Backend uses CQRS** following `docs/architecture/cqrs.md`: `App\Application\{Command,
-  CommandHandler,Query,QueryHandler,DTO}`, `App\Domain\{Entity,Event}`,
-  `App\Infrastructure\…`, with separate Messenger `command.bus` / `query.bus`. Queries
+- **Backend layout by business area**, not by layer; namespaces follow the folders:
+  `src/Core/` is technology only (`Tenancy/` with its `Entity/`, `Repository/` and `Console/`,
+  `Doctrine/` for `json_document`, `OpenApi/` processors, `Controller/IndexController` as a
+  placeholder page), `src/Project/`, `src/Plan/` (`Entity/`, `Props/`, `Enum/`, `Repository/`,
+  `PlanFactory`, `PlanVersionCopier`, `Api/` with controller, query, handler, reader, DTO and
+  `Model/`), `src/Fixtures/`; `User/` comes later (its `Entity/` in the main EM). Rules for new
+  code: every area has an `Entity/` folder with **only** entities (mappings and
+  `EntityMappingTest` go per folder), value objects and enums beside it (`Props/`, `Enum/`);
+  a command and its handler, or a query, its handler and DTO, lie side by side in the area,
+  subfolders only once an area gets crowded; dependencies point one way (`Plan` may know
+  `Project`, not the reverse; `Core` knows no area). Tests mirror the folders
+  (`tests/Core/Tenancy/…`, `tests/Plan/Api/…`).
+- **Backend uses CQRS** following `docs/architecture/cqrs.md`, with separate Messenger
+  `command.bus` / `query.bus`. Queries
   return DTOs and never modify state. Name commands after business tasks, not field
   setters. Both buses are configured in `config/packages/messenger.yaml`, and both are
   synchronous for now (no async transport or worker yet). Pin each handler to its bus
@@ -272,7 +284,7 @@ decisions (still valid for the rebuild):
   `persist()`, because the `doctrine_transaction` middleware flushes and commits. Query
   handlers read entities through repositories and return DTOs. **Entities and repositories,
   not native SQL:** handlers and readers load through one `ServiceEntityRepository` per entity
-  in `src/Infrastructure/Doctrine/Repository/` (named in the entity's `repositoryClass`, no
+  in the area's `Repository/` folder (named in the entity's `repositoryClass`, no
   interfaces), with finders of their own where `find`/`findBy` is not enough (e.g.
   `findByPlanVersion`); DBAL or SQL only for a measured reason, and only after asking. Load
   what a read needs in a fixed number of queries (fetch joins instead of a lazy load per
@@ -280,12 +292,14 @@ decisions (still valid for the rebuild):
   UuidType::NAME)`: an entity or a `Uuid` without the type is not bound as BINARY(16) and
   silently matches nothing (`findBy` is fine). Two entity managers: `tenant` (the default, so
   plain `EntityManagerInterface`/`Connection` autowiring and `doctrine_transaction` hit the
-  tenant's database) maps `src/Domain/Entity`; `main` (app_main) maps `src/Domain/Main/Entity`.
-  `src/Entity` is unused. Tenancy code lives in `src/Infrastructure/Tenancy`
+  tenant's database) maps `src/Plan/Entity` (mapping `Plan`) and `src/Project/Entity`
+  (`Project`); `main` (app_main) maps `src/Core/Tenancy/Entity` (`Tenancy`). A new area's
+  `Entity/` folder needs a mapping of its own and a row in `EntityMappingTest`. Tenancy code
+  lives in `src/Core/Tenancy`
   (`TenantConnection` refuses queries before a tenant is selected, `TenantSwitcher`,
   `TenantProvisioner`, console `--tenant` option in `Console/Application`, used by
   `bin/console`). The reference example is
-  `CreateProjectCommand`/`GetProjectQuery`, tested in `tests/Application/ProjectCqrsTest.php`.
+  `CreateProjectCommand`/`GetProjectQuery` in `src/Project/`, tested in `tests/Project/ProjectCqrsTest.php`.
 - **Migrations** are split: `migrations/Tenant` (bundle default; `doctrine:migrations:diff
   --tenant=demo`) and `migrations/Main` (`--em=main --configuration=config/migrations/main.yaml`).
   After a new migration, run `composer db:migrate` in the `php` container, and again with

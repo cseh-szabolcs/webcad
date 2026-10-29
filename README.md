@@ -6,10 +6,10 @@ CAD-Editor with project management functionality for architects
 The backend is multi-tenant: every customer (tenant) has a database of its own. Details in
 [docs/architecture/tenancy.md](docs/architecture/tenancy.md).
 
-| Database     | Contents                                    | Entities                 | Migrations          | Test database      |
-|--------------|---------------------------------------------|--------------------------|---------------------|--------------------|
-| `app_main`   | tenant registry, later the users            | `src/Domain/Main/Entity` | `migrations/Main`   | `app_main_test`    |
-| `app_<name>` | the data of one customer (projects, plans…) | `src/Domain/Entity`      | `migrations/Tenant` | `app_<name>_test`  |
+| Database     | Contents                                    | Entities                                 | Migrations          | Test database      |
+|--------------|---------------------------------------------|------------------------------------------|---------------------|--------------------|
+| `app_main`   | tenant registry, later the users            | `src/Core/Tenancy/Entity`                | `migrations/Main`   | `app_main_test`    |
+| `app_<name>` | the data of one customer (projects, plans…) | `src/Project/Entity`, `src/Plan/Entity`  | `migrations/Tenant` | `app_<name>_test`  |
 
 All commands run in the `php` container. A command on a tenant database selects the tenant with
 `--tenant=<name>`; without it, `DEFAULT_TENANT` from `.env.dev` / `.env.test` (`demo`) is used.
@@ -63,13 +63,13 @@ the `dev` environment (and in `test`, for its own test), never in `prod`.
 Change or add the entity first, then let Doctrine compare the mapping with an **up-to-date**
 database (run the pending migrations before, or the diff repeats them).
 
-**Tenant database** (entity in `src/Domain/Entity`), compared with the tenant `demo`:
+**Tenant database** (entity in `src/Project/Entity`, `src/Plan/Entity`), compared with the tenant `demo`:
 
 ```sh
 docker compose exec php bin/console doctrine:migrations:diff --tenant=demo
 ```
 
-**Main database** (entity in `src/Domain/Main/Entity`):
+**Main database** (entity in `src/Core/Tenancy/Entity`):
 
 ```sh
 docker compose exec php bin/console doctrine:migrations:diff --em=main --configuration=config/migrations/main.yaml
@@ -112,9 +112,9 @@ others and lists every result at the end.
 
 ## API documentation and editor types
 
-The PHP API models (`src/Application/Model/`) and the `#[OA\…]` attributes on the controllers are
+The PHP API models (`src/Plan/Api/Model/`) and the `#[OA\…]` attributes on the controllers are
 the only source of the API description. NelmioApiDocBundle builds the OpenAPI document from them
-(with the corrections of the processors in `src/OpenApi/`); in dev and test it is served at
+(with the corrections of the processors in `src/Core/OpenApi/`); in dev and test it is served at
 
 | What               | URL                                 |
 |--------------------|-------------------------------------|

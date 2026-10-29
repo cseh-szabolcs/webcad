@@ -3,9 +3,16 @@
 
 > **In this project** the structure below applies (commands, queries, DTOs, two buses), with one
 > deviation: query handlers do not read with DBAL as in the examples below, but load entities
-> through Doctrine repositories (`src/Infrastructure/Doctrine/Repository/`, no repository
+> through Doctrine repositories (the area's `Repository/` folder, no repository
 > interfaces) and map them to DTOs, like the command handlers. A separate SQL read model is only
 > worth it for a read that is measured to be too slow. See "Architecture" in `CLAUDE.md`.
+>
+> **Folders:** the code is grouped by business area, not by layer (no `Application/Command`,
+> `Application/QueryHandler`, `Domain/Entity` …). A command and its handler, or a query, its handler
+> and its DTO, lie side by side in the area (`src/Project/CreateProjectCommand.php` next to
+> `CreateProjectHandler.php`); the area's entities in its `Entity/` folder, its repositories in
+> `Repository/`, its controller with the API models in `Api/` (`src/Plan/Api/`). The examples below
+> use a `Booking` area in the same way.
 
 [](#introduction)Introduction
 -----------------------------
@@ -36,8 +43,8 @@ Use the CQRS pattern to separate write operations (commands) from read operation
 
 Commands should represent specific business tasks rather than low-level data updates. For example, in a hotel booking application, use the command `BookHotelRoomCommand` instead of `SetReservationStatusCommand`.  
 
-    // src/Application/Command/BookHotelRoomCommand.php
-    namespace App\Application\Command;
+    // src/Booking/BookHotelRoomCommand.php
+    namespace App\Booking;
     
     final readonly class BookHotelRoomCommand
     {
@@ -62,8 +69,8 @@ Enter fullscreen mode Exit fullscreen mode
 
 Queries never modify data. They return DTOs (Data Transfer Objects) that present the required data in a convenient format without business logic.  
 
-    // src/Application/Query/FindAvailableRoomsQuery.php
-    namespace App\Application\Query;
+    // src/Booking/FindAvailableRoomsQuery.php
+    namespace App\Booking;
     
     final readonly class FindAvailableRoomsQuery
     {
@@ -86,8 +93,8 @@ This is the foundational level of CQRS, where read and write models use the same
 
 **Write Model**:  
 
-    // src/Domain/Entity/Room.php
-    namespace App\Domain\Entity;
+    // src/Booking/Entity/Room.php
+    namespace App\Booking\Entity;
     
     use Doctrine\ORM\Mapping as ORM;
     
@@ -122,11 +129,10 @@ Enter fullscreen mode Exit fullscreen mode
 
 **Command Handler**:  
 
-    // src/Application/CommandHandler/BookHotelRoomHandler.php
-    namespace App\Application\CommandHandler;
+    // src/Booking/BookHotelRoomHandler.php
+    namespace App\Booking;
     
-    use App\Application\Command\BookHotelRoomCommand;
-    use App\Domain\Repository\RoomRepositoryInterface;
+    use App\Booking\Repository\RoomRepositoryInterface;
     use Doctrine\ORM\EntityManagerInterface;
     use Symfony\Component\Messenger\Attribute\AsMessageHandler;
     
@@ -161,8 +167,8 @@ Enter fullscreen mode Exit fullscreen mode
 
 **Read Model**:  
 
-    // src/Application/DTO/RoomAvailabilityDTO.php
-    namespace App\Application\DTO;
+    // src/Booking/RoomAvailabilityDTO.php
+    namespace App\Booking;
     
     final readonly class RoomAvailabilityDTO
     {
@@ -181,11 +187,9 @@ Enter fullscreen mode Exit fullscreen mode
 
 **Query Handler**:  
 
-    // src/Application/QueryHandler/FindAvailableRoomsHandler.php
-    namespace App\Application\QueryHandler;
+    // src/Booking/FindAvailableRoomsHandler.php
+    namespace App\Booking;
     
-    use App\Application\Query\FindAvailableRoomsQuery;
-    use App\Application\DTO\RoomAvailabilityDTO;
     use Doctrine\DBAL\Connection;
     use Symfony\Component\Messenger\Attribute\AsMessageHandler;
     
@@ -260,25 +264,25 @@ A more advanced CQRS implementation uses different data stores for read and writ
                 write:
                     connection: write
                     mappings:
-                        Domain:
+                        Booking:
                             type: attribute
-                            dir: '%kernel.project_dir%/src/Domain/Entity'
-                            prefix: 'App\Domain\Entity'
+                            dir: '%kernel.project_dir%/src/Booking/Entity'
+                            prefix: 'App\Booking\Entity'
                 read:
                     connection: read
                     mappings:
                         ReadModel:
                             type: attribute
-                            dir: '%kernel.project_dir%/src/Infrastructure/ReadModel'
-                            prefix: 'App\Infrastructure\ReadModel'
+                            dir: '%kernel.project_dir%/src/Booking/ReadModel'
+                            prefix: 'App\Booking\ReadModel'
     
 
 Enter fullscreen mode Exit fullscreen mode
 
 **Synchronization via events:**  
 
-    // src/Domain/Event/RoomBookedEvent.php
-    namespace App\Domain\Event;
+    // src/Booking/RoomBookedEvent.php
+    namespace App\Booking;
     
     final readonly class RoomBookedEvent
     {
@@ -294,10 +298,9 @@ Enter fullscreen mode Exit fullscreen mode
 
 Enter fullscreen mode Exit fullscreen mode
 
-    // src/Infrastructure/EventListener/RoomBookedEventListener.php
-    namespace App\Infrastructure\EventListener;
+    // src/Booking/RoomBookedEventListener.php
+    namespace App\Booking;
     
-    use App\Domain\Event\RoomBookedEvent;
     use Doctrine\DBAL\Connection;
     use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
     
@@ -347,8 +350,8 @@ Symfony Messenger is ideal for implementing CQRS:
                         delay: 1000
     
             routing:
-                'App\Application\Command\*': async
-                'App\Application\Query\*': sync
+                'App\Booking\BookHotelRoomCommand': async
+                'App\Booking\FindAvailableRoomsQuery': sync
     
 
 Enter fullscreen mode Exit fullscreen mode
@@ -356,11 +359,11 @@ Enter fullscreen mode Exit fullscreen mode
 [](#usage-in-controllers)Usage in Controllers
 ---------------------------------------------
 
-    // src/Controller/BookingController.php
-    namespace App\Controller;
+    // src/Booking/Api/BookingController.php
+    namespace App\Booking\Api;
     
-    use App\Application\Command\BookHotelRoomCommand;
-    use App\Application\Query\FindAvailableRoomsQuery;
+    use App\Booking\BookHotelRoomCommand;
+    use App\Booking\FindAvailableRoomsQuery;
     use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
     use Symfony\Component\HttpFoundation\JsonResponse;
     use Symfony\Component\HttpFoundation\Request;
@@ -458,10 +461,8 @@ This pattern may not be suitable when:
 
 CQRS is often combined with the Event Sourcing pattern in Symfony:  
 
-    // src/Infrastructure/EventStore/EventStore.php
-    namespace App\Infrastructure\EventStore;
-    
-    use App\Domain\Event\DomainEventInterface;
+    // src/Core/EventStore/EventStore.php
+    namespace App\Core\EventStore;
     
     interface EventStoreInterface
     {

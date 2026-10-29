@@ -98,7 +98,7 @@ Heads bleiben als Historie erhalten. Kopiert wird über das Dokument: Version le
 neu aufbauen.
 
 Die API liefert den Plan weiterhin als ein Dokument in der heutigen JSON-Form; beschrieben wird es
-durch die API-Models in `src/Application/Model/Plan/`.
+durch die API-Models in `src/Plan/Api/Model/`.
 
 ### REST API (erster Vorschlag)
 

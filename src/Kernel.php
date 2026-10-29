@@ -2,7 +2,7 @@
 
 namespace App;
 
-use App\Infrastructure\Doctrine\JsonDocumentTypeRegistrar;
+use App\Core\Doctrine\JsonDocumentTypeRegistrar;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Component\HttpKernel\Kernel as BaseKernel;
 

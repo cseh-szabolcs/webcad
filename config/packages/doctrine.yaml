@@ -2,13 +2,13 @@ doctrine:
     dbal:
         # Multi-tenancy, see docs/architecture/tenancy.md. Both connections read DATABASE_URL, whose
         # database is app_main. The tenant connection is the default one, because everything the
-        # application stores belongs to one customer: App\Infrastructure\Tenancy\TenantConnection
+        # application stores belongs to one customer: App\Core\Tenancy\TenantConnection
         # rewrites the database name to app_<tenant> and refuses to connect before a tenant is selected.
         default_connection: tenant
         connections:
             tenant:
                 url: '%env(resolve:DATABASE_URL)%'
-                wrapper_class: App\Infrastructure\Tenancy\TenantConnection
+                wrapper_class: App\Core\Tenancy\TenantConnection
                 profiling_collect_backtrace: '%kernel.debug%'
             # app_main: the tenant registry (later also the users), shared by all customers.
             main:
@@ -24,12 +24,18 @@ doctrine:
                 identity_generation_preferences:
                     Doctrine\DBAL\Platforms\PostgreSQLPlatform: identity
                 mappings:
-                    Domain:
+                    Plan:
                         type: attribute
                         is_bundle: false
-                        dir: '%kernel.project_dir%/src/Domain/Entity'
-                        prefix: 'App\Domain\Entity'
-                        alias: Domain
+                        dir: '%kernel.project_dir%/src/Plan/Entity'
+                        prefix: 'App\Plan\Entity'
+                        alias: Plan
+                    Project:
+                        type: attribute
+                        is_bundle: false
+                        dir: '%kernel.project_dir%/src/Project/Entity'
+                        prefix: 'App\Project\Entity'
+                        alias: Project
             main:
                 connection: main
                 validate_xml_mapping: true
@@ -37,12 +43,12 @@ doctrine:
                 identity_generation_preferences:
                     Doctrine\DBAL\Platforms\PostgreSQLPlatform: identity
                 mappings:
-                    Main:
+                    Tenancy:
                         type: attribute
                         is_bundle: false
-                        dir: '%kernel.project_dir%/src/Domain/Main/Entity'
-                        prefix: 'App\Domain\Main\Entity'
-                        alias: Main
+                        dir: '%kernel.project_dir%/src/Core/Tenancy/Entity'
+                        prefix: 'App\Core\Tenancy\Entity'
+                        alias: Tenancy
 
 when@test:
     doctrine:

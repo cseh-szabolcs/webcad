@@ -22,10 +22,12 @@ Doctrine setup
 `DATABASE_URL` (whose database is `app_main`):
 
 - **`tenant`** is the default connection and entity manager. Its wrapper class
-  `App\Infrastructure\Tenancy\TenantConnection` connects to the selected tenant's database instead
+  `App\Core\Tenancy\TenantConnection` connects to the selected tenant's database instead
   of `app_main`, and throws `TenantNotSelectedException` while no tenant is selected. So nothing can
-  read or write `app_main` by accident. It maps `src/Domain/Entity`.
-- **`main`** maps `src/Domain/Main/Entity`. Inject it explicitly:
+  read or write `app_main` by accident. It maps the entity folders of the business areas whose data
+  belongs to one customer: `src/Plan/Entity` (mapping `Plan`) and `src/Project/Entity` (`Project`).
+- **`main`** maps `src/Core/Tenancy/Entity` (mapping `Tenancy`; later also `src/User/Entity`).
+  Inject it explicitly:
   `#[Autowire(service: 'doctrine.orm.main_entity_manager')]`, or the connection as
   `#[Autowire(service: 'doctrine.dbal.main_connection')]`.
 
@@ -33,9 +35,12 @@ Since `tenant` is the default, the CQRS code needs nothing special: command hand
 entity manager, query handlers the tenant `Connection`, and the `doctrine_transaction` middleware of
 `command.bus` wraps the tenant connection.
 
-A new entity goes into `src/Domain/Entity` if it belongs to one customer, into
-`src/Domain/Main/Entity` if it is shared. `tests/Infrastructure/Tenancy/EntityMappingTest.php` checks
-that each one is managed by the entity manager of its folder.
+A new entity goes into the `Entity/` folder of its business area (`src/<Area>/Entity`, nothing but
+entities there). Each such folder belongs to exactly one entity manager: `tenant` if the area's data
+belongs to one customer, `main` if it is shared. A new folder gets a mapping of its own under that
+entity manager in `config/packages/doctrine.yaml` and a row in
+`tests/Core/Tenancy/EntityMappingTest.php`, which checks that each entity is managed by the entity
+manager of its folder.
 
 Selecting the tenant
 --------------------

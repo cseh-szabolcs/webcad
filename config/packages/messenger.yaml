@@ -24,7 +24,7 @@ framework:
         routing:
             # Route your messages to the transports
             # Commands and queries are handled synchronously for now (no async transport/worker yet).
-            # 'App\Application\Command\*': async
+            # 'App\Project\CreateProjectCommand': async
 
 # when@test:
 #    framework:
