@@ -2,7 +2,6 @@
 
 namespace App\Plan;
 
-use App\Plan\Api\PlanDocumentReader;
 use App\Plan\Entity\PlanVersion;
 
 /**

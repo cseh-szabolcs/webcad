@@ -2,7 +2,6 @@
 
 namespace App\Plan\Entity;
 
-use App\Plan\Props\CircleProps;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
 
@@ -18,24 +17,23 @@ class CircleElement extends Element
         #[ORM\ManyToOne]
         #[ORM\JoinColumn(onDelete: 'CASCADE')]
         private Vertex $centerVertex,
-        CircleProps $props,
+        #[ORM\Column(nullable: true)]
+        private float $radius,
         ?Layer $layer = null,
         ?Group $group = null,
         ?ElementStyle $style = null,
         ?string $name = null,
     ) {
-        parent::__construct($id, $planVersion, $position, $props, $layer, $group, $style, $name);
-    }
-
-    public function getProps(): CircleProps
-    {
-        \assert($this->props instanceof CircleProps);
-
-        return $this->props;
+        parent::__construct($id, $planVersion, $position, $layer, $group, $style, $name);
     }
 
     public function getCenterVertex(): Vertex
     {
         return $this->centerVertex;
+    }
+
+    public function getRadius(): float
+    {
+        return $this->radius;
     }
 }

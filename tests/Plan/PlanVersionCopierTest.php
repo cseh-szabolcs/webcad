@@ -4,10 +4,10 @@ namespace App\Tests\Plan;
 
 use App\Core\Tenancy\TenantSwitcher;
 use App\Fixtures\FixtureCreateCommand;
-use App\Plan\Api\Model\PlanDocument;
-use App\Plan\Api\PlanDocumentReader;
+use App\Plan\Dto\PlanDocumentDto;
 use App\Plan\Entity\Plan;
 use App\Plan\Entity\PlanVersion;
+use App\Plan\PlanDocumentReader;
 use App\Plan\PlanFactory;
 use App\Plan\PlanVersionCopier;
 use App\Project\Entity\Project;
@@ -84,7 +84,7 @@ final class PlanVersionCopierTest extends KernelTestCase
     {
         $container = static::getContainer();
         $json = file_get_contents($container->getParameter('kernel.project_dir').FixtureCreateCommand::SAMPLE_PLAN);
-        $document = $container->get(SerializerInterface::class)->deserialize($json, PlanDocument::class, 'json');
+        $document = $container->get(SerializerInterface::class)->deserialize($json, PlanDocumentDto::class, 'json');
 
         $project = new Project(Uuid::v7(), 'Beispielprojekt');
         $this->em()->persist($project);

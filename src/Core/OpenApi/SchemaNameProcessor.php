@@ -7,12 +7,17 @@ use OpenApi\Annotations as OA;
 use OpenApi\Undefined;
 
 /**
- * Runs as a swagger-php processor, i.e. after the whole model graph has been registered, so
- * `ElementInterface` is documented as "Element" and every `$ref` at it is rewritten.
+ * Names each schema after its class without the suffixes that only tell PHP classes apart: a `…Dto`
+ * class loses "Dto" and a union interface "Interface", also both (`CircleElementDto` is documented as
+ * "CircleElement", `ElementDtoInterface` as "Element"). Runs as a swagger-php processor, i.e.
+ * after the whole model graph has been registered, so every `$ref` at a renamed schema is
+ * rewritten too.
  */
 final readonly class SchemaNameProcessor
 {
     private const string INTERFACE_SUFFIX = 'Interface';
+
+    private const string TRANSFER_OBJECT_SUFFIX = 'Dto';
 
     public function __construct(
         private AnnotationTraverser $traverser,
@@ -83,7 +88,7 @@ final readonly class SchemaNameProcessor
 
     private function resolveName(OA\Schema $schema, string $current): ?string
     {
-        $name = $this->withoutInterfaceSuffix($schema, $current);
+        $name = $this->withoutDtoSuffix($this->withoutInterfaceSuffix($schema, $current));
 
         return '' !== $name && $name !== $current ? $name : null;
     }
@@ -101,6 +106,11 @@ final readonly class SchemaNameProcessor
         }
 
         return mb_substr($current, 0, -mb_strlen(self::INTERFACE_SUFFIX));
+    }
+
+    private function withoutDtoSuffix(string $name): string
+    {
+        return str_ends_with($name, self::TRANSFER_OBJECT_SUFFIX) ? mb_substr($name, 0, -mb_strlen(self::TRANSFER_OBJECT_SUFFIX)) : $name;
     }
 
     /**

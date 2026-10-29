@@ -2,7 +2,6 @@
 
 namespace App\Plan\Entity;
 
-use App\Plan\Props\ArcProps;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
 
@@ -28,20 +27,15 @@ class ArcElement extends Element
         #[ORM\ManyToOne]
         #[ORM\JoinColumn(onDelete: 'CASCADE')]
         private Vertex $endVertex,
-        ArcProps $props,
+        /** Direction from start to end, Y up: false is counter-clockwise. */
+        #[ORM\Column(nullable: true)]
+        private bool $clockwise,
         ?Layer $layer = null,
         ?Group $group = null,
         ?ElementStyle $style = null,
         ?string $name = null,
     ) {
-        parent::__construct($id, $planVersion, $position, $props, $layer, $group, $style, $name);
-    }
-
-    public function getProps(): ArcProps
-    {
-        \assert($this->props instanceof ArcProps);
-
-        return $this->props;
+        parent::__construct($id, $planVersion, $position, $layer, $group, $style, $name);
     }
 
     public function getCenterVertex(): Vertex
@@ -57,5 +51,10 @@ class ArcElement extends Element
     public function getEndVertex(): Vertex
     {
         return $this->endVertex;
+    }
+
+    public function isClockwise(): bool
+    {
+        return $this->clockwise;
     }
 }

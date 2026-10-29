@@ -5,7 +5,7 @@ namespace App\Fixtures;
 use App\Core\Tenancy\TenantNotSelectedException;
 use App\Core\Tenancy\TenantProvisioner;
 use App\Core\Tenancy\TenantSwitcher;
-use App\Plan\Api\Model\PlanDocument;
+use App\Plan\Dto\PlanDocumentDto;
 use App\Plan\PlanFactory;
 use App\Project\Entity\Project;
 use Doctrine\ORM\EntityManagerInterface;
@@ -78,7 +78,7 @@ final readonly class FixtureCreateCommand
         $this->entityManager->clear();
 
         $project = new Project(Uuid::v7(), $projectName);
-        $document = $this->serializer->deserialize(file_get_contents($this->projectDir.self::SAMPLE_PLAN), PlanDocument::class, 'json');
+        $document = $this->serializer->deserialize(file_get_contents($this->projectDir.self::SAMPLE_PLAN), PlanDocumentDto::class, 'json');
         $plan = $this->entityManager->wrapInTransaction(function () use ($project, $document, $planId) {
             $this->entityManager->persist($project);
 

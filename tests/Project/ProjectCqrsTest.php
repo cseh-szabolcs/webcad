@@ -3,9 +3,9 @@
 namespace App\Tests\Project;
 
 use App\Core\Tenancy\TenantSwitcher;
-use App\Project\CreateProjectCommand;
-use App\Project\GetProjectQuery;
-use App\Project\ProjectDTO;
+use App\Project\Command\CreateProjectCommand;
+use App\Project\Query\GetProjectQuery;
+use App\Project\Query\ProjectDto;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\Exception\ValidationFailedException;
@@ -30,7 +30,7 @@ final class ProjectCqrsTest extends KernelTestCase
         static::getContainer()->get(EntityManagerInterface::class)->clear();
         $project = $this->query(new GetProjectQuery($id));
 
-        self::assertEquals(new ProjectDTO($id->toRfc4122(), 'Einfamilienhaus'), $project);
+        self::assertEquals(new ProjectDto($id->toRfc4122(), 'Einfamilienhaus'), $project);
     }
 
     public function testUnknownProjectReturnsNull(): void

@@ -87,7 +87,9 @@ Mögliche Doctrine-Entities:
 Ursprünglich war ein versioniertes JSON-Dokument pro `PlanVersion` vorgesehen. **Entschieden ist
 jetzt eine relationale Speicherung**: der Arbeitsstand eines Plans liegt als Entitäten in der
 Datenbank (`Plan`, `Layer`, `Group`, `ElementStyle`, `Vertex`, `Element` mit Single Table
-Inheritance pro Typ, `PolylineVertex`), entsprechend dem Dokumentmodell des Editors. Das passt zu
+Inheritance pro Typ, `PolylineVertex`), entsprechend dem Dokumentmodell des Editors. Auch die
+Darstellungswerte (Radius, `closed`, Kontrollvektoren als Embeddable `Vector2` …) sind Spalten der
+jeweiligen Element-Unterklasse. Das passt zu
 den Commands des Editors, die die geänderten Element-IDs liefern, und erlaubt später gezieltes
 Speichern.
 
@@ -98,7 +100,8 @@ Heads bleiben als Historie erhalten. Kopiert wird über das Dokument: Version le
 neu aufbauen.
 
 Die API liefert den Plan weiterhin als ein Dokument in der heutigen JSON-Form; beschrieben wird es
-durch die API-Models in `src/Plan/Api/Model/`.
+durch die DTOs in `src/Plan/Dto/` (Suffix `Dto`, das für die OpenAPI-Schemanamen entfällt).
+`PlanDocumentReader` macht aus den Entities die DTOs, `PlanFactory` aus den DTOs die Entities.
 
 ### REST API (erster Vorschlag)
 

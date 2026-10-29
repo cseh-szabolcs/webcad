@@ -2,20 +2,18 @@
 
 namespace App\Plan;
 
-use App\Plan\Api\Model\ArcElement;
-use App\Plan\Api\Model\BezierElement;
-use App\Plan\Api\Model\CircleElement;
-use App\Plan\Api\Model\EllipseElement;
-use App\Plan\Api\Model\LineElement;
-use App\Plan\Api\Model\PlanDocument;
-use App\Plan\Api\Model\PolylineElement;
+use App\Plan\Dto\ArcElementDto;
+use App\Plan\Dto\BezierElementDto;
+use App\Plan\Dto\CircleElementDto;
+use App\Plan\Dto\EllipseElementDto;
+use App\Plan\Dto\LineElementDto;
+use App\Plan\Dto\PlanDocumentDto;
+use App\Plan\Dto\PolylineElementDto;
+use App\Plan\Dto\Vector2Dto;
 use App\Plan\Entity\Plan;
 use App\Plan\Entity\PlanVersion;
-use App\Plan\Props\ElementPropsInterface;
 use App\Project\Entity\Project;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
-use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -27,8 +25,6 @@ final readonly class PlanFactory
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private NormalizerInterface $normalizer,
-        private DenormalizerInterface $denormalizer,
     ) {
     }
 
@@ -38,7 +34,7 @@ final readonly class PlanFactory
      * @throws \InvalidArgumentException when the document has another schema version or refers
      *                                   to an id it does not contain
      */
-    public function create(Project $project, PlanDocument $document, ?Uuid $planId = null): Plan
+    public function create(Project $project, PlanDocumentDto $document, ?Uuid $planId = null): Plan
     {
         self::checkSchemaVersion($document);
 
@@ -55,7 +51,7 @@ final readonly class PlanFactory
      * @throws \InvalidArgumentException when the document has another schema version or refers
      *                                   to an id it does not contain
      */
-    public function createVersion(Plan $plan, PlanDocument $document): PlanVersion
+    public function createVersion(Plan $plan, PlanDocumentDto $document): PlanVersion
     {
         self::checkSchemaVersion($document);
 
@@ -65,7 +61,7 @@ final readonly class PlanFactory
         return $version;
     }
 
-    private function fill(PlanVersion $version, PlanDocument $document): void
+    private function fill(PlanVersion $version, PlanDocumentDto $document): void
     {
         $vertices = [];
         foreach ($document->vertices as $vertex) {
@@ -87,22 +83,21 @@ final readonly class PlanFactory
             $styles[$style->id] = $this->persist(new Entity\ElementStyle(Uuid::v7(), $version, $style->name, $style->strokeColor, $style->strokeWidth, $style->dashPattern, $style->fillColor));
         }
 
+        $vector = static fn (Vector2Dto $v): Entity\Vector2 => new Entity\Vector2($v->x, $v->y);
         foreach ($document->elements as $position => $element) {
             $vertex = static fn (string $id): Entity\Vertex => $vertices[$id] ?? throw self::unknown('vertex', $id, $element->id);
             $layer = null === $element->layerId ? null : ($layers[$element->layerId] ?? throw self::unknown('layer', $element->layerId, $element->id));
             $group = null === $element->groupId ? null : ($groups[$element->groupId] ?? throw self::unknown('group', $element->groupId, $element->id));
             $style = null === $element->styleId ? null : ($styles[$element->styleId] ?? throw self::unknown('style', $element->styleId, $element->id));
             $id = Uuid::v7();
-            // The display values, picked by "type"; ids and references in the element are ignored
-            $props = $this->denormalizer->denormalize($this->normalizer->normalize($element), ElementPropsInterface::class);
 
             $this->persist(match (true) {
-                $element instanceof LineElement => new Entity\LineElement($id, $version, $position, $vertex($element->startVertexId), $vertex($element->endVertexId), $props, $layer, $group, $style, $element->name),
-                $element instanceof PolylineElement => new Entity\PolylineElement($id, $version, $position, array_map($vertex, $element->vertexIds), $props, $layer, $group, $style, $element->name),
-                $element instanceof ArcElement => new Entity\ArcElement($id, $version, $position, $vertex($element->centerVertexId), $vertex($element->startVertexId), $vertex($element->endVertexId), $props, $layer, $group, $style, $element->name),
-                $element instanceof CircleElement => new Entity\CircleElement($id, $version, $position, $vertex($element->centerVertexId), $props, $layer, $group, $style, $element->name),
-                $element instanceof EllipseElement => new Entity\EllipseElement($id, $version, $position, $vertex($element->centerVertexId), $props, $layer, $group, $style, $element->name),
-                $element instanceof BezierElement => new Entity\BezierElement($id, $version, $position, $vertex($element->startVertexId), $vertex($element->endVertexId), $props, $layer, $group, $style, $element->name),
+                $element instanceof LineElementDto => new Entity\LineElement($id, $version, $position, $vertex($element->startVertexId), $vertex($element->endVertexId), $layer, $group, $style, $element->name),
+                $element instanceof PolylineElementDto => new Entity\PolylineElement($id, $version, $position, array_map($vertex, $element->vertexIds), $element->closed, $layer, $group, $style, $element->name),
+                $element instanceof ArcElementDto => new Entity\ArcElement($id, $version, $position, $vertex($element->centerVertexId), $vertex($element->startVertexId), $vertex($element->endVertexId), $element->clockwise, $layer, $group, $style, $element->name),
+                $element instanceof CircleElementDto => new Entity\CircleElement($id, $version, $position, $vertex($element->centerVertexId), $element->radius, $layer, $group, $style, $element->name),
+                $element instanceof EllipseElementDto => new Entity\EllipseElement($id, $version, $position, $vertex($element->centerVertexId), $element->radiusX, $element->radiusY, $element->rotation, $layer, $group, $style, $element->name),
+                $element instanceof BezierElementDto => new Entity\BezierElement($id, $version, $position, $vertex($element->startVertexId), $vertex($element->endVertexId), $vector($element->startControl), $vector($element->endControl), $layer, $group, $style, $element->name),
                 default => throw new \LogicException(\sprintf('No entity for element type %s.', $element::class)),
             });
         }
@@ -122,10 +117,10 @@ final readonly class PlanFactory
         return $entity;
     }
 
-    private static function checkSchemaVersion(PlanDocument $document): void
+    private static function checkSchemaVersion(PlanDocumentDto $document): void
     {
-        if (PlanDocument::SCHEMA_VERSION !== $document->schemaVersion) {
-            throw new \InvalidArgumentException(\sprintf('Unsupported schema version %d, expected %d.', $document->schemaVersion, PlanDocument::SCHEMA_VERSION));
+        if (PlanDocumentDto::SCHEMA_VERSION !== $document->schemaVersion) {
+            throw new \InvalidArgumentException(\sprintf('Unsupported schema version %d, expected %d.', $document->schemaVersion, PlanDocumentDto::SCHEMA_VERSION));
         }
     }
 

@@ -111,9 +111,10 @@ Vite proxies `/api` to `http://nginx` (same origin, no CORS). When running `npm 
 on the host, set `API_PROXY_TARGET=http://localhost:8080`.
 
 `GET /api/plans/{id}/document` returns the plan from the tenant database as a
-`PlanDocument`: its draft (`GetPlanDocumentHandler`; `PlanDocumentReader` in
-`src/Plan/Api/` maps one version's entities, read through the repositories in
-`src/Plan/Repository/` (`findByPlanVersion`), to the API models; vertices,
+`PlanDocument`: its draft (`GetPlanDocumentHandler` in `src/Plan/Query/`, returning a
+`PlanDocumentResult` with the document and the revision; `PlanDocumentReader` in
+`src/Plan/` maps one version's entities, read through the repositories in
+`src/Plan/Repository/` (`findByPlanVersion`), to the DTOs; vertices,
 groups and styles come in id order, i.e. creation order for UUIDv7; `ElementRepository`
 fetch-joins the polyline vertices first, so a read needs one query per kind of content, guarded
 by `PlanDocumentReaderTest`), with the draft's `revision` as `ETag`
@@ -182,35 +183,39 @@ decisions (still valid for the rebuild):
   `EllipseElement`, `BezierElement`; subclass columns are nullable in the database, siblings
   share columns such as `start_vertex_id`), and `PolylineVertex` (PK polyline + position).
   Every FK to the version and to vertices is `ON DELETE CASCADE`, layer/group/style `SET NULL`.
-  **Structure as columns, display values as JSON:** the vertex references, `polyline_vertex` and
-  layer/group/style stay columns; the values only needed to draw an element (`closed`,
-  `clockwise`, `radius`, `radiusX`/`radiusY`/`rotation`, `startControl`/`endControl`) are its
-  `props`, one JSON column `element.props`. In PHP they are model classes, never arrays
-  (`src/Plan/Props/`: `ElementPropsInterface` with a serializer `#[DiscriminatorMap]`
-  on `type`, `LineProps` (empty so far), `PolylineProps`, `ArcProps`, `CircleProps`,
-  `EllipseProps`, `BezierProps`, `Vector2`; `final readonly`, so a change replaces the object).
-  Each element subclass takes and returns its own props class (`CircleElement::getProps():
-  CircleProps`). They are stored with the generic Doctrine type **`json_document`**
-  (`src/Core/Doctrine/JsonDocumentType`, usable for any object): it normalizes the
-  object with the app's serializer and adds its class name under `"#type"`, then denormalizes
-  into that class on read (a Doctrine type does not know the property it converts). Moving or
-  renaming a class stored this way needs a data migration of `"#type"` (example:
-  `migrations/Tenant/Version20261029220621.php`). As the type needs the
-  (private) serializer, the public `JsonDocumentTypeRegistrar` registers an instance of it,
-  called from `Kernel::boot()`. Props use the API models' property names and `type`, so
-  `PlanDocumentReader` normalizes an element's props and denormalizes them with its
-  references straight into the flat API element (`"#type"` never reaches the API), and `PlanFactory` makes props from an API element through the serializer. New display
-  values: add them to the props class and the API model, no migration needed.
+  **Everything as columns:** the vertex references, `polyline_vertex`, layer/group/style and also
+  the values only needed to draw an element are columns, the display values mapped by the
+  element subclass they belong to (`PolylineElement::isClosed()`, `ArcElement::isClockwise()`,
+  `CircleElement::getRadius()`, `EllipseElement` `radiusX`/`radiusY`/`rotation`,
+  `BezierElement::getStartControl()`/`getEndControl()`; nullable in the database, as all types
+  share the table, never in PHP). `Vector2` (`src/Plan/Entity/`) is an `#[ORM\Embeddable]`
+  (`final readonly`), embedded with a `columnPrefix` (`start_control_x` …); `EntityMappingTest`
+  checks embeddables as mapped by their folder's entity manager. A new display value is a field
+  of the subclass, a migration and a field of its `…ElementDto`. `PlanDocumentReader` builds the `…Dto` of
+  each element type from the getters (`match` over the entity class), `PlanFactory` passes the
+  values of the `…Dto` to the entity constructors; neither uses the serializer. The generic Doctrine type
+  **`json_document`** (`src/Core/Doctrine/JsonDocumentType`, usable for any object) is in place
+  but unused for now, kept for values better stored as one document: it normalizes the object
+  with the app's serializer and adds its class name under `"#type"`, then denormalizes into that
+  class on read (a Doctrine type does not know the property it converts), so moving or renaming
+  a class stored this way needs a data migration of `"#type"`. As the type needs the (private)
+  serializer, the public `JsonDocumentTypeRegistrar` registers an instance of it, called from
+  `Kernel::boot()`; `JsonDocumentTypeTest` uses test classes of its own
+  (`tests/Core/Doctrine/Fixtures/`). Element props were stored this way until
+  `migrations/Tenant/Version20261029231058.php` moved them back to columns.
   `schemaVersion` belongs to the wire format, not to the database. Still planned: `User`, `ProjectMember`, REST API under
   `/api/projects` and `/api/plans/{id}/document|versions`, with revision/ETag-based conflict
   detection. Real-time collaboration is out of scope for V1.
-- **API models** (`src/Plan/Api/Model/`, no suffix, as the class name becomes the
-  OpenAPI schema name and later `ApiSchema['…']` in the editor): `final readonly` classes
-  describing exactly the JSON `CadSerializer.parseDocument` reads (`PlanDocument`, `Vertex`,
-  `Layer`, `Group`, `ElementStyle`, `Vector2`, the element union `ElementInterface` with a
-  serializer `#[DiscriminatorMap]` on `type`, shared properties in `AbstractElement`).
-  `EllipseElement.rotation` is always sent (0 = axis-aligned). `PlanDocumentModelTest`
-  round-trips the sample plan through them. `PlanDocumentController` sends them.
+- **DTOs** (`src/Plan/Dto/`, suffix `Dto`, so they are never named like the entities;
+  `SchemaNameProcessor` drops the suffix, so the OpenAPI schema names and `ApiSchema['…']` in the
+  editor stay `PlanDocument`, `CircleElement` …): `final readonly` classes describing exactly
+  the JSON `CadSerializer.parseDocument` reads (`PlanDocumentDto`, `VertexDto`, `LayerDto`,
+  `GroupDto`, `ElementStyleDto`, `Vector2Dto`, the element union `ElementDtoInterface` with a
+  serializer `#[DiscriminatorMap]` on `type`, shared properties in `AbstractElementDto`). DTOs
+  hold only DTOs and scalar values, never entities. `EllipseElementDto.rotation` is always sent
+  (0 = axis-aligned). `PlanDocumentDtoTest` round-trips the sample plan through them.
+  `PlanDocumentController` sends them. PHP class names are case-insensitive, so the suffix
+  in capitals and as `Dto` would clash: always write `Dto`.
 - **API documentation** (NelmioApiDocBundle, `config/packages/nelmio_api_doc.yaml`): the models
   and controller attributes are the only source; the OpenAPI document and from it the editor's
   TypeScript types are generated. Rules:
@@ -222,14 +227,15 @@ decisions (still valid for the rebuild):
   - Models: `final readonly`, constructor promotion, required parameters before optional ones;
     a parameter without default is required, **except a nullable one**: Nelmio leaves those out
     of `required`, so a nullable property the API always sends is named in the class's
-    `#[OA\Schema(required: …)]` (`AbstractElement::ALWAYS_SENT`, `ElementStyle.fillColor`).
+    `#[OA\Schema(required: …)]` (`AbstractElementDto::ALWAYS_SENT`, `ElementStyleDto.fillColor`).
     Limits as `#[Assert\…]`, prose in `#[OA\Schema]`/`#[OA\Property]`, no prose on a property
     whose type is another model (a `$ref`), `@param list<…>` for lists, `#[Assert\Valid]` on
     lists of models.
   - A union is an interface with the serializer's `#[DiscriminatorMap]`, declaring the shared
     properties (`public ?string $layerId { get; }`, so code holding the interface can read them),
     implemented in an abstract base class. Processors in `src/Core/OpenApi/` (tagged in `config/services.yaml`):
-    `SchemaNameProcessor` drops the `Interface` suffix (`ElementInterface` → `Element`),
+    `SchemaNameProcessor` drops the `Dto` and `Interface` suffixes (`CircleElementDto` → `CircleElement`,
+    `ElementDtoInterface` → `Element`),
     `DiscriminatorBranchProcessor` gives each branch a title and its `type` as a required
     one-value enum, `RefSiblingProcessor` keeps prose next to a `$ref` via `allOf`,
     `GeneratedDefaultProcessor` drops object defaults, `UnionPropertiesProcessor` drops the
@@ -266,15 +272,18 @@ decisions (still valid for the rebuild):
 - **Backend layout by business area**, not by layer; namespaces follow the folders:
   `src/Core/` is technology only (`Tenancy/` with its `Entity/`, `Repository/` and `Console/`,
   `Doctrine/` for `json_document`, `OpenApi/` processors, `Controller/IndexController` as a
-  placeholder page), `src/Project/`, `src/Plan/` (`Entity/`, `Props/`, `Enum/`, `Repository/`,
-  `PlanFactory`, `PlanVersionCopier`, `Api/` with controller, query, handler, reader, DTO and
-  `Model/`), `src/Fixtures/`; `User/` comes later (its `Entity/` in the main EM). Rules for new
-  code: every area has an `Entity/` folder with **only** entities (mappings and
-  `EntityMappingTest` go per folder), value objects and enums beside it (`Props/`, `Enum/`);
-  a command and its handler, or a query, its handler and DTO, lie side by side in the area,
-  subfolders only once an area gets crowded; dependencies point one way (`Plan` may know
-  `Project`, not the reverse; `Core` knows no area). Tests mirror the folders
-  (`tests/Core/Tenancy/…`, `tests/Plan/Api/…`).
+  placeholder page), `src/Project/` (`Entity/`, `Repository/`, `Command/` with
+  `CreateProjectCommand` and its handler, `Query/` with `GetProjectQuery`, its handler and
+  `ProjectDto`), `src/Plan/` (`Entity/`, `Enum/`, `Repository/`, `Dto/`, `Query/` with
+  `GetPlanDocumentQuery`, its handler and `PlanDocumentResult`, `Controller/`, and
+  `PlanDocumentReader` (entities → DTOs), `PlanFactory` (DTOs → entities), `PlanVersionCopier`
+  directly in the area), `src/Fixtures/`; `User/` comes later (its `Entity/` in the main EM).
+  Rules for new code: every area has an `Entity/` folder with **only** entities and their
+  embeddables (mappings and `EntityMappingTest` go per folder), enums and other classes beside
+  it (`Enum/`); a message and its handler lie side by side in `Command/` resp. `Query/` (with
+  the query's result); DTOs hold only DTOs and scalar values, never entities; dependencies
+  point one way (`Plan` may know `Project`, not the reverse; `Core` knows no area). Tests mirror
+  the folders (`tests/Core/Tenancy/…`, `tests/Plan/Controller/…`).
 - **Backend uses CQRS** following `docs/architecture/cqrs.md`, with separate Messenger
   `command.bus` / `query.bus`. Queries
   return DTOs and never modify state. Name commands after business tasks, not field
@@ -299,7 +308,7 @@ decisions (still valid for the rebuild):
   (`TenantConnection` refuses queries before a tenant is selected, `TenantSwitcher`,
   `TenantProvisioner`, console `--tenant` option in `Console/Application`, used by
   `bin/console`). The reference example is
-  `CreateProjectCommand`/`GetProjectQuery` in `src/Project/`, tested in `tests/Project/ProjectCqrsTest.php`.
+  `CreateProjectCommand`/`GetProjectQuery` in `src/Project/Command/` and `Query/`, tested in `tests/Project/ProjectCqrsTest.php`.
 - **Migrations** are split: `migrations/Tenant` (bundle default; `doctrine:migrations:diff
   --tenant=demo`) and `migrations/Main` (`--em=main --configuration=config/migrations/main.yaml`).
   After a new migration, run `composer db:migrate` in the `php` container, and again with

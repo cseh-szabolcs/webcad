@@ -7,7 +7,7 @@ use OpenApi\Annotations as OA;
 use OpenApi\Undefined;
 
 /**
- * A union interface declares the properties all its branches share (`ElementInterface`), and
+ * A union interface declares the properties all its branches share (`ElementDtoInterface`), and
  * NelmioApiDoc publishes them next to the `oneOf`. Each branch documents them already, with their
  * prose and formats, so the union keeps only `oneOf` and the discriminator.
  */

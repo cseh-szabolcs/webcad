@@ -14,7 +14,7 @@ class Kernel extends BaseKernel
     {
         parent::boot();
 
-        // Before anything reads or writes an element (see the registrar)
+        // Before anything reads or writes a json_document column (see the registrar)
         $this->container->get(JsonDocumentTypeRegistrar::class)->register();
     }
 

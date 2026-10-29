@@ -2,6 +2,7 @@
 
 namespace App\Tests\Core\Tenancy;
 
+use Doctrine\ORM\Mapping\Embeddable;
 use Doctrine\Persistence\ManagerRegistry;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -10,6 +11,8 @@ use Symfony\Component\Finder\Finder;
 /**
  * Every entity belongs to the entity manager of its folder, or it would be written to the wrong
  * database: src/Plan/Entity and src/Project/Entity to the tenant's, src/Core/Tenancy/Entity to app_main.
+ * An embeddable (e.g. Vector2) belongs to no manager of its own, so for it the folder's manager
+ * must map it as one.
  */
 final class EntityMappingTest extends KernelTestCase
 {
@@ -26,7 +29,11 @@ final class EntityMappingTest extends KernelTestCase
 
         self::assertNotEmpty($classes);
         foreach ($classes as $class) {
-            self::assertSame($expected, $registry->getManagerForClass($class), $class);
+            if ([] !== (new \ReflectionClass($class))->getAttributes(Embeddable::class)) {
+                self::assertTrue($expected->getClassMetadata($class)->isEmbeddedClass, $class);
+            } else {
+                self::assertSame($expected, $registry->getManagerForClass($class), $class);
+            }
         }
     }
 

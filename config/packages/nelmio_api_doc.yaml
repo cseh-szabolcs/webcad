@@ -1,5 +1,5 @@
-# The REST API the editor talks to, documented from the code: the models in
-# src/Plan/Api/Model and the #[OA\…] attributes on the controllers. The document is served
+# The REST API the editor talks to, documented from the code: the DTOs in
+# src/Plan/Dto and the #[OA\…] attributes on the controllers. The document is served
 # in dev and test only (config/routes/nelmio_api_doc.yaml); the editor's TypeScript types are
 # generated from it.
 nelmio_api_doc:

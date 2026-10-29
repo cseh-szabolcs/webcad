@@ -2,12 +2,12 @@
 
 namespace App\Plan\Entity;
 
-use App\Plan\Props\BezierProps;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Cubic Bézier curve between two vertices; its control vectors are its props.
+ * Cubic Bézier curve between two vertices. Each control vector is relative to its end vertex, so
+ * it moves with it.
  */
 #[ORM\Entity]
 class BezierElement extends Element
@@ -24,20 +24,16 @@ class BezierElement extends Element
         #[ORM\ManyToOne]
         #[ORM\JoinColumn(onDelete: 'CASCADE')]
         private Vertex $endVertex,
-        BezierProps $props,
+        #[ORM\Embedded(columnPrefix: 'start_control_')]
+        private Vector2 $startControl,
+        #[ORM\Embedded(columnPrefix: 'end_control_')]
+        private Vector2 $endControl,
         ?Layer $layer = null,
         ?Group $group = null,
         ?ElementStyle $style = null,
         ?string $name = null,
     ) {
-        parent::__construct($id, $planVersion, $position, $props, $layer, $group, $style, $name);
-    }
-
-    public function getProps(): BezierProps
-    {
-        \assert($this->props instanceof BezierProps);
-
-        return $this->props;
+        parent::__construct($id, $planVersion, $position, $layer, $group, $style, $name);
     }
 
     public function getStartVertex(): Vertex
@@ -48,5 +44,15 @@ class BezierElement extends Element
     public function getEndVertex(): Vertex
     {
         return $this->endVertex;
+    }
+
+    public function getStartControl(): Vector2
+    {
+        return $this->startControl;
+    }
+
+    public function getEndControl(): Vector2
+    {
+        return $this->endControl;
     }
 }

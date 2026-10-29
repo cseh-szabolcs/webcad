@@ -2,7 +2,6 @@
 
 namespace App\Plan\Entity;
 
-use App\Plan\Props\PolylineProps;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -29,13 +28,15 @@ class PolylineElement extends Element
         PlanVersion $planVersion,
         int $position,
         array $vertices,
-        PolylineProps $props,
+        /** A closed polyline also joins its last vertex to the first. */
+        #[ORM\Column(nullable: true)]
+        private bool $closed,
         ?Layer $layer = null,
         ?Group $group = null,
         ?ElementStyle $style = null,
         ?string $name = null,
     ) {
-        parent::__construct($id, $planVersion, $position, $props, $layer, $group, $style, $name);
+        parent::__construct($id, $planVersion, $position, $layer, $group, $style, $name);
 
         if (\count($vertices) < 2) {
             throw new \InvalidArgumentException('A polyline needs at least 2 vertices.');
@@ -55,10 +56,8 @@ class PolylineElement extends Element
         return array_values($this->vertices->map(static fn (PolylineVertex $v): Vertex => $v->getVertex())->toArray());
     }
 
-    public function getProps(): PolylineProps
+    public function isClosed(): bool
     {
-        \assert($this->props instanceof PolylineProps);
-
-        return $this->props;
+        return $this->closed;
     }
 }

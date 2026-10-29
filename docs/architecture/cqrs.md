@@ -8,11 +8,13 @@
 > worth it for a read that is measured to be too slow. See "Architecture" in `CLAUDE.md`.
 >
 > **Folders:** the code is grouped by business area, not by layer (no `Application/Command`,
-> `Application/QueryHandler`, `Domain/Entity` …). A command and its handler, or a query, its handler
-> and its DTO, lie side by side in the area (`src/Project/CreateProjectCommand.php` next to
-> `CreateProjectHandler.php`); the area's entities in its `Entity/` folder, its repositories in
-> `Repository/`, its controller with the API models in `Api/` (`src/Plan/Api/`). The examples below
-> use a `Booking` area in the same way.
+> `Application/QueryHandler`, `Domain/Entity` …). A command and its handler lie side by side in the
+> area's `Command/` folder (`src/Project/Command/CreateProjectCommand.php` next to
+> `CreateProjectHandler.php`), a query, its handler and the `…Dto` it returns in `Query/`
+> (`src/Project/Query/ProjectDto.php`); the area's entities in its `Entity/` folder, its
+> repositories in `Repository/`, its controllers in `Controller/`, the DTOs of its API in `Dto/`
+> (`src/Plan/Dto/`). DTOs are spelled `…Dto` and hold only DTOs and scalar values, never
+> entities. The examples below use a `Booking` area in the same way.
 
 [](#introduction)Introduction
 -----------------------------
@@ -43,8 +45,8 @@ Use the CQRS pattern to separate write operations (commands) from read operation
 
 Commands should represent specific business tasks rather than low-level data updates. For example, in a hotel booking application, use the command `BookHotelRoomCommand` instead of `SetReservationStatusCommand`.  
 
-    // src/Booking/BookHotelRoomCommand.php
-    namespace App\Booking;
+    // src/Booking/Command/BookHotelRoomCommand.php
+    namespace App\Booking\Command;
     
     final readonly class BookHotelRoomCommand
     {
@@ -69,8 +71,8 @@ Enter fullscreen mode Exit fullscreen mode
 
 Queries never modify data. They return DTOs (Data Transfer Objects) that present the required data in a convenient format without business logic.  
 
-    // src/Booking/FindAvailableRoomsQuery.php
-    namespace App\Booking;
+    // src/Booking/Query/FindAvailableRoomsQuery.php
+    namespace App\Booking\Query;
     
     final readonly class FindAvailableRoomsQuery
     {
@@ -129,8 +131,8 @@ Enter fullscreen mode Exit fullscreen mode
 
 **Command Handler**:  
 
-    // src/Booking/BookHotelRoomHandler.php
-    namespace App\Booking;
+    // src/Booking/Command/BookHotelRoomHandler.php
+    namespace App\Booking\Command;
     
     use App\Booking\Repository\RoomRepositoryInterface;
     use Doctrine\ORM\EntityManagerInterface;
@@ -167,10 +169,10 @@ Enter fullscreen mode Exit fullscreen mode
 
 **Read Model**:  
 
-    // src/Booking/RoomAvailabilityDTO.php
-    namespace App\Booking;
+    // src/Booking/Query/RoomAvailabilityDto.php
+    namespace App\Booking\Query;
     
-    final readonly class RoomAvailabilityDTO
+    final readonly class RoomAvailabilityDto
     {
         public function __construct(
             public int $id,
@@ -187,8 +189,8 @@ Enter fullscreen mode Exit fullscreen mode
 
 **Query Handler**:  
 
-    // src/Booking/FindAvailableRoomsHandler.php
-    namespace App\Booking;
+    // src/Booking/Query/FindAvailableRoomsHandler.php
+    namespace App\Booking\Query;
     
     use Doctrine\DBAL\Connection;
     use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -201,7 +203,7 @@ Enter fullscreen mode Exit fullscreen mode
         ) {}
     
         /**
-         * @return RoomAvailabilityDTO[]
+         * @return RoomAvailabilityDto[]
          */
         public function __invoke(FindAvailableRoomsQuery $query): array
         {
@@ -226,7 +228,7 @@ Enter fullscreen mode Exit fullscreen mode
             ]);
     
             return array_map(
-                fn(array $row) => new RoomAvailabilityDTO(
+                fn(array $row) => new RoomAvailabilityDto(
                     id: $row['id'],
                     number: $row['number'],
                     type: $row['type'],
@@ -350,8 +352,8 @@ Symfony Messenger is ideal for implementing CQRS:
                         delay: 1000
     
             routing:
-                'App\Booking\BookHotelRoomCommand': async
-                'App\Booking\FindAvailableRoomsQuery': sync
+                'App\Booking\Command\BookHotelRoomCommand': async
+                'App\Booking\Query\FindAvailableRoomsQuery': sync
     
 
 Enter fullscreen mode Exit fullscreen mode
@@ -359,11 +361,11 @@ Enter fullscreen mode Exit fullscreen mode
 [](#usage-in-controllers)Usage in Controllers
 ---------------------------------------------
 
-    // src/Booking/Api/BookingController.php
-    namespace App\Booking\Api;
+    // src/Booking/Controller/BookingController.php
+    namespace App\Booking\Controller;
     
-    use App\Booking\BookHotelRoomCommand;
-    use App\Booking\FindAvailableRoomsQuery;
+    use App\Booking\Command\BookHotelRoomCommand;
+    use App\Booking\Query\FindAvailableRoomsQuery;
     use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
     use Symfony\Component\HttpFoundation\JsonResponse;
     use Symfony\Component\HttpFoundation\Request;

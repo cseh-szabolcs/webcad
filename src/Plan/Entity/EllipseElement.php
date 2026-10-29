@@ -2,12 +2,13 @@
 
 namespace App\Plan\Entity;
 
-use App\Plan\Props\EllipseProps;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Ellipse around a centre vertex; its radii and rotation are its props.
+ * Ellipse around a centre vertex: radiusX along the first axis, radiusY across it (either may be
+ * the longer one); the rotation is the angle of the first axis in radians, counter-clockwise from
+ * +X (Y up).
  */
 #[ORM\Entity]
 class EllipseElement extends Element
@@ -21,24 +22,37 @@ class EllipseElement extends Element
         #[ORM\ManyToOne]
         #[ORM\JoinColumn(onDelete: 'CASCADE')]
         private Vertex $centerVertex,
-        EllipseProps $props,
+        #[ORM\Column(nullable: true)]
+        private float $radiusX,
+        #[ORM\Column(nullable: true)]
+        private float $radiusY,
+        #[ORM\Column(nullable: true)]
+        private float $rotation = 0.0,
         ?Layer $layer = null,
         ?Group $group = null,
         ?ElementStyle $style = null,
         ?string $name = null,
     ) {
-        parent::__construct($id, $planVersion, $position, $props, $layer, $group, $style, $name);
-    }
-
-    public function getProps(): EllipseProps
-    {
-        \assert($this->props instanceof EllipseProps);
-
-        return $this->props;
+        parent::__construct($id, $planVersion, $position, $layer, $group, $style, $name);
     }
 
     public function getCenterVertex(): Vertex
     {
         return $this->centerVertex;
+    }
+
+    public function getRadiusX(): float
+    {
+        return $this->radiusX;
+    }
+
+    public function getRadiusY(): float
+    {
+        return $this->radiusY;
+    }
+
+    public function getRotation(): float
+    {
+        return $this->rotation;
     }
 }

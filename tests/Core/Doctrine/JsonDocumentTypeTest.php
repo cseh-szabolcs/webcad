@@ -3,13 +3,9 @@
 namespace App\Tests\Core\Doctrine;
 
 use App\Core\Doctrine\JsonDocumentType;
-use App\Plan\Props\ArcProps;
-use App\Plan\Props\BezierProps;
-use App\Plan\Props\CircleProps;
-use App\Plan\Props\EllipseProps;
-use App\Plan\Props\LineProps;
-use App\Plan\Props\PolylineProps;
-use App\Plan\Props\Vector2;
+use App\Tests\Core\Doctrine\Fixtures\CircleShape;
+use App\Tests\Core\Doctrine\Fixtures\Point;
+use App\Tests\Core\Doctrine\Fixtures\SegmentShape;
 use Doctrine\DBAL\Platforms\MySQL80Platform;
 use Doctrine\DBAL\Types\Exception\InvalidType;
 use Doctrine\DBAL\Types\Exception\ValueNotConvertible;
@@ -24,21 +20,20 @@ final class JsonDocumentTypeTest extends KernelTestCase
      */
     public static function documents(): iterable
     {
-        // Any object, not only element props
-        yield 'plain object' => [new Vector2(1.5, -2.0), '{"#type":"App\\\\Plan\\\\Props\\\\Vector2","x":1.5,"y":-2.0}'];
+        yield 'plain object' => [new Point(1.5, -2.0), '{"#type":"App\\\\Tests\\\\Core\\\\Doctrine\\\\Fixtures\\\\Point","x":1.5,"y":-2.0}'];
 
-        // Element props also carry the "type" of their discriminator map
-        yield 'line' => [new LineProps(), '{"#type":"App\\\\Plan\\\\Props\\\\LineProps","type":"line"}'];
-        yield 'polyline' => [new PolylineProps(true), '{"#type":"App\\\\Plan\\\\Props\\\\PolylineProps","type":"polyline","closed":true}'];
-        yield 'arc' => [new ArcProps(false), '{"#type":"App\\\\Plan\\\\Props\\\\ArcProps","type":"arc","clockwise":false}'];
-        yield 'circle' => [new CircleProps(600.0), '{"#type":"App\\\\Plan\\\\Props\\\\CircleProps","type":"circle","radius":600.0}'];
-        yield 'ellipse' => [
-            new EllipseProps(1000.0, 700.0, 0.25),
-            '{"#type":"App\\\\Plan\\\\Props\\\\EllipseProps","type":"ellipse","radiusX":1000.0,"radiusY":700.0,"rotation":0.25}',
+        // A member of a union also carries the "type" of its discriminator map
+        yield 'union member' => [
+            new CircleShape(600.0, true),
+            '{"#type":"App\\\\Tests\\\\Core\\\\Doctrine\\\\Fixtures\\\\CircleShape","type":"circle","radius":600.0,"filled":true}',
         ];
-        yield 'bezier' => [
-            new BezierProps(new Vector2(500.0, -200.0), new Vector2(-500.0, -200.0)),
-            '{"#type":"App\\\\Plan\\\\Props\\\\BezierProps","type":"bezier","startControl":{"x":500.0,"y":-200.0},"endControl":{"x":-500.0,"y":-200.0}}',
+        yield 'union member with a default' => [
+            new CircleShape(600.0),
+            '{"#type":"App\\\\Tests\\\\Core\\\\Doctrine\\\\Fixtures\\\\CircleShape","type":"circle","radius":600.0,"filled":false}',
+        ];
+        yield 'union member with nested objects' => [
+            new SegmentShape(new Point(500.0, -200.0), new Point(-500.0, -200.0)),
+            '{"#type":"App\\\\Tests\\\\Core\\\\Doctrine\\\\Fixtures\\\\SegmentShape","type":"segment","start":{"x":500.0,"y":-200.0},"end":{"x":-500.0,"y":-200.0}}',
         ];
     }
 
@@ -72,7 +67,7 @@ final class JsonDocumentTypeTest extends KernelTestCase
     {
         $this->expectException(ValueNotConvertible::class);
 
-        $this->type()->convertToPHPValue('{"#type":"App\\\\Plan\\\\Props\\\\SplineProps"}', new MySQL80Platform());
+        $this->type()->convertToPHPValue('{"#type":"App\\\\Tests\\\\Core\\\\Doctrine\\\\Fixtures\\\\SquareShape"}', new MySQL80Platform());
     }
 
     public function testOnlyObjectsAreStored(): void

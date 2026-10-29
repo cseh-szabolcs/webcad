@@ -13,7 +13,8 @@ use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 /**
  * Stores an object as a JSON document and reads it back into its class: the serializer writes
  * the object's properties, and "#type" names its class, as a Doctrine type does not know the
- * property it converts. Moving or renaming such a class therefore needs a data migration.
+ * property it converts. Moving or renaming such a class therefore needs a data migration. No
+ * entity uses it at the moment; it is kept for values that are better stored as one document.
  *
  * Needs the application's serializer, so it is registered as an instance by
  * JsonDocumentTypeRegistrar rather than by class in doctrine.yaml.

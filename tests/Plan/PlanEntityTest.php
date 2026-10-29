@@ -15,15 +15,9 @@ use App\Plan\Entity\LineElement;
 use App\Plan\Entity\Plan;
 use App\Plan\Entity\PlanVersion;
 use App\Plan\Entity\PolylineElement;
+use App\Plan\Entity\Vector2;
 use App\Plan\Entity\Vertex;
 use App\Plan\Enum\PlanUnit;
-use App\Plan\Props\ArcProps;
-use App\Plan\Props\BezierProps;
-use App\Plan\Props\CircleProps;
-use App\Plan\Props\EllipseProps;
-use App\Plan\Props\LineProps;
-use App\Plan\Props\PolylineProps;
-use App\Plan\Props\Vector2;
 use App\Project\Entity\Project;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -53,12 +47,12 @@ final class PlanEntityTest extends KernelTestCase
         $c = new Vertex(Uuid::v7(), $draft, 6000.0, 4000.5);
 
         $elements = [
-            $polyline = new PolylineElement(Uuid::v7(), $draft, 0, [$a, $b, $c, $a], new PolylineProps(false), $walls, name: 'Wall'),
+            $polyline = new PolylineElement(Uuid::v7(), $draft, 0, [$a, $b, $c, $a], false, $walls, name: 'Wall'),
             $line = new LineElement(Uuid::v7(), $draft, 1, $a, $c, style: $dashed),
-            $arc = new ArcElement(Uuid::v7(), $draft, 2, $a, $b, $c, new ArcProps(true), $hidden, $door),
-            $circle = new CircleElement(Uuid::v7(), $draft, 3, $b, new CircleProps(600.0)),
-            $ellipse = new EllipseElement(Uuid::v7(), $draft, 4, $b, new EllipseProps(1000.0, 700.0, 0.5)),
-            $bezier = new BezierElement(Uuid::v7(), $draft, 5, $a, $b, new BezierProps(new Vector2(500.0, -200.0), new Vector2(-500.0, -200.0))),
+            $arc = new ArcElement(Uuid::v7(), $draft, 2, $a, $b, $c, true, $hidden, $door),
+            $circle = new CircleElement(Uuid::v7(), $draft, 3, $b, 600.0),
+            $ellipse = new EllipseElement(Uuid::v7(), $draft, 4, $b, 1000.0, 700.0, 0.5),
+            $bezier = new BezierElement(Uuid::v7(), $draft, 5, $a, $b, new Vector2(500.0, -200.0), new Vector2(-500.0, -200.0)),
         ];
 
         foreach ([$project, $plan, $walls, $hidden, $door, $dashed, $a, $b, $c, ...$elements] as $entity) {
@@ -89,27 +83,31 @@ final class PlanEntityTest extends KernelTestCase
         self::assertSame($polyline->getVertices()[0], $line->getStartVertex());
         self::assertSame('Wall', $polyline->getName());
         self::assertSame('Walls', $polyline->getLayer()->getName());
-        self::assertEquals(new PolylineProps(false), $polyline->getProps());
-        self::assertEquals(new LineProps(), $line->getProps());
+        self::assertFalse($polyline->isClosed());
 
         self::assertNull($line->getLayer());
         self::assertSame([8.0, 4.0], $line->getStyle()->getDashPattern());
         self::assertSame('#f3f4f6', $line->getStyle()->getFillColor());
         self::assertSame(4000.5, $line->getEndVertex()->getY());
 
-        self::assertEquals(new ArcProps(true), $arc->getProps());
+        self::assertTrue($arc->isClockwise());
         self::assertSame('Door D1', $arc->getGroup()->getName());
         self::assertFalse($arc->getLayer()->isVisible());
         self::assertTrue($arc->getLayer()->isLocked());
 
-        self::assertEquals(new CircleProps(600.0), $circle->getProps());
-        self::assertEquals(new EllipseProps(1000.0, 700.0, 0.5), $ellipse->getProps());
-        self::assertEquals(new BezierProps(new Vector2(500.0, -200.0), new Vector2(-500.0, -200.0)), $bezier->getProps());
+        self::assertSame(600.0, $circle->getRadius());
+        self::assertSame([1000.0, 700.0, 0.5], [$ellipse->getRadiusX(), $ellipse->getRadiusY(), $ellipse->getRotation()]);
+        self::assertEquals(new Vector2(500.0, -200.0), $bezier->getStartControl());
+        self::assertEquals(new Vector2(-500.0, -200.0), $bezier->getEndControl());
 
-        // Stored as a JSON document with the class that it is read back into
-        self::assertJsonStringEqualsJsonString(
-            '{"#type": "App\\\\Plan\\\\Props\\\\EllipseProps", "type": "ellipse", "radiusX": 1000.0, "radiusY": 700.0, "rotation": 0.5}',
-            $em->getConnection()->fetchOne('SELECT props FROM element WHERE id = ?', [$ellipse->getId()->toBinary()]),
+        // Stored as columns of the shared table, the control vectors with the prefix of their property
+        self::assertEquals(
+            ['radius_x' => 1000.0, 'radius_y' => 700.0, 'rotation' => 0.5, 'start_control_x' => null],
+            $em->getConnection()->fetchAssociative('SELECT radius_x, radius_y, rotation, start_control_x FROM element WHERE id = ?', [$ellipse->getId()->toBinary()]),
+        );
+        self::assertEquals(
+            ['start_control_x' => 500.0, 'start_control_y' => -200.0, 'end_control_x' => -500.0, 'end_control_y' => -200.0],
+            $em->getConnection()->fetchAssociative('SELECT start_control_x, start_control_y, end_control_x, end_control_y FROM element WHERE id = ?', [$bezier->getId()->toBinary()]),
         );
     }
 
@@ -119,7 +117,7 @@ final class PlanEntityTest extends KernelTestCase
 
         $this->expectException(\InvalidArgumentException::class);
 
-        new PolylineElement(Uuid::v7(), $draft, 0, [new Vertex(Uuid::v7(), $draft, 0.0, 0.0)], new PolylineProps(false));
+        new PolylineElement(Uuid::v7(), $draft, 0, [new Vertex(Uuid::v7(), $draft, 0.0, 0.0)], false);
     }
 
     public function testPublishMakesTheCopyTheNumberedHead(): void

@@ -4,19 +4,14 @@ namespace App\Tests\Plan;
 
 use App\Core\Tenancy\TenantSwitcher;
 use App\Fixtures\FixtureCreateCommand;
-use App\Plan\Api\Model\LineElement;
-use App\Plan\Api\Model\PlanDocument;
+use App\Plan\Dto\LineElementDto;
+use App\Plan\Dto\PlanDocumentDto;
 use App\Plan\Entity;
 use App\Plan\Entity\Element;
 use App\Plan\Entity\Plan;
+use App\Plan\Entity\Vector2;
 use App\Plan\Enum\PlanUnit;
 use App\Plan\PlanFactory;
-use App\Plan\Props\ArcProps;
-use App\Plan\Props\BezierProps;
-use App\Plan\Props\CircleProps;
-use App\Plan\Props\EllipseProps;
-use App\Plan\Props\PolylineProps;
-use App\Plan\Props\Vector2;
 use App\Project\Entity\Project;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -72,14 +67,15 @@ final class PlanFactoryTest extends KernelTestCase
 
         self::assertSame('Walls', $wallOuter->getLayer()->getName());
         self::assertSame('Wall', $wallOuter->getStyle()->getName());
-        self::assertEquals(new PolylineProps(true), $wallOuter->getProps());
+        self::assertTrue($wallOuter->isClosed());
         self::assertSame('Door D1', $doorLeaf->getGroup()->getName());
         self::assertNull($axis->getLayer());
         self::assertNull($axis->getStyle());
-        self::assertEquals(new CircleProps(600.0), $table->getProps());
-        self::assertEquals(new EllipseProps(1000.0, 700.0, 0.0), $rug->getProps());
-        self::assertEquals(new ArcProps(false), $doorSwing->getProps());
-        self::assertEquals(new BezierProps(new Vector2(500.0, -200.0), new Vector2(-500.0, -200.0)), $curtain->getProps());
+        self::assertSame(600.0, $table->getRadius());
+        self::assertSame([1000.0, 700.0, 0.0], [$rug->getRadiusX(), $rug->getRadiusY(), $rug->getRotation()]);
+        self::assertFalse($doorSwing->isClockwise());
+        self::assertEquals(new Vector2(500.0, -200.0), $curtain->getStartControl());
+        self::assertEquals(new Vector2(-500.0, -200.0), $curtain->getEndControl());
     }
 
     public function testFurtherVersionIsAddedToThePlan(): void
@@ -87,7 +83,7 @@ final class PlanFactoryTest extends KernelTestCase
         $plan = $this->createAndReload($this->sampleDocument());
 
         $document = $this->sampleDocument();
-        $document = new PlanDocument($document->id, 'Other name', $document->schemaVersion, PlanUnit::Metre, $document->vertices, $document->elements, $document->layers, $document->groups, $document->styles);
+        $document = new PlanDocumentDto($document->id, 'Other name', $document->schemaVersion, PlanUnit::Metre, $document->vertices, $document->elements, $document->layers, $document->groups, $document->styles);
         $version = $this->factory()->createVersion($plan, $document);
         $this->em()->flush();
 
@@ -104,7 +100,7 @@ final class PlanFactoryTest extends KernelTestCase
     {
         $document = $this->sampleDocument();
         $elements = $document->elements;
-        $elements[] = new LineElement(Uuid::v7()->toRfc4122(), null, null, null, $document->vertices[0]->id, Uuid::v7()->toRfc4122());
+        $elements[] = new LineElementDto(Uuid::v7()->toRfc4122(), null, null, null, $document->vertices[0]->id, Uuid::v7()->toRfc4122());
 
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/unknown vertex/');
@@ -115,29 +111,29 @@ final class PlanFactoryTest extends KernelTestCase
     public function testOtherSchemaVersionIsRejected(): void
     {
         $document = $this->sampleDocument();
-        $document = new PlanDocument($document->id, $document->name, 2, $document->unit, $document->vertices, $document->elements, $document->layers, $document->groups, $document->styles);
+        $document = new PlanDocumentDto($document->id, $document->name, 2, $document->unit, $document->vertices, $document->elements, $document->layers, $document->groups, $document->styles);
 
         $this->expectException(\InvalidArgumentException::class);
 
         $this->factory()->create(new Project(Uuid::v7(), 'P'), $document);
     }
 
-    private function sampleDocument(): PlanDocument
+    private function sampleDocument(): PlanDocumentDto
     {
         $json = file_get_contents(static::getContainer()->getParameter('kernel.project_dir').FixtureCreateCommand::SAMPLE_PLAN);
 
-        return static::getContainer()->get(SerializerInterface::class)->deserialize($json, PlanDocument::class, 'json');
+        return static::getContainer()->get(SerializerInterface::class)->deserialize($json, PlanDocumentDto::class, 'json');
     }
 
     /**
-     * @param list<\App\Plan\Api\Model\ElementInterface> $elements
+     * @param list<\App\Plan\Dto\ElementDtoInterface> $elements
      */
-    private function withElements(PlanDocument $d, array $elements): PlanDocument
+    private function withElements(PlanDocumentDto $d, array $elements): PlanDocumentDto
     {
-        return new PlanDocument($d->id, $d->name, $d->schemaVersion, $d->unit, $d->vertices, $elements, $d->layers, $d->groups, $d->styles);
+        return new PlanDocumentDto($d->id, $d->name, $d->schemaVersion, $d->unit, $d->vertices, $elements, $d->layers, $d->groups, $d->styles);
     }
 
-    private function createAndReload(PlanDocument $document): Plan
+    private function createAndReload(PlanDocumentDto $document): Plan
     {
         $project = new Project(Uuid::v7(), 'Beispielprojekt');
         $this->em()->persist($project);

@@ -8,9 +8,9 @@ use App\Core\Tenancy\TenantNotSelectedException;
 use App\Core\Tenancy\TenantProvisioner;
 use App\Core\Tenancy\TenantProvisioningException;
 use App\Core\Tenancy\TenantSwitcher;
-use App\Project\CreateProjectCommand;
-use App\Project\GetProjectQuery;
-use App\Project\ProjectDTO;
+use App\Project\Command\CreateProjectCommand;
+use App\Project\Query\GetProjectQuery;
+use App\Project\Query\ProjectDto;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\Stamp\HandledStamp;
@@ -60,7 +60,7 @@ final class TenantProvisionerTest extends KernelTestCase
         self::assertNull($this->query(new GetProjectQuery($id)));
 
         $this->switchTo($first);
-        self::assertEquals(new ProjectDTO($id->toRfc4122(), 'Einfamilienhaus'), $this->query(new GetProjectQuery($id)));
+        self::assertEquals(new ProjectDto($id->toRfc4122(), 'Einfamilienhaus'), $this->query(new GetProjectQuery($id)));
     }
 
     public function testDeleteDropsDatabaseAndRegistryEntry(): void

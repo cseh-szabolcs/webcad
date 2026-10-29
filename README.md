@@ -112,9 +112,10 @@ others and lists every result at the end.
 
 ## API documentation and editor types
 
-The PHP API models (`src/Plan/Api/Model/`) and the `#[OA\…]` attributes on the controllers are
-the only source of the API description. NelmioApiDocBundle builds the OpenAPI document from them
-(with the corrections of the processors in `src/Core/OpenApi/`); in dev and test it is served at
+The PHP DTOs (`src/Plan/Dto/`) and the `#[OA\…]` attributes on the controllers are the only
+source of the API description. NelmioApiDocBundle builds the OpenAPI document from them (with the
+corrections of the processors in `src/Core/OpenApi/`, which also drop the `Dto` suffix, so
+`PlanDocumentDto` is documented as `PlanDocument`); in dev and test it is served at
 
 | What               | URL                                 |
 |--------------------|-------------------------------------|
@@ -131,7 +132,7 @@ npm run generate:api
 # another source: API_DOC_URL=http://… npm run generate:api
 ```
 
-`schema.d.ts` is checked in and never edited by hand. A change to an API model is only done once
+`schema.d.ts` is checked in and never edited by hand. A change to the DTOs is only done once
 the types were generated again and the diff of `schema.d.ts` is committed with it. The editor uses
 the types as `ApiSchema['…']` (`src/api/types.ts`), e.g. `ApiSchema['PlanDocument']` in
 `CadApiClient`; `tsc` (`npm run build`) fails when they no longer fit the editor's document model.
