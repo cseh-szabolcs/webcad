@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Tests\Plan\Controller;
+namespace App\Tests\Plan\Controller\Api;
 
 use App\Core\Tenancy\TenantSwitcher;
 use App\Fixtures\FixtureCreateCommand;
@@ -18,7 +18,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Uid\Uuid;
 
-final class PlanDocumentControllerTest extends WebTestCase
+final class GetPlanDocumentControllerTest extends WebTestCase
 {
     private KernelBrowser $client;
     private string $planId;

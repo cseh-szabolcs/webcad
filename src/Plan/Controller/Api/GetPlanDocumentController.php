@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Plan\Controller;
+namespace App\Plan\Controller\Api;
 
 use App\Plan\Dto\PlanDocumentDto;
 use App\Plan\Query\GetPlanDocumentQuery;
@@ -22,7 +22,7 @@ use Symfony\Component\Uid\Uuid;
  * The editor loads a plan as one document. The plan's revision is the ETag, so a client that
  * sends it back in If-None-Match gets a 304 while nothing changed.
  */
-final class PlanDocumentController extends AbstractController
+final class GetPlanDocumentController extends AbstractController
 {
     use HandleTrait;
 
@@ -48,7 +48,7 @@ final class PlanDocumentController extends AbstractController
             new OA\Response(response: 404, description: 'Unknown plan.'),
         ],
     )]
-    public function get(Uuid $id, Request $request): JsonResponse
+    public function __invoke(Uuid $id, Request $request): JsonResponse
     {
         /** @var PlanDocumentResult|null $result */
         $result = $this->handle(new GetPlanDocumentQuery($id));
