@@ -9,8 +9,7 @@ use Symfony\Component\HttpKernel\Event\ViewEvent;
 use Symfony\Component\Serializer\SerializerInterface;
 
 /**
- * Turns an ApiResponse returned by a controller into a JSON response. Anything else is left to
- * the other view listeners; errors go to Symfony's own exception handling.
+ * Turns an ApiResponse returned by a controller into a JSON response.
  */
 #[AsEventListener]
 final readonly class ControllerResultListener
