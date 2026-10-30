@@ -35,8 +35,8 @@ final readonly class ControllerResultListener
 
         $response = new JsonResponse($json, $result->status, [], true);
 
-        if (null !== $result->etag) {
-            $response->setEtag($result->etag);
+        if ($etag = $result->etag) {
+            $response->setEtag($etag);
             $response->isNotModified($event->getRequest());
         }
 
