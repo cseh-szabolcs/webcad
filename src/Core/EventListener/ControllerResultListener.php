@@ -2,53 +2,42 @@
 
 namespace App\Core\EventListener;
 
-use App\Core\Contracts\SerializableResponseInterface;
-use App\Core\Traits\EnvAwareTrait;
-use Psr\Log\LoggerInterface;
+use App\Core\Http\ApiResponse;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Event\ViewEvent;
 use Symfony\Component\Serializer\SerializerInterface;
-use Throwable;
 
+/**
+ * Turns an ApiResponse returned by a controller into a JSON response. Anything else is left to
+ * the other view listeners; errors go to Symfony's own exception handling.
+ */
 #[AsEventListener]
-final class ControllerResultListener
+final readonly class ControllerResultListener
 {
-    use EnvAwareTrait;
-
     public function __construct(
-        private readonly SerializerInterface $serializer,
-        private readonly LoggerInterface $logger,
+        private SerializerInterface $serializer,
     ) {
     }
 
-    /**
-     * @throws Throwable
-     */
     public function __invoke(ViewEvent $event): void
     {
         $result = $event->getControllerResult();
-
-        if (!$result instanceof SerializableResponseInterface) {
+        if (!$result instanceof ApiResponse) {
             return;
         }
 
-        try {
-            $json = $this->serializer->serialize($result, 'json', $result->getSerializationContext() ?? []);
-
-            $response = new JsonResponse($json, 200, [], true);
-            if ($etag = $result->getResponseEtag()) {
-                $response->setEtag($etag);
-                $response->isNotModified($event->getRequest());
-            }
-
-            $event->setResponse($response);
-        } catch (Throwable $e) {
-            if ($this->env->isDev()) {
-                throw $e;
-            }
-
-            $this->logger->error($e);
+        // The encoding options of AbstractController::json(), unless the context names others
+        $json = $this->serializer->serialize($result->data, 'json', [
+            'json_encode_options' => JsonResponse::DEFAULT_ENCODING_OPTIONS,
+            ...$result->context,
+        ]);
+        $response = new JsonResponse($json, $result->status, [], true);
+        if (null !== $result->etag) {
+            $response->setEtag($result->etag);
+            $response->isNotModified($event->getRequest());
         }
+
+        $event->setResponse($response);
     }
 }

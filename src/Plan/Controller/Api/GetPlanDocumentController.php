@@ -2,7 +2,7 @@
 
 namespace App\Plan\Controller\Api;
 
-use App\Core\Contracts\SerializableResponseInterface;
+use App\Core\Http\ApiResponse;
 use App\Plan\Dto\PlanDocumentDto;
 use App\Plan\Query\GetPlanDocumentQuery;
 use App\Plan\Query\PlanDocumentResult;
@@ -11,8 +11,6 @@ use Nelmio\ApiDocBundle\Attribute\Model;
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
-use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Messenger\HandleTrait;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
@@ -49,13 +47,17 @@ final class GetPlanDocumentController extends AbstractController
             new OA\Response(response: 404, description: 'Unknown plan.'),
         ],
     )]
-    public function __invoke(Uuid $id, Request $request): SerializableResponseInterface
+    public function __invoke(Uuid $id): ApiResponse
     {
         /** @var PlanDocumentResult|null $result */
-        if ($result = $this->handle(new GetPlanDocumentQuery($id))) {
-            return $result;
+        $result = $this->handle(new GetPlanDocumentQuery($id));
+        if (null === $result) {
+            throw $this->createNotFoundException(\sprintf('Plan "%s" not found.', $id->toRfc4122()));
         }
 
-        throw $this->createNotFoundException(\sprintf('Plan "%s" not found.', $id->toRfc4122()));
+        return new ApiResponse(
+            data: $result->document,
+            etag: (string) $result->revision,
+        );
     }
 }

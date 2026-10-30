@@ -7,7 +7,6 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
-    app.env: '%env(APP_ENV)%'
     # Tenant databases are named <prefix><tenant name><suffix>, see docs/architecture/tenancy.md
     app.tenant_database_prefix: app_
     app.tenant_database_suffix: ''
@@ -19,7 +18,6 @@ services:
         autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
         bind:
             string $rootDir: '%kernel.project_dir%'
-            string $env: '%app.env%'
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name

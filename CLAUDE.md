@@ -125,7 +125,10 @@ Rules that apply everywhere:
     carries its route and OpenAPI attributes, named after the message it sends
     (`GetPlanDocumentQuery` → `GetPlanDocumentController`, a later PATCH e.g.
     `UpdatePlanDocumentCommand` → `UpdatePlanDocumentController`); subfolders per resource only
-    once an area has many endpoints, page controllers beside it in `Controller/`.
+    once an area has many endpoints, page controllers beside it in `Controller/`. It returns an
+    `ApiResponse` (`src/Core/Http/`: data, ETag, serializer context, status), which
+    `ControllerResultListener` serializes like `AbstractController::json()` (ETag → 304 on a
+    matching `If-None-Match`); query results stay free of HTTP.
   - Dependencies point one way (`Plan` may know `Project`, not the reverse; `Core` knows no
     area). Tests mirror the folders (`tests/Core/Tenancy/…`, `tests/Plan/Controller/Api/…`).
 - **CQRS** with separate Messenger `command.bus` / `query.bus` (`docs/architecture/cqrs.md`):
