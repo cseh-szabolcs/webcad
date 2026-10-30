@@ -22,6 +22,7 @@ final readonly class ControllerResultListener
     public function __invoke(ViewEvent $event): void
     {
         $result = $event->getControllerResult();
+
         if (!$result instanceof ApiResponse) {
             return;
         }
@@ -31,7 +32,9 @@ final readonly class ControllerResultListener
             'json_encode_options' => JsonResponse::DEFAULT_ENCODING_OPTIONS,
             ...$result->context,
         ]);
+
         $response = new JsonResponse($json, $result->status, [], true);
+
         if (null !== $result->etag) {
             $response->setEtag($result->etag);
             $response->isNotModified($event->getRequest());
