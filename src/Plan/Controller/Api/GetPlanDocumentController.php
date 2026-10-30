@@ -2,6 +2,7 @@
 
 namespace App\Plan\Controller\Api;
 
+use App\Core\Contracts\SerializableResponseInterface;
 use App\Plan\Dto\PlanDocumentDto;
 use App\Plan\Query\GetPlanDocumentQuery;
 use App\Plan\Query\PlanDocumentResult;
@@ -48,18 +49,13 @@ final class GetPlanDocumentController extends AbstractController
             new OA\Response(response: 404, description: 'Unknown plan.'),
         ],
     )]
-    public function __invoke(Uuid $id, Request $request): JsonResponse
+    public function __invoke(Uuid $id, Request $request): SerializableResponseInterface
     {
         /** @var PlanDocumentResult|null $result */
-        $result = $this->handle(new GetPlanDocumentQuery($id));
-        if (null === $result) {
-            throw $this->createNotFoundException(\sprintf('Plan "%s" not found.', $id->toRfc4122()));
+        if ($result = $this->handle(new GetPlanDocumentQuery($id))) {
+            return $result;
         }
 
-        $response = $this->json($result->document);
-        $response->setEtag((string) $result->revision);
-        $response->isNotModified($request);
-
-        return $response;
+        throw $this->createNotFoundException(\sprintf('Plan "%s" not found.', $id->toRfc4122()));
     }
 }

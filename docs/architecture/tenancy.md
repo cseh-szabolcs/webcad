@@ -32,11 +32,12 @@ Doctrine setup
   `#[Autowire(service: 'doctrine.dbal.main_connection')]`.
 
 Since `tenant` is the default, the CQRS code needs nothing special: command handlers get the tenant
-entity manager, query handlers the tenant `Connection`, and the `doctrine_transaction` middleware of
-`command.bus` wraps the tenant connection.
+entity manager, query handlers the repositories of the tenant entities, and the
+`doctrine_transaction` middleware of `command.bus` wraps the tenant connection. Plain
+`EntityManagerInterface`/`Connection` autowiring hits the tenant's database.
 
 A new entity goes into the `Entity/` folder of its business area (`src/<Area>/Entity`, nothing but
-entities there). Each such folder belongs to exactly one entity manager: `tenant` if the area's data
+entities and their embeddables there). Each such folder belongs to exactly one entity manager: `tenant` if the area's data
 belongs to one customer, `main` if it is shared. A new folder gets a mapping of its own under that
 entity manager in `config/packages/doctrine.yaml` and a row in
 `tests/Core/Tenancy/EntityMappingTest.php`, which checks that each entity is managed by the entity
@@ -62,12 +63,7 @@ and points the tenant connection at its database.
 Creating and deleting tenants
 -----------------------------
 
-```sh
-docker compose exec php bin/console app:tenant:create acme --display-name="Acme AG"
-docker compose exec php bin/console app:tenant:list
-docker compose exec php bin/console app:tenant:delete acme          # asks; --force without asking
-```
-
+The commands (`app:tenant:create|list|delete`) are listed in `CLAUDE.md` and `README.md`.
 `TenantProvisioner::create()` writes the registry row, creates the database and runs the tenant
 migrations on it, so the migrations stay the only source of the schema. If a step fails, the
 database and the row are removed again. A database of that name that belongs to no tenant is never
@@ -81,13 +77,7 @@ Migrations
 | tenants | `migrations/Tenant` | bundle default (`config/packages/doctrine_migrations.yaml`), per tenant |
 | main    | `migrations/Main`   | `--em=main --configuration=config/migrations/main.yaml`               |
 
-```sh
-docker compose exec php composer db:migrate          # db:migrate:main, then db:migrate:tenants
-docker compose exec -e APP_ENV=test php composer db:migrate
-docker compose exec php bin/console doctrine:migrations:diff --tenant=demo
-docker compose exec php bin/console doctrine:migrations:diff --em=main --configuration=config/migrations/main.yaml
-```
-
+Commands for running and creating migrations: `README.md` ("Databases and migrations").
 `app:tenants:run "<command>"` runs any console command once per tenant (`--continue-on-error` to go
 on after a failure). `TenantCommandRunner` gives each run a kernel of its own, because the
 migrations' `DependencyFactory` remembers the first database it has seen.

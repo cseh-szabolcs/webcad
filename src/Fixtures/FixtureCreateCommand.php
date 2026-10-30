@@ -42,8 +42,7 @@ final readonly class FixtureCreateCommand
         private PlanFactory $planFactory,
         private EntityManagerInterface $entityManager,
         private SerializerInterface $serializer,
-        #[Autowire('%kernel.project_dir%')]
-        private string $projectDir,
+        private string $rootDir,
         #[Autowire(env: 'default::EDITOR_URL')]
         private ?string $editorUrl,
     ) {
@@ -78,7 +77,7 @@ final readonly class FixtureCreateCommand
         $this->entityManager->clear();
 
         $project = new Project(Uuid::v7(), $projectName);
-        $document = $this->serializer->deserialize(file_get_contents($this->projectDir.self::SAMPLE_PLAN), PlanDocumentDto::class, 'json');
+        $document = $this->serializer->deserialize(file_get_contents($this->rootDir.self::SAMPLE_PLAN), PlanDocumentDto::class, 'json');
         $plan = $this->entityManager->wrapInTransaction(function () use ($project, $document, $planId) {
             $this->entityManager->persist($project);
 
