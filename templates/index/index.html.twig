@@ -14,11 +14,11 @@
                 <h1 class="hero__title">{{ 'home.hero.title'|trans|e|replace({'%highlight%': highlight})|raw }}</h1>
                 <p class="hero__lead">{{ 'home.hero.lead'|trans }}</p>
                 <div class="hero__actions">
-                    <a class="btn btn--primary btn--lg" href="{{ path('user_register') }}">
+                    <a class="btn btn--primary btn--lg" href="{{ path('user_auth_register') }}">
                         {{ 'home.hero.cta_primary'|trans }}
                         <svg class="btn__arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg>
                     </a>
-                    <a class="btn btn--ghost btn--lg" href="{{ path('user_login') }}">{{ 'home.hero.cta_secondary'|trans }}</a>
+                    <a class="btn btn--ghost btn--lg" href="{{ path('user_auth_login') }}">{{ 'home.hero.cta_secondary'|trans }}</a>
                 </div>
             </div>
 
@@ -58,7 +58,7 @@
                 <h2 class="band__title">{{ 'home.closing.title'|trans }}</h2>
                 <p class="band__text">{{ 'home.closing.text'|trans }}</p>
             </div>
-            <a class="btn btn--primary btn--lg" href="{{ path('user_register') }}">
+            <a class="btn btn--primary btn--lg" href="{{ path('user_auth_register') }}">
                 {{ 'home.closing.cta'|trans }}
                 <svg class="btn__arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg>
             </a>

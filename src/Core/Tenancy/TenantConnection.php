@@ -2,6 +2,7 @@
 
 namespace App\Core\Tenancy;
 
+use App\Core\Tenancy\Exception\TenantNotSelectedException;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Driver\Connection as DriverConnection;
 use Doctrine\DBAL\Driver\Exception as DriverException;

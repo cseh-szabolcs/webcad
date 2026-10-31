@@ -19,13 +19,9 @@ class TenantRepository extends ServiceEntityRepository
         parent::__construct($registry, Tenant::class);
     }
 
-    public function findByName(string $name): Tenant
+    public function findByName(string $name): ?Tenant
     {
-        $tenant = $this->findOneBy(['name' => $name]);
-
-        $this->assertResult($tenant);
-
-        return $tenant;
+        return $this->findOneBy(['name' => $name]);
     }
 
     /**

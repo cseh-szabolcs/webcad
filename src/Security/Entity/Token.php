@@ -2,19 +2,20 @@
 
 namespace App\Security\Entity;
 
-use App\Core\Contracts\OwnerAwareInterface;
+use App\Core\Contracts\TenantOwnerAwareInterface;
+use App\Core\Tenancy\Entity\Tenant;
 use App\Core\Traits\Entity\CreatedTrait;
-use App\Core\Traits\Entity\OwnerAwareTrait;
+use App\Core\Traits\Entity\TenantOwnerAwareTrait;
 use App\Core\Traits\Entity\UuidTrait;
 use App\Security\Repository\TokenRepository;
 use App\User\Entity\User;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: TokenRepository::class)]
-class Token implements OwnerAwareInterface
+class Token implements TenantOwnerAwareInterface
 {
     use UuidTrait;
-    use OwnerAwareTrait;
+    use TenantOwnerAwareTrait;
     use CreatedTrait;
 
     #[ORM\Column(length: 50, index: true)]
@@ -30,13 +31,15 @@ class Token implements OwnerAwareInterface
     private ?int $ttl;
 
     public function __construct(
-        User $owner,
+        Tenant $tenant,
+        User|int $ownerId,
         TokenType $type,
         ?array $payload = null,
         ?int $ttl = null,
         bool $renewable = false,
     ) {
-        $this->owner = $owner;
+        $this->tenant = $tenant;
+        $this->ownerId = $ownerId instanceof User ? $ownerId->getId() : $ownerId;
         $this->type = $type;
         $this->payload = $payload;
         $this->ttl = $ttl;

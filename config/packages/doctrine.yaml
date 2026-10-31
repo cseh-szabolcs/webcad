@@ -36,6 +36,12 @@ doctrine:
                         dir: '%kernel.project_dir%/src/Project/Entity'
                         prefix: 'App\Project\Entity'
                         alias: Project
+                    User:
+                        type: attribute
+                        is_bundle: false
+                        dir: '%kernel.project_dir%/src/User/Entity'
+                        prefix: 'App\User\Entity'
+                        alias: User
             main:
                 connection: main
                 validate_xml_mapping: true
@@ -49,6 +55,12 @@ doctrine:
                         dir: '%kernel.project_dir%/src/Core/Tenancy/Entity'
                         prefix: 'App\Core\Tenancy\Entity'
                         alias: Tenancy
+                    Security:
+                        type: attribute
+                        is_bundle: false
+                        dir: '%kernel.project_dir%/src/Security/Entity'
+                        prefix: 'App\Security\Entity'
+                        alias: Security
 
 when@test:
     doctrine:

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Core\Tenancy;
+namespace App\Core\Tenancy\Exception;
 
 /**
  * Building or removing a tenant database failed. The output of the command that failed is part of

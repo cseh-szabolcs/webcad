@@ -10,10 +10,10 @@
 
         <nav class="site-nav" aria-label="{{ 'layout.nav.label'|trans }}">
             {{ include('layout/_locale_switcher.html.twig') }}
-            <a class="btn btn--ghost" href="{{ path('user_login') }}"
-               {%- if app.current_route == 'user_login' %} aria-current="page"{% endif %}>{{ 'layout.nav.login'|trans }}</a>
-            <a class="btn btn--primary" href="{{ path('user_register') }}"
-               {%- if app.current_route == 'user_register' %} aria-current="page"{% endif %}>{{ 'layout.nav.register'|trans }}</a>
+            <a class="btn btn--ghost" href="{{ path('user_auth_login') }}"
+               {%- if app.current_route == 'user_auth_login' %} aria-current="page"{% endif %}>{{ 'layout.nav.login'|trans }}</a>
+            <a class="btn btn--primary" href="{{ path('user_auth_register') }}"
+               {%- if app.current_route == 'user_auth_register' %} aria-current="page"{% endif %}>{{ 'layout.nav.register'|trans }}</a>
         </nav>
     </div>
 </header>

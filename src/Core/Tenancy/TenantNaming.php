@@ -2,6 +2,7 @@
 
 namespace App\Core\Tenancy;
 
+use App\Core\Tenancy\Exception\InvalidTenantNameException;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**

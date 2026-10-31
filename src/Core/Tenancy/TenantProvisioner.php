@@ -3,6 +3,9 @@
 namespace App\Core\Tenancy;
 
 use App\Core\Tenancy\Entity\Tenant;
+use App\Core\Tenancy\Exception\InvalidTenantNameException;
+use App\Core\Tenancy\Exception\TenantNotFoundException;
+use App\Core\Tenancy\Exception\TenantProvisioningException;
 use App\Core\Tenancy\Repository\TenantRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

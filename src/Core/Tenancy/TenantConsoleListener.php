@@ -3,6 +3,7 @@
 namespace App\Core\Tenancy;
 
 use App\Core\Tenancy\Console\Application;
+use App\Core\Tenancy\Exception\TenantNotFoundException;
 use Doctrine\DBAL\Exception as DBALException;
 use Symfony\Component\Console\ConsoleEvents;
 use Symfony\Component\Console\Event\ConsoleCommandEvent;

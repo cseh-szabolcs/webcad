@@ -2,7 +2,7 @@
 
 namespace App\Fixtures;
 
-use App\Core\Tenancy\TenantNotSelectedException;
+use App\Core\Tenancy\Exception\TenantNotSelectedException;
 use App\Core\Tenancy\TenantProvisioner;
 use App\Core\Tenancy\TenantSwitcher;
 use App\Plan\Dto\PlanDocumentDto;

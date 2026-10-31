@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Core\Traits;
 
+use App\Core\Exception\NotFoundException;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\NoResultException;
 
 /**
  * @method EntityManagerInterface getEntityManager()
@@ -17,7 +17,7 @@ trait RepositoryTrait
     public function assertResult(object|null $result): void
     {
         if (is_null($result)) {
-            throw new NoResultException();
+            throw new NotFoundException();
         }
     }
 

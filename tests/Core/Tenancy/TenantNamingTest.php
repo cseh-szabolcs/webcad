@@ -2,7 +2,7 @@
 
 namespace App\Tests\Core\Tenancy;
 
-use App\Core\Tenancy\InvalidTenantNameException;
+use App\Core\Tenancy\Exception\InvalidTenantNameException;
 use App\Core\Tenancy\TenantNaming;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;

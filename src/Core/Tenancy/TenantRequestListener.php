@@ -2,6 +2,7 @@
 
 namespace App\Core\Tenancy;
 
+use App\Core\Tenancy\Exception\TenantNotFoundException;
 use Doctrine\DBAL\Exception as DBALException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;

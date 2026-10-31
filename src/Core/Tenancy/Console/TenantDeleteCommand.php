@@ -2,9 +2,9 @@
 
 namespace App\Core\Tenancy\Console;
 
+use App\Core\Tenancy\Exception\TenantNotFoundException;
 use App\Core\Tenancy\Repository\TenantRepository;
 use App\Core\Tenancy\TenantNaming;
-use App\Core\Tenancy\TenantNotFoundException;
 use App\Core\Tenancy\TenantProvisioner;
 use Symfony\Component\Console\Attribute\Argument;
 use Symfony\Component\Console\Attribute\AsCommand;

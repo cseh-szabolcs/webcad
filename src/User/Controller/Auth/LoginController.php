@@ -23,6 +23,6 @@ final class LoginController extends AbstractController
             return $this->redirectToRoute('user_auth_login');
         }
 
-        return $this->render('user/login.html.twig');
+        return $this->render('page/user/auth/login.html.twig');
     }
 }

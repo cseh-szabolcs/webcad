@@ -3,6 +3,7 @@
 namespace App\Core\Tenancy;
 
 use App\Core\Tenancy\Entity\Tenant;
+use App\Core\Tenancy\Exception\TenantNotFoundException;
 use App\Core\Tenancy\Repository\TenantRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -26,19 +27,23 @@ final readonly class TenantSwitcher
     /**
      * @throws TenantNotFoundException when the registry has no tenant of that name
      */
-    public function switchTo(string $name): void
+    public function switchTo(string $name): Tenant
     {
-        if (!$this->tenantRepository->findByName($name) instanceof Tenant) {
+        $tenant = $this->tenantRepository->findByName($name);
+
+        if (!$tenant instanceof Tenant) {
             throw new TenantNotFoundException($name);
         }
 
         $database = $this->naming->databaseName($name);
         if ($database === $this->tenantConnection->getTenantDatabase()) {
-            return;
+            return $tenant;
         }
 
         $this->tenantEntityManager->clear();
         $this->tenantConnection->selectDatabase($database);
+
+        return $tenant;
     }
 
     /**

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Core\Tenancy;
+namespace App\Core\Tenancy\Exception;
 
 use App\Core\Tenancy\Console\Application;
 

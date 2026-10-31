@@ -2,11 +2,11 @@
 
 namespace App\Tests\Core\Tenancy;
 
+use App\Core\Tenancy\Exception\TenantNotSelectedException;
+use App\Core\Tenancy\Exception\TenantProvisioningException;
 use App\Core\Tenancy\Repository\TenantRepository;
 use App\Core\Tenancy\TenantNaming;
-use App\Core\Tenancy\TenantNotSelectedException;
 use App\Core\Tenancy\TenantProvisioner;
-use App\Core\Tenancy\TenantProvisioningException;
 use App\Core\Tenancy\TenantSwitcher;
 use App\Project\Command\CreateProjectCommand;
 use App\Project\Query\GetProjectQuery;
