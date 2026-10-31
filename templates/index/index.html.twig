@@ -5,43 +5,63 @@
 {% block body_class %}page-home{% endblock %}
 
 {% block body %}
-    <section class="hero container">
-        <div class="hero__copy">
-            <p class="eyebrow">{{ 'home.hero.eyebrow'|trans }}</p>
-            <h1 class="hero__title">{{ 'home.hero.title'|trans }}</h1>
-            <p class="hero__lead">{{ 'home.hero.lead'|trans }}</p>
-            <div class="hero__actions">
-                <a class="btn btn--primary btn--lg" href="{{ path('user_register') }}">{{ 'home.hero.cta_primary'|trans }}</a>
-                <a class="btn btn--ghost btn--lg" href="{{ path('user_login') }}">{{ 'home.hero.cta_secondary'|trans }}</a>
+    <section class="hero grid-zone">
+        <div class="container hero__inner">
+            <div class="hero__copy">
+                <p class="eyebrow">{{ 'home.hero.eyebrow'|trans }}</p>
+                {# The translation holds %highlight% where the accented word goes #}
+                {% set highlight %}<em>{{ 'home.hero.title_highlight'|trans }}</em>{% endset %}
+                <h1 class="hero__title">{{ 'home.hero.title'|trans|e|replace({'%highlight%': highlight})|raw }}</h1>
+                <p class="hero__lead">{{ 'home.hero.lead'|trans }}</p>
+                <div class="hero__actions">
+                    <a class="btn btn--primary btn--lg" href="{{ path('user_register') }}">
+                        {{ 'home.hero.cta_primary'|trans }}
+                        <svg class="btn__arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg>
+                    </a>
+                    <a class="btn btn--ghost btn--lg" href="{{ path('user_login') }}">{{ 'home.hero.cta_secondary'|trans }}</a>
+                </div>
+            </div>
+
+            <div class="hero__visual">
+                {{ include('layout/_drawing.html.twig') }}
             </div>
         </div>
-
-        <figure class="sheet hero__sheet">
-            {{ include('layout/_floor_plan.html.twig') }}
-            {{ include('layout/_title_block.html.twig') }}
-        </figure>
     </section>
 
-    <section class="features container" aria-labelledby="features-title">
-        <h2 id="features-title" class="visually-hidden">{{ 'home.features.title'|trans }}</h2>
-        <ol class="features__list">
-            {% for key in ['projects', 'editor', 'versions'] %}
-                <li class="feature">
-                    <span class="feature__number">{{ '%02d'|format(loop.index) }}</span>
-                    <h3 class="feature__title">{{ ('home.features.' ~ key ~ '.title')|trans }}</h3>
-                    <p class="feature__text">{{ ('home.features.' ~ key ~ '.text')|trans }}</p>
-                </li>
-            {% endfor %}
-        </ol>
+    <section class="features" aria-labelledby="features-title">
+        <div class="container">
+            <header class="section-head">
+                <p class="eyebrow">{{ 'home.features.eyebrow'|trans }}</p>
+                <h2 id="features-title" class="section-title">{{ 'home.features.title'|trans }}</h2>
+            </header>
+            <ol class="features__list">
+                {% set icons = {
+                    projects: '<path d="M3 7.5V18a1.5 1.5 0 0 0 1.5 1.5h15A1.5 1.5 0 0 0 21 18V9a1.5 1.5 0 0 0-1.5-1.5h-7L10.5 5H4.5A1.5 1.5 0 0 0 3 6.5z"/><path d="M7 12h10M7 15.5h6"/>',
+                    editor: '<path d="M12 3v5M12 16v5M3 12h5M16 12h5"/><rect x="9.5" y="9.5" width="5" height="5"/>',
+                    versions: '<path d="M12 3 3 7.5l9 4.5 9-4.5z"/><path d="m3 12 9 4.5 9-4.5M3 16.5 12 21l9-4.5"/>',
+                } %}
+                {% for key, icon in icons %}
+                    <li class="feature feature--{{ key }}">
+                        <span class="feature__icon"><svg viewBox="0 0 24 24" aria-hidden="true">{{ icon|raw }}</svg></span>
+                        <span class="feature__number">{{ '%02d'|format(loop.index) }}</span>
+                        <h3 class="feature__title">{{ ('home.features.' ~ key ~ '.title')|trans }}</h3>
+                        <p class="feature__text">{{ ('home.features.' ~ key ~ '.text')|trans }}</p>
+                    </li>
+                {% endfor %}
+            </ol>
+        </div>
     </section>
 
-    <section class="closing container">
-        <div class="closing__box">
-            <div>
-                <h2 class="closing__title">{{ 'home.closing.title'|trans }}</h2>
-                <p class="closing__text">{{ 'home.closing.text'|trans }}</p>
+    <section class="band grid-zone">
+        <div class="container band__inner">
+            <div class="band__copy">
+                <h2 class="band__title">{{ 'home.closing.title'|trans }}</h2>
+                <p class="band__text">{{ 'home.closing.text'|trans }}</p>
             </div>
-            <a class="btn btn--primary btn--lg" href="{{ path('user_register') }}">{{ 'home.closing.cta'|trans }}</a>
+            <a class="btn btn--primary btn--lg" href="{{ path('user_register') }}">
+                {{ 'home.closing.cta'|trans }}
+                <svg class="btn__arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg>
+            </a>
         </div>
     </section>
 {% endblock %}

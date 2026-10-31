@@ -162,7 +162,8 @@ Rules that apply everywhere:
   prefix: page routes are `/{_locale}/…` with `requirements: ['_locale' => '%app.locales%']`
   (`config/services.yaml`, keep in line with `enabled_locales`); the switcher in
   `templates/layout/` links the current route in every enabled locale. Forms use
-  `templates/form/theme.html.twig`. No web fonts from third parties (system font stacks).
+  `templates/form/theme.html.twig`. No web fonts from third parties (system font stacks). The public
+  pages are light only; dark mode belongs to the later layout for logged-in users.
 - The editor build writes `editor/[name].js` without hashes, because Symfony (AssetMapper) is
   meant to handle cache-busting. Integration of the built editor into Twig is not wired up yet.
 

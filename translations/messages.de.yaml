@@ -21,6 +21,13 @@ plan:
     bedroom: Schlafen
     bath: Bad
     snap_endpoint: Endpunkt
+    version: Version %number%
+    published: veröffentlicht
+    layers:
+        title: Layer
+        walls: Wände
+        rooms: Räume
+        furniture: Möbel
     title_block:
         project: Projekt
         project_value: WebCAD
@@ -33,12 +40,15 @@ home:
     title: Projektverwaltung und CAD für Architekturbüros
     hero:
         eyebrow: Projektverwaltung & CAD
-        title: Vom Projekt zur Zeichnung – an einem Ort.
+        # %highlight% is replaced by title_highlight in the accent color
+        title: Vom Projekt zur %highlight% – an einem Ort.
+        title_highlight: Zeichnung
         lead: Projekte anlegen, Pläne zeichnen, Stände festhalten. Direkt im Browser, ohne Installation.
         cta_primary: Kostenlos registrieren
         cta_secondary: Anmelden
     features:
-        title: Was WebCAD kann
+        eyebrow: Funktionen
+        title: Alles für den Plan – vom ersten Strich bis zur Freigabe.
         projects:
             title: Projekte & Pläne
             text: Alle Pläne eines Projekts an einem Ort – vom Erdgeschoss bis zum Schnitt.

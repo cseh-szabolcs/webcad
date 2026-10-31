@@ -1,31 +1,32 @@
-{# Two columns: the form card, and the drawing sheet as a backdrop (hidden on narrow screens). #}
+{# Two columns: the form card, and the drawing as a backdrop on grid paper (hidden on narrow screens). #}
 {% extends 'base.html.twig' %}
 
 {% block body_class %}page-auth{% endblock %}
 
 {% block body %}
-    <div class="auth container">
-        <section class="auth__panel">
-            <div class="card">
-                <header class="card__header">
-                    <p class="eyebrow">{% block auth_eyebrow %}{% endblock %}</p>
-                    <h1 class="card__title">{% block auth_heading %}{% endblock %}</h1>
-                    <p class="card__lead">{% block auth_lead %}{% endblock %}</p>
-                </header>
+    <div class="auth-zone grid-zone">
+        <div class="auth container">
+            <section class="auth__panel">
+                <div class="card">
+                    <header class="card__header">
+                        <p class="eyebrow">{% block auth_eyebrow %}{% endblock %}</p>
+                        <h1 class="card__title">{% block auth_heading %}{% endblock %}</h1>
+                        <p class="card__lead">{% block auth_lead %}{% endblock %}</p>
+                    </header>
 
-                {% for message in app.flashes('notice') %}
-                    <p class="notice" role="status">{{ message|trans }}</p>
-                {% endfor %}
+                    {% for message in app.flashes('notice') %}
+                        <p class="notice" role="status">{{ message|trans }}</p>
+                    {% endfor %}
 
-                {% block auth_form %}{% endblock %}
+                    {% block auth_form %}{% endblock %}
 
-                <p class="card__switch">{% block auth_switch %}{% endblock %}</p>
+                    <p class="card__switch">{% block auth_switch %}{% endblock %}</p>
+                </div>
+            </section>
+
+            <div class="auth__visual">
+                {{ include('layout/_drawing.html.twig') }}
             </div>
-        </section>
-
-        <figure class="sheet auth__sheet" aria-hidden="true">
-            {{ include('layout/_floor_plan.html.twig') }}
-            {{ include('layout/_title_block.html.twig') }}
-        </figure>
+        </div>
     </div>
 {% endblock %}
