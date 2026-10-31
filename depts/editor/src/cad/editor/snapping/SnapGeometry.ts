@@ -129,7 +129,7 @@ export function elementPrimitives(element: CadElement, index: DocumentIndex): Sn
                     center: vertex(element.centerVertexId),
                     radiusX: element.radiusX,
                     radiusY: element.radiusY,
-                    rotation: element.rotation ?? 0,
+                    rotation: element.rotation,
                 },
             ];
         case 'arc': {

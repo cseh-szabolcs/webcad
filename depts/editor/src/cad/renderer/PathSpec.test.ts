@@ -48,7 +48,7 @@ describe('buildPathSpec', () => {
 
     it('builds a circle like an ellipse with equal radii', () => {
         const { radius: _radius, ...rest } = element(E.table) as CircleElement;
-        const ellipse: EllipseElement = { ...rest, type: 'ellipse', radiusX: 600, radiusY: 600 };
+        const ellipse: EllipseElement = { ...rest, type: 'ellipse', radiusX: 600, radiusY: 600, rotation: 0 };
         expect(buildPathSpec(ellipse, index)).toEqual(buildPathSpec(element(E.table), index));
     });
 

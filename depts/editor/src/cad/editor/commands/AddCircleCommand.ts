@@ -25,6 +25,7 @@ export class AddCircleCommand implements DocumentCommand {
         const circle: CircleElement = {
             id: this.circleId,
             type: 'circle',
+            name: null,
             layerId: null,
             groupId: null,
             styleId: null,

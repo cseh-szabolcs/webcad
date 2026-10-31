@@ -34,6 +34,7 @@ export class AddPolylineCommand implements DocumentCommand {
         const polyline: PolylineElement = {
             id: this.polylineId,
             type: 'polyline',
+            name: null,
             layerId: null,
             groupId: null,
             styleId: null,

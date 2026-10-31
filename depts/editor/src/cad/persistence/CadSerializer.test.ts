@@ -13,7 +13,10 @@ describe('CadSerializer', () => {
     it('round-trips the sample plan', () => {
         const doc = parseDocument(samplePlan);
         expect(parseDocument(serializeDocument(doc))).toEqual(doc);
-        expect(doc).toEqual(samplePlan);
+        // The sample plan leaves out the rug's rotation, which defaults to 0
+        const expected = sample();
+        expected.elements[8].rotation = 0;
+        expect(doc).toEqual(expected);
     });
 
     it('strips unknown properties', () => {
@@ -25,18 +28,18 @@ describe('CadSerializer', () => {
         expect(doc.vertices[0]).not.toHaveProperty('hovered');
     });
 
-    it('keeps optional element names', () => {
+    it('keeps element names and reads a missing one as null', () => {
         const data = sample();
         delete data.elements[1].name;
         const doc = parseDocument(data);
         expect(doc.elements[0].name).toBe('Wall outer');
-        expect(doc.elements[1]).not.toHaveProperty('name');
+        expect(doc.elements[1].name).toBeNull();
     });
 
     it('treats a null element name as no name', () => {
         const data = sample();
         data.elements[1].name = null;
-        expect(parseDocument(data).elements[1]).not.toHaveProperty('name');
+        expect(parseDocument(data).elements[1].name).toBeNull();
     });
 
     it('parses circle, ellipse and bezier', () => {
@@ -44,10 +47,10 @@ describe('CadSerializer', () => {
         expect(doc.elements[5]).toMatchObject({ type: 'circle', radius: 600 });
         expect(doc.elements[8]).toMatchObject({ type: 'ellipse', radiusX: 1000, radiusY: 700 });
         expect(doc.elements[9]).toMatchObject({ type: 'bezier', startControl: { x: 500, y: -200 } });
-        expect(doc.elements[8]).not.toHaveProperty('rotation');
+        expect(doc.elements[8]).toMatchObject({ rotation: 0 });
     });
 
-    it('reads the optional rotation of an ellipse', () => {
+    it('reads the rotation of an ellipse', () => {
         const data = structuredClone(samplePlan) as any;
         data.elements[8].rotation = 0.5;
         expect(parseDocument(data).elements[8]).toMatchObject({ type: 'ellipse', rotation: 0.5 });

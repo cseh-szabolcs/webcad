@@ -67,11 +67,13 @@ viewport flips Y for the screen.
 
 ## Architecture
 
-- **The document model is independent of Paper.js, React and the tools.** A custom TypeScript
-  model (vertices, elements, layers, groups, styles) is the source of truth. Store what the
-  user defined; compute what can be derived (midpoints, intersections, bounding boxes, snap
-  candidates, selection/hover state are never saved). The API types meet it at `CadApiClient`
-  (see the root `CLAUDE.md`).
+- **The document model is independent of Paper.js, React and the tools.** The model
+  (vertices, elements, layers, groups, styles) is the source of truth; its types in `cad/model`
+  are aliases of the generated API schema (`CadDocument` = `ApiSchema['PlanDocument']`, see
+  `docs/architecture/api-documentation.md`), only editor-side types (`Point`, `Id`) are its own.
+  New elements have `name: null`, ellipses always a `rotation`. Store what the user defined;
+  compute what can be derived (midpoints, intersections, bounding boxes, snap candidates,
+  selection/hover state are never saved).
 - **Layering:** document model → editor core (tools, selection, command history, snapping,
   tracking, overlays) → Paper.js adapter (`PaperRenderer` keeps an `ElementId → paper.Item`
   map for incremental updates). One renderer serves View and Edit mode; Edit mode adds overlays
@@ -150,7 +152,7 @@ are in the guide and the translation files.
 | LINIE (`LINE`) | `LineTool` | an `AddLineCommand` per point at once (drawn and snappable); "Zurück" = `DocumentHistory.revertLast`; the run becomes one undo step (`combineLast` → `CompositeCommand`) |
 | PLINIE (`PLINE`) | `PolylineTool` | points stay in the tool (not snappable, like AutoCAD); one `AddPolylineCommand` when the command ends in any way, Esc and another tool included |
 | KREIS (`CIRCLE`) | `CircleTool` | `AddCircleCommand` as the step's command (`geometry/circle.ts`: `circleThrough`, `circleOnDiameter`) |
-| ELLIPSE (`ELLIPSE`) | `EllipseTool` | `AddEllipseCommand`; the first axis stays `radiusX` at its angle even when it is the minor one; `rotation` optional (missing = 0) |
+| ELLIPSE (`ELLIPSE`) | `EllipseTool` | `AddEllipseCommand`; the first axis stays `radiusX` at its angle even when it is the minor one; `rotation` 0 when axis-aligned |
 | RECHTECK (`RECTANG`) | `RectangleTool` | `AddPolylineCommand` (closed, label `RECTANG`), corners by `rectangleCorners` |
 
 LINIE and PLINIE remember their last vertex in the core's `DrawingMemory`

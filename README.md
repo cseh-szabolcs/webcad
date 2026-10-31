@@ -134,5 +134,5 @@ npm run generate:api
 
 `schema.d.ts` is checked in and never edited by hand. A change to the DTOs is only done once
 the types were generated again and the diff of `schema.d.ts` is committed with it. The editor uses
-the types as `ApiSchema['…']` (`src/api/types.ts`), e.g. `ApiSchema['PlanDocument']` in
-`CadApiClient`; `tsc` (`npm run build`) fails when they no longer fit the editor's document model.
+the types as `ApiSchema['…']` (`src/api/types.ts`); its document model (`src/cad/model`) consists of
+aliases of them, so `tsc` (`npm run build`) shows every place a DTO change affects.

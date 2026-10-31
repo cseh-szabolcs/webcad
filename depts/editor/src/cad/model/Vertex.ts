@@ -1,8 +1,3 @@
-import type { Id } from './Point';
+import type { ApiSchema } from 'app/api/types';
 
-/** Persistent point with its own identity; several elements may share it. */
-export interface Vertex {
-    id: Id;
-    x: number;
-    y: number;
-}
+export type Vertex = ApiSchema['Vertex'];

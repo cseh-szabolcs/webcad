@@ -56,11 +56,16 @@ Editor types
 `npm run generate:api` (how to run it: `README.md`) writes `depts/editor/src/api/schema.d.ts`:
 checked in, never edited by hand, ignored by oxlint. **A DTO change is done only once it ran and the diff of
 `schema.d.ts` is committed with it.** Code uses `ApiSchema['…']` from `src/api/types.ts`, no alias
-per model. openapi-typescript 7.13 declares a TypeScript 5 peer; `overrides` in `package.json`
+per model, except for the document model below. openapi-typescript 7.13 declares a TypeScript 5 peer; `overrides` in `package.json`
 lets it use the editor's TypeScript 6 (drop it once a release supports 6).
 
-The editor keeps its own document model (`cad/model`); the API types meet it at `CadApiClient`,
-which types the response as `ApiSchema['PlanDocument']` and still validates it with
-`parseDocument`. `ApiDocumentFitsModel` there fails `tsc` when the generated types no longer fit
-`CadDocument` (renamed, retyped or removed property, new enum value, changed `type`); the API's
-`name: null` counts as a missing name.
+The editor's document model (`cad/model`) is the generated types: `CadDocument` is
+`ApiSchema['PlanDocument']`, `CadElement` is `ApiSchema['Element']`, `LineElement`,
+`Vertex`, `Layer` … are aliases of their schemas. So the DTOs are the only definition of the
+stored document, also inside the editor, and a DTO change shows up in `tsc` wherever the editor
+uses the changed property. Prose about a property belongs on the DTO (`#[OA\Property]`), not in
+`cad/model`. What the editor only derives or keeps for itself (`Point`, `Id`, `CadElementType`,
+selection or tool state) stays an editor type there and never goes into the schema. The editor
+follows the API's shape: an element without a name has `name: null`, an ellipse always has a
+`rotation`. `CadApiClient` still validates the response with `parseDocument`, which fills these
+in where an older document leaves them out.

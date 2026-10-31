@@ -821,7 +821,7 @@ describe('SelectionEditor SCHIEBEN: Tab cycling and hysteresis', () => {
             { id: 'a', x: 0, y: 0 },
             { id: 'b', x: 12, y: 0 },
         ],
-        elements: [{ id: 'line', type: 'line', layerId: null, groupId: null, styleId: null, startVertexId: 'a', endVertexId: 'b' }],
+        elements: [{ id: 'line', type: 'line', name: null, layerId: null, groupId: null, styleId: null, startVertexId: 'a', endVertexId: 'b' }],
         layers: [],
         groups: [],
     };

@@ -1,14 +1,3 @@
-import type { Id } from './Point';
+import type { ApiSchema } from 'app/api/types';
 
-/**
- * Stroke width and dash pattern are currently rendered in screen pixels.
- * Model vs. paper units for printing are still undecided.
- */
-export interface ElementStyle {
-    id: Id;
-    name: string;
-    strokeColor: string;
-    strokeWidth: number;
-    dashPattern: number[];
-    fillColor: string | null;
-}
+export type ElementStyle = ApiSchema['ElementStyle'];

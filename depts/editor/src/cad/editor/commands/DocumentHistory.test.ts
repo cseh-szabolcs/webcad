@@ -23,6 +23,7 @@ describe('AddLineCommand', () => {
         expect(document.elements.at(-1)).toEqual({
             id: 'a-3',
             type: 'line',
+            name: null,
             layerId: null,
             groupId: null,
             styleId: null,

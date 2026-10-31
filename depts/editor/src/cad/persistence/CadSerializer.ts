@@ -103,8 +103,7 @@ function parseElement(value: unknown, path: string): CadElement {
     const r = record(value, path);
     const base: BaseElement = {
         id: uuid(r.id, `${path}.id`),
-        // The API sends null for no name; the model leaves it out
-        ...(r.name !== undefined && r.name !== null && { name: string(r.name, `${path}.name`) }),
+        name: r.name === undefined ? null : nullable(r.name, `${path}.name`, string),
         layerId: nullable(r.layerId, `${path}.layerId`, string),
         groupId: nullable(r.groupId, `${path}.groupId`, string),
         styleId: nullable(r.styleId, `${path}.styleId`, string),
@@ -126,7 +125,7 @@ function parseElement(value: unknown, path: string): CadElement {
                 centerVertexId: string(r.centerVertexId, `${path}.centerVertexId`),
                 radiusX: positive(r.radiusX, `${path}.radiusX`),
                 radiusY: positive(r.radiusY, `${path}.radiusY`),
-                ...(r.rotation !== undefined && { rotation: number(r.rotation, `${path}.rotation`) }),
+                rotation: r.rotation === undefined ? 0 : number(r.rotation, `${path}.rotation`),
             };
         case 'circle':
             return {

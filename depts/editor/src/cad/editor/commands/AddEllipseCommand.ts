@@ -6,8 +6,7 @@ import type { DocumentChange, DocumentCommand } from './DocumentCommand';
 
 /**
  * An ellipse drawn by ELLIPSE (AutoCAD ELLIPSE), with a centre vertex of its own and no layer,
- * group or style yet; a rotation of 0 is left out of the element. The ids are fixed on
- * construction, so redo repeats them.
+ * group or style yet. The ids are fixed on construction, so redo repeats them.
  */
 export class AddEllipseCommand implements DocumentCommand {
     readonly label = 'ELLIPSE';
@@ -26,13 +25,14 @@ export class AddEllipseCommand implements DocumentCommand {
         const element: EllipseElement = {
             id: this.ellipseId,
             type: 'ellipse',
+            name: null,
             layerId: null,
             groupId: null,
             styleId: null,
             centerVertexId: this.centerVertexId,
             radiusX,
             radiusY,
-            ...(rotation !== 0 && { rotation }),
+            rotation,
         };
         return {
             document: {

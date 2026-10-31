@@ -34,7 +34,7 @@ export function buildPathSpec(element: CadElement, index: DocumentIndex): PathSp
                 requireVertex(index, element.centerVertexId),
                 element.radiusX,
                 element.radiusY,
-                element.rotation ?? 0,
+                element.rotation,
             );
         case 'circle':
             return ellipsePathSpec(requireVertex(index, element.centerVertexId), element.radius, element.radius);

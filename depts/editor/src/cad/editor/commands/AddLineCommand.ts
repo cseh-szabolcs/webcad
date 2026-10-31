@@ -28,6 +28,7 @@ export class AddLineCommand implements DocumentCommand {
         const line: LineElement = {
             id: this.lineId,
             type: 'line',
+            name: null,
             layerId: null,
             groupId: null,
             styleId: null,

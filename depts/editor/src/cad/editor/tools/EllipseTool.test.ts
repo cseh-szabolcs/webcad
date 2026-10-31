@@ -104,14 +104,14 @@ describe('EllipseTool (ELLIPSE)', () => {
         expect(editor.snapshot.message).toBe('Rückgängig: ELLIPSE');
     });
 
-    it('keeps the first axis as radiusX, also when it is the minor one, and leaves out a rotation of 0', () => {
+    it('keeps the first axis as radiusX, also when it is the minor one, with a rotation of 0', () => {
         const { editor, ellipses, history } = setup();
         editor.startCommand('ELLIPSE');
         type(editor, '1500,1500');
         type(editor, '1700,1500');
         type(editor, '@0,400');
         expect(ellipses()).toEqual([{ center: { x: 1600, y: 1500 }, radiusX: 100, radiusY: 400, rotation: 0 }]);
-        expect(history.document.elements.at(-1)).not.toHaveProperty('rotation');
+        expect(history.document.elements.at(-1)).toMatchObject({ rotation: 0 });
     });
 
     it('takes the centre and one end of the axis with the option "Mittelpunkt"', () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import samplePlan from '../__fixtures__/sample-plan.json';
 import { CadApiClient, CadApiError } from './CadApiClient';
-import { CadDocumentError } from './CadSerializer';
+import { CadDocumentError, parseDocument } from './CadSerializer';
 
 function respond(body: unknown, init: ResponseInit = {}) {
     return vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(body), init));
@@ -15,7 +15,7 @@ describe('CadApiClient', () => {
         const loaded = await client.loadPlanDocument(samplePlan.id);
 
         expect(fetchFn).toHaveBeenCalledWith(`/api/plans/${samplePlan.id}/document`, expect.anything());
-        expect(loaded.document).toEqual(samplePlan);
+        expect(loaded.document).toEqual(parseDocument(samplePlan));
         expect(loaded.revision).toBe('1');
     });
 

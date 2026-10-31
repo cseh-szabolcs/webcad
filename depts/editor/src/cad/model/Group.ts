@@ -1,7 +1,3 @@
-import type { Id } from './Point';
+import type { ApiSchema } from 'app/api/types';
 
-/** Membership is stored on the element (`groupId`), not duplicated here. */
-export interface Group {
-    id: Id;
-    name: string;
-}
+export type Group = ApiSchema['Group'];

@@ -1,8 +1,3 @@
-import type { Id } from './Point';
+import type { ApiSchema } from 'app/api/types';
 
-export interface Layer {
-    id: Id;
-    name: string;
-    visible: boolean;
-    locked: boolean;
-}
+export type Layer = ApiSchema['Layer'];
