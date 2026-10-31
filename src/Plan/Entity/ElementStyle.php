@@ -12,6 +12,7 @@ use Symfony\Component\Uid\Uuid;
  * for printing are still undecided.
  */
 #[ORM\Entity(repositoryClass: ElementStyleRepository::class)]
+#[ORM\Table(name: 'plan_element_style')]
 class ElementStyle
 {
     /**

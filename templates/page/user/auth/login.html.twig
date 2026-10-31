@@ -7,6 +7,12 @@
 {% block auth_lead %}{{ 'user.login.lead'|trans }}{% endblock %}
 
 {% block auth_form %}
+    {% if error %}
+        <div class="alert alert-danger">
+            {{ error.messageKey|trans(error.messageData, 'security') }}
+        </div>
+    {% endif %}
+
     {# Field names as form_login expects them #}
     <form class="form" method="post" action="{{ path('user_auth_login') }}">
         <div class="field">

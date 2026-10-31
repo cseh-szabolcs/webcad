@@ -10,6 +10,7 @@ use Symfony\Component\Uid\Uuid;
  * only sets the end angle, so it may lie off the arc.
  */
 #[ORM\Entity]
+#[ORM\Table(name: 'plan_arc_element')]
 class ArcElement extends Element
 {
     public const string TYPE = 'arc';

@@ -74,18 +74,6 @@ class User implements UserInterface
         return $this->id;
     }
 
-    public function getMandate(): ?Mandate
-    {
-        return $this->mandate;
-    }
-
-    public function setMandate(?Mandate $mandate): static
-    {
-        $this->mandate = $mandate;
-
-        return $this;
-    }
-
     public function getEmail(): string
     {
         return $this->email;
@@ -222,10 +210,9 @@ class User implements UserInterface
     public function getAuthSignature(): ?string
     {
         return sha1(sprintf(
-            '%s:%s:%d',
+            '%s:%s',
             $this->email,
             $this->password,
-            $this->mandate->getId(),
         ));
     }
 

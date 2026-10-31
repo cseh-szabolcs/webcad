@@ -11,6 +11,7 @@ use Symfony\Component\Uid\Uuid;
  * Straight segments through its vertices in order; a closed one also joins the last to the first.
  */
 #[ORM\Entity]
+#[ORM\Table(name: 'plan_poly_element')]
 class PolylineElement extends Element
 {
     public const string TYPE = 'polyline';

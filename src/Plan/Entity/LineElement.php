@@ -6,6 +6,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity]
+#[ORM\Table(name: 'plan_line_element')]
 class LineElement extends Element
 {
     public const string TYPE = 'line';

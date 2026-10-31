@@ -9,6 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
  * same vertex may appear more than once.
  */
 #[ORM\Entity]
+#[ORM\Table(name: 'plan_polyline_vertex')]
 class PolylineVertex
 {
     public function __construct(

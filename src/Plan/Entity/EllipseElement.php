@@ -11,6 +11,7 @@ use Symfony\Component\Uid\Uuid;
  * +X (Y up).
  */
 #[ORM\Entity]
+#[ORM\Table(name: 'plan_ellipse_element')]
 class EllipseElement extends Element
 {
     public const string TYPE = 'ellipse';

@@ -10,6 +10,7 @@ use Symfony\Component\Uid\Uuid;
  * it moves with it.
  */
 #[ORM\Entity]
+#[ORM\Table(name: 'plan_bezier_element')]
 class BezierElement extends Element
 {
     public const string TYPE = 'bezier';

@@ -2,27 +2,21 @@
 
 namespace App\User\Controller\Auth;
 
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use App\Core\Controller\BaseController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-/**
- * Shows the login form. Its fields (_username, _password, _remember_me, _csrf_token "authenticate")
- * are the ones the firewall's form_login reads once users exist; until then a submission only says
- * that login is not available yet.
- */
-final class LoginController extends AbstractController
+final class LoginController extends BaseController
 {
     #[Route('/{_locale}/login', name: 'user_auth_login', requirements: ['_locale' => '%app.locales%'], methods: ['GET', 'POST'])]
     public function __invoke(Request $request): Response
     {
-        if ($request->isMethod('POST')) {
-            $this->addFlash('notice', 'user.login.not_available');
+        $utils = $this->auth()->utils;
 
-            return $this->redirectToRoute('user_auth_login');
-        }
-
-        return $this->render('page/user/auth/login.html.twig');
+        return $this->render('page/user/auth/login.html.twig', [
+            'lastUsername' => $utils->getLastUsername(),
+            'error' => $utils->getLastAuthenticationError(),
+        ]);
     }
 }

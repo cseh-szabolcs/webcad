@@ -11,7 +11,7 @@ use Symfony\Component\Uid\Uuid;
  * Elements that are picked together. Membership is stored on the element, not here.
  */
 #[ORM\Entity(repositoryClass: GroupRepository::class)]
-#[ORM\Table(name: 'element_group')] // "group" is reserved in SQL
+#[ORM\Table(name: 'plan_element_group')] // "group" is reserved in SQL
 class Group
 {
     public function __construct(

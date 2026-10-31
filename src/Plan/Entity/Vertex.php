@@ -11,6 +11,7 @@ use Symfony\Component\Uid\Uuid;
  * Point with its own identity in model space (mm, Y up); several elements may share it.
  */
 #[ORM\Entity(repositoryClass: VertexRepository::class)]
+#[ORM\Table(name: 'plan_vertex')]
 class Vertex
 {
     public function __construct(

@@ -8,6 +8,7 @@ use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity(repositoryClass: LayerRepository::class)]
+#[ORM\Table(name: 'plan_payer')]
 #[ORM\Index(columns: ['plan_version_id', 'position'])]
 class Layer
 {
