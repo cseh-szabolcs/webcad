@@ -18,4 +18,19 @@ trait EnvAwareTrait
     {
         $this->env = Env::from($env);
     }
+
+    public function isDev(): bool
+    {
+        return $this->env->isDev();
+    }
+
+    public function isProd(): bool
+    {
+        return $this->env->isProd();
+    }
+
+    public function isTest(): bool
+    {
+        return $this->env->isTest();
+    }
 }

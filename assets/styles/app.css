@@ -28,9 +28,9 @@
     --cyan: #0b7c94;
 
     /* Room fills of the floor plan, as architects color rooms by use */
-    --room-living: rgb(194 65 12 / 0.12);
+    --room-living: rgb(36 86 196 / 0.11);
     --room-kitchen: rgb(35 128 79 / 0.13);
-    --room-sleeping: rgb(36 86 196 / 0.11);
+    --room-sleeping: rgb(194 65 12 / 0.12);
     --room-bath: rgb(11 124 148 / 0.13);
 
     /* Dark purple behind the hero and the drawing of the login/registration pages */
@@ -505,10 +505,10 @@ a {
 .swatch--walls { --swatch: var(--ink); }
 .swatch--rooms {
     --swatch: conic-gradient(
-        color-mix(in srgb, var(--blue) 50%, var(--white)) 0 25%,
+        color-mix(in srgb, #c2410c 50%, var(--white)) 0 25%, /* Schlafen, the orange of --room-sleeping */
         color-mix(in srgb, var(--cyan) 50%, var(--white)) 0 50%,
         color-mix(in srgb, var(--green) 50%, var(--white)) 0 75%,
-        color-mix(in srgb, #c2410c 50%, var(--white)) 0 /* Wohnen, the orange of --room-living */
+        color-mix(in srgb, var(--blue) 50%, var(--white)) 0
     );
 }
 .swatch--furniture { --swatch: var(--blue); }
@@ -1049,6 +1049,20 @@ a {
     margin-inline: auto;
 }
 
+/* From 960 px the form card reaches over half the gap and docks at the purple edge (--split) */
+@media (min-width: 960px) {
+    .auth__panel {
+        width: auto;
+        max-width: none;
+        margin-inline: 0 calc(var(--auth-gap) / -2);
+    }
+
+    .auth__panel .card {
+        border-right: 0;
+        border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+    }
+}
+
 .auth__visual {
     display: none;
 }
@@ -1061,6 +1075,8 @@ a {
         width: 100%;
         max-width: 860px;
         justify-self: center;
+        /* More room to the form; on the left, since the drawing is centered in its column */
+        margin-left: 50px;
     }
 }
 
