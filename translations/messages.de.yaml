@@ -6,6 +6,8 @@ layout:
         label: Hauptnavigation
         login: Anmelden
         register: Registrieren
+        dashboard: Startseite
+        logout: Abmelden
     locale:
         label: Sprache
     footer:
@@ -63,6 +65,11 @@ home:
         text: Legen Sie Ihr Büro an und starten Sie mit dem ersten Projekt.
         cta: Jetzt registrieren
 
+dashboard:
+    title: Startseite
+    heading: Sie sind angemeldet
+    lead: Angemeldet als %email% im Büro „%tenant%“.
+
 user:
     login:
         title: Anmelden
@@ -75,7 +82,9 @@ user:
         submit: Anmelden
         no_account: Noch kein Konto?
         register_link: Registrieren
-        not_available: Die Anmeldung ist noch nicht verfügbar.
+        tenant: Büro
+        error:
+            tenant_not_found: Dieses Büro gibt es nicht.
     register:
         title: Registrieren
         heading: Konto erstellen

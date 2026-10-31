@@ -7,36 +7,46 @@
 {% block auth_lead %}{{ 'user.login.lead'|trans }}{% endblock %}
 
 {% block auth_form %}
-    {% if error %}
-        <div class="alert alert-danger">
+    {# An unknown office marks its own field; any other error (wrong password, unknown e-mail, CSRF) the e-mail and password #}
+    {% set credentials_error = error and not tenantError %}
+    {% if credentials_error %}
+        <p class="notice notice--error" id="login_error" role="alert">
             {{ error.messageKey|trans(error.messageData, 'security') }}
-        </div>
+        </p>
     {% endif %}
 
-    {# Field names as form_login expects them #}
     <form class="form" method="post" action="{{ path('user_auth_login') }}">
-        <div class="field">
+        <div class="field{{ tenantError ? ' field--invalid' }}">
             <label for="login_tenant">
-                {{ 'user.register.company'|trans }}
+                {{ 'user.login.tenant'|trans }}
             </label>
-            <input type="text" id="login_tenant" name="tenantName" required autofocus>
+            <input type="text" id="login_tenant" name="tenantName" value="{{ lastTenant }}" autocomplete="organization" required
+                {%- if tenantError %} aria-invalid="true" aria-describedby="login_tenant_error"{% endif %}
+                {%- if not error or tenantError %} autofocus{% endif %}>
+            {% if tenantError %}
+                <ul class="field__errors" id="login_tenant_error">
+                    <li>{{ error.messageKey|trans(error.messageData) }}</li>
+                </ul>
+            {% endif %}
         </div>
 
-        <div class="field">
+        <div class="field{{ credentials_error ? ' field--invalid' }}">
             <label for="login_identifier">
                 {{ 'user.login.email'|trans }}
             </label>
-            <input type="email" id="login_identifier" name="identifier" autocomplete="email" required>
+            <input type="email" id="login_identifier" name="email" value="{{ lastUsername }}" autocomplete="email" required
+                {%- if credentials_error %} aria-invalid="true" aria-describedby="login_error"{% endif %}>
         </div>
 
-        <div class="field">
+        <div class="field{{ credentials_error ? ' field--invalid' }}">
             <div class="field__label-row">
                 <label for="login_password">
                     {{ 'user.login.password'|trans }}
                 </label>
                 <a class="link" href="#">{{ 'user.login.forgot_password'|trans }}</a>
             </div>
-            <input type="password" id="login_password" name="password" autocomplete="current-password" required>
+            <input type="password" id="login_password" name="password" autocomplete="current-password" required
+                {%- if credentials_error %} aria-invalid="true" aria-describedby="login_error" autofocus{% endif %}>
         </div>
 
         <div class="field field--check">

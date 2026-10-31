@@ -35,7 +35,7 @@ final class TenantProvisionerTest extends KernelTestCase
         parent::tearDown();
     }
 
-    public function testCreatedTenantHasMigratedDatabase(): void
+    public function testCreatedTenantHasDatabaseWithSchema(): void
     {
         $name = $this->createTenant();
 

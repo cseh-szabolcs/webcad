@@ -24,7 +24,7 @@ final class App
         public readonly RouterInterface $router,
         public readonly UrlGeneratorInterface $urlGenerator,
         private readonly EventDispatcherInterface $eventDispatcher,
-        public string $rootDir
+        public string $rootDir,
     ) {
     }
 
@@ -71,13 +71,13 @@ final class App
     {
         $request = $this->getMainRequest();
 
-        return $request->getBaseUrl() . $request->getPathInfo();
+        return $request->getBaseUrl().$request->getPathInfo();
     }
 
     /**
      * @template T of object
+     *
      * @param T $event
-     * @param string|null $eventName
      *
      * @return T The passed $event MUST be returned
      */

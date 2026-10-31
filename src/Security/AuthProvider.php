@@ -23,7 +23,8 @@ final class AuthProvider
         public readonly UserPasswordHasherInterface $passwordHasher,
         private readonly TokenStorageInterface $tokenStorage,
         private readonly RoleHierarchyInterface $roleHierarchy,
-    ) {}
+    ) {
+    }
 
     public function setTenant(Tenant $tenant): void
     {
@@ -49,13 +50,17 @@ final class AuthProvider
         $this->notAuthenticatedException();
     }
 
-    public function isAuthenticated(): bool
+    public function isAuthenticated(bool $fully = false): bool
     {
-        return null !== $this->tokenStorage->getToken();
+        return $this->security->isGranted($fully ? 'IS_AUTHENTICATED_FULLY' : 'IS_AUTHENTICATED');
     }
 
     public function isGranted(mixed $attributes, mixed $subject = null): bool
     {
+        if ($attributes instanceof Role) {
+            $attributes = $attributes->value;
+        }
+
         return $this->security->isGranted($attributes, $subject);
     }
 
@@ -75,7 +80,7 @@ final class AuthProvider
 
     public function hasRole(Role $role, ?User $user = null, bool $strict = false): bool
     {
-        if ($role === Role::GUEST) {
+        if (Role::GUEST === $role) {
             return !$this->isAuthenticated();
         }
 

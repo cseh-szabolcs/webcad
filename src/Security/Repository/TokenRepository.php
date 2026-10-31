@@ -7,7 +7,6 @@ use App\Security\Entity\Token;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\NoResultException;
 use Doctrine\Persistence\ManagerRegistry;
-use InvalidArgumentException;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
@@ -39,8 +38,7 @@ class TokenRepository extends ServiceEntityRepository
             $this->assertResult($result);
 
             return $result;
-
-        } catch (InvalidArgumentException) {
+        } catch (\InvalidArgumentException) {
             throw new NoResultException();
         }
     }

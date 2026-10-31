@@ -8,11 +8,13 @@ use App\Fixtures\Console\FixtureCreateCommand;
 use App\Plan\Entity\Element;
 use App\Plan\Entity\Plan;
 use App\Project\Entity\Project;
+use App\User\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -54,6 +56,20 @@ final class FixtureCreateCommandTest extends KernelTestCase
         self::assertSame(FixtureCreateCommand::DEV_PLAN_ID, $plans[0]->getId()->toRfc4122());
         self::assertSame('Sample room', $plans[0]->getName());
         self::assertCount(10, $this->em()->getRepository(Element::class)->findBy(['planVersion' => $plans[0]->getDraft()]));
+    }
+
+    public function testCreatesAUserToLogInWith(): void
+    {
+        $tester = $this->tester();
+        self::assertSame(Command::SUCCESS, $tester->execute(['--force' => true, '--user-email' => 'anna@example.com', '--user-password' => 'anna-password']));
+        self::assertStringContainsString(\sprintf('Log in with tenant "%s", user "anna@example.com".', $this->tenant), $tester->getDisplay());
+
+        $this->em()->clear();
+        $users = $this->em()->getRepository(User::class)->findAll();
+        self::assertCount(1, $users);
+        self::assertSame('anna@example.com', $users[0]->getEmail());
+        self::assertTrue($users[0]->isConfirmed());
+        self::assertTrue(static::getContainer()->get(UserPasswordHasherInterface::class)->isPasswordValid($users[0], 'anna-password'));
     }
 
     public function testCanBeRunAgain(): void

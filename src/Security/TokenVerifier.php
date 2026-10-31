@@ -15,7 +15,8 @@ final readonly class TokenVerifier
     public function __construct(
         private TokenRepository $tokenRepository,
         private App $app,
-    ) {}
+    ) {
+    }
 
     public function verify(Token|string|null $token = null, bool $keepToken = false): Token
     {
@@ -50,8 +51,7 @@ final readonly class TokenVerifier
         ?array $payload = null,
         ?int $ttl = null,
         bool $renewable = false,
-    ): Token
-    {
+    ): Token {
         if ($existing = $this->tokenRepository->findOneBy(['owner' => $owner, 'type' => $type])) {
             $this->tokenRepository->remove($existing);
         }

@@ -2,42 +2,45 @@
 
 namespace App\Core\Tenancy;
 
+use App\Core\Tenancy\Exception\InvalidTenantNameException;
 use App\Core\Tenancy\Exception\TenantNotFoundException;
 use Doctrine\DBAL\Exception as DBALException;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
 /**
- * Selects the tenant of a request. There are no users yet, so this is DEFAULT_TENANT (set in dev and
- * test only); once users log in, their tenant takes its place. Without a tenant, the tenant
- * connection refuses every query.
+ * Selects the tenant of a request: the one the user logged in to (TenantStorage), else none, so a
+ * guest's request never reaches a tenant database. Logging in selects the tenant itself
+ * (UserAuthenticator). Runs after the session listener (128) and before the firewall (8), so the
+ * user is refreshed, or logged in by remember-me, from the database of its tenant.
  */
 #[AsEventListener(event: KernelEvents::REQUEST, priority: 64)]
 final readonly class TenantRequestListener
 {
     public function __construct(
         private TenantSwitcher $tenantSwitcher,
+        private TenantStorage $tenantStorage,
         private LoggerInterface $logger,
-        #[Autowire(env: 'default::DEFAULT_TENANT')]
-        private ?string $defaultTenant,
     ) {
     }
 
     public function __invoke(RequestEvent $event): void
     {
-        if (!$event->isMainRequest() || null === $this->defaultTenant || '' === $this->defaultTenant) {
+        $request = $event->getRequest();
+        if (!$event->isMainRequest() || null === $tenant = $this->tenantStorage->fromRequest($request)) {
             return;
         }
 
-        // Requests that need no database must keep working while the default tenant is missing.
         try {
-            $this->tenantSwitcher->switchTo($this->defaultTenant);
-        } catch (TenantNotFoundException|DBALException $e) {
-            $this->logger->warning('Default tenant "{tenant}" not selected: {message}', [
-                'tenant' => $this->defaultTenant,
+            $this->tenantSwitcher->switchToUuid($tenant);
+        } catch (TenantNotFoundException|InvalidTenantNameException|DBALException $e) {
+            // A tenant deleted since the login, or a cookie that holds no tenant's uuid: the user is
+            // a guest now (UserProvider finds no user without a tenant).
+            $this->tenantStorage->clear($request);
+            $this->logger->warning('Stored tenant "{tenant}" not selected: {message}', [
+                'tenant' => $tenant,
                 'message' => $e->getMessage(),
             ]);
         }

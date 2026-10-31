@@ -14,7 +14,25 @@ security:
             pattern: ^/(_profiler|_wdt|assets|build)/
             security: false
 
+        # The API shares the login of "main" (context), but a guest gets a 401 instead of a redirect
+        # to the login form, and the API URL is not remembered as the page to return to after login.
+        api:
+            pattern: ^/api/
+            context: main
+            lazy: true
+            provider: user_provider
+            entry_point: App\Security\ApiEntryPoint
+            custom_authenticator:
+                - App\Security\Authenticator\TokenAuthenticator
+            remember_me: &remember_me
+                secret: '%kernel.secret%'
+                lifetime: '%app.remember_me_lifetime%'
+                path: /
+                always_remember_me: true
+                signature_properties: [ 'authSignature' ]
+
         main:
+            context: main
             # Activate different ways to authenticate:
             # https://symfony.com/doc/current/security.html#the-firewall
             # https://symfony.com/doc/current/security/impersonating_user.html
@@ -26,17 +44,15 @@ security:
                 - App\Security\Authenticator\UserAuthenticator
                 - App\Security\Authenticator\TokenAuthenticator
 
+            # Invalidates the session, so the tenant stored there is gone, and deletes the tenant
+            # cookie (App\Core\Tenancy\TenantStorage::COOKIE)
             logout:
-                path: app_auth_logout
-                # where to redirect after logout
-                # target: app_any_route
+                path: user_auth_logout
+                target: app_index
+                delete_cookies:
+                    tenant: ~
 
-            remember_me:
-                secret: '%kernel.secret%'
-                lifetime: 604800
-                path: /
-                always_remember_me: true
-                signature_properties: [ 'authSignature' ]
+            remember_me: *remember_me
 
     # Note: Only the *first* matching rule is applied
     access_control:

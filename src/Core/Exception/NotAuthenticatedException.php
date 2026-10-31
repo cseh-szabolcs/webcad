@@ -2,6 +2,6 @@
 
 namespace App\Core\Exception;
 
-use LogicException;
-
-class NotAuthenticatedException extends LogicException {}
+class NotAuthenticatedException extends \LogicException
+{
+}

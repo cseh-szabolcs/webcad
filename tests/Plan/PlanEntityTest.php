@@ -193,7 +193,7 @@ final class PlanEntityTest extends KernelTestCase
         $versions = [$draft->getId()->toBinary(), $head->getId()->toBinary()];
         self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM plan WHERE id = ?', [$plan->getId()->toBinary()]));
         self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM plan_version WHERE id IN (?, ?)', $versions));
-        self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM vertex WHERE plan_version_id IN (?, ?)', $versions));
+        self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM plan_vertex WHERE plan_version_id IN (?, ?)', $versions));
         self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM element WHERE plan_version_id IN (?, ?)', $versions));
     }
 

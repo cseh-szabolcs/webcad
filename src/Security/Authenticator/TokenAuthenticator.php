@@ -27,7 +27,8 @@ class TokenAuthenticator extends AbstractAuthenticator
     public function __construct(
         private readonly TokenVerifier $tokenVerifier,
         private readonly App $app,
-    ) {}
+    ) {
+    }
 
     public function supports(Request $request): ?bool
     {
@@ -106,6 +107,7 @@ class TokenAuthenticator extends AbstractAuthenticator
                 return substr($token, 7);
             }
         }
+
         return null;
     }
 

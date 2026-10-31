@@ -26,6 +26,9 @@
     --blue: #2456c4;
     --green: #23804f;
     --cyan: #0b7c94;
+    /* Errors: invalid fields and their messages */
+    --danger: #c0262d;
+    --danger-soft: rgb(192 38 45 / 0.08);
 
     /* Room fills of the floor plan, as architects color rooms by use */
     --room-living: rgb(36 86 196 / 0.11);
@@ -1122,6 +1125,13 @@ a {
     font-size: 0.9375rem;
 }
 
+.notice--error {
+    border-left-color: var(--danger);
+    background: var(--danger-soft);
+    color: var(--danger);
+    font-weight: 600;
+}
+
 /* ---------- Forms ---------- */
 
 .form {
@@ -1214,7 +1224,8 @@ a {
 }
 
 .field--invalid input:not([type="checkbox"]) {
-    border-color: var(--accent);
+    border-color: var(--danger);
+    box-shadow: 0 0 0 1px var(--danger);
 }
 
 .field__help {
@@ -1225,7 +1236,7 @@ a {
 .field__errors {
     margin: 0;
     padding: 0;
-    color: var(--accent);
+    color: var(--danger);
     font-size: 0.8125rem;
     font-weight: 600;
     list-style: none;

@@ -14,12 +14,12 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * Creates, resets and deletes tenants: the registry row in app_main and the database app_<name>. A
- * new or reset database gets its schema from the tenant migrations, so they stay the only source of
- * the schema.
+ * new or reset database gets its schema from the tenant entities (doctrine:schema:create); there are
+ * no migrations during this early phase of development.
  */
 final readonly class TenantProvisioner
 {
-    private const string MIGRATE = 'doctrine:migrations:migrate --allow-no-migration';
+    private const string CREATE_SCHEMA = 'doctrine:schema:create';
     private const string DROP_TABLES = 'doctrine:schema:drop --full-database --force';
 
     public function __construct(
@@ -49,7 +49,7 @@ final readonly class TenantProvisioner
             throw TenantProvisioningException::databaseExists($database);
         }
 
-        // The row first: the migrations select the tenant by name, which looks it up in the registry.
+        // The row first: the schema command selects the tenant by name, which looks it up in the registry.
         $tenant = new Tenant($name, $displayName);
         $this->mainEntityManager->persist($tenant);
         $this->mainEntityManager->flush();
@@ -63,7 +63,7 @@ final readonly class TenantProvisioner
         }
 
         try {
-            $this->migrate($name);
+            $this->createSchema($name);
         } catch (TenantProvisioningException $e) {
             // No half-built tenant: a leftover row would point at a database without schema.
             $schemaManager->dropDatabase($database);
@@ -76,11 +76,11 @@ final readonly class TenantProvisioner
     }
 
     /**
-     * Empties the tenant's database: drops every table (the migration versions too) and builds the
-     * schema again from the migrations. The database itself stays, so open connections keep working.
+     * Empties the tenant's database: drops every table and builds the schema again from the
+     * entities. The database itself stays, so open connections keep working.
      *
      * @throws TenantNotFoundException
-     * @throws TenantProvisioningException when dropping or migrating failed
+     * @throws TenantProvisioningException when dropping or creating the schema failed
      */
     public function reset(string $name): void
     {
@@ -89,7 +89,7 @@ final readonly class TenantProvisioner
         }
 
         $this->run($name, self::DROP_TABLES);
-        $this->migrate($name);
+        $this->createSchema($name);
     }
 
     /**
@@ -113,9 +113,9 @@ final readonly class TenantProvisioner
     /**
      * @throws TenantProvisioningException
      */
-    private function migrate(string $name): void
+    private function createSchema(string $name): void
     {
-        $this->run($name, self::MIGRATE);
+        $this->run($name, self::CREATE_SCHEMA);
     }
 
     /**

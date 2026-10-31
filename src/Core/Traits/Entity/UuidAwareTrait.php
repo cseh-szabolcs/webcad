@@ -11,7 +11,7 @@ use Symfony\Component\Uid\Uuid;
 trait UuidAwareTrait
 {
     #[SerializedName('id')]
-    #[ORM\Column(type: UuidType::NAME, unique: true, index: true)]
+    #[ORM\Column(type: UuidType::NAME, unique: true)]
     private ?Uuid $uuid = null;
 
     #[Groups(['app', 'editor'])]

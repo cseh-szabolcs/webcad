@@ -10,16 +10,16 @@ enum Env: string
 
     public function isDev(): bool
     {
-        return $this === self::Dev;
+        return self::Dev === $this;
     }
 
     public function isProd(): bool
     {
-        return $this === self::Prod;
+        return self::Prod === $this;
     }
 
     public function isTest(): bool
     {
-        return $this === self::Test;
+        return self::Test === $this;
     }
 }

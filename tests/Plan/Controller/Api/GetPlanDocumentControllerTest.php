@@ -12,6 +12,7 @@ use App\Plan\PlanDocumentReader;
 use App\Plan\PlanFactory;
 use App\Plan\PlanVersionCopier;
 use App\Project\Entity\Project;
+use App\Tests\Security\LogsInTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -20,6 +21,8 @@ use Symfony\Component\Uid\Uuid;
 
 final class GetPlanDocumentControllerTest extends WebTestCase
 {
+    use LogsInTrait;
+
     private KernelBrowser $client;
     private string $planId;
 
@@ -27,8 +30,9 @@ final class GetPlanDocumentControllerTest extends WebTestCase
     {
         $this->client = static::createClient();
         $container = static::getContainer();
-        // The request selects the tenant itself; creating the plan beforehand needs it too
+        // The request selects the tenant itself (from the login); creating the plan beforehand needs it too
         $container->get(TenantSwitcher::class)->switchTo($_ENV['DEFAULT_TENANT']);
+        $this->logIn($this->client, $this->createUser());
 
         $em = $container->get(EntityManagerInterface::class);
         $project = new Project(Uuid::v7(), 'Beispielprojekt');
@@ -105,6 +109,15 @@ final class GetPlanDocumentControllerTest extends WebTestCase
         $this->client->request('GET', '/api/plans/'.Uuid::v7()->toRfc4122().'/document');
 
         self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testGuestIsNotServed(): void
+    {
+        $this->client->getCookieJar()->clear();
+        $this->client->request('GET', '/api/plans/'.$this->planId.'/document');
+
+        self::assertResponseStatusCodeSame(401);
+        self::assertResponseHeaderSame('Content-Type', 'application/json');
     }
 
     public function testNonUuidIdReturns404(): void

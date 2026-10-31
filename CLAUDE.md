@@ -13,9 +13,11 @@ apps in one repo:
 
 - **Symfony 8.1 backend** (PHP ≥ 8.5) at the repo root: projects, plans, users,
   permissions, document versions, export. Doctrine ORM, Messenger, Security, Twig,
-  AssetMapper and Stimulus are installed. Pages so far: the home page (`/{_locale}`) and the
-  login and registration forms (`/{_locale}/login`, `/{_locale}/register`), which only display
-  and validate; logging in and registering come later.
+  AssetMapper and Stimulus are installed. Pages so far: the home page (`/{_locale}`), the login
+  (`/{_locale}/login`, with the office = tenant name; logout `/{_locale}/logout`), the registration
+  form (`/{_locale}/register`, only displays and validates; registering comes later) and a
+  placeholder start page for logged-in users (`/{_locale}/app`), to which home, login and
+  registration redirect them.
 - **CAD editor frontend** in `depts/editor/`: Vite + React 19 + TypeScript + Paper.js,
   **being rebuilt from scratch, closer to AutoCAD behaviour**, in small steps. It loads a plan
   through the API and draws and edits it (selection, snapping, tracking, drawing commands,
@@ -39,7 +41,7 @@ on the host. This overrides the `symfony serve -d` advice in AGENTS.md.
 
 ```sh
 docker compose up -d
-docker compose exec php bin/console <cmd>          # e.g. debug:router, make:*, doctrine:migrations:migrate
+docker compose exec php bin/console <cmd>          # e.g. debug:router, make:*
 docker compose exec php bin/phpunit                # all tests
 docker compose exec php bin/phpunit tests/Core/Controller/IndexControllerTest.php
 docker compose exec php vendor/bin/php-cs-fixer fix   # @Symfony ruleset (php-cs-fixer/shim)
@@ -57,25 +59,30 @@ docker compose exec -T php vendor/bin/mate tools:list # AI Mate diagnostics; alw
 
 The DB container is **MySQL 8.0** (`app`/`app`). The backend is **multi-tenant** (one
 database per customer, see `docs/architecture/tenancy.md`): `app_main` holds the tenant
-registry (later the users), each tenant has `app_<name>`; in test `app_main_test` and
+registry (and later the tokens), each tenant has `app_<name>` (with its users); in test `app_main_test` and
 `app_<name>_test`. `.env`'s `DATABASE_URL` names `app_main` via the compose host `db`, so it
 only resolves inside the containers. The `app` user may use every `app_%` database
 (`docker/map/mysql-init.sql`, run only when the `db-data` volume is created).
 
 ```sh
-docker compose exec php composer db:migrate              # app_main, then every tenant
+docker compose exec php bin/console app:database:rebuild   # dev only: drop all databases, schema from the entities, tenant demo with fixtures (asks first; -f, --tenant-name=…, --skip-fixtures; composer db:rebuild)
 docker compose exec php bin/console app:tenant:create demo --display-name=Demo
 docker compose exec php bin/console app:tenant:list
 docker compose exec php bin/console app:tenant:delete <name>   # drops the database, asks first
-docker compose exec php bin/console app:tenants:run "doctrine:migrations:status"
+docker compose exec php bin/console app:tenants:run "<cmd>"
 docker compose exec php bin/console <cmd> --tenant=<name>    # any command, on that tenant
-docker compose exec php bin/console app:fixture:create      # dev only: reset the tenant database, then the sample plan in a new project (asks first; -f, --project-name=…, --plan-id=<uuid>)
+docker compose exec php bin/console app:fixture:create      # dev only: reset the tenant database, then the sample plan in a new project and a user (asks first; -f, --project-name=…, --plan-id=<uuid>, --user-email=…, --user-password=…)
 ```
 
-Until users can log in, `DEFAULT_TENANT` (`.env.dev`, `.env.test`; `demo`) selects the tenant
-for requests and for commands without `--tenant`. Fresh test setup:
-`docker compose exec -e APP_ENV=test php composer db:migrate:main`, then
-`docker compose exec php bin/console app:tenant:create demo --env=test`.
+**No migrations during this early phase:** the schema comes from the entities
+(`doctrine:schema:create`); after an entity change run `app:database:rebuild` for dev and with
+`--env=test` (all data is lost). A request's tenant is the one the user logged in to (session,
+plus a `tenant` cookie for remember-me; `docs/architecture/tenancy.md`); guests have none.
+`DEFAULT_TENANT` (`.env.dev`, `.env.test`; `demo`) only selects the tenant of commands without
+`--tenant`. Log in locally with office `demo` and the user of `app:fixture:create`
+(`FixtureCreateCommand::DEV_USER_*`). Fresh test setup:
+`docker compose exec php bin/console app:database:rebuild -f --env=test`. Web tests log in with
+`tests/Security/LogsInTrait.php`.
 
 PHPUnit runs with `failOnDeprecation`, `failOnNotice` and `failOnWarning`, so a
 deprecation fails the suite.
@@ -103,7 +110,7 @@ read the matching file before working in its area:
 |---|---|
 | `plan-persistence.md` | why plans are stored as they are (relational, versioned, draft/head, publishing), plan vs. plan document, pitfalls (sample plan copies, `app:fixture:create`), `json_document`, what is planned or open |
 | `api-documentation.md` | DTOs, Nelmio rules, OpenAPI processors, generating the editor's types |
-| `tenancy.md` | one database per customer, the two entity managers and their mappings, selecting the tenant, tenant commands, migrations |
+| `tenancy.md` | one database per customer, the two entity managers and their mappings, selecting the tenant (login, session/cookie), tenant commands, schema rebuild instead of migrations |
 | `cqrs.md` | commands, queries, handlers, buses, repositories instead of SQL, with the Project example |
 
 Rules that apply everywhere:
@@ -114,9 +121,10 @@ Rules that apply everywhere:
   are never saved). The editor's own architecture is in `depts/editor/CLAUDE.md`.
 - **Backend layout by business area**, not by layer; namespaces follow the folders:
   `src/Core/` is technology only (`Tenancy/`, `Doctrine/`, `OpenApi/`,
-  `Controller/IndexController` for the home page), `src/Project/`, `src/Plan/`,
-  `src/Fixtures/`, `src/User/` (login and registration pages, `Form/`; its `Entity/` comes later,
-  in the main EM). Per area:
+  `Controller/IndexController` for the home page, `DashboardController` for the start page),
+  `src/Project/`, `src/Plan/`, `src/Fixtures/`, `src/User/` (`Entity/User` in the tenant EM, login,
+  logout and registration pages, `Form/`), `src/Security/` (authenticators, `UserProvider`; tokens
+  in the main EM, for later). Per area:
   - `Entity/` holds **only** entities and their embeddables (mapped per folder: a new folder
     needs a mapping in `config/packages/doctrine.yaml` and a row in `EntityMappingTest`), enums
     and other classes beside it (`Enum/`); `Repository/` one `ServiceEntityRepository` per entity.
@@ -140,21 +148,21 @@ Rules that apply everywhere:
 - **Entities and repositories, not native SQL**: DBAL or SQL only for a measured reason, and
   only after asking; a read needs a fixed number of queries (fetch joins). DQL UUID parameters
   need `UuidType::NAME`, or they silently match nothing.
-- **Two entity managers**: `tenant` (default; `src/Plan/Entity`, `src/Project/Entity`) and
-  `main` (app_main; `src/Core/Tenancy/Entity`). `TenantConnection` refuses queries before a
+- **Two entity managers**: `tenant` (default; `src/Plan/Entity`, `src/Project/Entity`,
+  `src/User/Entity`) and `main` (app_main; `src/Core/Tenancy/Entity`, `src/Security/Entity`). `TenantConnection` refuses queries before a
   tenant is selected; a `KernelTestCase` selects it with `TenantSwitcher` itself.
 - **Plans** are stored relationally and versioned (`Plan` → draft/head `PlanVersion` → content
   entities); display values are columns of the element subclasses. A new display value is a
-  field, a migration and a DTO field. The *plan document* (the drawing of one version) exists
+  field and a DTO field (then rebuild the schema). The *plan document* (the drawing of one version) exists
   only as `PlanDocumentDto` (`PlanDocumentReader` ↔ `PlanFactory`).
 - **API**: the DTOs and controller attributes are the only source of the OpenAPI document; a DTO
   change is done only once `npm run generate:api` ran and the diff of
   `depts/editor/src/api/schema.d.ts` is committed with it. The OpenAPI schema names drop the
   `Dto` suffix, so `ApiSchema['PlanDocument']` stays stable.
-- **Migrations** are split: `migrations/Tenant` (`doctrine:migrations:diff --tenant=demo`) and
-  `migrations/Main` (`--em=main --configuration=config/migrations/main.yaml`). After a new
-  migration, run `composer db:migrate` in the `php` container, and again with
-  `-e APP_ENV=test`. Moving a class stored as `json_document` needs a data migration.
+- **No migrations yet** (user's decision for the early phase): don't generate or run any; the
+  schema comes from the entities via `app:database:rebuild` (dev and `--env=test`). The folders
+  `migrations/Tenant` and `migrations/Main` stay configured but empty. Moving a class stored as
+  `json_document` breaks stored data; with rebuilds that just means rebuilding.
 - **Twig pages** (`templates/`, styles in `assets/styles/app.css`): every text goes through
   `|trans` with a key in `translations/messages.de.yaml` (form labels and help are keys too;
   own constraint messages in `validators.de.yaml`). German is the only translation yet;

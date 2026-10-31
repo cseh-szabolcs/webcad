@@ -12,6 +12,8 @@ parameters:
     app.tenant_database_suffix: ''
     # Route requirement for the {_locale} prefix of pages; keep in line with framework.enabled_locales
     app.locales: 'de|en'
+    # Seconds a login lasts with remember-me; the tenant cookie (App\Core\Tenancy\TenantStorage) lives as long
+    app.remember_me_lifetime: 604800
 
 services:
     # default configuration for services in *this* file

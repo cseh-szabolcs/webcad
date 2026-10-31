@@ -11,8 +11,8 @@ Decisions
   JSON document per version: it fits the editor's commands, which report the changed element
   ids, and allows saving only what changed later. Display values (radius, `closed`, control
   vectors) are columns of the element subclass too (single table inheritance, so nullable in the
-  database, never in PHP). A new display value is a field, a migration and a field of its
-  `…ElementDto`.
+  database, never in PHP). A new display value is a field (schema rebuilt, see `tenancy.md`; a
+  migration once they are back) and a field of its `…ElementDto`.
 - **Versioned:** the contents belong to a `PlanVersion`. A plan always has a **draft**, which the
   editor works on, and after the first publish a **head**. Publishing (the action comes later) is
   `$plan->publish($copier->copy($plan->getDraft()), $name)`: the copy becomes the head with the

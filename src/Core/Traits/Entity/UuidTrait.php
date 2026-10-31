@@ -6,7 +6,6 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Uid\Uuid;
-use function assert;
 
 trait UuidTrait
 {
@@ -24,14 +23,14 @@ trait UuidTrait
     #[Groups(['app', 'editor'])]
     public function getUuid(): Uuid
     {
-        assert($this->id);
+        \assert($this->id);
 
         return $this->id;
     }
 
     public function setId(Uuid $id): self
     {
-        assert(empty($this->id));
+        \assert(empty($this->id));
         $this->id = $id;
 
         return $this;

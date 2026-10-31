@@ -29,13 +29,42 @@ final readonly class TenantSwitcher
      */
     public function switchTo(string $name): Tenant
     {
-        $tenant = $this->tenantRepository->findByName($name);
+        return $this->select($this->tenantRepository->findByName($name) ?? throw new TenantNotFoundException($name));
+    }
 
-        if (!$tenant instanceof Tenant) {
-            throw new TenantNotFoundException($name);
-        }
+    /**
+     * Selects the tenant of a public id (Tenant::getUuid()), as stored for a logged-in user (TenantStorage).
+     *
+     * @throws TenantNotFoundException when the registry has no tenant of that uuid
+     */
+    public function switchToUuid(string $uuid): Tenant
+    {
+        return $this->select($this->tenantRepository->findByUuid($uuid) ?? throw new TenantNotFoundException($uuid));
+    }
 
-        $database = $this->naming->databaseName($name);
+    /**
+     * The name of the selected tenant, or null before one is selected.
+     */
+    public function current(): ?string
+    {
+        $database = $this->tenantConnection->getTenantDatabase();
+
+        return null === $database ? null : $this->naming->tenantName($database);
+    }
+
+    /**
+     * The selected tenant, or null before one is selected.
+     */
+    public function currentTenant(): ?Tenant
+    {
+        $name = $this->current();
+
+        return null === $name ? null : $this->tenantRepository->findByName($name);
+    }
+
+    private function select(Tenant $tenant): Tenant
+    {
+        $database = $this->naming->databaseName($tenant->getName());
         if ($database === $this->tenantConnection->getTenantDatabase()) {
             return $tenant;
         }
@@ -44,15 +73,5 @@ final readonly class TenantSwitcher
         $this->tenantConnection->selectDatabase($database);
 
         return $tenant;
-    }
-
-    /**
-     * The selected tenant, or null before one is selected.
-     */
-    public function current(): ?string
-    {
-        $database = $this->tenantConnection->getTenantDatabase();
-
-        return null === $database ? null : $this->naming->tenantName($database);
     }
 }

@@ -12,9 +12,9 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 trait RepositoryTrait
 {
-    const int MAX_RESULTS = 1000;
+    public const int MAX_RESULTS = 1000;
 
-    public function assertResult(object|null $result): void
+    public function assertResult(?object $result): void
     {
         if (is_null($result)) {
             throw new NotFoundException();
@@ -41,7 +41,9 @@ trait RepositoryTrait
 
     /**
      * @template T of object
+     *
      * @param class-string<T> $className
+     *
      * @return T
      */
     public function replace(object $entity, string $className): object

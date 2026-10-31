@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace App\Security\Authenticator;
 
 use App\Core\App;
+use App\Core\Tenancy\Exception\TenantNotFoundException;
+use App\Core\Tenancy\TenantStorage;
 use App\Core\Tenancy\TenantSwitcher;
-use App\Security\Entity\TokenType;
+use App\Security\Exception\TenantNotFoundAuthenticationException;
 use App\Security\Model\Credentials;
-use App\Security\TokenVerifier;
 use App\Security\UserProvider;
 use App\User\Entity\User;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -25,17 +26,26 @@ use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
 use Symfony\Component\Security\Http\SecurityRequestAttributes;
 use Symfony\Component\Security\Http\Util\TargetPathTrait;
 
+/**
+ * The login form: selects the tenant named in the form first, because the user lives in the
+ * tenant's database, then checks the user's password there. A successful login stores the tenant
+ * for the following requests (TenantStorage).
+ */
 class UserAuthenticator extends AbstractLoginFormAuthenticator
 {
     use TargetPathTrait;
 
+    /** Session key of the tenant name last entered, to fill the form again after a failure */
+    public const string LAST_TENANT = '_security.last_tenant';
+
     public function __construct(
         private readonly TenantSwitcher $tenantSwitcher,
+        private readonly TenantStorage $tenantStorage,
         private readonly UserProvider $userProvider,
         private readonly UserAuthenticatorInterface $userAuthenticator,
-        private readonly TokenVerifier $tokenVerifier,
         private readonly App $app,
-    ) {}
+    ) {
+    }
 
     public function supports(Request $request): bool
     {
@@ -48,10 +58,16 @@ class UserAuthenticator extends AbstractLoginFormAuthenticator
         $badges = [new RememberMeBadge()];
 
         $credentials = $this->createCredentials($badges, $request);
-        $tenantName = $credentials->tenantName;
-        // todo: implement tenant-loading
 
-        $request->getSession()->set(SecurityRequestAttributes::LAST_USERNAME, $credentials->identifier);
+        $session = $request->getSession();
+        $session->set(self::LAST_TENANT, $credentials->tenantName);
+        $session->set(SecurityRequestAttributes::LAST_USERNAME, $credentials->identifier);
+
+        try {
+            $this->tenantSwitcher->switchTo($credentials->tenantName);
+        } catch (TenantNotFoundException) {
+            throw new TenantNotFoundAuthenticationException();
+        }
 
         return new Passport(
             new UserBadge($credentials->identifier, $this->userProvider->loadUserByIdentifier(...)),
@@ -67,15 +83,18 @@ class UserAuthenticator extends AbstractLoginFormAuthenticator
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
     {
-        /** @var User $user */
-        $user = $token->getUser();
-        $this->tokenVerifier->create($user, TokenType::Auth, null, 60 * 60, true);
+        // todo: create the auth token (TokenVerifier::create) once tokens are implemented
 
-        if ($targetPath = $this->getTargetPath($request->getSession(), $firewallName)) {
-            return new RedirectResponse($targetPath);
-        }
+        $session = $request->getSession();
+        $targetPath = $this->getTargetPath($session, $firewallName)
+            ?? $this->app->urlGenerator->generate('app_dashboard');
+        $this->removeTargetPath($session, $firewallName);
+        $session->remove(self::LAST_TENANT);
 
-        return new RedirectResponse('/');
+        $response = new RedirectResponse($targetPath);
+        $this->tenantStorage->store($request, $response, $this->tenantSwitcher->currentTenant());
+
+        return $response;
     }
 
     protected function getLoginUrl(Request $request): string
@@ -93,8 +112,9 @@ class UserAuthenticator extends AbstractLoginFormAuthenticator
         ));
 
         return new Credentials(
-            $payload->getString('tenantName'),
-            $payload->getString('email'),
+            // Tenant names are lowercase, see TenantNaming
+            mb_strtolower(trim($payload->getString('tenantName'))),
+            trim($payload->getString('email')),
             $payload->getString('password'),
         );
     }

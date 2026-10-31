@@ -9,7 +9,6 @@ use App\Core\Traits\Entity\UpdatedTrait;
 use App\Core\Traits\Entity\UuidAwareTrait;
 use App\User\Contracts\UserInterface;
 use App\User\Repository\UserRepository;
-use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -51,10 +50,10 @@ class User implements UserInterface
     private ?bool $termsAgreed;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
-    private ?DateTimeImmutable $confirmedAt;
+    private ?\DateTimeImmutable $confirmedAt = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
-    private ?DateTimeImmutable $lastAccess;
+    private ?\DateTimeImmutable $lastAccess;
 
     public function __construct(
         string $email,
@@ -63,10 +62,10 @@ class User implements UserInterface
         ?bool $termsAgreed = false,
     ) {
         $this->email = $email;
-        $this->locale = $locale ?? Locale::getDefault();
+        $this->locale = $locale ?? Locale::getDefault()->value;
         $this->termsAgreed = $termsAgreed;
-        $this->lastAccess = new DateTimeImmutable();
-        $this->setRole($role);;
+        $this->lastAccess = new \DateTimeImmutable();
+        $this->setRole($role);
     }
 
     public function getId(): ?int
@@ -176,7 +175,7 @@ class User implements UserInterface
         return $this;
     }
 
-    public function getConfirmedAt(): ?DateTimeImmutable
+    public function getConfirmedAt(): ?\DateTimeImmutable
     {
         return $this->confirmedAt;
     }
@@ -189,20 +188,20 @@ class User implements UserInterface
     public function confirm(): static
     {
         if (null === $this->confirmedAt) {
-            $this->confirmedAt = new DateTimeImmutable();
+            $this->confirmedAt = new \DateTimeImmutable();
         }
 
         return $this;
     }
 
-    public function getLastAccess(): DateTimeImmutable
+    public function getLastAccess(): \DateTimeImmutable
     {
         return $this->lastAccess;
     }
 
     public function refreshLastAccess(): static
     {
-        $this->lastAccess = new DateTimeImmutable();
+        $this->lastAccess = new \DateTimeImmutable();
 
         return $this;
     }

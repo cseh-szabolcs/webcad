@@ -6,6 +6,7 @@ use App\Core\Tenancy\Entity\Tenant;
 use App\Core\Traits\RepositoryTrait;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @extends ServiceEntityRepository<Tenant>
@@ -22,6 +23,14 @@ class TenantRepository extends ServiceEntityRepository
     public function findByName(string $name): ?Tenant
     {
         return $this->findOneBy(['name' => $name]);
+    }
+
+    /**
+     * The tenant of a public id (Tenant::getUuid()), or null also for a string that is no uuid.
+     */
+    public function findByUuid(string $uuid): ?Tenant
+    {
+        return Uuid::isValid($uuid) ? $this->findOneBy(['uuid' => Uuid::fromString($uuid)]) : null;
     }
 
     /**

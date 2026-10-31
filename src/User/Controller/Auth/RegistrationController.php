@@ -2,6 +2,7 @@
 
 namespace App\User\Controller\Auth;
 
+use App\Security\Attribute\GuestOnlyGrant;
 use App\User\Form\RegistrationFormType;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -10,10 +11,12 @@ use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * Shows and validates the registration form. Storing the office and its user comes in a later step,
- * so a valid submission only says that registration is not available yet.
+ * so a valid submission only says that registration is not available yet. Logged-in users go to their
+ * start page instead (GuestOnlyGrant).
  */
 final class RegistrationController extends AbstractController
 {
+    #[GuestOnlyGrant]
     #[Route('/{_locale}/register', name: 'user_auth_register', requirements: ['_locale' => '%app.locales%'], methods: ['GET', 'POST'])]
     public function __invoke(Request $request): Response
     {
@@ -23,7 +26,7 @@ final class RegistrationController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             $this->addFlash('notice', 'user.register.not_available');
 
-            return $this->redirectToRoute('user_register');
+            return $this->redirectToRoute('user_auth_register');
         }
 
         return $this->render('page/user/auth/register.html.twig', ['form' => $form]);

@@ -2,9 +2,10 @@
 
 namespace App\Core\Tenancy\Entity;
 
+use App\Core\Contracts\UuidAwareInterface;
 use App\Core\Tenancy\Repository\TenantRepository;
+use App\Core\Traits\Entity\UuidAwareTrait;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -12,11 +13,14 @@ use Symfony\Component\Uid\Uuid;
  * (see TenantNaming), which is therefore not stored.
  */
 #[ORM\Entity(repositoryClass: TenantRepository::class)]
-class Tenant
+class Tenant implements UuidAwareInterface
 {
+    use UuidAwareTrait;
+
     #[ORM\Id]
-    #[ORM\Column(type: UuidType::NAME, unique: true)]
-    private Uuid $id;
+    #[ORM\GeneratedValue]
+    #[ORM\Column(options: ['unsigned' => true])]
+    private ?int $id = null;
 
     public function __construct(
         #[ORM\Column(length: 40, unique: true)]
@@ -24,10 +28,10 @@ class Tenant
         #[ORM\Column(length: 255)]
         private string $displayName,
     ) {
-        $this->id = Uuid::v7();
+        $this->uuid = Uuid::v7();
     }
 
-    public function getId(): Uuid
+    public function getId(): int
     {
         return $this->id;
     }

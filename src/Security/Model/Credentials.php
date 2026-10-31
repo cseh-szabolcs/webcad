@@ -8,5 +8,6 @@ final readonly class Credentials
         public string $tenantName,
         public string $identifier,
         public string $password,
-    ) {}
+    ) {
+    }
 }
