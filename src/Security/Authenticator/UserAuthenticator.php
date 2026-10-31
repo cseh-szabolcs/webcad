@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Security\Authenticator;
 
 use App\Core\App;
+use App\Security\Entity\TokenType;
 use App\Security\Model\Credentials;
 use App\Security\TokenVerifier;
 use App\Security\UserProvider;
@@ -63,7 +64,7 @@ class UserAuthenticator extends AbstractLoginFormAuthenticator
     {
         /** @var User $user */
         $user = $token->getUser();
-        $this->tokenVerifier->create($user, Token::TYPE_AUTH, null, 60 * 60, true);
+        $this->tokenVerifier->create($user, TokenType::Auth, null, 60 * 60, true);
 
         if ($targetPath = $this->getTargetPath($request->getSession(), $firewallName)) {
             return new RedirectResponse($targetPath);
