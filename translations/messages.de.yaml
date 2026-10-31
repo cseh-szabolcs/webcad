@@ -1,0 +1,83 @@
+# Texts of the Twig pages. Placeholder copy: the final texts follow in a later step.
+layout:
+    brand: WebCAD
+    skip_to_content: Zum Inhalt springen
+    nav:
+        label: Hauptnavigation
+        login: Anmelden
+        register: Registrieren
+    locale:
+        label: Sprache
+    footer:
+        copyright: © %year% WebCAD
+        imprint: Impressum
+        privacy: Datenschutz
+        terms: Nutzungsbedingungen
+
+plan:
+    # Labels of the decorative floor plan
+    living: Wohnen
+    kitchen: Küche
+    bedroom: Schlafen
+    bath: Bad
+    snap_endpoint: Endpunkt
+    title_block:
+        project: Projekt
+        project_value: WebCAD
+        sheet: Plan
+        sheet_value: Grundriss EG
+        scale: Maßstab
+        revision: Index
+
+home:
+    title: Projektverwaltung und CAD für Architekturbüros
+    hero:
+        eyebrow: Projektverwaltung & CAD
+        title: Vom Projekt zur Zeichnung – an einem Ort.
+        lead: Projekte anlegen, Pläne zeichnen, Stände festhalten. Direkt im Browser, ohne Installation.
+        cta_primary: Kostenlos registrieren
+        cta_secondary: Anmelden
+    features:
+        title: Was WebCAD kann
+        projects:
+            title: Projekte & Pläne
+            text: Alle Pläne eines Projekts an einem Ort – vom Erdgeschoss bis zum Schnitt.
+        editor:
+            title: CAD-Editor im Browser
+            text: Zeichnen mit Fangpunkten, Spurverfolgung und Befehlen, wie man sie aus CAD kennt.
+        versions:
+            title: Versionen
+            text: Am Entwurf weiterarbeiten und Stände veröffentlichen, ohne frühere zu verlieren.
+    closing:
+        title: Bereit für den ersten Plan?
+        text: Legen Sie Ihr Büro an und starten Sie mit dem ersten Projekt.
+        cta: Jetzt registrieren
+
+user:
+    login:
+        title: Anmelden
+        heading: Willkommen zurück
+        lead: Melden Sie sich an, um an Ihren Projekten weiterzuarbeiten.
+        email: E-Mail
+        password: Passwort
+        remember_me: Angemeldet bleiben
+        forgot_password: Passwort vergessen?
+        submit: Anmelden
+        no_account: Noch kein Konto?
+        register_link: Registrieren
+        not_available: Die Anmeldung ist noch nicht verfügbar.
+    register:
+        title: Registrieren
+        heading: Konto erstellen
+        lead: Legen Sie Ihr Büro an und starten Sie mit dem ersten Projekt.
+        company: Büro
+        name: Vor- und Nachname
+        email: E-Mail
+        password: Passwort
+        password_help: Mindestens 12 Zeichen.
+        password_repeat: Passwort wiederholen
+        accept_terms: Ich akzeptiere die Nutzungsbedingungen und die Datenschutzerklärung.
+        submit: Konto erstellen
+        has_account: Bereits registriert?
+        login_link: Anmelden
+        not_available: Die Registrierung ist noch nicht verfügbar – Ihre Angaben wurden nicht gespeichert.

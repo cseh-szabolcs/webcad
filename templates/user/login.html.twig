@@ -1,0 +1,39 @@
+{% extends 'user/_auth_layout.html.twig' %}
+
+{% block title %}{{ 'user.login.title'|trans }} – {{ 'layout.brand'|trans }}{% endblock %}
+
+{% block auth_eyebrow %}{{ 'user.login.title'|trans }}{% endblock %}
+{% block auth_heading %}{{ 'user.login.heading'|trans }}{% endblock %}
+{% block auth_lead %}{{ 'user.login.lead'|trans }}{% endblock %}
+
+{% block auth_form %}
+    {# Field names as form_login expects them #}
+    <form class="form" method="post" action="{{ path('user_login') }}">
+        <div class="field">
+            <label for="login_username">{{ 'user.login.email'|trans }}</label>
+            <input type="email" id="login_username" name="_username" autocomplete="email" required autofocus>
+        </div>
+
+        <div class="field">
+            <div class="field__label-row">
+                <label for="login_password">{{ 'user.login.password'|trans }}</label>
+                <a class="link" href="#">{{ 'user.login.forgot_password'|trans }}</a>
+            </div>
+            <input type="password" id="login_password" name="_password" autocomplete="current-password" required>
+        </div>
+
+        <div class="field field--check">
+            <input type="checkbox" id="login_remember_me" name="_remember_me">
+            <label for="login_remember_me">{{ 'user.login.remember_me'|trans }}</label>
+        </div>
+
+        <input type="hidden" name="_csrf_token" data-controller="csrf-protection" value="{{ csrf_token('authenticate') }}">
+
+        <button type="submit" class="btn btn--primary btn--lg btn--block">{{ 'user.login.submit'|trans }}</button>
+    </form>
+{% endblock %}
+
+{% block auth_switch %}
+    {{ 'user.login.no_account'|trans }}
+    <a class="link" href="{{ path('user_register') }}">{{ 'user.login.register_link'|trans }}</a>
+{% endblock %}

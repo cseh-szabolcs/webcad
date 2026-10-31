@@ -1,0 +1,5 @@
+# Own constraint messages; Symfony's built-in ones come translated with symfony/validator.
+user:
+    register:
+        password_mismatch: Die Passwörter stimmen nicht überein.
+        accept_terms_required: Bitte akzeptieren Sie die Nutzungsbedingungen.

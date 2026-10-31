@@ -1,0 +1,28 @@
+{% extends 'user/_auth_layout.html.twig' %}
+
+{% block title %}{{ 'user.register.title'|trans }} – {{ 'layout.brand'|trans }}{% endblock %}
+
+{% block auth_eyebrow %}{{ 'user.register.title'|trans }}{% endblock %}
+{% block auth_heading %}{{ 'user.register.heading'|trans }}{% endblock %}
+{% block auth_lead %}{{ 'user.register.lead'|trans }}{% endblock %}
+
+{% block auth_form %}
+    {{ form_start(form, {attr: {class: 'form', novalidate: 'novalidate'}}) }}
+        {{ form_errors(form) }}
+        {{ form_row(form.company) }}
+        {{ form_row(form.name) }}
+        {{ form_row(form.email) }}
+        <div class="form__pair">
+            {{ form_row(form.plainPassword.first) }}
+            {{ form_row(form.plainPassword.second) }}
+        </div>
+        {{ form_row(form.acceptTerms) }}
+
+        <button type="submit" class="btn btn--primary btn--lg btn--block">{{ 'user.register.submit'|trans }}</button>
+    {{ form_end(form) }}
+{% endblock %}
+
+{% block auth_switch %}
+    {{ 'user.register.has_account'|trans }}
+    <a class="link" href="{{ path('user_login') }}">{{ 'user.register.login_link'|trans }}</a>
+{% endblock %}

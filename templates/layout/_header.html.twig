@@ -1,0 +1,19 @@
+<header class="site-header">
+    <div class="container site-header__inner">
+        <a class="brand" href="{{ path('app_index') }}">
+            <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true">
+                <rect x="3" y="3" width="26" height="26"/>
+                <path d="M16 8v16M8 16h16"/>
+            </svg>
+            <span class="brand__name">{{ 'layout.brand'|trans }}</span>
+        </a>
+
+        <nav class="site-nav" aria-label="{{ 'layout.nav.label'|trans }}">
+            {{ include('layout/_locale_switcher.html.twig') }}
+            <a class="btn btn--ghost" href="{{ path('user_login') }}"
+               {%- if app.current_route == 'user_login' %} aria-current="page"{% endif %}>{{ 'layout.nav.login'|trans }}</a>
+            <a class="btn btn--primary" href="{{ path('user_register') }}"
+               {%- if app.current_route == 'user_register' %} aria-current="page"{% endif %}>{{ 'layout.nav.register'|trans }}</a>
+        </nav>
+    </div>
+</header>

@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html>
+<html lang="{{ app.request.locale }}">
     <head>
         <meta charset="UTF-8">
-        <title>{% block title %}Welcome!{% endblock %}</title>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⚫️</text><text y=%221.3em%22 x=%220.2em%22 font-size=%2276%22 fill=%22%23fff%22>sf</text></svg>">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>{% block title %}{{ 'layout.brand'|trans }}{% endblock %}</title>
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect x=%223%22 y=%223%22 width=%2226%22 height=%2226%22 fill=%22none%22 stroke=%22%23c2410c%22 stroke-width=%223%22/><path d=%22M16 8v16M8 16h16%22 stroke=%22%23c2410c%22 stroke-width=%222.5%22/></svg>">
         {% block stylesheets %}
         {% endblock %}
 
@@ -18,7 +19,12 @@
         <script src="https://cdn.jsdelivr.net/npm/frankenphp-hot-reload/+esm" type="module"></script>
         {% endif %}
     </head>
-    <body>
-        {% block body %}{% endblock %}
+    <body class="{% block body_class %}{% endblock %}">
+        <a class="skip-link" href="#main">{{ 'layout.skip_to_content'|trans }}</a>
+        {{ include('layout/_header.html.twig') }}
+        <main id="main" class="main">
+            {% block body %}{% endblock %}
+        </main>
+        {{ include('layout/_footer.html.twig') }}
     </body>
 </html>

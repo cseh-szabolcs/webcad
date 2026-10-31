@@ -10,6 +10,8 @@ parameters:
     # Tenant databases are named <prefix><tenant name><suffix>, see docs/architecture/tenancy.md
     app.tenant_database_prefix: app_
     app.tenant_database_suffix: ''
+    # Route requirement for the {_locale} prefix of pages; keep in line with framework.enabled_locales
+    app.locales: 'de|en'
 
 services:
     # default configuration for services in *this* file

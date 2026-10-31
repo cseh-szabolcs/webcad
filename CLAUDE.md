@@ -13,8 +13,9 @@ apps in one repo:
 
 - **Symfony 8.1 backend** (PHP ≥ 8.5) at the repo root: projects, plans, users,
   permissions, document versions, export. Doctrine ORM, Messenger, Security, Twig,
-  AssetMapper and Stimulus are installed. Today it is still mostly skeleton
-  (`IndexController` at `/index` plus one test).
+  AssetMapper and Stimulus are installed. Pages so far: the home page (`/{_locale}`) and the
+  login and registration forms (`/{_locale}/login`, `/{_locale}/register`), which only display
+  and validate; logging in and registering come later.
 - **CAD editor frontend** in `depts/editor/`: Vite + React 19 + TypeScript + Paper.js,
   **being rebuilt from scratch, closer to AutoCAD behaviour**, in small steps. It loads a plan
   through the API and draws and edits it (selection, snapping, tracking, drawing commands,
@@ -40,14 +41,14 @@ on the host. This overrides the `symfony serve -d` advice in AGENTS.md.
 docker compose up -d
 docker compose exec php bin/console <cmd>          # e.g. debug:router, make:*, doctrine:migrations:migrate
 docker compose exec php bin/phpunit                # all tests
-docker compose exec php bin/phpunit --filter testIndex tests/Core/Controller/IndexControllerTest.php
+docker compose exec php bin/phpunit tests/Core/Controller/IndexControllerTest.php
 docker compose exec php vendor/bin/php-cs-fixer fix   # @Symfony ruleset (php-cs-fixer/shim)
 docker compose exec -T php vendor/bin/mate tools:list # AI Mate diagnostics; always run Mate this way
 ```
 
 | Service    | URL / port                                                          |
 |------------|---------------------------------------------------------------------|
-| App        | http://localhost:8080 (nginx → php-fpm, document root `public/`)     |
+| App        | http://localhost:8080 (nginx → php-fpm, document root `public/`; `/` redirects to `/de`) |
 | Editor dev | http://localhost:8081 (Vite; the `editor` container runs `npm run dev:init`) |
 | Old editor | http://localhost:8082 (`editor-old` container, reference only)         |
 | API docs   | http://localhost:8080/_doc (Stoplight UI), `/_doc.json` (OpenAPI); dev and test only |
@@ -113,8 +114,9 @@ Rules that apply everywhere:
   are never saved). The editor's own architecture is in `depts/editor/CLAUDE.md`.
 - **Backend layout by business area**, not by layer; namespaces follow the folders:
   `src/Core/` is technology only (`Tenancy/`, `Doctrine/`, `OpenApi/`,
-  `Controller/IndexController` as a placeholder page), `src/Project/`, `src/Plan/`,
-  `src/Fixtures/`; `User/` comes later (its `Entity/` in the main EM). Per area:
+  `Controller/IndexController` for the home page), `src/Project/`, `src/Plan/`,
+  `src/Fixtures/`, `src/User/` (login and registration pages, `Form/`; its `Entity/` comes later,
+  in the main EM). Per area:
   - `Entity/` holds **only** entities and their embeddables (mapped per folder: a new folder
     needs a mapping in `config/packages/doctrine.yaml` and a row in `EntityMappingTest`), enums
     and other classes beside it (`Enum/`); `Repository/` one `ServiceEntityRepository` per entity.
@@ -153,6 +155,14 @@ Rules that apply everywhere:
   `migrations/Main` (`--em=main --configuration=config/migrations/main.yaml`). After a new
   migration, run `composer db:migrate` in the `php` container, and again with
   `-e APP_ENV=test`. Moving a class stored as `json_document` needs a data migration.
+- **Twig pages** (`templates/`, styles in `assets/styles/app.css`): every text goes through
+  `|trans` with a key in `translations/messages.de.yaml` (form labels and help are keys too;
+  own constraint messages in `validators.de.yaml`). German is the only translation yet;
+  `enabled_locales` is `[de, en]` and other locales fall back to German. The locale is the URL
+  prefix: page routes are `/{_locale}/…` with `requirements: ['_locale' => '%app.locales%']`
+  (`config/services.yaml`, keep in line with `enabled_locales`); the switcher in
+  `templates/layout/` links the current route in every enabled locale. Forms use
+  `templates/form/theme.html.twig`. No web fonts from third parties (system font stacks).
 - The editor build writes `editor/[name].js` without hashes, because Symfony (AssetMapper) is
   meant to handle cache-busting. Integration of the built editor into Twig is not wired up yet.
 

@@ -1,20 +1,47 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Hello IndexController!{% endblock %}
+{% block title %}{{ 'layout.brand'|trans }} – {{ 'home.title'|trans }}{% endblock %}
+
+{% block body_class %}page-home{% endblock %}
 
 {% block body %}
-<style>
-    .example-wrapper { margin: 1em auto; max-width: 800px; width: 95%; font: 18px/1.5 sans-serif; }
-    .example-wrapper code { background: #F5F5F5; padding: 2px 6px; }
-</style>
+    <section class="hero container">
+        <div class="hero__copy">
+            <p class="eyebrow">{{ 'home.hero.eyebrow'|trans }}</p>
+            <h1 class="hero__title">{{ 'home.hero.title'|trans }}</h1>
+            <p class="hero__lead">{{ 'home.hero.lead'|trans }}</p>
+            <div class="hero__actions">
+                <a class="btn btn--primary btn--lg" href="{{ path('user_register') }}">{{ 'home.hero.cta_primary'|trans }}</a>
+                <a class="btn btn--ghost btn--lg" href="{{ path('user_login') }}">{{ 'home.hero.cta_secondary'|trans }}</a>
+            </div>
+        </div>
 
-<div class="example-wrapper">
-    <h1>Hello {{ controller_name }}! ✅</h1>
+        <figure class="sheet hero__sheet">
+            {{ include('layout/_floor_plan.html.twig') }}
+            {{ include('layout/_title_block.html.twig') }}
+        </figure>
+    </section>
 
-    This friendly message is coming from:
-    <ul>
-        <li>Your controller at <code>/app/src/Core/Controller/IndexController.php</code></li>
-        <li>Your template at <code>/app/templates/index/index.html.twig</code></li>
-    </ul>
-</div>
+    <section class="features container" aria-labelledby="features-title">
+        <h2 id="features-title" class="visually-hidden">{{ 'home.features.title'|trans }}</h2>
+        <ol class="features__list">
+            {% for key in ['projects', 'editor', 'versions'] %}
+                <li class="feature">
+                    <span class="feature__number">{{ '%02d'|format(loop.index) }}</span>
+                    <h3 class="feature__title">{{ ('home.features.' ~ key ~ '.title')|trans }}</h3>
+                    <p class="feature__text">{{ ('home.features.' ~ key ~ '.text')|trans }}</p>
+                </li>
+            {% endfor %}
+        </ol>
+    </section>
+
+    <section class="closing container">
+        <div class="closing__box">
+            <div>
+                <h2 class="closing__title">{{ 'home.closing.title'|trans }}</h2>
+                <p class="closing__text">{{ 'home.closing.text'|trans }}</p>
+            </div>
+            <a class="btn btn--primary btn--lg" href="{{ path('user_register') }}">{{ 'home.closing.cta'|trans }}</a>
+        </div>
+    </section>
 {% endblock %}
