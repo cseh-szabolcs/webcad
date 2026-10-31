@@ -1,0 +1,18 @@
+{# Decorative drawing: the sheet with floor plan and title block, plus palettes like the editor's. #}
+<div class="chip chip--version" aria-hidden="true">
+    <span class="chip__dot"></span>
+    {{ 'plan.version'|trans({'%number%': 3}) }}
+    <span class="chip__muted">· {{ 'plan.published'|trans }}</span>
+</div>
+<div class="chip chip--layers" aria-hidden="true">
+    <span class="chip__title">{{ 'plan.layers.title'|trans }}</span>
+    <ul>
+        <li><span class="swatch swatch--walls"></span>{{ 'plan.layers.walls'|trans }}</li>
+        <li><span class="swatch swatch--rooms"></span>{{ 'plan.layers.rooms'|trans }}</li>
+        <li><span class="swatch swatch--furniture"></span>{{ 'plan.layers.furniture'|trans }}</li>
+    </ul>
+</div>
+<figure class="sheet" aria-hidden="true">
+    {{ include('layout/_floor_plan.html.twig') }}
+    {{ include('layout/_title_block.html.twig') }}
+</figure>
