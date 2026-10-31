@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Fixtures;
+namespace App\Fixtures\Console;
 
 use App\Core\Tenancy\Exception\TenantNotSelectedException;
 use App\Core\Tenancy\TenantProvisioner;

@@ -4,7 +4,7 @@ namespace App\Tests\Fixtures;
 
 use App\Core\Tenancy\TenantProvisioner;
 use App\Core\Tenancy\TenantSwitcher;
-use App\Fixtures\FixtureCreateCommand;
+use App\Fixtures\Console\FixtureCreateCommand;
 use App\Plan\Entity\Element;
 use App\Plan\Entity\Plan;
 use App\Project\Entity\Project;

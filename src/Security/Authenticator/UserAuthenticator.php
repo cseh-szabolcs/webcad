@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Security\Authenticator;
 
 use App\Core\App;
+use App\Core\Tenancy\TenantSwitcher;
 use App\Security\Entity\TokenType;
 use App\Security\Model\Credentials;
 use App\Security\TokenVerifier;
@@ -29,6 +30,7 @@ class UserAuthenticator extends AbstractLoginFormAuthenticator
     use TargetPathTrait;
 
     public function __construct(
+        private readonly TenantSwitcher $tenantSwitcher,
         private readonly UserProvider $userProvider,
         private readonly UserAuthenticatorInterface $userAuthenticator,
         private readonly TokenVerifier $tokenVerifier,
@@ -46,6 +48,9 @@ class UserAuthenticator extends AbstractLoginFormAuthenticator
         $badges = [new RememberMeBadge()];
 
         $credentials = $this->createCredentials($badges, $request);
+        $tenantName = $credentials->tenantName;
+        // todo: implement tenant-loading
+
         $request->getSession()->set(SecurityRequestAttributes::LAST_USERNAME, $credentials->identifier);
 
         return new Passport(

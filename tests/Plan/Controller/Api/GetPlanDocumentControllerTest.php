@@ -3,7 +3,7 @@
 namespace App\Tests\Plan\Controller\Api;
 
 use App\Core\Tenancy\TenantSwitcher;
-use App\Fixtures\FixtureCreateCommand;
+use App\Fixtures\Console\FixtureCreateCommand;
 use App\Plan\Dto\EllipseElementDto;
 use App\Plan\Dto\PlanDocumentDto;
 use App\Plan\Entity\Plan;

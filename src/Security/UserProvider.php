@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Security;
 
-use App\Core\Tenancy\TenantSwitcher;
 use App\User\Entity\User;
 use App\User\Repository\UserRepository;
 use DateTimeImmutable;
@@ -18,16 +17,8 @@ readonly class UserProvider implements UserProviderInterface
     public const int USER_REFRESH_TIME = 60; // seconds
 
     public function __construct(
-        private TenantSwitcher $tenantSwitcher,
         private UserRepository $userRepository,
-        private AuthProvider $authProvider,
     ) {}
-
-    public function switchTenant(string $tenantName): void
-    {
-        $tenant = $this->tenantSwitcher->switchTo($tenantName);
-        $this->authProvider->setTenant($tenant);
-    }
 
     public function loadUserByIdentifier(string|Uuid $identifier): UserInterface
     {

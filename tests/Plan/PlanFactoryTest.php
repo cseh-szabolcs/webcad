@@ -3,7 +3,7 @@
 namespace App\Tests\Plan;
 
 use App\Core\Tenancy\TenantSwitcher;
-use App\Fixtures\FixtureCreateCommand;
+use App\Fixtures\Console\FixtureCreateCommand;
 use App\Plan\Dto\LineElementDto;
 use App\Plan\Dto\PlanDocumentDto;
 use App\Plan\Entity;
