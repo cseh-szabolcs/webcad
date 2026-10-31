@@ -33,7 +33,12 @@
     --room-sleeping: rgb(36 86 196 / 0.11);
     --room-bath: rgb(11 124 148 / 0.13);
 
-    /* Light-on-blue colors, used by the hero */
+    /* Dark purple behind the hero and the drawing of the login/registration pages */
+    --hero-bg: #2b2463;
+    --hero-muted: #d9d5f2;
+    --hero-glow: radial-gradient(60% 120% at 100% 0%, rgb(167 139 250 / 0.22), transparent 60%);
+
+    /* Light colors on dark backgrounds */
     --band: #0e2a4a;
     --band-raised: #143660;
     --band-ink: #eaf1fa;
@@ -491,14 +496,21 @@ a {
 }
 
 .swatch {
-    width: 10px;
-    height: 10px;
+    width: 12px;
+    height: 12px;
     border-radius: 2px;
     background: var(--swatch);
 }
 
 .swatch--walls { --swatch: var(--ink); }
-.swatch--rooms { --swatch: var(--accent); }
+.swatch--rooms {
+    --swatch: conic-gradient(
+        color-mix(in srgb, var(--blue) 50%, var(--white)) 0 25%,
+        color-mix(in srgb, var(--cyan) 50%, var(--white)) 0 50%,
+        color-mix(in srgb, var(--green) 50%, var(--white)) 0 75%,
+        color-mix(in srgb, #c2410c 50%, var(--white)) 0 /* Wohnen, the orange of --room-living */
+    );
+}
 .swatch--furniture { --swatch: var(--blue); }
 
 .chip--layers {
@@ -703,15 +715,13 @@ a {
 /* ---------- Home: hero ---------- */
 
 .hero {
-    --hero-bg: #2b2463;
-    --hero-muted: #d9d5f2;
     /* The grid sits under the drawing, the text side stays plain */
     --grid-major: var(--band-grid);
     --grid-minor: rgb(234 241 250 / 0.03);
     --grid-mask: radial-gradient(ellipse 70% 60% at 50% 78%, #000 30%, transparent 75%);
     overflow: hidden;
     background:
-        radial-gradient(60% 120% at 100% 0%, rgb(167 139 250 / 0.22), transparent 60%),
+        var(--hero-glow),
         var(--hero-bg);
     color: var(--band-ink);
 }
@@ -827,7 +837,8 @@ a {
     color: var(--ink);
 }
 
-.hero__visual .sheet {
+.hero__visual .sheet,
+.auth__visual .sheet {
     box-shadow: 0 30px 60px -30px rgb(0 0 0 / 0.6);
 }
 
@@ -901,7 +912,7 @@ a {
     box-shadow: var(--shadow);
 }
 
-.feature--projects { --tone: var(--blue); }
+.feature--projects { --tone: var(--cyan); }
 .feature--editor { --tone: var(--accent); }
 .feature--versions { --tone: var(--green); }
 
@@ -989,13 +1000,31 @@ a {
 
 /* ---------- Auth pages ---------- */
 
-.auth-zone {
-    --grid-mask: none;
+/* The auth zone fills the page down to the footer */
+.page-auth .main {
+    display: flex;
+    flex-direction: column;
 }
 
+.auth-zone {
+    --auth-gap: clamp(32px, 6vw, 112px);
+    --grid-mask: none;
+    flex: 1;
+}
+
+/*
+ * From 960 px the drawing column sits on the hero's purple, reaching to the right edge. The split
+ * lies in the middle of the gap after the form column (container offset + 500 px + half the gap).
+ */
 @media (min-width: 960px) {
     .auth-zone {
-        --grid-mask: radial-gradient(ellipse 45% 80% at 76% 50%, #000 35%, transparent 80%);
+        --split: calc(max(0px, (100% - var(--max-width)) / 2) + var(--gutter) + 500px + var(--auth-gap) / 2);
+        --grid-major: var(--band-grid);
+        --grid-minor: rgb(234 241 250 / 0.03);
+        --grid-mask: linear-gradient(90deg, transparent var(--split), #000 calc(var(--split) + 240px));
+        background:
+            var(--hero-glow),
+            linear-gradient(90deg, var(--paper) var(--split), var(--hero-bg) var(--split));
     }
 }
 
@@ -1003,8 +1032,9 @@ a {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     align-items: start;
-    gap: clamp(32px, 6vw, 112px);
-    padding-block: clamp(32px, 6vw, 88px);
+    gap: var(--auth-gap);
+    /* The top space grows with the window height on tall screens, never below the width-based value */
+    padding-block: max(clamp(32px, 6vw, 88px), 12svh) clamp(32px, 6vw, 88px);
 }
 
 @media (min-width: 960px) {
