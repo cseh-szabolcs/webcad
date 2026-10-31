@@ -19,10 +19,10 @@
     --grid-minor: rgb(23 32 43 / 0.06);
     --grid-major: rgb(23 32 43 / 0.11);
 
-    --accent: #c2410c;
-    --accent-hover: #a3360a;
+    --accent: #5b4fc4;
+    --accent-hover: #4a3fae;
     --accent-ink: #ffffff;
-    --accent-soft: rgb(194 65 12 / 0.12);
+    --accent-soft: rgb(91 79 196 / 0.12);
     --blue: #2456c4;
     --green: #23804f;
     --cyan: #0b7c94;
@@ -33,7 +33,7 @@
     --room-sleeping: rgb(36 86 196 / 0.11);
     --room-bath: rgb(11 124 148 / 0.13);
 
-    /* Dark blueprint band (closing call to action) */
+    /* Light-on-blue colors, used by the hero */
     --band: #0e2a4a;
     --band-raised: #143660;
     --band-ink: #eaf1fa;
@@ -44,7 +44,7 @@
     --footer-ink: #ffffff;
     --footer-muted: #b8bec7;
 
-    --focus: #c2410c;
+    --focus: #5b4fc4;
     --shadow: 0 1px 0 rgb(23 32 43 / 0.04), 0 24px 48px -28px rgb(23 32 43 / 0.4);
     --shadow-sm: 0 10px 24px -16px rgb(23 32 43 / 0.35);
 
@@ -703,9 +703,25 @@ a {
 /* ---------- Home: hero ---------- */
 
 .hero {
-    /* The grid sits under the drawing, the text side stays plain paper */
+    --hero-bg: #2b2463;
+    --hero-muted: #d9d5f2;
+    /* The grid sits under the drawing, the text side stays plain */
+    --grid-major: var(--band-grid);
+    --grid-minor: rgb(234 241 250 / 0.03);
     --grid-mask: radial-gradient(ellipse 70% 60% at 50% 78%, #000 30%, transparent 75%);
     overflow: hidden;
+    background:
+        radial-gradient(60% 120% at 100% 0%, rgb(167 139 250 / 0.22), transparent 60%),
+        var(--hero-bg);
+    color: var(--band-ink);
+}
+
+.hero .btn--ghost:hover {
+    color: var(--hero-bg);
+}
+
+.hero .eyebrow {
+    color: #ddd6ff;
 }
 
 @media (min-width: 960px) {
@@ -729,10 +745,19 @@ a {
     }
 }
 
+/* Only the text column is inverted: light text, white primary button with purple text */
 .hero__copy {
+    --ink: var(--band-ink);
+    --ink-muted: var(--hero-muted);
+    --line-strong: var(--band-ink);
+    --paper: var(--hero-bg);
+    --accent: #ffffff;
+    --accent-hover: #ece9fb;
+    --accent-ink: var(--hero-bg);
     display: grid;
     gap: clamp(20px, 2vw, 28px);
     justify-items: start;
+    color: var(--band-ink);
 }
 
 .hero__title {
@@ -742,12 +767,13 @@ a {
     line-height: 1;
     letter-spacing: -0.04em;
     text-wrap: balance;
+    color: var(--band-ink);
 }
 
 /* Highlighted word, underlined like a red-pencil correction */
 .hero__title em {
     position: relative;
-    color: var(--accent);
+    color: #c9bcff;
     font-style: normal;
     white-space: nowrap;
 }
@@ -760,8 +786,8 @@ a {
     bottom: -0.06em;
     height: 0.12em;
     border-radius: 999px;
-    background: currentColor;
-    opacity: 0.35;
+    background: #8b6cff;
+    opacity: 0.7;
     transform: scaleX(0);
     transform-origin: left;
     animation: underline 0.8s cubic-bezier(0.6, 0, 0.2, 1) forwards 0.6s;
@@ -792,11 +818,17 @@ a {
     margin-top: 8px;
 }
 
+/* The drawing and its palettes stay light with dark text */
 .hero__visual {
     position: relative;
     width: 100%;
     max-width: 880px;
     justify-self: center;
+    color: var(--ink);
+}
+
+.hero__visual .sheet {
+    box-shadow: 0 30px 60px -30px rgb(0 0 0 / 0.6);
 }
 
 @media (max-width: 959px) {
@@ -917,12 +949,15 @@ a {
 /* ---------- Home: closing band ---------- */
 
 .band {
-    --grid-major: var(--band-grid);
-    --grid-minor: rgb(234 241 250 / 0.03);
+    --grid-major: rgb(23 32 43 / 0.11);
+    --grid-minor: rgb(23 32 43 / 0.06);
     --grid-mask: radial-gradient(ellipse 60% 90% at 85% 50%, #000 30%, transparent 80%);
     overflow: hidden;
-    background: var(--band);
-    color: var(--band-ink);
+    border-top: 1px solid var(--line);
+    background:
+        radial-gradient(50% 120% at 100% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 60%),
+        var(--paper);
+    color: var(--ink);
 }
 
 .band__inner {
@@ -948,17 +983,8 @@ a {
 }
 
 .band__text {
-    color: var(--band-muted);
+    color: var(--ink-muted);
     font-size: clamp(1rem, 0.4vw + 0.95rem, 1.25rem);
-}
-
-.band .btn--primary {
-    background: #ff8a5c;
-    color: #1a0f0a;
-}
-
-.band .btn--primary:hover {
-    background: #ffa47f;
 }
 
 /* ---------- Auth pages ---------- */
