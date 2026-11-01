@@ -2,20 +2,164 @@
  # Example of remoteListState (assets/controllers/page/fixtures/list_example_controller.js), dev and test only
  # (App\Fixtures\Controller\ListExampleController). Each page comes from the route
  # fixtures_list_example_data via fetch() (remoteListState); page and sorting are in the address.
+ # The styles are only for this page, so they stay in the template; texts are not translated.
  #}
-{% extends 'layout/document.html.twig' %}
+{% extends 'app.html.twig' %}
 
-{% block title %}List example{% endblock %}
+{% block title %}List example – {{ 'layout.brand'|trans }}{% endblock %}
 
-{% block document_body %}
-    <main id="main" {{ stimulus_controller('page--fixtures--list-example', { state: { url: path('fixtures_list_example_data') } }) }}>
-        <p x-show="loading">Loading …</p>
-        <p x-show="error" x-text="error"></p>
-        <table x-show="!error">
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        /* .panel. too: app-layout.css comes after this block (imported by app.js) and would win. */
+        .panel.list-example {
+            max-width: 560px;
+            gap: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .list-example__table {
+            width: 100%;
+            border-collapse: collapse;
+            font-variant-numeric: tabular-nums;
+            transition: opacity 0.15s;
+        }
+
+        /* While a page loads, the old one stays visible, dimmed. */
+        .list-example[aria-busy="true"] .list-example__table {
+            opacity: 0.45;
+        }
+
+        .list-example__table th,
+        .list-example__table td {
+            padding: 10px 22px;
+            border-bottom: 1px solid var(--line);
+            text-align: right;
+        }
+
+        .list-example__table th:first-child,
+        .list-example__table td:first-child {
+            text-align: left;
+        }
+
+        .list-example__table tbody tr:hover {
+            background: var(--accent-soft);
+        }
+
+        .list-example__table th {
+            padding-block: 0;
+            background: var(--paper);
+        }
+
+        .list-example__sort {
+            display: inline-flex;
+            gap: 6px;
+            align-items: center;
+            padding: 12px 0;
+            border: 0;
+            background: none;
+            color: var(--ink-muted);
+            font: 600 0.75rem/1 var(--font-mono);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        .list-example__sort:hover,
+        [aria-sort="ascending"] > .list-example__sort,
+        [aria-sort="descending"] > .list-example__sort {
+            color: var(--ink);
+        }
+
+        /* Sort arrow from aria-sort; faint ↕ on the columns not sorted by. */
+        .list-example__sort::after {
+            content: "↕";
+            opacity: 0.35;
+        }
+
+        [aria-sort="ascending"] > .list-example__sort::after {
+            content: "↑";
+            opacity: 1;
+            color: var(--accent);
+        }
+
+        [aria-sort="descending"] > .list-example__sort::after {
+            content: "↓";
+            opacity: 1;
+            color: var(--accent);
+        }
+
+        .list-example__footer {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 22px;
+        }
+
+        .list-example__status {
+            color: var(--ink-muted);
+            font-size: 0.875rem;
+        }
+
+        .list-example__error {
+            padding: 16px 22px;
+            background: var(--danger-soft);
+            color: var(--danger);
+        }
+
+        .list-example__pager {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .list-example__page {
+            min-width: 64px;
+            font-variant-numeric: tabular-nums;
+            text-align: center;
+        }
+
+        .list-example__pager button {
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: var(--paper-raised);
+            color: var(--ink);
+            font-size: 1.125rem;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .list-example__pager button:hover:not(:disabled) {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .list-example__pager button:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <header class="page-head">
+        <p class="eyebrow">Fixtures</p>
+        <h1 class="page-head__title">List example</h1>
+        <p class="page-head__lead">Pages and sorting come from the backend; the address keeps them for Back and Forward.</p>
+    </header>
+
+    <section class="panel list-example" x-bind:aria-busy="loading"
+        {{ stimulus_controller('page--fixtures--list-example', { state: { url: path('fixtures_list_example_data') } }) }}>
+        <p class="list-example__error" x-show="error" x-text="`Loading failed: ${error}`"></p>
+        <table class="list-example__table" x-show="!error">
             <thead>
                 <tr>
-                    <th x-bind:aria-sort="ariaSort('number')"><button type="button" x-on:click="sortBy('number')">number</button></th>
-                    <th x-bind:aria-sort="ariaSort('value')"><button type="button" x-on:click="sortBy('value')">value</button></th>
+                    <th x-bind:aria-sort="ariaSort('number')"><button type="button" class="list-example__sort" x-on:click="sortBy('number')">Number</button></th>
+                    <th x-bind:aria-sort="ariaSort('value')"><button type="button" class="list-example__sort" x-on:click="sortBy('value')">Value</button></th>
                 </tr>
             </thead>
             <tbody>
@@ -27,8 +171,13 @@
                 </template>
             </tbody>
         </table>
-        <button type="button" x-on:click="previousPage()" x-bind:disabled="!hasPreviousPage">‹</button>
-        <span x-text="`${page} / ${pageCount}`"></span>
-        <button type="button" x-on:click="nextPage()" x-bind:disabled="!hasNextPage">›</button>
-    </main>
+        <div class="list-example__footer">
+            <span class="list-example__status" x-text="loading ? 'Loading …' : `${total} items`"></span>
+            <nav class="list-example__pager" aria-label="Pages">
+                <button type="button" x-on:click="previousPage()" x-bind:disabled="!hasPreviousPage" aria-label="Previous page">‹</button>
+                <span class="list-example__page" x-text="`${page} / ${pageCount}`"></span>
+                <button type="button" x-on:click="nextPage()" x-bind:disabled="!hasNextPage" aria-label="Next page">›</button>
+            </nav>
+        </div>
+    </section>
 {% endblock %}

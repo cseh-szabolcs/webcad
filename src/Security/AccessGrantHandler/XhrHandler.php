@@ -8,9 +8,9 @@ use Symfony\Component\HttpKernel\Event\ControllerEvent;
 
 class XhrHandler extends AbstractAccessGrantHandler
 {
-    public function supports(string $attributeName): bool
+    public function supports(GrantInterface $attribute): bool
     {
-        return $attributeName === XhrGrant::class;
+        return $attribute instanceof XhrGrant;
     }
 
     public function handle(GrantInterface $attribute, ControllerEvent $event): ?false

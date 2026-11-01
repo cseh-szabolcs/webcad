@@ -9,9 +9,9 @@ use Symfony\Component\HttpKernel\Event\ControllerEvent;
 
 class AuthHandler extends AbstractAccessGrantHandler
 {
-    public function supports(string $attributeName): bool
+    public function supports(GrantInterface $attribute): bool
     {
-        return $attributeName === AuthGrant::class;
+        return $attribute instanceof AuthGrant;
     }
 
     public function handle(GrantInterface $attribute, ControllerEvent $event): ?false

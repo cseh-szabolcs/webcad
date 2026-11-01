@@ -9,7 +9,8 @@ use Symfony\Component\HttpKernel\Event\ControllerEvent;
 #[AutoconfigureTag(AccessGrantHandlerInterface::class)]
 interface AccessGrantHandlerInterface
 {
-    public function supports(string $attributeName): bool;
+    /** Whether this handler checks `$attribute` (instanceof, so subclasses of a grant count too). */
+    public function supports(GrantInterface $attribute): bool;
 
     public function handle(GrantInterface $attribute, ControllerEvent $event): ?false;
 }

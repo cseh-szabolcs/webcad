@@ -8,9 +8,9 @@ use Symfony\Component\HttpKernel\Event\ControllerEvent;
 
 class EnvironmentHandler extends AbstractAccessGrantHandler
 {
-    public function supports(string $attributeName): bool
+    public function supports(GrantInterface $attribute): bool
     {
-        return $attributeName === EnvironmentGrant::class;
+        return $attribute instanceof EnvironmentGrant;
     }
 
     public function handle(GrantInterface $attribute, ControllerEvent $event): ?false

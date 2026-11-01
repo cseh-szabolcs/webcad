@@ -8,9 +8,9 @@ use Symfony\Component\HttpKernel\Event\ControllerEvent;
 
 class GuestOnlyHandler extends AbstractAccessGrantHandler
 {
-    public function supports(string $attributeName): bool
+    public function supports(GrantInterface $attribute): bool
     {
-        return $attributeName === GuestOnlyGrant::class;
+        return $attribute instanceof GuestOnlyGrant;
     }
 
     public function handle(GrantInterface $attribute, ControllerEvent $event): ?false

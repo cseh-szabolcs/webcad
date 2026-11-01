@@ -6,6 +6,7 @@ use App\Core\Controller\BaseController;
 use App\Fixtures\Dto\ListExampleItemDto;
 use App\Fixtures\Dto\ListExamplePageDto;
 use App\Fixtures\Dto\ListExampleQueryDto;
+use App\Security\Attribute\AuthGrant;
 use App\Security\Attribute\EnvironmentGrant;
 use App\Security\Attribute\XhrGrant;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -20,6 +21,7 @@ class ListExampleController extends BaseController
     private const int ITEM_COUNT = 23;
 
     #[EnvironmentGrant]
+    #[AuthGrant]
     #[Route(path: '/page', name: 'page', methods: ['GET'])]
     public function page(): Response
     {
@@ -27,6 +29,7 @@ class ListExampleController extends BaseController
     }
 
     #[EnvironmentGrant]
+    #[AuthGrant]
     #[XhrGrant]
     #[Route(path: '/data', name: 'data', methods: ['GET'])]
     public function data(#[MapQueryString] ListExampleQueryDto $query = new ListExampleQueryDto()): JsonResponse

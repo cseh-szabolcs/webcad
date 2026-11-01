@@ -7,7 +7,6 @@ use App\Core\Traits\EnvAwareTrait;
 use App\Security\AccessGrantHandler\AccessGrantHandlerInterface;
 use App\Security\Attribute\GrantInterface;
 use App\Security\AuthProvider;
-use LogicException;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
@@ -52,12 +51,11 @@ final class AccessGrantListener
     private function handle(array $attributes, ControllerEvent $event): void
     {
         foreach ($attributes as $attribute) {
-            $name = get_class($attribute);
             $handled = false;
 
             /** @var AccessGrantHandlerInterface $handler */
             foreach ($this->handlers as $handler) {
-                if (!$handler->supports($name)) {
+                if (!$handler->supports($attribute)) {
                     continue;
                 }
 
@@ -68,7 +66,7 @@ final class AccessGrantListener
             }
 
             if (!$handled) {
-                throw new LogicException(sprintf('Attribute "%s" is not supported.', $name));
+                throw new \LogicException(sprintf('Attribute "%s" is not supported.', $attribute::class));
             }
         }
     }
