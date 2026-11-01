@@ -1,0 +1,18 @@
+{#
+ # Layout of the pages for logged-in users: full width, the app bar with the main menu and the
+ # user menu, light or dark. The theme the user chose in the user menu comes from the cookie
+ # "theme" (assets/controllers/theme_controller.js), so the page is rendered in it right away;
+ # without one the CSS follows prefers-color-scheme.
+ #}
+{% extends 'layout/document.html.twig' %}
+
+{% set theme = app.request.cookies.get('theme') %}
+
+{% block html_attributes %} class="layout-app"{% if theme in ['light', 'dark'] %} data-theme="{{ theme }}"{% endif %}{% endblock %}
+
+{% block document_body %}
+    {{ include('layout/app/_header.html.twig') }}
+    <main id="main" class="main app-main">
+        {% block body %}{% endblock %}
+    </main>
+{% endblock %}

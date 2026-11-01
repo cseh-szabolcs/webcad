@@ -1,0 +1,31 @@
+{#
+ # The HTML document both layouts share: base.html.twig (public pages, light only) and
+ # app.html.twig (logged-in users, light or dark).
+ #}
+<!DOCTYPE html>
+<html lang="{{ app.request.locale }}"{% block html_attributes %}{% endblock %}>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>{% block title %}{{ 'layout.brand'|trans }}{% endblock %}</title>
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect x=%223%22 y=%223%22 width=%2226%22 height=%2226%22 fill=%22none%22 stroke=%22%235b4fc4%22 stroke-width=%223%22/><path d=%22M16 8v16M8 16h16%22 stroke=%22%235b4fc4%22 stroke-width=%222.5%22/></svg>">
+        {% block head_scripts %}{% endblock %}
+        {% block stylesheets %}
+        {% endblock %}
+
+        {% block javascripts %}
+            {% block importmap %}{{ importmap('app') }}{% endblock %}
+        {% endblock %}
+
+        {% set frankenphp_hot_reload = app.request.server.get('FRANKENPHP_HOT_RELOAD') %}
+        {% if frankenphp_hot_reload %}
+        <meta name="frankenphp-hot-reload:url" content="{{ frankenphp_hot_reload }}">
+        <script src="https://cdn.jsdelivr.net/npm/idiomorph"></script>
+        <script src="https://cdn.jsdelivr.net/npm/frankenphp-hot-reload/+esm" type="module"></script>
+        {% endif %}
+    </head>
+    <body class="{% block body_class %}{% endblock %}">
+        <a class="skip-link" href="#main">{{ 'layout.skip_to_content'|trans }}</a>
+        {% block document_body %}{% endblock %}
+    </body>
+</html>

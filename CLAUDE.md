@@ -16,7 +16,7 @@ apps in one repo:
   AssetMapper and Stimulus are installed. Pages so far: the home page (`/{_locale}`), the login
   (`/{_locale}/login`, with the office = tenant name; logout `/{_locale}/logout`), the registration
   form (`/{_locale}/register`, only displays and validates; registering comes later) and a
-  placeholder start page for logged-in users (`/{_locale}/app`), to which home, login and
+  dummy dashboard for logged-in users (`/{_locale}/app`), to which home, login and
   registration redirect them.
 - **CAD editor frontend** in `depts/editor/`: Vite + React 19 + TypeScript + Paper.js,
   **being rebuilt from scratch, closer to AutoCAD behaviour**, in small steps. It loads a plan
@@ -172,8 +172,12 @@ Rules that apply everywhere:
   prefix: page routes are `/{_locale}/…` with `requirements: ['_locale' => '%app.locales%']`
   (`config/services.yaml`, keep in line with `enabled_locales`); the switcher in
   `templates/layout/` links the current route in every enabled locale. Forms use
-  `templates/form/theme.html.twig`. No web fonts from third parties (system font stacks). The public
-  pages are light only; dark mode belongs to the later layout for logged-in users.
+  `templates/form/theme.html.twig`. No web fonts from third parties (system font stacks). Two layouts
+  on `templates/layout/document.html.twig`: `base.html.twig` for the public pages (light only,
+  `assets/styles/app.css`) and `app.html.twig` for logged-in users (full width, app bar with the
+  locale switcher and the user menu with light/dark/system mode in `templates/layout/app/`,
+  `assets/styles/app-layout.css`; the theme is the cookie `theme`, set by the Stimulus `theme`
+  controller and rendered as `<html data-theme>`).
 - The editor build writes `editor/[name].js` without hashes, because Symfony (AssetMapper) is
   meant to handle cache-busting. Integration of the built editor into Twig is not wired up yet.
 

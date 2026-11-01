@@ -1,6 +1,6 @@
 /*
  * Styles of the public Twig pages (home, login, registration): drawing sheets on grid paper. Light
- * only; dark mode comes with the layout for logged-in users. The grid only shows in decorative zones
+ * only; the layout for logged-in users (and its dark mode) is in app-layout.css. The grid only shows in decorative zones
  * (masked), never behind running text. System fonts only, so no font is loaded from a third party.
  */
 

@@ -29,3 +29,6 @@
 /phpunit.xml
 /.phpunit.cache/
 ###< phpunit/phpunit ###
+
+# Playwright MCP (browser automation: snapshots, screenshots, console logs)
+/.playwright-mcp/

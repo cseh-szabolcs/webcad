@@ -1,0 +1,43 @@
+{# The logged-in user's name; a click opens the layer with theme, settings and logout. #}
+{% set user_name = app.user.name ?? app.user.email %}
+{% set initials = user_name|split(' ')|slice(0, 2)|map(part => part|first|upper)|join %}
+<details class="user-menu" data-controller="dropdown">
+    <summary class="user-menu__toggle">
+        <span class="user-menu__avatar" aria-hidden="true">{{ initials }}</span>
+        <span class="user-menu__name">{{ user_name }}</span>
+        <svg class="user-menu__caret" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5"/></svg>
+    </summary>
+
+    <div class="user-menu__panel">
+        <div class="user-menu__identity">
+            <strong>{{ user_name }}</strong>
+            {% if app.user.name %}<span>{{ app.user.email }}</span>{% endif %}
+        </div>
+
+        <div class="user-menu__section" data-controller="theme">
+            <span class="user-menu__label" id="user-menu-theme">{{ 'app.user_menu.theme.label'|trans }}</span>
+            <div class="segmented" role="group" aria-labelledby="user-menu-theme">
+                {# Sun, moon and screen, as most apps show them #}
+                {% set theme_icons = {
+                    light: '<circle cx="10" cy="10" r="3.5"/><path d="M10 1.5v2M10 16.5v2M1.5 10h2M16.5 10h2M4 4l1.4 1.4M14.6 14.6 16 16M4 16l1.4-1.4M14.6 5.4 16 4"/>',
+                    dark: '<path d="M16.5 12.2A7 7 0 0 1 7.8 3.5a7 7 0 1 0 8.7 8.7z"/>',
+                    system: '<rect x="2.5" y="3.5" width="15" height="10" rx="1.5"/><path d="M7 17h6M10 13.5V17"/>',
+                } %}
+                {% for theme, icon in theme_icons %}
+                    <button type="button" class="segmented__option" aria-pressed="false"
+                            data-theme-target="option" data-theme-choice="{{ theme }}"
+                            data-action="theme#choose">
+                        <svg class="segmented__icon" viewBox="0 0 20 20" aria-hidden="true">{{ icon|raw }}</svg>
+                        {{ ('app.user_menu.theme.' ~ theme)|trans }}
+                    </button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <ul class="user-menu__links">
+            {# Placeholder until the settings page exists #}
+            <li><a href="#">{{ 'app.user_menu.settings'|trans }}</a></li>
+            <li><a class="user-menu__logout" href="{{ logout_path() }}">{{ 'layout.nav.logout'|trans }}</a></li>
+        </ul>
+    </div>
+</details>

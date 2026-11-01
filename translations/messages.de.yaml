@@ -65,10 +65,34 @@ home:
         text: Legen Sie Ihr Büro an und starten Sie mit dem ersten Projekt.
         cta: Jetzt registrieren
 
+app:
+    # Header of the pages for logged-in users
+    nav:
+        dashboard: Dashboard
+        plans: Pläne
+        customers: Kunden
+        administration: Verwaltung
+    user_menu:
+        settings: Einstellungen
+        theme:
+            label: Darstellung
+            light: Hell
+            dark: Dunkel
+            system: System
+
 dashboard:
-    title: Startseite
-    heading: Sie sind angemeldet
+    title: Dashboard
+    heading: Willkommen, %name%
+    heading_anonymous: Willkommen
     lead: Angemeldet als %email% im Büro „%tenant%“.
+    coming_soon: Folgt in Kürze
+    tiles:
+        plans: Alle Pläne Ihrer Projekte, mit Entwurf und veröffentlichten Ständen.
+        customers: Bauherren und Ansprechpartner Ihrer Projekte.
+        administration: Benutzer, Rechte und Einstellungen des Büros.
+    recent:
+        title: Zuletzt bearbeitet
+        empty: Hier erscheinen bald Ihre zuletzt bearbeiteten Pläne.
 
 user:
     login:

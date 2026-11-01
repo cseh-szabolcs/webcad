@@ -78,7 +78,7 @@ final class LoginControllerTest extends WebTestCase
 
         $this->client->followRedirect();
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.card__lead', $this->user->getEmail());
+        self::assertSelectorTextContains('.page-head__lead', $this->user->getEmail());
         self::assertSelectorExists('a[href="/de/logout"]');
 
         // The session alone keeps the tenant
@@ -117,7 +117,7 @@ final class LoginControllerTest extends WebTestCase
         $this->client->request('GET', '/de/app');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.card__lead', $this->user->getEmail());
+        self::assertSelectorTextContains('.page-head__lead', $this->user->getEmail());
     }
 
     public function testATenantCookieWithTheNameInsteadOfTheUuidSelectsNoTenant(): void
@@ -153,7 +153,7 @@ final class LoginControllerTest extends WebTestCase
             self::assertResponseRedirects('/de/app');
             self::assertSame($tenant->getUuid()->toRfc4122(), $this->client->getCookieJar()->get(TenantStorage::COOKIE)?->getValue());
             $this->client->followRedirect();
-            self::assertSelectorTextContains('.card__lead', $tenant->getName());
+            self::assertSelectorTextContains('.page-head__lead', $tenant->getName());
         } finally {
             $provisioner->delete($tenant->getHash());
         }

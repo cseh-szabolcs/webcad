@@ -1,28 +1,33 @@
-{# Start page for logged-in users; a placeholder until projects are listed here. #}
-{% extends 'base.html.twig' %}
+{# Start page for logged-in users; placeholder content until projects and plans are listed here. #}
+{% extends 'app.html.twig' %}
 
 {% block title %}{{ 'dashboard.title'|trans }} – {{ 'layout.brand'|trans }}{% endblock %}
 
-{% block body_class %}page-auth page-dashboard{% endblock %}
+{% block body_class %}page-dashboard{% endblock %}
 
 {% block body %}
-    <div class="auth-zone grid-zone">
-        <div class="auth container">
-            <section class="auth__panel">
-                <div class="card">
-                    <header class="card__header">
-                        <p class="eyebrow">{{ 'dashboard.title'|trans }}</p>
-                        <h1 class="card__title">{{ 'dashboard.heading'|trans }}</h1>
-                        <p class="card__lead">{{ 'dashboard.lead'|trans({'%email%': app.user.userIdentifier, '%tenant%': tenant.name}) }}</p>
-                    </header>
+    <header class="page-head">
+        <p class="eyebrow">{{ 'dashboard.title'|trans }}</p>
+        <h1 class="page-head__title">
+            {%- if app.user.name %}{{ 'dashboard.heading'|trans({'%name%': app.user.name}) }}{% else %}{{ 'dashboard.heading_anonymous'|trans }}{% endif -%}
+        </h1>
+        <p class="page-head__lead">{{ 'dashboard.lead'|trans({'%email%': app.user.userIdentifier, '%tenant%': tenant.name}) }}</p>
+    </header>
 
-                    <a class="btn btn--ghost btn--lg btn--block" href="{{ logout_path() }}">{{ 'layout.nav.logout'|trans }}</a>
-                </div>
-            </section>
+    <ul class="tiles">
+        {% for tile in ['plans', 'customers', 'administration'] %}
+            <li class="tile tile--{{ tile }}">
+                <a class="tile__link" href="#">
+                    <span class="tile__title">{{ ('app.nav.' ~ tile)|trans }}</span>
+                    <span class="tile__text">{{ ('dashboard.tiles.' ~ tile)|trans }}</span>
+                    <span class="tile__badge">{{ 'dashboard.coming_soon'|trans }}</span>
+                </a>
+            </li>
+        {% endfor %}
+    </ul>
 
-            <div class="auth__visual">
-                {{ include('layout/_drawing.html.twig') }}
-            </div>
-        </div>
-    </div>
+    <section class="panel" aria-labelledby="dashboard-recent">
+        <h2 class="panel__title" id="dashboard-recent">{{ 'dashboard.recent.title'|trans }}</h2>
+        <p class="panel__empty">{{ 'dashboard.recent.empty'|trans }}</p>
+    </section>
 {% endblock %}
