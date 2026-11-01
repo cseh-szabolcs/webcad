@@ -14,6 +14,7 @@ use Doctrine\DBAL\Schema\Name\UnqualifiedName;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Throwable;
 
 /**
  * Creates, resets and deletes tenants: the registry row in app_main and the database
@@ -83,7 +84,7 @@ final readonly class TenantProvisioner
 
         try {
             $schemaManager->createDatabase($database);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->removeFromRegistry($tenant);
 
             throw TenantProvisioningException::fromThrowable('CREATE DATABASE', $e, '');
@@ -222,7 +223,7 @@ final readonly class TenantProvisioner
 
         try {
             $exitCode = $this->commandRunner->run($hash, $commandLine, $output);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             throw TenantProvisioningException::fromThrowable($commandLine, $e, $output->fetch());
         }
 
