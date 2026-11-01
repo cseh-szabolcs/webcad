@@ -34,7 +34,7 @@ class ListExampleController extends BaseController
     #[Route(path: '/data', name: 'data', methods: ['GET'])]
     public function data(#[MapQueryString] ListExampleQueryDto $query = new ListExampleQueryDto()): JsonResponse
     {
-        sleep(2);
+        sleep(1);
 
         // `value` in a different order than `number`, so sorting by it shows.
         $items = array_map(
