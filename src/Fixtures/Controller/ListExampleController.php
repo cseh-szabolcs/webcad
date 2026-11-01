@@ -20,17 +20,14 @@ class ListExampleController extends BaseController
     /** Number of items of the example, so the list has several pages. */
     private const int ITEM_COUNT = 200;
 
-    #[EnvGrant]
-    #[AuthGrant]
+    #[EnvGrant] #[AuthGrant]
     #[Route(path: '/page', name: 'page', methods: ['GET'])]
     public function page(): Response
     {
         return $this->render('page/fixtures/list-example.html.twig');
     }
 
-    #[EnvGrant]
-    #[AuthGrant]
-    #[XhrGrant]
+    #[EnvGrant] #[AuthGrant]
     #[Route(path: '/data', name: 'data', methods: ['GET'])]
     public function data(#[MapQueryString] ListExampleQueryDto $query = new ListExampleQueryDto()): JsonResponse
     {
