@@ -59,18 +59,20 @@ docker compose exec -T php vendor/bin/mate tools:list # AI Mate diagnostics; alw
 
 The DB container is **MySQL 8.0** (`app`/`app`). The backend is **multi-tenant** (one
 database per customer, see `docs/architecture/tenancy.md`): `app_main` holds the tenant
-registry (and later the tokens), each tenant has `app_<name>` (with its users); in test `app_main_test` and
-`app_<name>_test`. `.env`'s `DATABASE_URL` names `app_main` via the compose host `db`, so it
+registry (and later the tokens), each tenant has `app_<hash>` (with its users); in test `app_main_test` and
+`app_<hash>_test`. A tenant's `name` is what people type at login (found by its unique `slug`), its `hash` (random 8-character NanoID,
+`demo` for the demo tenant) is its internal id (database, `--tenant`, `DEFAULT_TENANT`), its `uuid`
+the public one (cookie). `.env`'s `DATABASE_URL` names `app_main` via the compose host `db`, so it
 only resolves inside the containers. The `app` user may use every `app_%` database
 (`docker/map/mysql-init.sql`, run only when the `db-data` volume is created).
 
 ```sh
-docker compose exec php bin/console app:database:rebuild   # dev only: drop all databases, schema from the entities, tenant demo with fixtures (asks first; -f, --tenant-name=…, --skip-fixtures; composer db:rebuild)
-docker compose exec php bin/console app:tenant:create demo --display-name=Demo
+docker compose exec php bin/console app:database:rebuild   # dev only: drop all databases, schema from the entities, tenant demo with fixtures (asks first; -f, --tenant-name=…, --tenant-hash=…, --skip-fixtures; composer db:rebuild)
+docker compose exec php bin/console app:tenant:create "<name>"   # slug from the name, random hash or --hash=…
 docker compose exec php bin/console app:tenant:list
-docker compose exec php bin/console app:tenant:delete <name>   # drops the database, asks first
+docker compose exec php bin/console app:tenant:delete <hash>   # drops the database, asks first
 docker compose exec php bin/console app:tenants:run "<cmd>"
-docker compose exec php bin/console <cmd> --tenant=<name>    # any command, on that tenant
+docker compose exec php bin/console <cmd> --tenant=<hash>    # any command, on that tenant
 docker compose exec php bin/console app:fixture:create      # dev only: reset the tenant database, then the sample plan in a new project and a user (asks first; -f, --project-name=…, --plan-id=<uuid>, --user-email=…, --user-password=…)
 ```
 

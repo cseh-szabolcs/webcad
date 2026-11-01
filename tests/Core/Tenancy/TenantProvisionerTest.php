@@ -2,22 +2,24 @@
 
 namespace App\Tests\Core\Tenancy;
 
+use App\Core\Tenancy\Entity\Tenant;
+use App\Core\Tenancy\Exception\InvalidTenantHashException;
 use App\Core\Tenancy\Exception\TenantNotSelectedException;
 use App\Core\Tenancy\Exception\TenantProvisioningException;
 use App\Core\Tenancy\Repository\TenantRepository;
-use App\Core\Tenancy\TenantNaming;
 use App\Core\Tenancy\TenantProvisioner;
 use App\Core\Tenancy\TenantSwitcher;
 use App\Project\Command\CreateProjectCommand;
 use App\Project\Query\GetProjectQuery;
 use App\Project\Query\ProjectDto;
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\Stamp\HandledStamp;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Builds real tenant databases (app_phpunit_…_test) and removes them again.
+ * Builds real tenant databases (app_<hash>_test) and removes them again.
  */
 final class TenantProvisionerTest extends KernelTestCase
 {
@@ -26,9 +28,9 @@ final class TenantProvisionerTest extends KernelTestCase
 
     protected function tearDown(): void
     {
-        foreach ($this->created as $name) {
-            if (null !== $this->repository()->findByName($name)) {
-                $this->provisioner()->delete($name);
+        foreach ($this->created as $hash) {
+            if (null !== $this->repository()->findByHash($hash)) {
+                $this->provisioner()->delete($hash);
             }
         }
 
@@ -37,14 +39,26 @@ final class TenantProvisionerTest extends KernelTestCase
 
     public function testCreatedTenantHasDatabaseWithSchema(): void
     {
-        $name = $this->createTenant();
+        $tenant = $this->createTenant();
 
-        $database = static::getContainer()->get(TenantNaming::class)->databaseName($name);
-        self::assertContains($database, $this->mainConnection()->createSchemaManager()->listDatabases());
-        self::assertSame('Phpunit', $this->repository()->findByName($name)?->getDisplayName());
+        self::assertMatchesRegularExpression('/^[a-z0-9]{'.TenantProvisioner::HASH_LENGTH.'}$/', $tenant->getHash());
+        $database = $this->provisioner()->databaseName($tenant->getHash());
+        self::assertContains($database, $this->provisioner()->databaseNames());
+        self::assertSame($tenant->getHash(), $this->repository()->findBySlug($tenant->getSlug())?->getHash());
 
-        $this->switchTo($name);
+        $this->switchTo($tenant);
         self::assertTrue($this->tenantConnection()->createSchemaManager()->tablesExist(['project']));
+    }
+
+    public function testCreatesTheTenantWithTheGivenHash(): void
+    {
+        $hash = 'phpunit'.bin2hex(random_bytes(4));
+
+        $tenant = $this->createTenant($hash);
+
+        self::assertSame($hash, $tenant->getHash());
+        $this->switchTo($tenant);
+        self::assertSame($hash, static::getContainer()->get(TenantSwitcher::class)->current());
     }
 
     public function testTenantsDoNotSeeEachOthersData(): void
@@ -65,22 +79,69 @@ final class TenantProvisionerTest extends KernelTestCase
 
     public function testDeleteDropsDatabaseAndRegistryEntry(): void
     {
-        $name = $this->createTenant();
-        $database = static::getContainer()->get(TenantNaming::class)->databaseName($name);
+        $tenant = $this->createTenant();
+        $database = $this->provisioner()->databaseName($tenant->getHash());
 
-        $this->provisioner()->delete($name);
+        $this->provisioner()->delete($tenant->getHash());
 
-        self::assertNull($this->repository()->findByName($name));
-        self::assertNotContains($database, $this->mainConnection()->createSchemaManager()->listDatabases());
+        self::assertNull($this->repository()->findByHash($tenant->getHash()));
+        self::assertNotContains($database, $this->provisioner()->databaseNames());
     }
 
-    public function testExistingTenantIsRefused(): void
+    public function testNameWithAnExistingSlugIsRefused(): void
     {
-        $name = $this->createTenant();
+        $tenant = $this->createTenant();
 
         $this->expectException(TenantProvisioningException::class);
 
-        $this->provisioner()->create($name, 'Phpunit');
+        $this->provisioner()->create(mb_strtolower($tenant->getName()));
+    }
+
+    public function testExistingHashIsRefused(): void
+    {
+        $tenant = $this->createTenant();
+
+        $this->expectException(TenantProvisioningException::class);
+
+        $this->provisioner()->create('Phpunit '.bin2hex(random_bytes(4)), $tenant->getHash());
+    }
+
+    #[DataProvider('invalidHashes')]
+    public function testInvalidHashIsRefused(string $hash): void
+    {
+        $this->expectException(InvalidTenantHashException::class);
+
+        $this->provisioner()->create('Phpunit '.bin2hex(random_bytes(4)), $hash);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function invalidHashes(): iterable
+    {
+        yield 'empty' => [''];
+        yield 'upper case' => ['K3x9q2mf'];
+        yield 'underscore' => ['demo_test'];
+        yield 'hyphen' => ['k3x9-q2mf'];
+        yield 'quote' => ['demo`'];
+        yield 'too long' => [str_repeat('a', Tenant::HASH_MAX_LENGTH + 1)];
+        yield 'main database' => ['main'];
+    }
+
+    public function testDatabaseNameIsPrefixHashSuffix(): void
+    {
+        // The test environment's suffix, see config/services.yaml
+        self::assertSame('app_k3x9q2mf_test', $this->provisioner()->databaseName('k3x9q2mf'));
+    }
+
+    public function testTenantHashIsTheReverseOfDatabaseName(): void
+    {
+        self::assertSame('k3x9q2mf', $this->provisioner()->tenantHash('app_k3x9q2mf_test'));
+
+        self::assertNull($this->provisioner()->tenantHash('app_main_test'));
+        self::assertNull($this->provisioner()->tenantHash('app_k3x9q2mf'));
+        self::assertNull($this->provisioner()->tenantHash('app_k3x9_q2mf_test'));
+        self::assertNull($this->provisioner()->tenantHash('other_k3x9q2mf_test'));
     }
 
     public function testTenantConnectionRefusesQueriesBeforeSelection(): void
@@ -90,18 +151,17 @@ final class TenantProvisionerTest extends KernelTestCase
         $this->tenantConnection()->fetchOne('SELECT 1');
     }
 
-    private function createTenant(): string
+    private function createTenant(?string $hash = null): Tenant
     {
-        $name = 'phpunit_'.bin2hex(random_bytes(4));
-        $this->created[] = $name;
-        $this->provisioner()->create($name, 'Phpunit');
+        $tenant = $this->provisioner()->create('Phpunit Büro '.bin2hex(random_bytes(4)), $hash);
+        $this->created[] = $tenant->getHash();
 
-        return $name;
+        return $tenant;
     }
 
-    private function switchTo(string $name): void
+    private function switchTo(Tenant $tenant): void
     {
-        static::getContainer()->get(TenantSwitcher::class)->switchTo($name);
+        static::getContainer()->get(TenantSwitcher::class)->switchTo($tenant->getHash());
     }
 
     private function query(object $query): mixed

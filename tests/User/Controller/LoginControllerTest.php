@@ -2,12 +2,17 @@
 
 namespace App\Tests\User\Controller;
 
+use App\Core\Constants\Role;
+use App\Core\Tenancy\TenantProvisioner;
 use App\Core\Tenancy\TenantStorage;
+use App\Core\Tenancy\TenantSwitcher;
 use App\Tests\Security\LogsInTrait;
 use App\User\Entity\User;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\BrowserKit\Cookie;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Uid\Uuid;
 
 final class LoginControllerTest extends WebTestCase
@@ -47,7 +52,7 @@ final class LoginControllerTest extends WebTestCase
         self::assertSelectorTextContains('.field--invalid .field__errors', 'Dieses Büro gibt es nicht.');
         self::assertCount(1, $crawler->filter('.field--invalid input[name="tenantName"][aria-invalid="true"]'));
         self::assertCount(1, $crawler->filter('.field--invalid'));
-        self::assertSame('nirgendwo', $crawler->filter('input[name="tenantName"]')->attr('value'));
+        self::assertSame('Nirgendwo', $crawler->filter('input[name="tenantName"]')->attr('value'));
         self::assertSame($this->user->getEmail(), $crawler->filter('input[name="email"]')->attr('value'));
     }
 
@@ -126,6 +131,32 @@ final class LoginControllerTest extends WebTestCase
         $this->client->request('GET', '/de/app');
 
         self::assertResponseRedirects('/de/login');
+    }
+
+    public function testLogsInByTheSlugOfTheNameAndKeepsTheTenantByItsUuid(): void
+    {
+        $container = static::getContainer();
+        $provisioner = $container->get(TenantProvisioner::class);
+        $tenant = $provisioner->create('Phpunit Büro '.bin2hex(random_bytes(4)));
+
+        try {
+            $container->get(TenantSwitcher::class)->switchTo($tenant->getHash());
+            $user = new User('anna@example.com', Role::USER);
+            $user->setPassword($container->get(UserPasswordHasherInterface::class)->hashPassword($user, 'anna-password'));
+            $em = $container->get(EntityManagerInterface::class);
+            $em->persist($user);
+            $em->flush();
+
+            // Typed differently, the same slug
+            $this->submit(' '.mb_strtoupper($tenant->getName()).' ', 'anna@example.com', 'anna-password');
+
+            self::assertResponseRedirects('/de/app');
+            self::assertSame($tenant->getUuid()->toRfc4122(), $this->client->getCookieJar()->get(TenantStorage::COOKIE)?->getValue());
+            $this->client->followRedirect();
+            self::assertSelectorTextContains('.card__lead', $tenant->getName());
+        } finally {
+            $provisioner->delete($tenant->getHash());
+        }
     }
 
     public function testLogoutForgetsTheTenant(): void

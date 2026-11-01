@@ -3,7 +3,6 @@
 namespace App\Fixtures\Console;
 
 use App\Core\Tenancy\TenantCommandRunner;
-use App\Core\Tenancy\TenantNaming;
 use App\Core\Tenancy\TenantProvisioner;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -16,7 +15,7 @@ use Symfony\Component\DependencyInjection\Attribute\When;
 
 /**
  * Development setup from scratch: drops app_main and every tenant database of the environment
- * (app_<name> in dev, app_<name>_test in test), builds the app_main schema from its entities
+ * (app_<hash> in dev, app_<hash>_test in test), builds the app_main schema from its entities
  * (doctrine:schema:create, no migrations during this early phase), creates one tenant and fills it
  * with app:fixture:create. Registered in dev only (and in test, for its test), never in prod.
  */
@@ -36,7 +35,6 @@ final readonly class DatabaseRebuildCommand
         private Connection $mainConnection,
         #[Autowire(service: 'doctrine.orm.main_entity_manager')]
         private EntityManagerInterface $mainEntityManager,
-        private TenantNaming $naming,
         private TenantProvisioner $provisioner,
         private TenantCommandRunner $commandRunner,
     ) {
@@ -44,10 +42,10 @@ final readonly class DatabaseRebuildCommand
 
     public function __invoke(
         SymfonyStyle $io,
-        #[Option('Name of the tenant to create')]
-        string $tenantName = 'demo',
-        #[Option('Name of the tenant shown to people')]
-        string $displayName = 'Demo',
+        #[Option('Name of the tenant to create, to log in with')]
+        string $tenantName = 'Demo',
+        #[Option('Hash of the tenant to create: its internal id and database name')]
+        string $tenantHash = 'demo',
         #[Option('Create the tenant without the sample data and user of app:fixture:create')]
         bool $skipFixtures = false,
         #[Option('Skip the confirmation (required without interaction)', shortcut: 'f')]
@@ -56,8 +54,8 @@ final readonly class DatabaseRebuildCommand
         $mainDatabase = $this->mainConnection->getParams()['dbname'];
         $schemaManager = $this->mainConnection->createSchemaManager();
         $tenantDatabases = array_values(array_filter(
-            $schemaManager->listDatabases(),
-            fn (string $database) => null !== $this->naming->tenantName($database),
+            $this->provisioner->databaseNames(),
+            fn (string $database) => null !== $this->provisioner->tenantHash($database),
         ));
 
         $io->warning(\sprintf('This deletes the databases %s.', implode(', ', [$mainDatabase, ...$tenantDatabases])));
@@ -70,7 +68,7 @@ final readonly class DatabaseRebuildCommand
         foreach ($tenantDatabases as $database) {
             $schemaManager->dropDatabase($database);
         }
-        if (\in_array($mainDatabase, $schemaManager->listDatabases(), true)) {
+        if (\in_array($mainDatabase, $this->provisioner->databaseNames(), true)) {
             $schemaManager->dropDatabase($mainDatabase);
         }
         $schemaManager->createDatabase($mainDatabase);
@@ -79,11 +77,11 @@ final readonly class DatabaseRebuildCommand
         $this->mainEntityManager->clear();
 
         $this->run(null, self::CREATE_MAIN_SCHEMA, $io);
-        $this->provisioner->create($tenantName, $displayName);
-        $io->writeln(\sprintf('Tenant "%s" created.', $tenantName));
+        $this->provisioner->create($tenantName, $tenantHash);
+        $io->writeln(\sprintf('Tenant "%s" (hash "%s") created.', $tenantName, $tenantHash));
 
         if (!$skipFixtures) {
-            $this->run($tenantName, self::CREATE_FIXTURES, $io);
+            $this->run($tenantHash, self::CREATE_FIXTURES, $io);
         }
 
         $io->success('All databases rebuilt.');

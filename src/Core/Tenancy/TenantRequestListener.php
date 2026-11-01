@@ -2,7 +2,6 @@
 
 namespace App\Core\Tenancy;
 
-use App\Core\Tenancy\Exception\InvalidTenantNameException;
 use App\Core\Tenancy\Exception\TenantNotFoundException;
 use Doctrine\DBAL\Exception as DBALException;
 use Psr\Log\LoggerInterface;
@@ -35,7 +34,7 @@ final readonly class TenantRequestListener
 
         try {
             $this->tenantSwitcher->switchToUuid($tenant);
-        } catch (TenantNotFoundException|InvalidTenantNameException|DBALException $e) {
+        } catch (TenantNotFoundException|DBALException $e) {
             // A tenant deleted since the login, or a cookie that holds no tenant's uuid: the user is
             // a guest now (UserProvider finds no user without a tenant).
             $this->tenantStorage->clear($request);

@@ -20,9 +20,20 @@ class TenantRepository extends ServiceEntityRepository
         parent::__construct($registry, Tenant::class);
     }
 
-    public function findByName(string $name): ?Tenant
+    /**
+     * The tenant of a name's slug (see Tenant::SLUG_SEPARATOR).
+     */
+    public function findBySlug(string $slug): ?Tenant
     {
-        return $this->findOneBy(['name' => $name]);
+        return $this->findOneBy(['slug' => $slug]);
+    }
+
+    /**
+     * The tenant of an internal id (Tenant::getHash()).
+     */
+    public function findByHash(string $hash): ?Tenant
+    {
+        return $this->findOneBy(['hash' => $hash]);
     }
 
     /**

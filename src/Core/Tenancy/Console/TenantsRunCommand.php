@@ -4,7 +4,7 @@ namespace App\Core\Tenancy\Console;
 
 use App\Core\Tenancy\Repository\TenantRepository;
 use App\Core\Tenancy\TenantCommandRunner;
-use App\Core\Tenancy\TenantNaming;
+use App\Core\Tenancy\TenantProvisioner;
 use Symfony\Component\Console\Attribute\Argument;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;
@@ -20,7 +20,7 @@ final readonly class TenantsRunCommand
 {
     public function __construct(
         private TenantRepository $tenantRepository,
-        private TenantNaming $naming,
+        private TenantProvisioner $provisioner,
         private TenantCommandRunner $commandRunner,
     ) {
     }
@@ -46,11 +46,11 @@ final readonly class TenantsRunCommand
         $failed = false;
         foreach ($tenants as $tenant) {
             $name = $tenant->getName();
-            $database = $this->naming->databaseName($name);
+            $database = $this->provisioner->databaseName($tenant->getHash());
             $io->section(\sprintf('%s (%s)', $name, $database));
 
             try {
-                $exitCode = $this->commandRunner->run($name, $commandLine, $output);
+                $exitCode = $this->commandRunner->run($tenant->getHash(), $commandLine, $output);
             } catch (\Throwable $e) {
                 $io->error($e->getMessage());
                 $exitCode = Command::FAILURE;

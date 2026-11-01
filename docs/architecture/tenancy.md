@@ -7,15 +7,25 @@ tenants (and later the tokens).
 | Database          | Contents                                              | Test            |
 |-------------------|-------------------------------------------------------|-----------------|
 | `app_main`        | tenant registry (`tenant`), `token` (for later)       | `app_main_test` |
-| `app_<name>`      | everything of one customer: users, projects, plans, … | `app_<name>_test` |
+| `app_<hash>`      | everything of one customer: users, projects, plans, … | `app_<hash>_test` |
 
-Tenant names are lowercase letters, digits and `_`, start with a letter and have at most 40
-characters. `main` and names ending in `_test` are reserved, so no tenant database can collide with
-`app_main` or with a test database. The database name is derived from the name (`TenantNaming`,
-parameters `app.tenant_database_prefix` / `app.tenant_database_suffix` in `config/services.yaml`)
-and not stored. A tenant has an integer id for the foreign keys in `app_main` (e.g. `token.tenant_id`)
-and a uuid (`UuidAwareTrait`) as its public id: whatever leaves the server, such as the `tenant`
-cookie, names the tenant by its uuid.
+A tenant (`Tenant`, its lengths and slug settings as constants there) is known by five values, each
+for one purpose:
+
+| Value  | Used for | Rules |
+|--------|----------|-------|
+| `id`   | foreign keys in `app_main` (e.g. `token.tenant_id`) | integer, auto-increment |
+| `hash` | inside the application: the database name, console `--tenant`, `DEFAULT_TENANT` | unique; a random NanoID of 8 lowercase letters and digits (`NanoId`), or one given on creation (at most 16, e.g. `demo`); `main` is reserved; checked by `TenantProvisioner` |
+| `name` | what people type as the office at login, e.g. `Müller & Partner` | at most 50 characters, no index; not checked yet (the registration's validator, later) |
+| `slug` | finds the tenant of a typed name (`Slug::create()` with `Tenant::SLUG_SEPARATOR` `-` and the fixed `Tenant::SLUG_LOCALE` `de`): `mueller-partner` | unique; lowercase ASCII letters and digits joined by `-`, at most 100 characters |
+| `uuid` | the public id: whatever leaves the server, such as the `tenant` cookie | unique, `UuidAwareTrait` |
+
+The database name is derived from the hash (`TenantProvisioner::databaseName()`, parameters
+`app.tenant_database_prefix` /
+`app.tenant_database_suffix` in `config/services.yaml`) and not stored. Hashes have no `_` and
+`main` is reserved, so no tenant database can collide with `app_main` or with a test database. The
+name (and its slug) can thus change without touching the database (there is no command for it yet).
+Two names with the same slug (`Demo` and `demo`) cannot both exist.
 
 Doctrine setup
 --------------
@@ -49,14 +59,20 @@ manager of its folder.
 Selecting the tenant
 --------------------
 
-`TenantSwitcher::switchTo($name)` looks the tenant up in the registry (`TenantNotFoundException`, a
-404, if it is not there), clears the tenant entity manager (ids are only unique inside one database)
-and points the tenant connection at its database.
+`TenantSwitcher::switchTo($hash)` (or `switchToSlug()`, `switchToUuid()`, which take the value as it is stored) looks the tenant up in
+the registry (`TenantNotFoundException`, a 404, if it is not there), clears the tenant entity manager
+(ids are only unique inside one database) and points the tenant connection at its database.
+`current()` is the hash of the selected tenant, `currentTenant()` the entity. The switcher checks no
+parameter and makes no slug, it expects correct values: names are validated where they come in (the
+registration, later), the login makes the slug of the typed name, the provisioner checks a given
+hash.
 
-- **Console:** every command takes `--tenant=<name>` (`Console\Application`, used by `bin/console`;
+- **Console:** every command takes `--tenant=<hash>` (`Console\Application`, used by `bin/console`;
   `TenantConsoleListener` switches).
-- **Login:** the user names the office (tenant) in the login form. `UserAuthenticator` switches to
-  it before loading the user, since users live in the tenant database; an unknown name fails with
+- **Login:** the user types the office (the tenant's name) in the login form. `UserAuthenticator`
+  makes its slug (`Credentials`, with `Slug::create()` and the settings of `Tenant`) and
+  switches to that tenant (`switchToSlug()`), so case, spacing and umlauts typed
+  differently still match, before loading the user, since users live in the tenant database; an unknown name fails with
   `TenantNotFoundAuthenticationException` (shown at the office field). On success
   `TenantStorage` stores the tenant's uuid (never its name, which would show the customer and its
   database) in the session and in the cookie `tenant`, which lives as long as the remember-me cookie
@@ -85,8 +101,9 @@ Creating and deleting tenants
 The commands (`app:tenant:create|list|delete`) are listed in `CLAUDE.md` and `README.md`.
 `TenantProvisioner::create()` writes the registry row, creates the database and builds its schema
 from the tenant entities (`doctrine:schema:create`). If a step fails, the
-database and the row are removed again. A database of that name that belongs to no tenant is never
-touched: creating the tenant is refused.
+database and the row are removed again. Without a hash it generates one that no tenant and no
+database has yet. A database of that hash that belongs to no tenant is never touched: creating the
+tenant is refused.
 
 Schema, no migrations (yet)
 ---------------------------

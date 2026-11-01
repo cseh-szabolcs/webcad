@@ -13,7 +13,7 @@
                     <header class="card__header">
                         <p class="eyebrow">{{ 'dashboard.title'|trans }}</p>
                         <h1 class="card__title">{{ 'dashboard.heading'|trans }}</h1>
-                        <p class="card__lead">{{ 'dashboard.lead'|trans({'%email%': app.user.userIdentifier, '%tenant%': tenant.displayName}) }}</p>
+                        <p class="card__lead">{{ 'dashboard.lead'|trans({'%email%': app.user.userIdentifier, '%tenant%': tenant.name}) }}</p>
                     </header>
 
                     <a class="btn btn--ghost btn--lg btn--block" href="{{ logout_path() }}">{{ 'layout.nav.logout'|trans }}</a>

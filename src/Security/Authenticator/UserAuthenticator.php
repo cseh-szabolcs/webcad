@@ -64,7 +64,7 @@ class UserAuthenticator extends AbstractLoginFormAuthenticator
         $session->set(SecurityRequestAttributes::LAST_USERNAME, $credentials->identifier);
 
         try {
-            $this->tenantSwitcher->switchTo($credentials->tenantName);
+            $this->tenantSwitcher->switchToSlug($credentials->tenantSlug);
         } catch (TenantNotFoundException) {
             throw new TenantNotFoundAuthenticationException();
         }
@@ -112,8 +112,7 @@ class UserAuthenticator extends AbstractLoginFormAuthenticator
         ));
 
         return new Credentials(
-            // Tenant names are lowercase, see TenantNaming
-            mb_strtolower(trim($payload->getString('tenantName'))),
+            trim($payload->getString('tenantName')),
             trim($payload->getString('email')),
             $payload->getString('password'),
         );

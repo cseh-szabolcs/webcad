@@ -4,7 +4,6 @@ namespace App\Core\Tenancy\Console;
 
 use App\Core\Tenancy\Exception\TenantNotFoundException;
 use App\Core\Tenancy\Repository\TenantRepository;
-use App\Core\Tenancy\TenantNaming;
 use App\Core\Tenancy\TenantProvisioner;
 use Symfony\Component\Console\Attribute\Argument;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -21,24 +20,22 @@ final readonly class TenantDeleteCommand
     public function __construct(
         private TenantProvisioner $provisioner,
         private TenantRepository $tenantRepository,
-        private TenantNaming $naming,
     ) {
     }
 
     public function __invoke(
         SymfonyStyle $io,
-        #[Argument('Name of the tenant to delete')]
-        string $name,
+        #[Argument('Hash of the tenant to delete (see app:tenant:list)')]
+        string $hash,
         #[Option('Skip the confirmation (required without interaction)', shortcut: 'f')]
         bool $force = false,
     ): int {
-        $tenant = $this->tenantRepository->findByName($name) ?? throw new TenantNotFoundException($name);
+        $tenant = $this->tenantRepository->findByHash($hash) ?? throw new TenantNotFoundException($hash);
 
         $io->warning(\sprintf(
-            'This drops the database "%s" of tenant "%s" (%s) for good.',
-            $this->naming->databaseName($name),
-            $name,
-            $tenant->getDisplayName(),
+            'This drops the database "%s" of tenant "%s" for good.',
+            $this->provisioner->databaseName($hash),
+            $tenant->getName(),
         ));
 
         if (!$force && !$io->confirm('Delete this tenant?', false)) {
@@ -47,9 +44,9 @@ final readonly class TenantDeleteCommand
             return Command::SUCCESS;
         }
 
-        $this->provisioner->delete($name);
+        $this->provisioner->delete($hash);
 
-        $io->success(\sprintf('Tenant "%s" deleted.', $name));
+        $io->success(\sprintf('Tenant "%s" deleted.', $tenant->getName()));
 
         return Command::SUCCESS;
     }

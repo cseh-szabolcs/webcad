@@ -37,7 +37,7 @@ final readonly class TenantCommandRunner
             $application->setAutoExit(false);
             $application->setCatchExceptions(false);
 
-            // Tenant names need no quoting, see TenantNaming
+            // Tenant hashes need no quoting, see TenantProvisioner
             $input = new StringInput(null === $tenant
                 ? \sprintf('%s --no-interaction', $commandLine)
                 : \sprintf('%s --no-interaction --%s=%s', $commandLine, Application::TENANT_OPTION, $tenant));

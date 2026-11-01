@@ -3,7 +3,6 @@
 namespace App\Tests\Fixtures;
 
 use App\Core\Tenancy\Repository\TenantRepository;
-use App\Core\Tenancy\TenantNaming;
 use App\Core\Tenancy\TenantProvisioner;
 use App\Core\Tenancy\TenantSwitcher;
 use App\Fixtures\Console\FixtureCreateCommand;
@@ -24,16 +23,15 @@ final class DatabaseRebuildCommandTest extends KernelTestCase
 {
     public function testDropsAllDatabasesAndBuildsMainAndOneTenant(): void
     {
-        $other = 'phpunit_'.bin2hex(random_bytes(4));
-        static::getContainer()->get(TenantProvisioner::class)->create($other, 'Phpunit');
+        $other = static::getContainer()->get(TenantProvisioner::class)->create('Phpunit '.bin2hex(random_bytes(4)));
 
-        self::assertSame(Command::SUCCESS, $this->tester()->execute(['--force' => true, '--tenant-name' => $_ENV['DEFAULT_TENANT']]));
+        self::assertSame(Command::SUCCESS, $this->tester()->execute(['--force' => true, '--tenant-hash' => $_ENV['DEFAULT_TENANT']]));
 
-        $databases = $this->mainConnection()->createSchemaManager()->listDatabases();
-        self::assertNotContains(static::getContainer()->get(TenantNaming::class)->databaseName($other), $databases);
+        $databases = static::getContainer()->get(TenantProvisioner::class)->databaseNames();
+        self::assertNotContains(static::getContainer()->get(TenantProvisioner::class)->databaseName($other->getHash()), $databases);
         self::assertTrue($this->mainConnection()->createSchemaManager()->tablesExist(['tenant', 'token']));
-        self::assertSame([$_ENV['DEFAULT_TENANT']], array_map(
-            static fn ($tenant) => $tenant->getName(),
+        self::assertSame([['Demo', 'demo', $_ENV['DEFAULT_TENANT']]], array_map(
+            static fn ($tenant) => [$tenant->getName(), $tenant->getSlug(), $tenant->getHash()],
             static::getContainer()->get(TenantRepository::class)->findAllOrdered(),
         ));
 
@@ -50,7 +48,7 @@ final class DatabaseRebuildCommandTest extends KernelTestCase
 
         self::assertSame(Command::SUCCESS, $tester->execute([]));
         self::assertStringContainsString('Aborted', $tester->getDisplay());
-        self::assertNotNull(static::getContainer()->get(TenantRepository::class)->findByName($_ENV['DEFAULT_TENANT']));
+        self::assertNotNull(static::getContainer()->get(TenantRepository::class)->findByHash($_ENV['DEFAULT_TENANT']));
     }
 
     private function tester(): CommandTester

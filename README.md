@@ -9,14 +9,18 @@ The backend is multi-tenant: every customer (tenant) has a database of its own. 
 | Database     | Contents                                        | Entities                                                   | Test database      |
 |--------------|-------------------------------------------------|------------------------------------------------------------|--------------------|
 | `app_main`   | tenant registry, tokens (later)                 | `src/Core/Tenancy/Entity`, `src/Security/Entity`           | `app_main_test`    |
-| `app_<name>` | the data of one customer (users, projects, plans…) | `src/User/Entity`, `src/Project/Entity`, `src/Plan/Entity` | `app_<name>_test`  |
+| `app_<hash>` | the data of one customer (users, projects, plans…) | `src/User/Entity`, `src/Project/Entity`, `src/Plan/Entity` | `app_<hash>_test`  |
 
 **No migrations during this early phase:** the schema is built from the entities
 (`doctrine:schema:create`). After changing an entity, rebuild the databases; all data is lost.
 `migrations/Main` and `migrations/Tenant` stay empty until the schema settles.
 
-All commands run in the `php` container. A command on a tenant database selects the tenant with
-`--tenant=<name>`; without it, `DEFAULT_TENANT` from `.env.dev` / `.env.test` (`demo`) is used.
+A tenant has a name, which people type to log in (found by its slug: `Müller & Partner` →
+`mueller-partner`), and a hash, its internal id and database name
+(a random 8-character NanoID; `demo` for the demo tenant). All commands run in the `php` container.
+A command on a tenant database selects the tenant by its hash with `--tenant=<hash>`; without it,
+`DEFAULT_TENANT` from `.env.dev` / `.env.test` (`demo`) is used. `app:tenant:list` shows names,
+slugs and hashes.
 
 ### Setup and rebuild (dev and test only)
 
@@ -28,11 +32,12 @@ docker compose exec php bin/console app:database:rebuild -f --env=test
 
 `app:database:rebuild` drops `app_main` and every tenant database of the environment (dev leaves
 the `_test` databases alone and the reverse), builds the `app_main` schema from its entities,
-creates the tenant `demo` (`--tenant-name`, `--display-name`) and fills it with
+creates the tenant `Demo` with the hash `demo` (`--tenant-name`, `--tenant-hash`) and fills it with
 `app:fixture:create` (`--skip-fixtures` leaves it empty). Afterwards you can log in at
 http://localhost:8080/de/login with the office `demo` and the user printed by the command.
 
-`app:tenant:create <name>` creates a further tenant: the registry row, the database and its schema.
+`app:tenant:create "<name>"` creates a further tenant: the registry row with a random hash
+(`--hash` to choose one), the database and its schema.
 
 ### Sample data (dev only)
 
@@ -44,7 +49,7 @@ docker compose exec php bin/console app:fixture:create
 ```
 
 It asks first, then drops every table of the tenant (`demo`, or the one named with
-`--tenant=<name>`), builds the schema again from the entities, and creates the project
+`--tenant=<hash>`), builds the schema again from the entities, and creates the project
 "Beispielprojekt" with the plan from `fixtures/plans/sample-plan.json` and a user (role
 `ROLE_USER`). The plan gets the id the editor loads in dev when the URL names no plan, so
 afterwards http://localhost:8081 shows it (after logging in at :8080); the command also prints the link.

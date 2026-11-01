@@ -73,16 +73,16 @@ final readonly class FixtureCreateCommand
             return Command::FAILURE;
         }
 
-        $tenant = $this->tenantSwitcher->current() ?? throw new TenantNotSelectedException();
+        $tenant = $this->tenantSwitcher->currentTenant() ?? throw new TenantNotSelectedException();
 
-        $io->warning(\sprintf('This deletes all data of tenant "%s".', $tenant));
+        $io->warning(\sprintf('This deletes all data of tenant "%s".', $tenant->getName()));
         if (!$force && !$io->confirm('Reset the database?', false)) {
             $io->note('Aborted, nothing was changed.');
 
             return Command::SUCCESS;
         }
 
-        $this->provisioner->reset($tenant);
+        $this->provisioner->reset($tenant->getHash());
         // Nothing loaded before the reset exists any more
         $this->entityManager->clear();
 
@@ -99,7 +99,7 @@ final readonly class FixtureCreateCommand
         });
 
         $io->success(\sprintf('Plan "%s" (%s) created in project "%s" (%s).', $plan->getName(), $plan->getId()->toRfc4122(), $project->getName(), $project->getId()->toRfc4122()));
-        $io->writeln(\sprintf('Log in with tenant "%s", user "%s".', $tenant, $user->getEmail()));
+        $io->writeln(\sprintf('Log in with tenant "%s", user "%s".', $tenant->getName(), $user->getEmail()));
         if (null !== $this->editorUrl && '' !== $this->editorUrl) {
             $io->writeln(\sprintf('Open it in the editor: %s/?plan=%s', rtrim($this->editorUrl, '/'), $plan->getId()->toRfc4122()));
         }

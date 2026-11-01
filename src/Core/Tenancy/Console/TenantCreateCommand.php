@@ -11,7 +11,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'app:tenant:create',
-    description: 'Create a tenant: register it in app_main and build its database app_<name>',
+    description: 'Create a tenant: register it in app_main and build its database app_<hash>',
 )]
 final readonly class TenantCreateCommand
 {
@@ -22,14 +22,20 @@ final readonly class TenantCreateCommand
 
     public function __invoke(
         SymfonyStyle $io,
-        #[Argument('Tenant name: lowercase letters, digits and "_", starting with a letter')]
+        #[Argument('Name people log in with, e.g. "Müller Architekten"')]
         string $name,
-        #[Option('Name shown to people (default: the tenant name)')]
-        ?string $displayName = null,
+        #[Option('Internal id and database name: lowercase letters and digits (default: a random one)')]
+        ?string $hash = null,
     ): int {
-        $this->provisioner->create($name, $displayName ?? $name);
+        $tenant = $this->provisioner->create($name, $hash);
 
-        $io->success(\sprintf('Tenant "%s" created.', $name));
+        $io->success(\sprintf(
+            'Tenant "%s" created, slug "%s", hash "%s", database "%s".',
+            $tenant->getName(),
+            $tenant->getSlug(),
+            $tenant->getHash(),
+            $this->provisioner->databaseName($tenant->getHash()),
+        ));
 
         return Command::SUCCESS;
     }

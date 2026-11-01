@@ -7,7 +7,7 @@ use Symfony\Component\Console\Input\InputDefinition;
 use Symfony\Component\Console\Input\InputOption;
 
 /**
- * The console application of bin/console: every command takes --tenant=<name>, which
+ * The console application of bin/console: every command takes --tenant=<hash>, which
  * TenantConsoleListener uses to select the tenant database.
  */
 class Application extends BaseApplication
@@ -21,7 +21,7 @@ class Application extends BaseApplication
             self::TENANT_OPTION,
             null,
             InputOption::VALUE_REQUIRED,
-            'Name of the tenant whose database the command uses',
+            'Hash of the tenant whose database the command uses (see app:tenant:list)',
         ));
 
         return $definition;

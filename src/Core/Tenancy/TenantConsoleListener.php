@@ -11,8 +11,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
 /**
- * Selects the tenant of a console command: --tenant=<name>, else DEFAULT_TENANT (set in dev and
- * test only), else none.
+ * Selects the tenant of a console command: --tenant=<hash>, else DEFAULT_TENANT (a hash, set in dev
+ * and test only), else none.
  */
 #[AsEventListener(event: ConsoleEvents::COMMAND)]
 final readonly class TenantConsoleListener

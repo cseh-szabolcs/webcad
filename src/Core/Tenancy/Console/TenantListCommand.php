@@ -3,7 +3,7 @@
 namespace App\Core\Tenancy\Console;
 
 use App\Core\Tenancy\Repository\TenantRepository;
-use App\Core\Tenancy\TenantNaming;
+use App\Core\Tenancy\TenantProvisioner;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -16,7 +16,7 @@ final readonly class TenantListCommand
 {
     public function __construct(
         private TenantRepository $tenantRepository,
-        private TenantNaming $naming,
+        private TenantProvisioner $provisioner,
     ) {
     }
 
@@ -24,7 +24,7 @@ final readonly class TenantListCommand
     {
         $rows = [];
         foreach ($this->tenantRepository->findAllOrdered() as $tenant) {
-            $rows[] = [$tenant->getName(), $tenant->getDisplayName(), $this->naming->databaseName($tenant->getName())];
+            $rows[] = [$tenant->getName(), $tenant->getSlug(), $tenant->getHash(), $this->provisioner->databaseName($tenant->getHash())];
         }
 
         if ([] === $rows) {
@@ -33,7 +33,7 @@ final readonly class TenantListCommand
             return Command::SUCCESS;
         }
 
-        $io->table(['Name', 'Display name', 'Database'], $rows);
+        $io->table(['Name', 'Slug', 'Hash', 'Database'], $rows);
 
         return Command::SUCCESS;
     }

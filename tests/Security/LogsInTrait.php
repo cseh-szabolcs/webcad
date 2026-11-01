@@ -48,6 +48,6 @@ trait LogsInTrait
     private function defaultTenantUuid(): string
     {
         return static::getContainer()->get(TenantRepository::class)
-            ->findByName($_ENV['DEFAULT_TENANT'])->getUuid()->toRfc4122();
+            ->findByHash($_ENV['DEFAULT_TENANT'])->getUuid()->toRfc4122();
     }
 }

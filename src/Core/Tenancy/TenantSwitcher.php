@@ -10,7 +10,9 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * Selects the tenant whose database the tenant connection and entity manager use. The entity
- * manager is cleared first, as an id is only unique inside one database.
+ * manager is cleared first, as an id is only unique inside one database. It checks no parameter and
+ * makes no slug: it expects them correct (validating names belongs to the registration, slugging the
+ * typed name to the login), and only says when no tenant has the value.
  */
 final readonly class TenantSwitcher
 {
@@ -20,16 +22,28 @@ final readonly class TenantSwitcher
         #[Autowire(service: 'doctrine.orm.tenant_entity_manager')]
         private EntityManagerInterface $tenantEntityManager,
         private TenantRepository $tenantRepository,
-        private TenantNaming $naming,
+        private TenantProvisioner $provisioner,
     ) {
     }
 
     /**
-     * @throws TenantNotFoundException when the registry has no tenant of that name
+     * Selects the tenant of an internal id (Tenant::getHash()), e.g. of console --tenant.
+     *
+     * @throws TenantNotFoundException when the registry has no tenant of that hash
      */
-    public function switchTo(string $name): Tenant
+    public function switchTo(string $hash): Tenant
     {
-        return $this->select($this->tenantRepository->findByName($name) ?? throw new TenantNotFoundException($name));
+        return $this->select($this->tenantRepository->findByHash($hash) ?? throw new TenantNotFoundException($hash));
+    }
+
+    /**
+     * Selects the tenant of a slug, e.g. of the name typed at login (see Tenant::SLUG_SEPARATOR).
+     *
+     * @throws TenantNotFoundException when the registry has no tenant of that slug
+     */
+    public function switchToSlug(string $slug): Tenant
+    {
+        return $this->select($this->tenantRepository->findBySlug($slug) ?? throw new TenantNotFoundException($slug));
     }
 
     /**
@@ -43,13 +57,13 @@ final readonly class TenantSwitcher
     }
 
     /**
-     * The name of the selected tenant, or null before one is selected.
+     * The hash of the selected tenant, or null before one is selected.
      */
     public function current(): ?string
     {
         $database = $this->tenantConnection->getTenantDatabase();
 
-        return null === $database ? null : $this->naming->tenantName($database);
+        return null === $database ? null : $this->provisioner->tenantHash($database);
     }
 
     /**
@@ -57,14 +71,14 @@ final readonly class TenantSwitcher
      */
     public function currentTenant(): ?Tenant
     {
-        $name = $this->current();
+        $hash = $this->current();
 
-        return null === $name ? null : $this->tenantRepository->findByName($name);
+        return null === $hash ? null : $this->tenantRepository->findByHash($hash);
     }
 
     private function select(Tenant $tenant): Tenant
     {
-        $database = $this->naming->databaseName($tenant->getName());
+        $database = $this->provisioner->databaseName($tenant->getHash());
         if ($database === $this->tenantConnection->getTenantDatabase()) {
             return $tenant;
         }

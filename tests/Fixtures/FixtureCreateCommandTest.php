@@ -2,6 +2,7 @@
 
 namespace App\Tests\Fixtures;
 
+use App\Core\Tenancy\Entity\Tenant;
 use App\Core\Tenancy\TenantProvisioner;
 use App\Core\Tenancy\TenantSwitcher;
 use App\Fixtures\Console\FixtureCreateCommand;
@@ -18,23 +19,22 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Runs on a tenant of its own (app_phpunit_…_test), as the command empties the whole database.
+ * Runs on a tenant of its own (app_<hash>_test), as the command empties the whole database.
  */
 final class FixtureCreateCommandTest extends KernelTestCase
 {
-    private string $tenant;
+    private Tenant $tenant;
 
     protected function setUp(): void
     {
-        $this->tenant = 'phpunit_'.bin2hex(random_bytes(4));
-        static::getContainer()->get(TenantProvisioner::class)->create($this->tenant, 'Phpunit');
+        $this->tenant = static::getContainer()->get(TenantProvisioner::class)->create('Phpunit '.bin2hex(random_bytes(4)));
         // The command tester fires no console events, so the tenant listener does not run
-        static::getContainer()->get(TenantSwitcher::class)->switchTo($this->tenant);
+        static::getContainer()->get(TenantSwitcher::class)->switchTo($this->tenant->getHash());
     }
 
     protected function tearDown(): void
     {
-        static::getContainer()->get(TenantProvisioner::class)->delete($this->tenant);
+        static::getContainer()->get(TenantProvisioner::class)->delete($this->tenant->getHash());
 
         parent::tearDown();
     }
@@ -62,7 +62,7 @@ final class FixtureCreateCommandTest extends KernelTestCase
     {
         $tester = $this->tester();
         self::assertSame(Command::SUCCESS, $tester->execute(['--force' => true, '--user-email' => 'anna@example.com', '--user-password' => 'anna-password']));
-        self::assertStringContainsString(\sprintf('Log in with tenant "%s", user "anna@example.com".', $this->tenant), $tester->getDisplay());
+        self::assertStringContainsString(\sprintf('Log in with tenant "%s", user "anna@example.com".', $this->tenant->getName()), $tester->getDisplay());
 
         $this->em()->clear();
         $users = $this->em()->getRepository(User::class)->findAll();

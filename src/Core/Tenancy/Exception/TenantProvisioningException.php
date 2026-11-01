@@ -8,14 +8,14 @@ namespace App\Core\Tenancy\Exception;
  */
 final class TenantProvisioningException extends \RuntimeException
 {
-    public static function tenantExists(string $name): self
+    public static function tenantExists(string $identifier): self
     {
-        return new self(\sprintf('Tenant "%s" exists already.', $name));
+        return new self(\sprintf('Tenant "%s" exists already.', $identifier));
     }
 
     public static function databaseExists(string $database): self
     {
-        return new self(\sprintf('Database "%s" exists already, but belongs to no tenant. Drop it or choose another name.', $database));
+        return new self(\sprintf('Database "%s" exists already, but belongs to no tenant. Drop it or choose another hash.', $database));
     }
 
     public static function fromExitCode(string $command, int $exitCode, string $output): self
