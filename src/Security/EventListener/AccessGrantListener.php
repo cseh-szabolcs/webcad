@@ -3,25 +3,27 @@
 namespace App\Security\EventListener;
 
 use App\Core\Component\Reader\AttributeReader;
-use App\Security\Attribute\AuthFullyGrant;
-use App\Security\Attribute\AuthGrant;
+use App\Core\Traits\EnvAwareTrait;
+use App\Security\AccessGrantHandler\AccessGrantHandlerInterface;
 use App\Security\Attribute\GrantInterface;
-use App\Security\Attribute\GuestOnlyGrant;
-use App\Security\Attribute\XhrGrant;
 use App\Security\AuthProvider;
+use LogicException;
+use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
-use Symfony\Component\HttpFoundation\RedirectResponse;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 #[AsEventListener]
-final readonly class AccessGrantListener
+final class AccessGrantListener
 {
+    use EnvAwareTrait;
+
     public function __construct(
-        private AuthProvider $auth,
-        private UrlGeneratorInterface $urlGenerator,
+        /** @var callable():AccessGrantHandlerInterface[] */
+        #[AutowireIterator(tag: AccessGrantHandlerInterface::class)]
+        private readonly iterable $handlers,
+        private readonly AuthProvider $auth,
+        private readonly UrlGeneratorInterface $urlGenerator,
     ) {
     }
 
@@ -39,53 +41,35 @@ final readonly class AccessGrantListener
             default => [],
         };
 
+        if (count($attributes)) {
+            $this->handle($attributes, $event);
+        }
+    }
+
+    /**
+     * @param GrantInterface[] $attributes
+     */
+    private function handle(array $attributes, ControllerEvent $event): void
+    {
         foreach ($attributes as $attribute) {
-            match (get_class($attribute)) {
-                GuestOnlyGrant::class => $this->handleGuestGrant($attribute, $event),
-                AuthGrant::class => $this->handleAuthGrant($attribute),
-                AuthFullyGrant::class => $this->handleAuthGrant($attribute, true),
-                XhrGrant::class => $this->handleXhrGrant($event),
-                default => throw new \LogicException(sprintf('Attribute "%s" is not supported.', $attribute->getName())),
-            };
-        }
-    }
+            $name = get_class($attribute);
+            $handled = false;
 
-    private function handleGuestGrant(GuestOnlyGrant $grant, ControllerEvent $event): void
-    {
-        if ($this->auth->isAuthenticated()) {
-            $url = $this->urlGenerator->generate($grant->redirect, $grant->params);
-            $event->setController(static fn () => new RedirectResponse($url));
-        }
-    }
+            /** @var AccessGrantHandlerInterface $handler */
+            foreach ($this->handlers as $handler) {
+                if (!$handler->supports($name)) {
+                    continue;
+                }
 
-    private function handleAuthGrant(AuthGrant $authGrant, bool $fully = false): void
-    {
-        if (!$this->auth->isAuthenticated($fully)) {
-            $this->deny();
-        }
+                if (false === $handler->handle($attribute, $event)) {
+                    break 2;
+                }
+                $handled = true;
+            }
 
-        if ($authGrant->role && !$this->auth->isGranted($authGrant->role)) {
-            $this->deny();
+            if (!$handled) {
+                throw new LogicException(sprintf('Attribute "%s" is not supported.', $name));
+            }
         }
-    }
-
-    private function handleXhrGrant(ControllerEvent $event): void
-    {
-        if (!$event->isMainRequest()) {
-            return;
-        }
-
-        if (!$event->getRequest()->isXmlHttpRequest()) {
-            $this->deny($event);
-        }
-    }
-
-    private function deny(?ControllerEvent $event = null): void
-    {
-        if (!$event) {
-            throw new AccessDeniedException('Access denied');
-        }
-
-        $event->setController(static fn () => new Response('Page not found.', 404));
     }
 }

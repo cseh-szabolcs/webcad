@@ -29,6 +29,6 @@ final class IndexController extends AbstractController
     #[Route('/{_locale}', name: 'app_index', requirements: ['_locale' => '%app.locales%'], methods: ['GET'])]
     public function index(): Response
     {
-        return $this->render('index/index.html.twig');
+        return $this->render('page/core/index.html.twig');
     }
 }

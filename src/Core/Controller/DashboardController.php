@@ -18,7 +18,7 @@ final class DashboardController extends AbstractController
     #[Route('/{_locale}/app', name: 'app_dashboard', requirements: ['_locale' => '%app.locales%'], methods: ['GET'])]
     public function __invoke(TenantSwitcher $tenantSwitcher): Response
     {
-        return $this->render('page/dashboard/index.html.twig', [
+        return $this->render('page/core/dashboard.html.twig', [
             'tenant' => $tenantSwitcher->currentTenant(),
         ]);
     }

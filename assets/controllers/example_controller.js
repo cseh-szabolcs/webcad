@@ -1,12 +1,14 @@
 /* stimulusFetch: 'lazy' */
-import { stateController } from '../scripts/stateController.js';
+import { withStateController } from '../scripts/withStateController.js';
 
 /*
- * Example of an Alpine state from a Stimulus controller (see assets/scripts/stateController.js).
+ * Example of an Alpine state from a Stimulus controller (see assets/scripts/withStateController.js).
  * Use it with {{ stimulus_controller('example') }} on an element.
  */
-export default stateController(() => ({
+const state = {
     init() {
         console.log('example: state initialised');
     },
-}));
+};
+
+export default withStateController(state);

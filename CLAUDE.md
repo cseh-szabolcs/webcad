@@ -165,6 +165,12 @@ Rules that apply everywhere:
   schema comes from the entities via `app:database:rebuild` (dev and `--env=test`). The folders
   `migrations/Tenant` and `migrations/Main` stay configured but empty. Moving a class stored as
   `json_document` breaks stored data; with rebuilds that just means rebuilding.
+- **Page files by area**: a page's template is `templates/page/<area>/…` (`page/core/index.html.twig`,
+  `page/core/dashboard.html.twig`, `page/user/auth/login.html.twig`, `page/fixtures/list-example.html.twig`),
+  a Stimulus controller made for one page lies at the same path under `assets/controllers/page/`
+  (`page/fixtures/list_example_controller.js`, identifier `page--fixtures--list-example`). Shared
+  templates stay in `templates/layout/` and `templates/form/`, shared controllers outside `page/`
+  (e.g. `assets/controllers/layout/`), shared Alpine states in `assets/scripts/states/`.
 - **Twig pages** (`templates/`, styles in `assets/styles/app.css`): every text goes through
   `|trans` with a key in `translations/messages.de.yaml` (form labels and help are keys too;
   own constraint messages in `validators.de.yaml`). German is the only translation yet;

@@ -1,0 +1,164 @@
+import { extend } from '../extend.js';
+import { listState } from './listState.js';
+
+/**
+ * A list whose pages (and sorting) come from the backend, built on listState: `items` holds only
+ * the current page. Build on it with extend() and give it the URL of the data route:
+ *
+ *     const state = extend(remoteListState, { pageSize: 50 });
+ *     export default withStateController(state);
+ *
+ *     {{ stimulus_controller('…', { state: { url: path('…') } }) }}
+ *
+ * The request: GET `url` with `page`, `pageSize` and, when sorted, `sort` and `direction` in the
+ * query string, marked as XHR (`X-Requested-With`). The answer: JSON
+ * `{ items: [ … ], total: <all items>, page: <the page returned> }`; the backend brings a page
+ * beyond the last one back into range.
+ *
+ * With `useHistory` (default) the page and the sorting are in the address (`?page=2&sort=name
+ * &direction=desc`): every page change or sorting is a pushState() entry, Back and Forward load
+ * that page again, and a reloaded or shared address opens the same page. Only one list per page
+ * may use it, as the parameter names are fixed.
+ *
+ * Search (`query`) is not supported yet: it would have to go to the backend too. A state that
+ * overrides init() or destroy() must call `remoteListState.init.call(this)` (and destroy).
+ */
+export const remoteListState = extend(listState, {
+    url: '',
+    /** Number of all items, from the backend. */
+    total: 0,
+    loading: false,
+    /** The message of a failed load, '' otherwise. */
+    error: '',
+    useHistory: true,
+    /** Counts the requests, so the answer of an older one that arrives later is ignored. */
+    requestNumber: 0,
+    popStateListener: null,
+
+    init() {
+        if (this.useHistory) {
+            this.readLocation();
+            this.popStateListener = () => {
+                this.readLocation();
+                this.load();
+            };
+            window.addEventListener('popstate', this.popStateListener);
+        }
+        this.load();
+    },
+
+    /** Alpine calls it when the element's state is removed (destroyState()). */
+    destroy() {
+        if (this.popStateListener) {
+            window.removeEventListener('popstate', this.popStateListener);
+        }
+    },
+
+    get pageItems() {
+        return this.items;
+    },
+
+    get pageCount() {
+        return Math.max(1, Math.ceil(this.total / this.pageSize));
+    },
+
+    goToPage(page) {
+        const target = Math.min(Math.max(1, Math.trunc(page)), this.pageCount);
+        if (target !== this.page) {
+            this.page = target;
+            this.navigate();
+        }
+    },
+
+    sortBy(key) {
+        listState.sortBy.call(this, key);
+        this.page = 1;
+        this.navigate();
+    },
+
+    /** After a change by the user: a new history entry, then the page from the backend. */
+    navigate() {
+        if (this.useHistory) {
+            window.history.pushState(null, '', this.locationAddress());
+        }
+        this.load();
+    },
+
+    /** Writes the page and the sorting into the current history entry. */
+    replaceLocation() {
+        if (this.useHistory) {
+            window.history.replaceState(null, '', this.locationAddress());
+        }
+    },
+
+    /** The current address with the page and the sorting of the list. */
+    locationAddress() {
+        const address = new URL(window.location.href);
+        this.writeParams(address.searchParams, false);
+
+        return address;
+    },
+
+    /** Takes the page and the sorting from the address; what it lacks gets the default. */
+    readLocation() {
+        const params = new URLSearchParams(window.location.search);
+        this.page = Math.max(1, Number.parseInt(params.get('page') ?? '', 10) || 1);
+        this.sortKey = params.get('sort') ?? '';
+        this.sortDirection = params.get('direction') === 'desc' ? 'desc' : 'asc';
+    },
+
+    /**
+     * Writes the page and the sorting into `params`; `forRequest` adds the page size and keeps
+     * page 1, the address leaves out what is the default.
+     */
+    writeParams(params, forRequest) {
+        for (const name of ['page', 'pageSize', 'sort', 'direction']) {
+            params.delete(name);
+        }
+        if (forRequest || this.page > 1) {
+            params.set('page', String(this.page));
+        }
+        if (forRequest) {
+            params.set('pageSize', String(this.pageSize));
+        }
+        if (this.sortKey !== '') {
+            params.set('sort', this.sortKey);
+            params.set('direction', this.sortDirection);
+        }
+    },
+
+    async load() {
+        const requestNumber = ++this.requestNumber;
+        this.loading = true;
+        this.error = '';
+        try {
+            const address = new URL(this.url, window.location.href);
+            this.writeParams(address.searchParams, true);
+            const response = await fetch(address, {
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const data = await response.json();
+            if (requestNumber !== this.requestNumber) {
+                return;
+            }
+            this.items = data.items;
+            this.total = data.total;
+            if (data.page !== this.page) {
+                // The backend brought the page into range: correct the address, without a new entry.
+                this.page = data.page;
+                this.replaceLocation();
+            }
+        } catch (error) {
+            if (requestNumber === this.requestNumber) {
+                this.error = error.message;
+            }
+        } finally {
+            if (requestNumber === this.requestNumber) {
+                this.loading = false;
+            }
+        }
+    },
+});

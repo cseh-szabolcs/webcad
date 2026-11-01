@@ -7,6 +7,7 @@ use App\Security\AuthProvider;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\RouterInterface;
 
 class BaseController extends AbstractController
 {
@@ -16,6 +17,7 @@ class BaseController extends AbstractController
             ...parent::getSubscribedServices(),
             App::class => App::class,
             AuthProvider::class => AuthProvider::class,
+            RouterInterface::class => RouterInterface::class,
             EntityManagerInterface::class => EntityManagerInterface::class,
         ];
     }
@@ -42,7 +44,7 @@ class BaseController extends AbstractController
 
     protected function router(): RouterInterface
     {
-        return $this->container->get('router');
+        return $this->container->get(RouterInterface::class);
     }
 
     protected function em(): EntityManagerInterface

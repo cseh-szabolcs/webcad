@@ -1,0 +1,34 @@
+{#
+ # Example of remoteListState (assets/controllers/page/fixtures/list_example_controller.js), dev and test only
+ # (App\Fixtures\Controller\ListExampleController). Each page comes from the route
+ # fixtures_list_example_data via fetch() (remoteListState); page and sorting are in the address.
+ #}
+{% extends 'layout/document.html.twig' %}
+
+{% block title %}List example{% endblock %}
+
+{% block document_body %}
+    <main id="main" {{ stimulus_controller('page--fixtures--list-example', { state: { url: path('fixtures_list_example_data') } }) }}>
+        <p x-show="loading">Loading …</p>
+        <p x-show="error" x-text="error"></p>
+        <table x-show="!error">
+            <thead>
+                <tr>
+                    <th x-bind:aria-sort="ariaSort('number')"><button type="button" x-on:click="sortBy('number')">number</button></th>
+                    <th x-bind:aria-sort="ariaSort('value')"><button type="button" x-on:click="sortBy('value')">value</button></th>
+                </tr>
+            </thead>
+            <tbody>
+                <template x-for="item in pageItems" x-bind:key="item.number">
+                    <tr>
+                        <td x-text="item.number"></td>
+                        <td x-text="item.value"></td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+        <button type="button" x-on:click="previousPage()" x-bind:disabled="!hasPreviousPage">‹</button>
+        <span x-text="`${page} / ${pageCount}`"></span>
+        <button type="button" x-on:click="nextPage()" x-bind:disabled="!hasNextPage">›</button>
+    </main>
+{% endblock %}
