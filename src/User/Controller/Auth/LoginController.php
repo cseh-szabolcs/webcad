@@ -16,7 +16,7 @@ use Symfony\Component\Routing\Attribute\Route;
 final class LoginController extends BaseController
 {
     #[GuestOnlyGrant]
-    #[Route('/{_locale}/login', name: 'user_auth_login', requirements: ['_locale' => '%app.locales%'], methods: ['GET', 'POST'])]
+    #[Route('/login', name: 'user_auth_login', methods: ['GET', 'POST'])]
     public function __invoke(Request $request): Response
     {
         $utils = $this->auth()->utils;

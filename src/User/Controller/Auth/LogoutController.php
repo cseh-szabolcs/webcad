@@ -9,7 +9,7 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 final class LogoutController
 {
-    #[Route('/{_locale}/logout', name: 'user_auth_logout', requirements: ['_locale' => '%app.locales%'], methods: ['GET'])]
+    #[Route('/logout', name: 'user_auth_logout', methods: ['GET'])]
     public function __invoke(): never
     {
         throw new \LogicException('The firewall intercepts the logout.');

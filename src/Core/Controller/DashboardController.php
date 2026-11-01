@@ -15,7 +15,7 @@ use Symfony\Component\Routing\Attribute\Route;
 final class DashboardController extends AbstractController
 {
     #[AuthGrant]
-    #[Route('/{_locale}/app', name: 'app_dashboard', requirements: ['_locale' => '%app.locales%'], methods: ['GET'])]
+    #[Route('/app', name: 'app_dashboard', methods: ['GET'])]
     public function __invoke(TenantSwitcher $tenantSwitcher): Response
     {
         return $this->render('page/core/dashboard.html.twig', [

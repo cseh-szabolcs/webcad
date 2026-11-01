@@ -17,7 +17,7 @@ use Symfony\Component\Routing\Attribute\Route;
 final class RegistrationController extends AbstractController
 {
     #[GuestOnlyGrant]
-    #[Route('/{_locale}/register', name: 'user_auth_register', requirements: ['_locale' => '%app.locales%'], methods: ['GET', 'POST'])]
+    #[Route('/register', name: 'user_auth_register', methods: ['GET', 'POST'])]
     public function __invoke(Request $request): Response
     {
         $form = $this->createForm(RegistrationFormType::class);

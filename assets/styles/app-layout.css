@@ -1,6 +1,6 @@
 /*
  * Layout of the pages for logged-in users (templates/app.html.twig, <html class="layout-app">):
- * full width, a dark app bar, light or dark mode. Dark mode exists only here: the tokens of app.css
+ * full width, an app bar in the home page's hero purple-blue, light or dark mode. Dark mode exists only here: the tokens of app.css
  * are redefined for .layout-app, by the stored choice (cookie "theme" → <html data-theme>,
  * theme_controller.js) or, without one, by prefers-color-scheme. The two dark blocks must stay identical.
  */
@@ -8,10 +8,10 @@
 /* ---------- Tokens ---------- */
 
 .layout-app {
-    --app-bar: #17202b;
-    --app-bar-ink: #eef1f5;
-    --app-bar-muted: #a7b0bc;
-    --app-bar-hover: rgb(238 241 245 / 0.08);
+    --app-bar: var(--hero-bg);
+    --app-bar-ink: #ffffff;
+    --app-bar-muted: var(--hero-muted);
+    --app-bar-hover: rgb(255 255 255 / 0.08);
     --app-bar-accent: #a69df1;
     --app-header-height: 72px;
     --app-gutter: clamp(16px, 2.5vw, 32px);
@@ -37,7 +37,7 @@
         --focus: #a69df1;
         --shadow: 0 1px 0 rgb(0 0 0 / 0.2), 0 24px 48px -28px rgb(0 0 0 / 0.8);
         --shadow-sm: 0 10px 24px -16px rgb(0 0 0 / 0.7);
-        --app-bar: #0b0e13;
+        --app-bar: #1d1846;
     }
 }
 
@@ -60,21 +60,21 @@
     --focus: #a69df1;
     --shadow: 0 1px 0 rgb(0 0 0 / 0.2), 0 24px 48px -28px rgb(0 0 0 / 0.8);
     --shadow-sm: 0 10px 24px -16px rgb(0 0 0 / 0.7);
-    --app-bar: #0b0e13;
+    --app-bar: #1d1846;
 }
 
 /* ---------- App bar ---------- */
 
-/* Dark bar with the grid of the home page's bands, fading in towards the user menu */
+/* Bar in the hero's purple-blue and glow, with its grid fading in towards the user menu */
 .app-header {
-    --grid-major: rgb(238 241 245 / 0.07);
-    --grid-minor: rgb(238 241 245 / 0.03);
+    --grid-major: var(--band-grid);
+    --grid-minor: rgb(234 241 250 / 0.03);
     --grid-mask: linear-gradient(90deg, transparent 25%, #000 90%);
     position: sticky;
     top: 0;
     z-index: 5;
     background:
-        radial-gradient(40% 160% at 100% 0%, rgb(167 139 250 / 0.2), transparent 70%),
+        radial-gradient(40% 160% at 100% 0%, rgb(167 139 250 / 0.22), transparent 70%),
         var(--app-bar);
     color: var(--app-bar-ink);
     border-bottom: 1px solid rgb(0 0 0 / 0.3);
@@ -92,7 +92,7 @@
 .brand--app .brand__mark {
     width: 32px;
     height: 32px;
-    stroke: var(--app-bar-accent);
+    stroke: #c4bdf7; /* lighter than --app-bar-accent, so the mark stands out on the purple-blue */
 }
 
 .brand--app .brand__name {
@@ -168,7 +168,7 @@
  */
 .app-header .locale-switcher__toggle,
 .user-menu__toggle {
-    border: 1px solid rgb(238 241 245 / 0.12);
+    border: 1px solid rgb(255 255 255 / 0.16);
     background: var(--app-bar);
     color: var(--app-bar-muted);
 }
@@ -225,7 +225,7 @@
     height: 36px;
     border-radius: 50%;
     background: var(--app-bar-accent);
-    color: #17202b;
+    color: var(--hero-bg);
     font: 700 0.75rem/1 var(--font-mono);
 }
 
@@ -389,7 +389,7 @@
         height: 48px;
         margin-inline: calc(-1 * var(--app-gutter));
         padding-inline: calc(var(--app-gutter) - 12px);
-        border-top: 1px solid rgb(238 241 245 / 0.08);
+        border-top: 1px solid rgb(255 255 255 / 0.1);
     }
 
     .user-menu__name {

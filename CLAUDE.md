@@ -175,8 +175,10 @@ Rules that apply everywhere:
   `|trans` with a key in `translations/messages.de.yaml` (form labels and help are keys too;
   own constraint messages in `validators.de.yaml`). German is the only translation yet;
   `enabled_locales` is `[de, en]` and other locales fall back to German. The locale is the URL
-  prefix: page routes are `/{_locale}/…` with `requirements: ['_locale' => '%app.locales%']`
-  (`config/services.yaml`, keep in line with `enabled_locales`); the switcher in
+  prefix: `App\Core\Routing\LocalizedRouteLoader` (`config/routes.yaml`) puts `/{_locale}` in front
+  of every controller route, so `#[Route]` names only the rest (`/login`, `/` for the home page);
+  except paths under `/admin` and `/api` and routes declared with `#[GlobalRoute]` instead of `#[Route]`
+  (`App\Core\Routing\Attribute\`, same arguments; e.g. the root redirect). Symfony derives the `_locale` requirement from `enabled_locales`; the switcher in
   `templates/layout/` links the current route in every enabled locale. Forms use
   `templates/form/theme.html.twig`. No web fonts from third parties (system font stacks). Two layouts
   on `templates/layout/document.html.twig`: `base.html.twig` for the public pages (light only,

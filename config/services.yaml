@@ -10,8 +10,6 @@ parameters:
     # Tenant databases are named <prefix><tenant name><suffix>, see docs/architecture/tenancy.md
     app.tenant_database_prefix: app_
     app.tenant_database_suffix: ''
-    # Route requirement for the {_locale} prefix of pages; keep in line with framework.enabled_locales
-    app.locales: 'de|en'
     # Seconds a login lasts with remember-me; the tenant cookie (App\Core\Tenancy\TenantStorage) lives as long
     app.remember_me_lifetime: 604800
 
