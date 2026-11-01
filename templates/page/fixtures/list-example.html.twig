@@ -197,8 +197,16 @@
         <table class="list-example__table" x-show="!error">
             <thead>
                 <tr>
-                    <th x-bind:aria-sort="ariaSort('number')"><button type="button" class="list-example__sort" x-on:click="sortBy('number')">Number</button></th>
-                    <th x-bind:aria-sort="ariaSort('value')"><button type="button" class="list-example__sort" x-on:click="sortBy('value')">Value</button></th>
+                    <th x-bind:aria-sort="ariaSort('number')">
+                        <button type="button" class="list-example__sort" x-on:click="sortBy('number')">
+                            Number
+                        </button>
+                    </th>
+                    <th x-bind:aria-sort="ariaSort('value')">
+                        <button type="button" class="list-example__sort" x-on:click="sortBy('value')">
+                            Value
+                        </button>
+                    </th>
                 </tr>
             </thead>
             <tbody>
