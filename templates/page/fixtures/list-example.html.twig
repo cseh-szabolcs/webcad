@@ -115,15 +115,21 @@
             align-items: center;
         }
 
-        .list-example__page {
-            min-width: 64px;
-            font-variant-numeric: tabular-nums;
+        .list-example__link {
+            display: contents;
+        }
+
+        .list-example__gap {
+            min-width: 24px;
+            color: var(--ink-muted);
             text-align: center;
         }
 
         .list-example__pager button {
-            width: 32px;
+            min-width: 32px;
             height: 32px;
+            padding: 0 6px;
+            font-variant-numeric: tabular-nums;
             border: 1px solid var(--line);
             border-radius: var(--radius);
             background: var(--paper-raised);
@@ -141,6 +147,39 @@
         .list-example__pager button:disabled {
             opacity: 0.4;
             cursor: default;
+        }
+
+        .list-example__pager button[aria-current="page"] {
+            border-color: var(--accent);
+            background: var(--accent);
+            color: var(--accent-ink);
+            font-weight: 700;
+        }
+
+        /* Narrow screens: smaller links, and the pager below the count when it does not fit. */
+        .list-example__footer {
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 480px) {
+            .list-example__footer {
+                padding-inline: 12px;
+            }
+
+            .list-example__pager {
+                gap: 2px;
+            }
+
+            .list-example__pager button {
+                min-width: 28px;
+                height: 28px;
+                padding: 0 4px;
+                font-size: 0.875rem;
+            }
+
+            .list-example__gap {
+                min-width: 16px;
+            }
         }
     </style>
 {% endblock %}
@@ -175,7 +214,14 @@
             <span class="list-example__status" x-text="loading ? 'Loading …' : `${total} items`"></span>
             <nav class="list-example__pager" aria-label="Pages">
                 <button type="button" x-on:click="previousPage()" x-bind:disabled="!hasPreviousPage" aria-label="Previous page">‹</button>
-                <span class="list-example__page" x-text="`${page} / ${pageCount}`"></span>
+                <template x-for="link in pageLinks" x-bind:key="link.key">
+                    <span class="list-example__link">
+                        <button type="button" x-show="link.page" x-on:click="goToPage(link.page)"
+                            x-bind:aria-current="link.current ? 'page' : null"
+                            x-bind:aria-label="`Page ${link.page}`" x-text="link.page"></button>
+                        <span class="list-example__gap" x-show="!link.page" aria-hidden="true">…</span>
+                    </span>
+                </template>
                 <button type="button" x-on:click="nextPage()" x-bind:disabled="!hasNextPage" aria-label="Next page">›</button>
             </nav>
         </div>

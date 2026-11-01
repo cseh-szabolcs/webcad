@@ -3,8 +3,8 @@
 namespace App\Fixtures\Controller;
 
 use App\Core\Controller\BaseController;
+use App\Core\Dto\ListResultDto;
 use App\Fixtures\Dto\ListExampleItemDto;
-use App\Fixtures\Dto\ListExamplePageDto;
 use App\Fixtures\Dto\ListExampleQueryDto;
 use App\Security\Attribute\AuthGrant;
 use App\Security\Attribute\EnvironmentGrant;
@@ -18,7 +18,7 @@ use Symfony\Component\Routing\Attribute\Route;
 class ListExampleController extends BaseController
 {
     /** Number of items of the example, so the list has several pages. */
-    private const int ITEM_COUNT = 23;
+    private const int ITEM_COUNT = 200;
 
     #[EnvironmentGrant]
     #[AuthGrant]
@@ -47,14 +47,6 @@ class ListExampleController extends BaseController
             usort($items, static fn (ListExampleItemDto $a, ListExampleItemDto $b): int => $sign * ($a->{$query->sort} <=> $b->{$query->sort}));
         }
 
-        $pageCount = max(1, (int) ceil(count($items) / $query->pageSize));
-        $page = min($query->page, $pageCount);
-
-        return $this->json(new ListExamplePageDto(
-            items: array_slice($items, ($page - 1) * $query->pageSize, $query->pageSize),
-            total: count($items),
-            page: $page,
-            pageSize: $query->pageSize,
-        ));
+        return $this->json(ListResultDto::fromItems($items, $query->page, $query->pageSize));
     }
 }

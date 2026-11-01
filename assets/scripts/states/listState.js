@@ -28,6 +28,8 @@ export const listState = {
     sortDirection: 'asc',
     page: 1,
     pageSize: 20,
+    /** Pages shown on each side of the current one in `pageLinks`. */
+    pageLinkRadius: 2,
 
     init() {
         for (const field of ['query', 'sortKey', 'sortDirection']) {
@@ -140,6 +142,38 @@ export const listState = {
 
     get hasNextPage() {
         return this.page < this.pageCount;
+    },
+
+    /**
+     * The page numbers to show as links, like `1 … 6 7 8 9 10 … 20`: the first and the last page,
+     * `pageLinkRadius` pages on each side of the current one and a gap (`page: null`) for the pages
+     * left out. Always `2 * pageLinkRadius + 5` entries (or all pages, if there are no more), so
+     * the links do not move under the pointer: near the start or the end, more pages take the
+     * place of a gap (`1 2 3 4 5 6 7 … 20`). Each entry is `{ key, page, current }`, `key` for
+     * x-for (`gap-start`/`gap-end` for the gaps).
+     */
+    get pageLinks() {
+        const count = this.pageCount;
+        const radius = this.pageLinkRadius;
+        const slots = 2 * radius + 5;
+        const range = (from, to) => Array.from({ length: to - from + 1 }, (_, index) => from + index);
+
+        let pages;
+        if (count <= slots) {
+            pages = range(1, count);
+        } else if (this.page <= radius + 3) {
+            pages = [...range(1, slots - 2), null, count];
+        } else if (this.page >= count - radius - 2) {
+            pages = [1, null, ...range(count - slots + 3, count)];
+        } else {
+            pages = [1, null, ...range(this.page - radius, this.page + radius), null, count];
+        }
+
+        return pages.map((page, index) => ({
+            key: page ?? (index === 1 ? 'gap-start' : 'gap-end'),
+            page,
+            current: page === this.page,
+        }));
     },
 
     /** Goes to `page`, kept within 1 … pageCount. */

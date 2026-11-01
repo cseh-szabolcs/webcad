@@ -12,8 +12,8 @@ import { listState } from './listState.js';
  *
  * The request: GET `url` with `page`, `pageSize` and, when sorted, `sort` and `direction` in the
  * query string, marked as XHR (`X-Requested-With`). The answer: JSON
- * `{ items: [ … ], total: <all items>, page: <the page returned> }`; the backend brings a page
- * beyond the last one back into range.
+ * `{ items: [ … ], page: <the page returned>, pageSize, total: <number of all items> }`
+ * (App\Core\Dto\ListResultDto); the backend brings a page beyond the last one back into range.
  *
  * With `useHistory` (default) the page and the sorting are in the address (`?page=2&sort=name
  * &direction=desc`): every page change or sorting is a pushState() entry, Back and Forward load
@@ -25,7 +25,7 @@ import { listState } from './listState.js';
  */
 export const remoteListState = extend(listState, {
     url: '',
-    /** Number of all items, from the backend. */
+    /** Number of all items, from the backend; the last page follows from it. */
     total: 0,
     loading: false,
     /** The message of a failed load, '' otherwise. */
