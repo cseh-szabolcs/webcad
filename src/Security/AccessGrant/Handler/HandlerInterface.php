@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Security\AccessGrantHandler;
+namespace App\Security\AccessGrant\Handler;
 
-use App\Security\Attribute\GrantInterface;
+use App\Security\AccessGrant\Attribute\GrantInterface;
 use Symfony\Component\DependencyInjection\Attribute\AutoconfigureTag;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
 
-#[AutoconfigureTag(AccessGrantHandlerInterface::class)]
-interface AccessGrantHandlerInterface
+#[AutoconfigureTag(HandlerInterface::class)]
+interface HandlerInterface
 {
     /** Whether this handler checks `$attribute` (instanceof, so subclasses of a grant count too). */
     public function supports(GrantInterface $attribute): bool;

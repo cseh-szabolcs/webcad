@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Security\Attribute;
+namespace App\Security\AccessGrant\Attribute;
 
 use App\Core\Constants\Env;
 

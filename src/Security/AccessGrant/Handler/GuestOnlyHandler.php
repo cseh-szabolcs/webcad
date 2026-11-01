@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Security\AccessGrantHandler;
+namespace App\Security\AccessGrant\Handler;
 
-use App\Security\Attribute\GrantInterface;
-use App\Security\Attribute\GuestOnlyGrant;
+use App\Security\AccessGrant\Attribute\GrantInterface;
+use App\Security\AccessGrant\Attribute\GuestOnlyGrant;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
 
-class GuestOnlyHandler extends AbstractAccessGrantHandler
+class GuestOnlyHandler extends AbstractHandler
 {
     public function supports(GrantInterface $attribute): bool
     {

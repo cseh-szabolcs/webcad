@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Security\AccessGrantHandler;
+namespace App\Security\AccessGrant\Handler;
 
 use App\Core\Traits\EnvAwareTrait;
 use App\Security\AuthProvider;
@@ -10,7 +10,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
-abstract class AbstractAccessGrantHandler implements AccessGrantHandlerInterface
+abstract class AbstractHandler implements HandlerInterface
 {
     use EnvAwareTrait;
 

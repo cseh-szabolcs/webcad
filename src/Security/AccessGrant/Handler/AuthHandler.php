@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Security\AccessGrantHandler;
+namespace App\Security\AccessGrant\Handler;
 
-use App\Security\Attribute\AuthFullyGrant;
-use App\Security\Attribute\AuthGrant;
-use App\Security\Attribute\GrantInterface;
+use App\Security\AccessGrant\Attribute\AuthFullyGrant;
+use App\Security\AccessGrant\Attribute\AuthGrant;
+use App\Security\AccessGrant\Attribute\GrantInterface;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
 
-class AuthHandler extends AbstractAccessGrantHandler
+class AuthHandler extends AbstractHandler
 {
     public function supports(GrantInterface $attribute): bool
     {

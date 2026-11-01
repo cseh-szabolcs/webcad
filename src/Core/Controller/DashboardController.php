@@ -3,7 +3,7 @@
 namespace App\Core\Controller;
 
 use App\Core\Tenancy\TenantSwitcher;
-use App\Security\Attribute\AuthGrant;
+use App\Security\AccessGrant\Attribute\AuthGrant;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;

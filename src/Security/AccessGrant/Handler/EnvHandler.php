@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Security\AccessGrantHandler;
+namespace App\Security\AccessGrant\Handler;
 
-use App\Security\Attribute\EnvGrant;
-use App\Security\Attribute\GrantInterface;
+use App\Security\AccessGrant\Attribute\EnvGrant;
+use App\Security\AccessGrant\Attribute\GrantInterface;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
 
-class EnvHandler extends AbstractAccessGrantHandler
+class EnvHandler extends AbstractHandler
 {
     public function supports(GrantInterface $attribute): bool
     {

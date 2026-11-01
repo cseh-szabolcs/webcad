@@ -2,7 +2,7 @@
 
 namespace App\Core\Controller;
 
-use App\Security\Attribute\GuestOnlyGrant;
+use App\Security\AccessGrant\Attribute\GuestOnlyGrant;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;

@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Security\EventListener;
+namespace App\Security\AccessGrant;
 
 use App\Core\Component\Reader\AttributeReader;
 use App\Core\Traits\EnvAwareTrait;
-use App\Security\AccessGrantHandler\AccessGrantHandlerInterface;
-use App\Security\Attribute\GrantInterface;
+use App\Security\AccessGrant\Attribute\GrantInterface;
+use App\Security\AccessGrant\Handler\HandlerInterface;
 use App\Security\AuthProvider;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
@@ -18,8 +18,8 @@ final class AccessGrantListener
     use EnvAwareTrait;
 
     public function __construct(
-        /** @var callable():AccessGrantHandlerInterface[] */
-        #[AutowireIterator(tag: AccessGrantHandlerInterface::class)]
+        /** @var callable():HandlerInterface[] */
+        #[AutowireIterator(tag: HandlerInterface::class)]
         private readonly iterable $handlers,
         private readonly AuthProvider $auth,
         private readonly UrlGeneratorInterface $urlGenerator,
@@ -53,7 +53,7 @@ final class AccessGrantListener
         foreach ($attributes as $attribute) {
             $handled = false;
 
-            /** @var AccessGrantHandlerInterface $handler */
+            /** @var HandlerInterface $handler */
             foreach ($this->handlers as $handler) {
                 if (!$handler->supports($attribute)) {
                     continue;

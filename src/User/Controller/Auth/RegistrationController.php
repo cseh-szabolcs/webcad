@@ -2,7 +2,7 @@
 
 namespace App\User\Controller\Auth;
 
-use App\Security\Attribute\GuestOnlyGrant;
+use App\Security\AccessGrant\Attribute\GuestOnlyGrant;
 use App\User\Form\RegistrationFormType;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;

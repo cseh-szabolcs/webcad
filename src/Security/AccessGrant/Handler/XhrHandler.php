@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Security\AccessGrantHandler;
+namespace App\Security\AccessGrant\Handler;
 
-use App\Security\Attribute\GrantInterface;
-use App\Security\Attribute\XhrGrant;
+use App\Security\AccessGrant\Attribute\GrantInterface;
+use App\Security\AccessGrant\Attribute\XhrGrant;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
 
-class XhrHandler extends AbstractAccessGrantHandler
+class XhrHandler extends AbstractHandler
 {
     public function supports(GrantInterface $attribute): bool
     {

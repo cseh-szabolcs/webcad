@@ -3,7 +3,7 @@
 namespace App\User\Controller\Auth;
 
 use App\Core\Controller\BaseController;
-use App\Security\Attribute\GuestOnlyGrant;
+use App\Security\AccessGrant\Attribute\GuestOnlyGrant;
 use App\Security\Authenticator\UserAuthenticator;
 use App\Security\Exception\TenantNotFoundAuthenticationException;
 use Symfony\Component\HttpFoundation\Request;
