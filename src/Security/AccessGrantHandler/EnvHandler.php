@@ -2,20 +2,20 @@
 
 namespace App\Security\AccessGrantHandler;
 
-use App\Security\Attribute\EnvironmentGrant;
+use App\Security\Attribute\EnvGrant;
 use App\Security\Attribute\GrantInterface;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
 
-class EnvironmentHandler extends AbstractAccessGrantHandler
+class EnvHandler extends AbstractAccessGrantHandler
 {
     public function supports(GrantInterface $attribute): bool
     {
-        return $attribute instanceof EnvironmentGrant;
+        return $attribute instanceof EnvGrant;
     }
 
     public function handle(GrantInterface $attribute, ControllerEvent $event): ?false
     {
-        /** @var EnvironmentGrant $guard */
+        /** @var EnvGrant $guard */
         $guard = $attribute;
 
         if (!in_array($this->env, (array) $guard->env, true)) {

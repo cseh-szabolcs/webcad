@@ -5,7 +5,7 @@ namespace App\Security\Attribute;
 use App\Core\Constants\Env;
 
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD)]
-readonly class EnvironmentGrant implements GrantInterface
+readonly class EnvGrant implements GrantInterface
 {
     public function __construct(
         /**

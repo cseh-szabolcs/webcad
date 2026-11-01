@@ -7,7 +7,7 @@ use App\Core\Dto\ListResultDto;
 use App\Fixtures\Dto\ListExampleItemDto;
 use App\Fixtures\Dto\ListExampleQueryDto;
 use App\Security\Attribute\AuthGrant;
-use App\Security\Attribute\EnvironmentGrant;
+use App\Security\Attribute\EnvGrant;
 use App\Security\Attribute\XhrGrant;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,7 +20,7 @@ class ListExampleController extends BaseController
     /** Number of items of the example, so the list has several pages. */
     private const int ITEM_COUNT = 200;
 
-    #[EnvironmentGrant]
+    #[EnvGrant]
     #[AuthGrant]
     #[Route(path: '/page', name: 'page', methods: ['GET'])]
     public function page(): Response
@@ -28,7 +28,7 @@ class ListExampleController extends BaseController
         return $this->render('page/fixtures/list-example.html.twig');
     }
 
-    #[EnvironmentGrant]
+    #[EnvGrant]
     #[AuthGrant]
     #[XhrGrant]
     #[Route(path: '/data', name: 'data', methods: ['GET'])]
