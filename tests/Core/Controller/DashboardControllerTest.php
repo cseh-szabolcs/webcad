@@ -56,7 +56,7 @@ final class DashboardControllerTest extends WebTestCase
         self::assertSelectorTextSame('.page-head__title', 'Willkommen, Erika Muster');
         self::assertSelectorTextSame('.user-menu__name', 'Erika Muster');
         self::assertSelectorTextSame('.user-menu__avatar', 'EM');
-        self::assertCount(3, $crawler->filter('.user-menu [data-controller="theme"] button[data-theme-choice]'));
+        self::assertCount(3, $crawler->filter('.user-menu [data-controller="layout--theme"] button[data-theme-choice]'));
         self::assertSelectorTextContains('.user-menu__links', 'Einstellungen');
         self::assertSelectorExists('.user-menu a.user-menu__logout[href="/de/logout"]');
     }

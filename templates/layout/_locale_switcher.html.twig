@@ -1,6 +1,6 @@
 {# Links the current page in every enabled locale; pages without a route (e.g. errors) fall back to the home page. #}
 {% set current = app.request.locale %}
-<details class="locale-switcher" data-controller="dropdown">
+<details class="locale-switcher" data-controller="layout--dropdown">
     <summary class="locale-switcher__toggle" aria-label="{{ 'layout.locale.label'|trans }}: {{ current|locale_name(current)|capitalize }}">
         <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="M2.5 10h15M10 2.5c2.2 2.1 3.3 4.6 3.3 7.5s-1.1 5.4-3.3 7.5c-2.2-2.1-3.3-4.6-3.3-7.5s1.1-5.4 3.3-7.5z"/></svg>
         <span>{{ current|upper }}</span>

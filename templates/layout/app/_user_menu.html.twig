@@ -1,7 +1,7 @@
 {# The logged-in user's name; a click opens the layer with theme, settings and logout. #}
 {% set user_name = app.user.name ?? app.user.email %}
 {% set initials = user_name|split(' ')|slice(0, 2)|map(part => part|first|upper)|join %}
-<details class="user-menu" data-controller="dropdown">
+<details class="user-menu" data-controller="layout--dropdown">
     <summary class="user-menu__toggle">
         <span class="user-menu__avatar" aria-hidden="true">{{ initials }}</span>
         <span class="user-menu__name">{{ user_name }}</span>
@@ -14,7 +14,7 @@
             {% if app.user.name %}<span>{{ app.user.email }}</span>{% endif %}
         </div>
 
-        <div class="user-menu__section" data-controller="theme">
+        <div class="user-menu__section" data-controller="layout--theme">
             <span class="user-menu__label" id="user-menu-theme">{{ 'app.user_menu.theme.label'|trans }}</span>
             <div class="segmented" role="group" aria-labelledby="user-menu-theme">
                 {# Sun, moon and screen, as most apps show them #}
@@ -25,8 +25,8 @@
                 } %}
                 {% for theme, icon in theme_icons %}
                     <button type="button" class="segmented__option" aria-pressed="false"
-                            data-theme-target="option" data-theme-choice="{{ theme }}"
-                            data-action="theme#choose">
+                            data-layout--theme-target="option" data-theme-choice="{{ theme }}"
+                            data-action="layout--theme#choose">
                         <svg class="segmented__icon" viewBox="0 0 20 20" aria-hidden="true">{{ icon|raw }}</svg>
                         {{ ('app.user_menu.theme.' ~ theme)|trans }}
                     </button>
