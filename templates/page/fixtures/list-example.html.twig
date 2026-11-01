@@ -224,9 +224,13 @@
                 <button type="button" x-on:click="previousPage()" x-bind:disabled="!hasPreviousPage" aria-label="Previous page">‹</button>
                 <template x-for="link in pageLinks" x-bind:key="link.key">
                     <span class="list-example__link">
-                        <button type="button" x-show="link.page" x-on:click="goToPage(link.page)"
+                        <button
+                            type="button"
+                            x-show="link.page"
+                            x-on:click="goToPage(link.page)"
                             x-bind:aria-current="link.current ? 'page' : null"
-                            x-bind:aria-label="`Page ${link.page}`" x-text="link.page"></button>
+                            x-bind:aria-label="`Page ${link.page}`"
+                            x-text="link.page"></button>
                         <span class="list-example__gap" x-show="!link.page" aria-hidden="true">…</span>
                     </span>
                 </template>
