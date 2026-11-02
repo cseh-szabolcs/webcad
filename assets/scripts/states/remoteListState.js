@@ -31,8 +31,8 @@ export const remoteListState = extend(listState, {
     /** The message of a failed load, '' otherwise. */
     error: '',
     useHistory: true,
-    /** Counts the requests, so the answer of an older one that arrives later is ignored. */
-    requestNumber: 0,
+    /** The AbortController of the running request; a new request (or destroy()) aborts it. */
+    abortController: null,
     popStateListener: null,
 
     init() {
@@ -52,6 +52,8 @@ export const remoteListState = extend(listState, {
         if (this.popStateListener) {
             window.removeEventListener('popstate', this.popStateListener);
         }
+        this.abortController?.abort();
+        this.abortController = null;
     },
 
     get pageItems() {
@@ -127,8 +129,11 @@ export const remoteListState = extend(listState, {
         }
     },
 
+    /** Loads the current page; a request still running is aborted, its answer never applied. */
     async load() {
-        const requestNumber = ++this.requestNumber;
+        this.abortController?.abort();
+        const controller = new AbortController();
+        this.abortController = controller;
         this.loading = true;
         this.error = '';
         try {
@@ -136,12 +141,13 @@ export const remoteListState = extend(listState, {
             this.writeParams(address.searchParams, true);
             const response = await fetch(address, {
                 headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                signal: controller.signal,
             });
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }
             const data = await response.json();
-            if (requestNumber !== this.requestNumber) {
+            if (controller.signal.aborted) {
                 return;
             }
             this.items = data.items;
@@ -152,12 +158,14 @@ export const remoteListState = extend(listState, {
                 this.replaceLocation();
             }
         } catch (error) {
-            if (requestNumber === this.requestNumber) {
+            // An aborted request rejects with an AbortError: not an error, a newer request runs.
+            if (!controller.signal.aborted) {
                 this.error = error.message;
             }
         } finally {
-            if (requestNumber === this.requestNumber) {
+            if (!controller.signal.aborted) {
                 this.loading = false;
+                this.abortController = null;
             }
         }
     },
