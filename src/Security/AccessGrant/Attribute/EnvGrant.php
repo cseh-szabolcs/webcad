@@ -11,7 +11,7 @@ readonly class EnvGrant implements GrantInterface
         /**
          * @var Env[]|Env $env
          */
-        public array|Env $env = [Env::Dev, Env::Test],
+        public array|Env $env,
     ) {
     }
 }

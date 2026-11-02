@@ -6,8 +6,7 @@ use App\Core\Controller\BaseController;
 use App\Core\Dto\ListResultDto;
 use App\Fixtures\Dto\ListExampleItemDto;
 use App\Fixtures\Dto\ListExampleQueryDto;
-use App\Security\AccessGrant\Attribute\AuthGrant;
-use App\Security\AccessGrant\Attribute\EnvGrant;
+use App\Security\AccessGrant\Attribute\LocalGrant;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapQueryString;
@@ -19,14 +18,14 @@ class ListExampleController extends BaseController
     /** Number of items of the example, so the list has several pages. */
     private const int ITEM_COUNT = 200;
 
-    #[EnvGrant]
+    #[LocalGrant]
     #[Route(name: 'index', methods: ['GET'])]
     public function index(): Response
     {
         return $this->render('page/fixtures/list-example.html.twig');
     }
 
-    #[EnvGrant]
+    #[LocalGrant]
     #[Route(path: '/data', name: 'data', methods: ['GET'])]
     public function data(#[MapQueryString] ListExampleQueryDto $query = new ListExampleQueryDto()): JsonResponse
     {
