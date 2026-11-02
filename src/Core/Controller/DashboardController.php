@@ -14,7 +14,6 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 final class DashboardController extends AbstractController
 {
-    #[AuthGrant]
     #[Route('/app', name: 'app_dashboard', methods: ['GET'])]
     public function __invoke(TenantSwitcher $tenantSwitcher): Response
     {

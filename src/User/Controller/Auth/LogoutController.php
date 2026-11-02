@@ -2,6 +2,7 @@
 
 namespace App\User\Controller\Auth;
 
+use App\Security\AccessGrant\Attribute\AuthGrant;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
@@ -9,6 +10,7 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 final class LogoutController
 {
+    #[AuthGrant]
     #[Route('/logout', name: 'user_auth_logout', methods: ['GET'])]
     public function __invoke(): never
     {
