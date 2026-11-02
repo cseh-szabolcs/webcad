@@ -8,6 +8,63 @@
 
 {% block title %}List example – {{ 'layout.brand'|trans }}{% endblock %}
 
+{% block body %}
+    <header class="page-head">
+        <p class="eyebrow">Fixtures</p>
+        <h1 class="page-head__title">List example</h1>
+        <p class="page-head__lead">Pages and sorting come from the backend; the address keeps them for Back and Forward.</p>
+    </header>
+
+    <section class="panel list-example" x-bind:aria-busy="loading"
+        {{ stimulus_controller('page--fixtures--list-example', { state: { url: path('fixtures_list_example_data') } }) }}>
+        <p class="list-example__error" x-show="error" x-text="`Loading failed: ${error}`"></p>
+        <table class="list-example__table" x-show="!error">
+            <thead>
+                <tr>
+                    <th x-bind:aria-sort="ariaSort('number')">
+                        <button type="button" class="list-example__sort" x-on:click="sortBy('number')">
+                            Number
+                        </button>
+                    </th>
+                    <th x-bind:aria-sort="ariaSort('value')">
+                        <button type="button" class="list-example__sort" x-on:click="sortBy('value')">
+                            Value
+                        </button>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <template x-for="item in pageItems" x-bind:key="item.number">
+                    <tr>
+                        <td x-text="item.number"></td>
+                        <td x-text="item.value"></td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+        <div class="list-example__footer">
+            <span class="list-example__status" x-text="loading ? 'Loading …' : `${total} items`"></span>
+            <nav class="list-example__pager" aria-label="Pages">
+                <button type="button" x-on:click="previousPage()" x-bind:disabled="!hasPreviousPage" aria-label="Previous page">‹</button>
+                <template x-for="link in pageLinks" x-bind:key="link.key">
+                    <span class="list-example__link">
+                        <button
+                            type="button"
+                            x-show="link.page"
+                            x-on:click="goToPage(link.page)"
+                            x-bind:aria-current="link.current ? 'page' : null"
+                            x-bind:aria-label="`Page ${link.page}`"
+                            x-text="link.page"></button>
+                        <span class="list-example__gap" x-show="!link.page" aria-hidden="true">…</span>
+                    </span>
+                </template>
+                <button type="button" x-on:click="nextPage()" x-bind:disabled="!hasNextPage" aria-label="Next page">›</button>
+            </nav>
+        </div>
+    </section>
+{% endblock %}
+
+
 {% block stylesheets %}
     {{ parent() }}
     <style>
@@ -182,60 +239,4 @@
             }
         }
     </style>
-{% endblock %}
-
-{% block body %}
-    <header class="page-head">
-        <p class="eyebrow">Fixtures</p>
-        <h1 class="page-head__title">List example</h1>
-        <p class="page-head__lead">Pages and sorting come from the backend; the address keeps them for Back and Forward.</p>
-    </header>
-
-    <section class="panel list-example" x-bind:aria-busy="loading"
-        {{ stimulus_controller('page--fixtures--list-example', { state: { url: path('fixtures_list_example_data') } }) }}>
-        <p class="list-example__error" x-show="error" x-text="`Loading failed: ${error}`"></p>
-        <table class="list-example__table" x-show="!error">
-            <thead>
-                <tr>
-                    <th x-bind:aria-sort="ariaSort('number')">
-                        <button type="button" class="list-example__sort" x-on:click="sortBy('number')">
-                            Number
-                        </button>
-                    </th>
-                    <th x-bind:aria-sort="ariaSort('value')">
-                        <button type="button" class="list-example__sort" x-on:click="sortBy('value')">
-                            Value
-                        </button>
-                    </th>
-                </tr>
-            </thead>
-            <tbody>
-                <template x-for="item in pageItems" x-bind:key="item.number">
-                    <tr>
-                        <td x-text="item.number"></td>
-                        <td x-text="item.value"></td>
-                    </tr>
-                </template>
-            </tbody>
-        </table>
-        <div class="list-example__footer">
-            <span class="list-example__status" x-text="loading ? 'Loading …' : `${total} items`"></span>
-            <nav class="list-example__pager" aria-label="Pages">
-                <button type="button" x-on:click="previousPage()" x-bind:disabled="!hasPreviousPage" aria-label="Previous page">‹</button>
-                <template x-for="link in pageLinks" x-bind:key="link.key">
-                    <span class="list-example__link">
-                        <button
-                            type="button"
-                            x-show="link.page"
-                            x-on:click="goToPage(link.page)"
-                            x-bind:aria-current="link.current ? 'page' : null"
-                            x-bind:aria-label="`Page ${link.page}`"
-                            x-text="link.page"></button>
-                        <span class="list-example__gap" x-show="!link.page" aria-hidden="true">…</span>
-                    </span>
-                </template>
-                <button type="button" x-on:click="nextPage()" x-bind:disabled="!hasNextPage" aria-label="Next page">›</button>
-            </nav>
-        </div>
-    </section>
 {% endblock %}
