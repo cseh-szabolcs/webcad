@@ -50,7 +50,7 @@ final class DashboardControllerTest extends WebTestCase
 
         $nav = $crawler->filter('.app-nav__link');
         self::assertSame(['Dashboard', 'Pläne', 'Kunden', 'Verwaltung'], $nav->each(static fn ($link) => $link->text()));
-        self::assertSame(['/de/app', '#', '#', '#'], $nav->each(static fn ($link) => $link->attr('href')));
+        self::assertSame(['/de/app', '#', '/de/customers', '#'], $nav->each(static fn ($link) => $link->attr('href')));
         self::assertSelectorTextSame('.app-nav__link[aria-current="page"]', 'Dashboard');
 
         self::assertSelectorTextSame('.page-head__title', 'Willkommen, Erika Muster');

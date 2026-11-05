@@ -10,18 +10,20 @@ import { listState } from './listState.js';
  *
  *     {{ stimulus_controller('…', { state: { url: path('…') } }) }}
  *
- * The request: GET `url` with `page`, `pageSize` and, when sorted, `sort` and `direction` in the
- * query string, marked as XHR (`X-Requested-With`). The answer: JSON
+ * The request: GET `url` with `page`, `pageSize` and, when set, `query`, `sort` and `direction` in
+ * the query string, marked as XHR (`X-Requested-With`). The answer: JSON
  * `{ items: [ … ], page: <the page returned>, pageSize, total: <number of all items> }`
  * (App\Core\Dto\ListResultDto); the backend brings a page beyond the last one back into range.
  *
- * With `useHistory` (default) the page and the sorting are in the address (`?page=2&sort=name
- * &direction=desc`): every page change or sorting is a pushState() entry, Back and Forward load
+ * With `useHistory` (default) the page, the search and the sorting are in the address (`?page=2
+ * &query=muster&sort=name&direction=desc`): every page change or sorting is a pushState() entry,
+ * Back and Forward load
  * that page again, and a reloaded or shared address opens the same page. Only one list per page
  * may use it, as the parameter names are fixed.
  *
- * Search (`query`) is not supported yet: it would have to go to the backend too. A state that
- * overrides init() or destroy() must call `remoteListState.init.call(this)` (and destroy).
+ * Searching is up to the backend, which has to read `query`, and to the state, which calls load()
+ * after a new `query`. A state that overrides init() or destroy() must call
+ * `remoteListState.init.call(this)` (and destroy).
  */
 export const remoteListState = extend(listState, {
     url: '',
@@ -105,6 +107,7 @@ export const remoteListState = extend(listState, {
     readLocation() {
         const params = new URLSearchParams(window.location.search);
         this.page = Math.max(1, Number.parseInt(params.get('page') ?? '', 10) || 1);
+        this.query = params.get('query') ?? '';
         this.sortKey = params.get('sort') ?? '';
         this.sortDirection = params.get('direction') === 'desc' ? 'desc' : 'asc';
     },
@@ -114,7 +117,7 @@ export const remoteListState = extend(listState, {
      * page 1, the address leaves out what is the default.
      */
     writeParams(params, forRequest) {
-        for (const name of ['page', 'pageSize', 'sort', 'direction']) {
+        for (const name of ['page', 'pageSize', 'query', 'sort', 'direction']) {
             params.delete(name);
         }
         if (forRequest || this.page > 1) {
@@ -122,6 +125,9 @@ export const remoteListState = extend(listState, {
         }
         if (forRequest) {
             params.set('pageSize', String(this.pageSize));
+        }
+        if (this.query.trim() !== '') {
+            params.set('query', this.query.trim());
         }
         if (this.sortKey !== '') {
             params.set('sort', this.sortKey);

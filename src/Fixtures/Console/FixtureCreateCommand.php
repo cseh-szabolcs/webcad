@@ -6,6 +6,9 @@ use App\Core\Constants\Role;
 use App\Core\Tenancy\Exception\TenantNotSelectedException;
 use App\Core\Tenancy\TenantProvisioner;
 use App\Core\Tenancy\TenantSwitcher;
+use App\Customer\Entity\Company;
+use App\Customer\Entity\Customer;
+use App\Customer\Entity\Tag;
 use App\Plan\Dto\PlanDocumentDto;
 use App\Plan\PlanFactory;
 use App\Project\Entity\Project;
@@ -24,7 +27,8 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Development data: resets the tenant's database (every table dropped, schema rebuilt from the
  * entities) and creates one project with the sample plan the editor is tested with (the backend
- * copy of depts/editor/src/cad/__fixtures__/sample-plan.json), and a user to log in with. The plan gets the id the editor
+ * copy of depts/editor/src/cad/__fixtures__/sample-plan.json), a user to log in with, and some
+ * customers with companies and tags. The plan gets the id the editor
  * loads in dev when the URL names no plan (DEV_PLAN_ID in App.tsx), unless --plan-id names
  * another. Registered in dev only (and in test, for its test), never in prod.
  */
@@ -32,7 +36,7 @@ use Symfony\Component\Uid\Uuid;
 #[When(env: 'test')]
 #[AsCommand(
     name: 'app:fixture:create',
-    description: 'Reset the tenant database and create the sample plan in a new project and a user',
+    description: 'Reset the tenant database and create the sample plan in a new project, a user and customers',
 )]
 final readonly class FixtureCreateCommand
 {
@@ -40,6 +44,21 @@ final readonly class FixtureCreateCommand
     public const string DEV_PLAN_ID = '01994f4e-6f3a-7c2d-9b1e-5a3c2d1e0f42';
     public const string DEV_USER_EMAIL = 'demo@webcad.test';
     public const string DEV_USER_PASSWORD = 'demo';
+
+    private const array COMPANIES = [
+        ['name' => 'Nordbau Projekt GmbH', 'email' => 'info@nordbau.example.com', 'phone' => '+49 30 5550100'],
+        ['name' => 'Wohnbau Süd eG', 'email' => 'kontakt@wohnbau-sued.example.com', 'phone' => '+49 89 5550100'],
+        ['name' => 'Stadtwerke Musterstadt', 'email' => 'info@stadtwerke.example.com', 'phone' => null],
+    ];
+
+    /** With and without a company (by its name), so the list also shows empty fields and customers without a tag. */
+    private const array CUSTOMERS = [
+        ['company' => 'Nordbau Projekt GmbH', 'firstname' => 'Erika', 'lastname' => 'Muster', 'email' => 'e.muster@nordbau.example.com', 'phone' => '+49 30 5550101', 'tags' => ['Bauträger', 'Stammkunde']],
+        ['company' => null, 'firstname' => 'Jonas', 'lastname' => 'Beispiel', 'email' => 'jonas.beispiel@example.com', 'phone' => '+49 170 5550102', 'tags' => ['Bauherr']],
+        ['company' => 'Wohnbau Süd eG', 'firstname' => 'Lena', 'lastname' => 'Hofmann', 'email' => 'hofmann@wohnbau-sued.example.com', 'phone' => '+49 89 5550103', 'tags' => ['Bauträger']],
+        ['company' => 'Stadtwerke Musterstadt', 'firstname' => null, 'lastname' => null, 'email' => 'bauamt@stadtwerke.example.com', 'phone' => '+49 40 5550104', 'tags' => ['Stammkunde', 'Öffentlich']],
+        ['company' => null, 'firstname' => 'Mira', 'lastname' => 'Keller', 'email' => 'mira.keller@example.com', 'phone' => null, 'tags' => []],
+    ];
 
     public function __construct(
         private TenantSwitcher $tenantSwitcher,
@@ -94,6 +113,7 @@ final readonly class FixtureCreateCommand
         $plan = $this->entityManager->wrapInTransaction(function () use ($project, $document, $planId, $user) {
             $this->entityManager->persist($project);
             $this->entityManager->persist($user);
+            $this->createCustomers();
 
             return $this->planFactory->create($project, $document, Uuid::fromString($planId));
         });
@@ -105,5 +125,37 @@ final readonly class FixtureCreateCommand
         }
 
         return Command::SUCCESS;
+    }
+
+    /** Each company of COMPANIES and each tag of CUSTOMERS once, shared by the customers naming it. */
+    private function createCustomers(): void
+    {
+        $companies = [];
+        foreach (self::COMPANIES as $data) {
+            $companies[$data['name']] = (new Company($data['name']))
+                ->setEmail($data['email'])
+                ->setPhone($data['phone']);
+            $this->entityManager->persist($companies[$data['name']]);
+        }
+
+        $tags = [];
+        foreach (self::CUSTOMERS as $data) {
+            $customer = (new Customer())
+                ->setCompany(null !== $data['company'] ? $companies[$data['company']] : null)
+                ->setFirstname($data['firstname'])
+                ->setLastname($data['lastname'])
+                ->setEmail($data['email'])
+                ->setPhone($data['phone']);
+
+            foreach ($data['tags'] as $name) {
+                if (!isset($tags[$name])) {
+                    $tags[$name] = new Tag($name);
+                    $this->entityManager->persist($tags[$name]);
+                }
+                $customer->addTag($tags[$name]);
+            }
+
+            $this->entityManager->persist($customer);
+        }
     }
 }

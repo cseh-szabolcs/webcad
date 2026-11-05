@@ -94,6 +94,80 @@ dashboard:
         title: Zuletzt bearbeitet
         empty: Hier erscheinen bald Ihre zuletzt bearbeiteten Pläne.
 
+customer:
+    nav:
+        label: Kundenbereich
+        customers: Kontakte
+        companies: Firmen
+        tags: Tags
+    field:
+        name: Name
+        contact: Kontakt
+        company_name: Firmenname
+        tag_name: Name
+        email: E-Mail
+        phone: Telefon
+        tags: Tags
+        created: Erstellt
+        updated: Geändert
+    list:
+        title: Kunden
+        heading: Kunden
+        lead: Bauherren und Ansprechpartner Ihrer Projekte.
+        create: Kunde hinzufügen
+        loading: Kunden werden geladen …
+        empty: Noch keine Kunden vorhanden.
+        no_results: Keine Kunden gefunden.
+        error: 'Die Kunden konnten nicht geladen werden:'
+        search_label: Kunden suchen
+        search_placeholder: Name, Firma oder E-Mail suchen
+        filter_label: Nach Tag filtern
+        all_tags: Alle Tags
+        sort_label: Sortierung
+        sort:
+            updated: Zuletzt geändert
+            created: Zuletzt erstellt
+            name_asc: Name A–Z
+            name_desc: Name Z–A
+        count_one: '%count% Kunde'
+        count_other: '%count% Kunden'
+        private: Privat
+        company_contact: Firmenkontakt
+        unnamed: Ohne Namen
+        actions: Aktionen
+        actions_for: 'Aktionen für %name%'
+        edit: Bearbeiten
+        delete: Löschen
+        create_plan: Plan anlegen
+    pager:
+        label: Seiten
+        previous: Vorherige Seite
+        next: Nächste Seite
+        page: 'Seite %page%'
+    detail:
+        label: Kundendetails
+        close: Details schließen
+        no_tags: Keine Tags
+        not_set: Nicht hinterlegt
+        plans: Pläne
+        plans_empty: Verknüpfte Pläne dieses Kunden erscheinen hier.
+    company_list:
+        title: Firmen
+        heading: Firmen
+        lead: Die Firmen, zu denen Ihre Kunden gehören.
+        create: Firma hinzufügen
+        loading: Firmen werden geladen …
+        empty: Noch keine Firmen vorhanden.
+        error: 'Die Firmen konnten nicht geladen werden:'
+    tag_list:
+        title: Tags
+        heading: Tags
+        lead: Schlagworte, mit denen Sie Ihre Kunden ordnen.
+        create: Tag erstellen
+        loading: Tags werden geladen …
+        empty: Noch keine Tags vorhanden.
+        error: 'Die Tags konnten nicht geladen werden:'
+
 user:
     login:
         title: Anmelden

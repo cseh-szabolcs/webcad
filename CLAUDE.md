@@ -15,9 +15,11 @@ apps in one repo:
   permissions, document versions, export. Doctrine ORM, Messenger, Security, Twig,
   AssetMapper and Stimulus are installed. Pages so far: the home page (`/{_locale}`), the login
   (`/{_locale}/login`, with the office = tenant name; logout `/{_locale}/logout`), the registration
-  form (`/{_locale}/register`, only displays and validates; registering comes later) and a
+  form (`/{_locale}/register`, only displays and validates; registering comes later), a
   dummy dashboard for logged-in users (`/{_locale}/app`), to which home, login and
-  registration redirect them.
+  registration redirect them, and the customer area with its tabs: the lists of the
+  customers (`/{_locale}/customers`, with search, tag filter, sorting and a detail view), companies (`…/customers/companies`) and tags
+  (`…/customers/tags`); their create and edit pages come later.
 - **CAD editor frontend** in `depts/editor/`: Vite + React 19 + TypeScript + Paper.js,
   **being rebuilt from scratch, closer to AutoCAD behaviour**, in small steps. It loads a plan
   through the API and draws and edits it (selection, snapping, tracking, drawing commands,
@@ -73,7 +75,7 @@ docker compose exec php bin/console app:tenant:list
 docker compose exec php bin/console app:tenant:delete <hash>   # drops the database, asks first
 docker compose exec php bin/console app:tenants:run "<cmd>"
 docker compose exec php bin/console <cmd> --tenant=<hash>    # any command, on that tenant
-docker compose exec php bin/console app:fixture:create      # dev only: reset the tenant database, then the sample plan in a new project and a user (asks first; -f, --project-name=…, --plan-id=<uuid>, --user-email=…, --user-password=…)
+docker compose exec php bin/console app:fixture:create      # dev only: reset the tenant database, then the sample plan in a new project, a user and 5 customers with 3 companies and tags (asks first; -f, --project-name=…, --plan-id=<uuid>, --user-email=…, --user-password=…)
 ```
 
 **No migrations during this early phase:** the schema comes from the entities
@@ -124,7 +126,7 @@ Rules that apply everywhere:
 - **Backend layout by business area**, not by layer; namespaces follow the folders:
   `src/Core/` is technology only (`Tenancy/`, `Doctrine/`, `OpenApi/`,
   `Controller/IndexController` for the home page, `DashboardController` for the start page),
-  `src/Project/`, `src/Plan/`, `src/Fixtures/`, `src/User/` (`Entity/User` in the tenant EM, login,
+  `src/Project/`, `src/Plan/`, `src/Customer/`, `src/Fixtures/`, `src/User/` (`Entity/User` in the tenant EM, login,
   logout and registration pages, `Form/`), `src/Security/` (authenticators, `UserProvider`; tokens
   in the main EM, for later). Per area:
   - `Entity/` holds **only** entities and their embeddables (mapped per folder: a new folder
@@ -142,7 +144,8 @@ Rules that apply everywhere:
     `ControllerResultListener` serializes like `AbstractController::json()` (ETag → 304 on a
     matching `If-None-Match`); query results stay free of HTTP.
   - Dependencies point one way (`Plan` may know `Project`, not the reverse; `Core` knows no
-    area). Tests mirror the folders (`tests/Core/Tenancy/…`, `tests/Plan/Controller/Api/…`).
+    area, except the discriminator map of `BaseTag`: a purpose of tags is a subclass in its area
+    and an entry there). Tests mirror the folders (`tests/Core/Tenancy/…`, `tests/Plan/Controller/Api/…`).
 - **CQRS** with separate Messenger `command.bus` / `query.bus` (`docs/architecture/cqrs.md`):
   queries return DTOs and never modify state; commands are named after business tasks; command
   handlers only `persist()` (the `doctrine_transaction` middleware flushes); handlers pinned to
@@ -151,7 +154,8 @@ Rules that apply everywhere:
   only after asking; a read needs a fixed number of queries (fetch joins). DQL UUID parameters
   need `UuidType::NAME`, or they silently match nothing.
 - **Two entity managers**: `tenant` (default; `src/Plan/Entity`, `src/Project/Entity`,
-  `src/User/Entity`) and `main` (app_main; `src/Core/Tenancy/Entity`, `src/Security/Entity`). `TenantConnection` refuses queries before a
+  `src/Customer/Entity`, `src/User/Entity`, `src/Core/Entity` for entities shared by the areas like
+  `BaseTag`) and `main` (app_main; `src/Core/Tenancy/Entity`, `src/Security/Entity`). `TenantConnection` refuses queries before a
   tenant is selected; a `KernelTestCase` selects it with `TenantSwitcher` itself.
 - **Plans** are stored relationally and versioned (`Plan` → draft/head `PlanVersion` → content
   entities); display values are columns of the element subclasses. A new display value is a
@@ -185,7 +189,8 @@ Rules that apply everywhere:
   `assets/styles/app.css`) and `app.html.twig` for logged-in users (full width, app bar with the
   locale switcher and the user menu with light/dark/system mode in `templates/layout/app/`,
   `assets/styles/app-layout.css`; the theme is the cookie `theme`, set by the Stimulus `theme`
-  controller and rendered as `<html data-theme>`).
+  controller and rendered as `<html data-theme>`). The pages of an area are linked by tabs on the
+  page itself (`.segmented--tabs`, e.g. `templates/page/customer/_tabs.html.twig`).
 - The editor build writes `editor/[name].js` without hashes, because Symfony (AssetMapper) is
   meant to handle cache-busting. Integration of the built editor into Twig is not wired up yet.
 

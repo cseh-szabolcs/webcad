@@ -37,8 +37,9 @@ Doctrine setup
   `App\Core\Tenancy\TenantConnection` connects to the selected tenant's database instead
   of `app_main`, and throws `TenantNotSelectedException` while no tenant is selected. So nothing can
   read or write `app_main` by accident. It maps the entity folders of the business areas whose data
-  belongs to one customer: `src/Plan/Entity` (mapping `Plan`), `src/Project/Entity` (`Project`) and
-  `src/User/Entity` (`User`).
+  belongs to one customer: `src/Plan/Entity` (mapping `Plan`), `src/Project/Entity` (`Project`),
+  `src/Customer/Entity` (`Customer`), `src/User/Entity` (`User`) and `src/Core/Entity` (`Core`, the
+  entities shared by the areas, like the tag root `BaseTag`).
 - **`main`** maps `src/Core/Tenancy/Entity` (mapping `Tenancy`) and `src/Security/Entity` (`Security`).
   Inject it explicitly:
   `#[Autowire(service: 'doctrine.orm.main_entity_manager')]`, or the connection as

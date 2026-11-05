@@ -1,0 +1,13 @@
+{# The tags of customers (App\Customer\Controller\TagListController). #}
+{% extends 'page/customer/_list_layout.html.twig' %}
+
+{% set texts = 'customer.tag_list' %}
+{% set data_route = 'customer_tag_list_data' %}
+
+{% block columns %}
+    <th scope="col">{{ 'customer.field.tag_name'|trans }}</th>
+{% endblock %}
+
+{% block cells %}
+    <td x-text="item.name"></td>
+{% endblock %}

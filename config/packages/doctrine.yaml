@@ -24,6 +24,19 @@ doctrine:
                 identity_generation_preferences:
                     Doctrine\DBAL\Platforms\PostgreSQLPlatform: identity
                 mappings:
+                    # Entities shared by the areas (BaseTag)
+                    Core:
+                        type: attribute
+                        is_bundle: false
+                        dir: '%kernel.project_dir%/src/Core/Entity'
+                        prefix: 'App\Core\Entity'
+                        alias: Core
+                    Customer:
+                        type: attribute
+                        is_bundle: false
+                        dir: '%kernel.project_dir%/src/Customer/Entity'
+                        prefix: 'App\Customer\Entity'
+                        alias: Customer
                     Plan:
                         type: attribute
                         is_bundle: false

@@ -42,6 +42,8 @@ final class EntityMappingTest extends KernelTestCase
      */
     public static function entityFolders(): iterable
     {
+        yield 'core' => ['src/Core/Entity', 'App\Core\Entity', 'tenant'];
+        yield 'customer' => ['src/Customer/Entity', 'App\Customer\Entity', 'tenant'];
         yield 'plan' => ['src/Plan/Entity', 'App\Plan\Entity', 'tenant'];
         yield 'project' => ['src/Project/Entity', 'App\Project\Entity', 'tenant'];
         yield 'main' => ['src/Core/Tenancy/Entity', 'App\Core\Tenancy\Entity', 'main'];

@@ -1,0 +1,182 @@
+{#
+ # The customers (App\Customer\Controller\CustomerListController), with search, tag filter and
+ # sorting in the card and the detail view of the selected customer beside it
+ # (assets/controllers/page/customer/customer_list_controller.js). Editing, deleting and creating
+ # plans do not exist yet: their links have the href # and do nothing, like the create button.
+ #}
+{% extends 'page/customer/_list_layout.html.twig' %}
+
+{% set texts = 'customer.list' %}
+{% set data_route = 'customer_list_data' %}
+{% set list_controller = 'page--customer--customer-list' %}
+{% set table_class = 'customer-list__table--rows' %}
+{% set list_state = {
+    tagsUrl: path('customer_tag_list_data', {pageSize: 100}),
+    texts: {
+        countOne: 'customer.list.count_one'|trans,
+        countOther: 'customer.list.count_other'|trans,
+        private: 'customer.list.private'|trans,
+        companyContact: 'customer.list.company_contact'|trans,
+        unnamed: 'customer.list.unnamed'|trans,
+        actionsFor: 'customer.list.actions_for'|trans,
+    },
+} %}
+{% set icons = {
+    search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
+    filter: '<path d="M3 5h18l-7 8v6l-4-2v-4z"/>',
+    sort: '<path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/>',
+    building: '<path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M3 21h18M8 8h3M8 12h3M8 16h3"/>',
+    mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+    phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
+    close: '<path d="M6 6l12 12M18 6L6 18"/>',
+} %}
+
+{% block toolbar %}
+    <div class="customer-toolbar">
+        <label class="customer-search">
+            <svg class="customer-icon" viewBox="0 0 24 24" aria-hidden="true">{{ icons.search|raw }}</svg>
+            <span class="visually-hidden">{{ 'customer.list.search_label'|trans }}</span>
+            <input type="search" placeholder="{{ 'customer.list.search_placeholder'|trans }}"
+                   x-model="query" x-on:input.debounce.300ms="search()">
+        </label>
+        <label class="customer-tool">
+            <svg class="customer-icon" viewBox="0 0 24 24" aria-hidden="true">{{ icons.filter|raw }}</svg>
+            <span class="visually-hidden">{{ 'customer.list.filter_label'|trans }}</span>
+            <select x-model="tag" x-on:change="filterByTag()">
+                <option value="">{{ 'customer.list.all_tags'|trans }}</option>
+                <template x-for="option in tagOptions" x-bind:key="option.id">
+                    <option x-bind:value="option.id" x-bind:selected="option.id === tag" x-text="option.name"></option>
+                </template>
+            </select>
+        </label>
+        <label class="customer-tool">
+            <svg class="customer-icon" viewBox="0 0 24 24" aria-hidden="true">{{ icons.sort|raw }}</svg>
+            <span class="visually-hidden">{{ 'customer.list.sort_label'|trans }}</span>
+            <select x-model="sortOption">
+                <option value="updated:desc">{{ 'customer.list.sort.updated'|trans }}</option>
+                <option value="created:desc">{{ 'customer.list.sort.created'|trans }}</option>
+                <option value="name:asc">{{ 'customer.list.sort.name_asc'|trans }}</option>
+                <option value="name:desc">{{ 'customer.list.sort.name_desc'|trans }}</option>
+            </select>
+        </label>
+        <span class="customer-toolbar__count" aria-live="polite" x-text="countLabel"></span>
+    </div>
+{% endblock %}
+
+{% block empty %}
+    <p class="panel__empty" x-show="!loading && !error && total === 0 && !hasFilter">{{ 'customer.list.empty'|trans }}</p>
+    <p class="panel__empty" x-show="!loading && !error && total === 0 && hasFilter">{{ 'customer.list.no_results'|trans }}</p>
+{% endblock %}
+
+{% block columns %}
+    <th scope="col">{{ 'customer.field.name'|trans }}</th>
+    <th scope="col">{{ 'customer.field.contact'|trans }}</th>
+    <th scope="col">{{ 'customer.field.tags'|trans }}</th>
+    <th scope="col">{{ 'customer.field.updated'|trans }}</th>
+    <th scope="col" class="customer-row__actions"><span class="visually-hidden">{{ 'customer.list.actions'|trans }}</span></th>
+{% endblock %}
+
+{% block row %}
+    <tr class="customer-row" x-bind:class="{ 'customer-row--selected': item.id === selectedId }" x-on:click="select(item.id)">
+        <td>
+            <div class="customer-name">
+                <span class="customer-avatar" x-bind:class="avatarClass(item)" x-bind:style="pastelStyle(item.id)" aria-hidden="true">
+                    <svg class="customer-icon customer-icon--lg" viewBox="0 0 24 24" x-show="isCompanyContact(item)">{{ icons.building|raw }}</svg>
+                    <span x-show="!isCompanyContact(item)" x-text="initials(item)"></span>
+                </span>
+                <div>
+                    <button type="button" class="customer-name__button" x-bind:data-customer="item.id"
+                            x-bind:aria-current="item.id === selectedId ? 'true' : null" x-text="displayName(item)"></button>
+                    <span class="customer-name__sub" x-text="subtitle(item)"></span>
+                </div>
+            </div>
+        </td>
+        <td>
+            <div class="customer-contact">
+                <span class="customer-contact__mail" x-show="item.email">
+                    <svg class="customer-icon customer-icon--sm" viewBox="0 0 24 24" aria-hidden="true">{{ icons.mail|raw }}</svg>
+                    <span x-text="item.email"></span>
+                </span>
+                <span class="customer-contact__phone" x-show="item.phone">
+                    <svg class="customer-icon customer-icon--sm" viewBox="0 0 24 24" aria-hidden="true">{{ icons.phone|raw }}</svg>
+                    <span x-text="item.phone"></span>
+                </span>
+            </div>
+        </td>
+        <td class="customer-row__tags">
+            <div class="customer-chips">
+                <template x-for="customerTag in item.tags" x-bind:key="customerTag.id">
+                    <span class="customer-chip" x-bind:class="tagClass(customerTag)" x-bind:style="pastelStyle(customerTag.id)" x-text="customerTag.name"></span>
+                </template>
+                <span class="customer-muted" x-show="item.tags.length === 0">–</span>
+            </div>
+        </td>
+        <td class="customer-muted" x-bind:title="formatDate(item.updated)" x-text="formatRelativeDay(item.updated)"></td>
+        <td class="customer-row__actions">
+            <button type="button" class="icon-btn" popovertarget="customer-menu"
+                    x-bind:aria-label="actionsLabel(item)" x-on:click.stop="placeMenu($event)">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+                    <circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/>
+                </svg>
+            </button>
+        </td>
+    </tr>
+{% endblock %}
+
+{% block aside %}
+    <div id="customer-menu" class="customer-menu" popover x-ref="menu" aria-label="{{ 'customer.list.actions'|trans }}"
+         x-on:keydown.escape.window="onEscape()" x-on:scroll.window.capture="closeMenu()">
+        <a class="customer-menu__item" href="#" x-on:click.prevent="closeMenu()">{{ 'customer.list.edit'|trans }}</a>
+        <button type="button" class="customer-menu__item customer-menu__item--danger" x-on:click="closeMenu()">{{ 'customer.list.delete'|trans }}</button>
+        <a class="customer-menu__item" href="#" x-on:click.prevent="closeMenu()">{{ 'customer.list.create_plan'|trans }}</a>
+    </div>
+
+    <template x-if="selected">
+        <aside class="customer-detail" aria-label="{{ 'customer.detail.label'|trans }}">
+            <div class="customer-detail__head">
+                <span class="customer-avatar customer-avatar--lg" x-bind:class="avatarClass(selected)" x-bind:style="pastelStyle(selected.id)" aria-hidden="true" x-text="initials(selected)"></span>
+                <div class="customer-detail__title">
+                    <h2 x-text="displayName(selected)"></h2>
+                    <p x-text="subtitle(selected)"></p>
+                </div>
+                <button type="button" class="icon-btn icon-btn--filled" aria-label="{{ 'customer.detail.close'|trans }}" x-on:click="closeDetail()">
+                    <svg class="customer-icon" viewBox="0 0 24 24" aria-hidden="true">{{ icons.close|raw }}</svg>
+                </button>
+            </div>
+
+            <div class="customer-chips">
+                <template x-for="customerTag in selected.tags" x-bind:key="customerTag.id">
+                    <span class="customer-chip" x-bind:class="tagClass(customerTag)" x-bind:style="pastelStyle(customerTag.id)" x-text="customerTag.name"></span>
+                </template>
+                <span class="customer-muted" x-show="selected.tags.length === 0">{{ 'customer.detail.no_tags'|trans }}</span>
+            </div>
+
+            <dl class="customer-detail__facts">
+                <dt>{{ 'customer.field.email'|trans }}</dt>
+                <dd>
+                    <a x-show="selected.email" x-bind:href="`mailto:${selected.email}`" x-text="selected.email"></a>
+                    <span x-show="!selected.email">{{ 'customer.detail.not_set'|trans }}</span>
+                </dd>
+                <dt>{{ 'customer.field.phone'|trans }}</dt>
+                <dd>
+                    <a x-show="selected.phone" x-bind:href="phoneHref(selected.phone ?? '')" x-text="selected.phone"></a>
+                    <span x-show="!selected.phone">{{ 'customer.detail.not_set'|trans }}</span>
+                </dd>
+                <dt>{{ 'customer.field.created'|trans }}</dt>
+                <dd x-text="formatDate(selected.created)"></dd>
+                <dt>{{ 'customer.field.updated'|trans }}</dt>
+                <dd x-text="formatDate(selected.updated)"></dd>
+            </dl>
+
+            <section class="customer-detail__plans">
+                <h3>{{ 'customer.detail.plans'|trans }}</h3>
+                <p>{{ 'customer.detail.plans_empty'|trans }}</p>
+            </section>
+
+            <div class="customer-detail__actions">
+                <a class="btn btn--ghost" href="#" x-on:click.prevent>{{ 'customer.list.edit'|trans }}</a>
+                <a class="btn btn--primary" href="#" x-on:click.prevent>{{ 'customer.list.create_plan'|trans }}</a>
+            </div>
+        </aside>
+    </template>
+{% endblock %}

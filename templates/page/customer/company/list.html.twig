@@ -1,0 +1,21 @@
+{# The companies (App\Customer\Controller\CompanyListController). #}
+{% extends 'page/customer/_list_layout.html.twig' %}
+
+{% set texts = 'customer.company_list' %}
+{% set data_route = 'customer_company_list_data' %}
+
+{% block columns %}
+    <th scope="col">{{ 'customer.field.company_name'|trans }}</th>
+    <th scope="col">{{ 'customer.field.email'|trans }}</th>
+    <th scope="col">{{ 'customer.field.phone'|trans }}</th>
+    <th scope="col">{{ 'customer.field.created'|trans }}</th>
+    <th scope="col">{{ 'customer.field.updated'|trans }}</th>
+{% endblock %}
+
+{% block cells %}
+    <td x-text="item.name"></td>
+    <td x-text="item.email"></td>
+    <td x-text="item.phone"></td>
+    <td x-text="formatDate(item.created)"></td>
+    <td x-text="formatDate(item.updated)"></td>
+{% endblock %}

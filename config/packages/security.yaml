@@ -58,7 +58,7 @@ security:
     access_control:
         - { path: "^/admin", roles: ROLE_ADMIN }
         - { path: "^/api/(.*)", roles: ROLE_USER }
-        - { path: "^/([a-z]{2})/(app|fixtures|plan|project)(?:/(.*))?$", roles: ROLE_USER }
+        - { path: "^/([a-z]{2})/(app|customers|fixtures|plan|project)(?:/(.*))?$", roles: ROLE_USER }
 
     role_hierarchy:
         ROLE_AUTH: []

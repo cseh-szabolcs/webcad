@@ -10,11 +10,32 @@
 .layout-app {
     --app-bar: var(--hero-bg);
     --app-bar-ink: #ffffff;
-    --app-bar-muted: var(--hero-muted);
+    --app-bar-muted: #cfcaee;
     --app-bar-hover: rgb(255 255 255 / 0.08);
+    --app-bar-current: rgb(255 255 255 / 0.14);
     --app-bar-accent: #a69df1;
-    --app-header-height: 72px;
-    --app-gutter: clamp(16px, 2.5vw, 32px);
+    --app-header-height: 68px;
+    --app-gutter: clamp(16px, 3vw, 48px);
+    --tabs-track: #ebe9e3;
+    --tabs-badge: #dfddd6;
+    --card-line: #e6e4df;
+    --card-line-soft: #f0eee9;
+    --row-hover: #faf9f6;
+    --row-selected: #f4f2ff;
+    --customer-link: var(--accent);
+    --tone-blue-bg: #e7f1fb;
+    --tone-blue-ink: #1d4f86;
+    --tone-green-bg: #e5f4e4;
+    --tone-green-ink: #256029;
+    --tone-orange-bg: #f9ece7;
+    --tone-orange-ink: #8a3b1c;
+    --tone-purple-bg: #efedff;
+    --tone-purple-ink: #4a3ab8;
+    --tone-neutral-bg: #ebe9e3;
+    --tone-neutral-ink: #3d3b47;
+    /* Saturation and lightness of generated colors, the hue comes from the id: at least 5.6:1 for every hue */
+    --pastel-bg: 70% 92%;
+    --pastel-ink: 60% 25%;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -38,6 +59,25 @@
         --shadow: 0 1px 0 rgb(0 0 0 / 0.2), 0 24px 48px -28px rgb(0 0 0 / 0.8);
         --shadow-sm: 0 10px 24px -16px rgb(0 0 0 / 0.7);
         --app-bar: #1d1846;
+        --tabs-track: #29303b;
+        --tabs-badge: #38414e;
+        --card-line: #2c3440;
+        --card-line-soft: #262d38;
+        --row-hover: rgb(255 255 255 / 0.03);
+        --row-selected: rgb(143 132 236 / 0.14);
+        --customer-link: var(--accent-hover);
+        --tone-blue-bg: rgb(96 165 250 / 0.16);
+        --tone-blue-ink: #a9cdf7;
+        --tone-green-bg: rgb(74 222 128 / 0.14);
+        --tone-green-ink: #a6e3b3;
+        --tone-orange-bg: rgb(251 146 60 / 0.16);
+        --tone-orange-ink: #f5bd99;
+        --tone-purple-bg: rgb(143 132 236 / 0.2);
+        --tone-purple-ink: #c4bdf7;
+        --tone-neutral-bg: #29303b;
+        --tone-neutral-ink: #c9d0d9;
+        --pastel-bg: 40% 22%;
+        --pastel-ink: 70% 85%;
     }
 }
 
@@ -61,69 +101,84 @@
     --shadow: 0 1px 0 rgb(0 0 0 / 0.2), 0 24px 48px -28px rgb(0 0 0 / 0.8);
     --shadow-sm: 0 10px 24px -16px rgb(0 0 0 / 0.7);
     --app-bar: #1d1846;
+    --tabs-track: #29303b;
+    --tabs-badge: #38414e;
+    --card-line: #2c3440;
+    --card-line-soft: #262d38;
+    --row-hover: rgb(255 255 255 / 0.03);
+    --row-selected: rgb(143 132 236 / 0.14);
+    --customer-link: var(--accent-hover);
+    --tone-blue-bg: rgb(96 165 250 / 0.16);
+    --tone-blue-ink: #a9cdf7;
+    --tone-green-bg: rgb(74 222 128 / 0.14);
+    --tone-green-ink: #a6e3b3;
+    --tone-orange-bg: rgb(251 146 60 / 0.16);
+    --tone-orange-ink: #f5bd99;
+    --tone-purple-bg: rgb(143 132 236 / 0.2);
+    --tone-purple-ink: #c4bdf7;
+    --tone-neutral-bg: #29303b;
+    --tone-neutral-ink: #c9d0d9;
+    --pastel-bg: 40% 22%;
+    --pastel-ink: 70% 85%;
 }
 
 /* ---------- App bar ---------- */
 
-/* Bar in the hero's purple-blue and glow, with its grid fading in towards the user menu */
 .app-header {
-    --grid-major: var(--band-grid);
-    --grid-minor: rgb(234 241 250 / 0.03);
-    --grid-mask: linear-gradient(90deg, transparent 25%, #000 90%);
     position: sticky;
     top: 0;
     z-index: 5;
-    background:
-        radial-gradient(40% 160% at 100% 0%, rgb(167 139 250 / 0.22), transparent 70%),
-        var(--app-bar);
+    border-bottom: 2px solid var(--app-bar-accent);
+    background: var(--app-bar);
     color: var(--app-bar-ink);
-    border-bottom: 1px solid rgb(0 0 0 / 0.3);
-    box-shadow: 0 10px 24px -20px rgb(0 0 0 / 0.6);
 }
 
 .app-header__inner {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 32px;
-    min-height: var(--app-header-height);
-    padding-inline: var(--app-gutter);
+    gap: 24px;
+    padding: 14px var(--app-gutter);
+}
+
+.brand--app {
+    gap: 10px;
 }
 
 .brand--app .brand__mark {
-    width: 32px;
-    height: 32px;
-    stroke: #c4bdf7; /* lighter than --app-bar-accent, so the mark stands out on the purple-blue */
+    width: 20px;
+    height: 20px;
+    stroke: var(--app-bar-ink);
+    stroke-width: 2;
 }
 
+/* `display`: the public pages hide the name on a phone, here it fits */
 .brand--app .brand__name {
-    font-size: 1.1875rem;
+    display: inline;
+    font: 700 0.875rem/1 var(--font-sans);
+    letter-spacing: 0.14em;
 }
 
 .app-nav {
     flex: 1;
     min-width: 0;
-    align-self: stretch;
 }
 
 .app-nav__list {
     display: flex;
-    height: 100%;
+    flex-wrap: wrap;
+    gap: 4px;
     margin: 0;
     padding: 0;
     list-style: none;
-    overflow-x: auto;
-    scrollbar-width: none;
 }
 
 .app-nav__link {
-    position: relative;
-    display: flex;
-    align-items: center;
-    height: 100%;
-    padding: 0 16px;
+    display: block;
+    padding: 8px 12px;
+    border-radius: 8px;
     color: var(--app-bar-muted);
-    font-size: 1rem;
-    font-weight: 500;
+    font-size: 0.875rem;
     text-decoration: none;
     white-space: nowrap;
     transition: color 0.15s, background-color 0.15s;
@@ -134,23 +189,15 @@
     color: var(--app-bar-ink);
 }
 
-.app-nav__link[aria-current="page"] {
+.app-nav__link[aria-current] {
+    background: var(--app-bar-current);
     color: var(--app-bar-ink);
     font-weight: 600;
 }
 
-.app-nav__link[aria-current="page"]::after {
-    content: "";
-    position: absolute;
-    inset: auto 16px 0;
-    height: 3px;
-    border-radius: 3px 3px 0 0;
-    background: var(--app-bar-accent);
-}
-
 .app-header :focus-visible {
     outline-color: var(--app-bar-accent);
-    outline-offset: -2px;
+    outline-offset: 2px;
 }
 
 /* ---------- Locale switcher and user menu ---------- */
@@ -158,30 +205,24 @@
 .app-header__actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     margin-left: auto;
 }
 
-/*
- * The buttons of the bar get the bar's own color, so the grid behind them does not run through
- * their text.
- */
-.app-header .locale-switcher__toggle,
-.user-menu__toggle {
-    border: 1px solid rgb(255 255 255 / 0.16);
-    background: var(--app-bar);
-    color: var(--app-bar-muted);
-}
-
 .app-header .locale-switcher__toggle {
-    min-height: 46px;
-    padding: 0 12px;
-    border-radius: 23px;
+    min-height: 0;
+    padding: 6px 12px;
+    border: 1px solid rgb(255 255 255 / 0.25);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--app-bar-ink);
+    font: 500 0.8125rem/1.3 var(--font-sans);
+    letter-spacing: 0;
 }
 
-.app-header .locale-switcher__toggle:hover,
-.app-header .locale-switcher[open] .locale-switcher__toggle {
-    color: var(--app-bar-ink);
+/* The bar shows the language as text only; the public pages keep the globe */
+.app-header .locale-switcher__toggle svg {
+    display: none;
 }
 
 .app-header .locale-switcher__menu {
@@ -197,10 +238,11 @@
 .user-menu__toggle {
     display: flex;
     align-items: center;
-    gap: 10px;
-    min-height: 46px;
-    padding: 0 10px 0 5px;
-    border-radius: 23px;
+    gap: 8px;
+    padding: 4px 12px 4px 4px;
+    border: 1px solid rgb(255 255 255 / 0.2);
+    border-radius: 999px;
+    background: var(--app-bar-hover);
     color: var(--app-bar-ink);
     list-style: none;
     cursor: pointer;
@@ -215,40 +257,27 @@
 .app-header .locale-switcher[open] .locale-switcher__toggle,
 .user-menu__toggle:hover,
 .user-menu[open] .user-menu__toggle {
-    background: color-mix(in srgb, var(--app-bar-ink) 8%, var(--app-bar));
+    background: var(--app-bar-current);
+    color: var(--app-bar-ink);
 }
 
 .user-menu__avatar {
     display: grid;
     place-items: center;
-    width: 36px;
-    height: 36px;
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
     background: var(--app-bar-accent);
     color: var(--hero-bg);
-    font: 700 0.75rem/1 var(--font-mono);
+    font: 700 0.75rem/1 var(--font-sans);
 }
 
 .user-menu__name {
     max-width: 220px;
     overflow: hidden;
-    font-size: 0.9375rem;
-    font-weight: 500;
+    font-size: 0.8125rem;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.user-menu__caret {
-    width: 12px;
-    height: 12px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.6;
-    transition: transform 0.15s;
-}
-
-.user-menu[open] .user-menu__caret {
-    transform: rotate(180deg);
 }
 
 .user-menu__panel {
@@ -361,35 +390,18 @@
 }
 
 @media (max-width: 720px) {
-    .layout-app {
-        --app-header-height: 60px;
-    }
-
     .app-header__inner {
-        flex-wrap: wrap;
-        gap: 0 12px;
+        gap: 10px 12px;
     }
 
-    /* The first row (brand, user menu) keeps the bar height, the menu wraps below it */
-    .brand--app {
-        min-height: var(--app-header-height);
-    }
-
-    .app-nav__link {
-        padding: 0 12px;
-    }
-
-    .app-nav__link[aria-current="page"]::after {
-        inset-inline: 12px;
-    }
-
+    /* The first row holds the brand and the user menu, the main menu wraps below it */
     .app-nav {
         order: 3;
         flex-basis: 100%;
-        height: 48px;
-        margin-inline: calc(-1 * var(--app-gutter));
-        padding-inline: calc(var(--app-gutter) - 12px);
-        border-top: 1px solid rgb(255 255 255 / 0.1);
+    }
+
+    .user-menu__toggle {
+        padding: 4px;
     }
 
     .user-menu__name {
@@ -420,6 +432,635 @@
 
 .page-head__lead {
     color: var(--ink-muted);
+}
+
+/* With the page's main action on the right */
+.page-head--action {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 16px 24px;
+}
+
+.page-head__text {
+    display: grid;
+    gap: 10px;
+}
+
+/* Buttons of the logged-in pages; the public pages keep theirs from app.css */
+.layout-app .btn {
+    min-height: 44px;
+    padding: 0 18px;
+    border-radius: 10px;
+    font-size: 0.875rem;
+}
+
+.layout-app .btn--primary:hover {
+    background: var(--accent);
+    filter: brightness(1.08);
+}
+
+.layout-app .btn--ghost {
+    border-color: var(--line);
+    background: var(--white);
+    color: var(--ink);
+}
+
+.layout-app .btn--ghost:hover {
+    background: var(--tabs-track);
+    color: var(--ink);
+}
+
+.btn__icon {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+}
+
+@media (max-width: 520px) {
+    .page-head--action {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .page-head__action {
+        justify-self: start;
+    }
+}
+
+/* ---------- Customer area ---------- */
+
+.customer-area {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+}
+
+.customer-area .page-head {
+    align-items: start;
+    margin-bottom: 4px;
+}
+
+.customer-area .page-head__text {
+    gap: 6px;
+}
+
+.customer-area .page-head__title {
+    font-size: 1.875rem;
+}
+
+.customer-area .page-head__lead {
+    font-size: 0.875rem;
+}
+
+/* The segmented control as tabs: links to the pages of an area, each with a count */
+.segmented--tabs {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-self: start;
+    max-width: 100%;
+    padding: 4px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--tabs-track);
+}
+
+.segmented--tabs .segmented__option {
+    gap: 8px;
+    min-height: 40px;
+    padding: 0 16px;
+    border-radius: 9px;
+    font-size: 0.875rem;
+    text-decoration: none;
+}
+
+.segmented--tabs .segmented__option[aria-current="page"] {
+    background: var(--white);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+    color: var(--ink);
+    font-weight: 600;
+}
+
+.segmented__badge {
+    min-width: 24px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--tabs-badge);
+    color: var(--ink-muted);
+    font: 600 0.75rem/1 var(--font-sans);
+    text-align: center;
+}
+
+/* Until its count is loaded: keeps the tab's width, so the tabs do not jump */
+.segmented__badge:empty {
+    visibility: hidden;
+}
+
+.segmented__option[aria-current="page"] .segmented__badge {
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+/* Keeps the three tabs of the customer area on one row on a phone */
+@media (max-width: 520px) {
+    .segmented--tabs .segmented__option {
+        padding: 0 12px;
+    }
+}
+
+/* ---------- Customer list ---------- */
+
+/* The card and, on a wide screen, the detail view beside it; a narrow screen wraps it below */
+.customer-content {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+.customer-list {
+    flex: 999 1 640px;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--card-line);
+    border-radius: 14px;
+    background: var(--white);
+}
+
+.customer-list .panel__empty {
+    margin: 16px;
+}
+
+.customer-list__error {
+    margin: 16px;
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    background: var(--danger-soft);
+    color: var(--danger);
+}
+
+.customer-list__loading {
+    padding: 28px 16px;
+    color: var(--ink-muted);
+    text-align: center;
+}
+
+.customer-list__scroll {
+    overflow-x: auto;
+}
+
+.customer-list__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.customer-list__table th,
+.customer-list__table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--card-line-soft);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.customer-list__table th {
+    padding-block: 12px;
+    color: var(--ink-muted);
+    font-size: 0.8125rem;
+    font-weight: 500;
+}
+
+.customer-list__table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.customer-list__table--rows {
+    min-width: 680px;
+}
+
+/* Pages */
+
+.customer-pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--card-line-soft);
+}
+
+.customer-pager__link {
+    display: contents;
+}
+
+.customer-pager__button {
+    min-width: 36px;
+    height: 36px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ink-muted);
+    font: inherit;
+    font-size: 0.875rem;
+    cursor: pointer;
+}
+
+.customer-pager__button:hover:not(:disabled) {
+    background: var(--tabs-track);
+    color: var(--ink);
+}
+
+.customer-pager__button:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.customer-pager__button[aria-current="page"],
+.customer-pager__button[aria-current="page"]:hover {
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 600;
+}
+
+.customer-pager__gap {
+    min-width: 24px;
+    color: var(--ink-muted);
+    text-align: center;
+}
+
+/* Toolbar */
+
+.customer-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--card-line-soft);
+}
+
+.customer-search,
+.customer-tool {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--white);
+    color: var(--ink-muted);
+    font-size: 0.875rem;
+}
+
+.customer-search {
+    flex: 1 1 260px;
+    max-width: 420px;
+}
+
+.customer-search:focus-within,
+.customer-tool:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.customer-search input,
+.customer-tool select {
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+}
+
+.customer-search input {
+    flex: 1;
+    min-width: 0;
+}
+
+.customer-search input::placeholder {
+    color: var(--ink-muted);
+    opacity: 1;
+}
+
+.customer-tool select {
+    min-height: 38px;
+    cursor: pointer;
+}
+
+.customer-toolbar__count {
+    margin-left: auto;
+    color: var(--ink-muted);
+    font-size: 0.8125rem;
+}
+
+.customer-icon {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.customer-icon--sm {
+    width: 14px;
+    height: 14px;
+}
+
+.customer-icon--lg {
+    width: 18px;
+    height: 18px;
+}
+
+.customer-muted {
+    color: var(--ink-muted);
+    font-size: 0.8125rem;
+}
+
+/* Rows */
+
+.customer-row {
+    cursor: pointer;
+}
+
+.customer-row:hover {
+    background: var(--row-hover);
+}
+
+.customer-row--selected,
+.customer-row--selected:hover {
+    background: var(--row-selected);
+}
+
+.customer-row--selected td:first-child {
+    box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.customer-list__table .customer-row__tags {
+    white-space: normal;
+}
+
+.customer-list__table .customer-row__actions {
+    width: 48px;
+    padding-inline: 8px;
+}
+
+/* A color generated from an id (`--pastel-color`); the `tone--*` classes below replace it */
+.customer-avatar,
+.customer-chip {
+    background: hsl(from var(--pastel-color) h var(--pastel-bg));
+    color: hsl(from var(--pastel-color) h var(--pastel-ink));
+}
+
+.customer-name {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.customer-name__button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+
+.customer-name__sub {
+    display: block;
+    margin-top: 2px;
+    color: var(--ink-muted);
+    font-size: 0.8125rem;
+}
+
+.customer-avatar {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+
+.customer-avatar--company {
+    border-radius: 10px;
+}
+
+.customer-avatar--lg {
+    width: 52px;
+    height: 52px;
+    font-size: 1.125rem;
+}
+
+.customer-contact {
+    display: grid;
+    gap: 4px;
+}
+
+.customer-contact span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.customer-contact__mail {
+    color: var(--customer-link);
+}
+
+.customer-contact__phone {
+    color: var(--ink-muted);
+    font-size: 0.8125rem;
+}
+
+.customer-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.customer-chip {
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.tone--blue { background: var(--tone-blue-bg); color: var(--tone-blue-ink); }
+.tone--green { background: var(--tone-green-bg); color: var(--tone-green-ink); }
+.tone--orange { background: var(--tone-orange-bg); color: var(--tone-orange-ink); }
+.tone--purple { background: var(--tone-purple-bg); color: var(--tone-purple-ink); }
+.tone--neutral { background: var(--tone-neutral-bg); color: var(--tone-neutral-ink); }
+
+.icon-btn {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    flex: none;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ink-muted);
+    cursor: pointer;
+}
+
+.icon-btn:hover {
+    background: var(--tabs-track);
+    color: var(--ink);
+}
+
+.icon-btn--filled {
+    background: var(--tabs-track);
+    color: var(--ink);
+}
+
+.icon-btn--filled:hover {
+    background: var(--tabs-badge);
+}
+
+/* The row menu: a popover in the top layer, placed at its button by the list's state */
+.customer-menu {
+    position: fixed;
+    inset: auto;
+    min-width: 180px;
+    margin: 0;
+    padding: 6px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--paper-raised);
+    box-shadow: var(--shadow);
+    color: var(--ink);
+}
+
+.customer-menu__item {
+    display: block;
+    width: 100%;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 0.9375rem;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.customer-menu__item:hover {
+    background: var(--accent-soft);
+}
+
+.customer-menu__item--danger {
+    color: var(--danger);
+}
+
+/* Detail view */
+
+.customer-detail {
+    position: sticky;
+    top: calc(var(--app-header-height) + 16px);
+    display: flex;
+    flex: 1 1 340px;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+    max-width: 440px;
+    padding: 20px;
+    border: 1px solid var(--card-line);
+    border-radius: 14px;
+    background: var(--white);
+    box-shadow: 0 12px 32px rgb(42 33 97 / 0.1);
+}
+
+.customer-detail__head {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.customer-detail__title {
+    flex: 1;
+    min-width: 0;
+}
+
+.customer-detail__title h2 {
+    font-size: 1.125rem;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.customer-detail__title p {
+    margin-top: 2px;
+    color: var(--ink-muted);
+    font-size: 0.875rem;
+}
+
+.customer-detail__facts {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 12px;
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+.customer-detail__facts dt {
+    color: var(--ink-muted);
+}
+
+.customer-detail__facts dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.customer-detail__facts a {
+    color: var(--customer-link);
+}
+
+.customer-detail__plans {
+    padding-top: 16px;
+    border-top: 1px solid var(--card-line-soft);
+}
+
+.customer-detail__plans h3 {
+    margin-bottom: 10px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.customer-detail__plans p {
+    color: var(--ink-muted);
+    font-size: 0.8125rem;
+}
+
+.customer-detail__actions {
+    display: flex;
+    gap: 10px;
+}
+
+.customer-detail__actions > * {
+    flex: 1;
+}
+
+@media (max-width: 720px) {
+    .customer-detail {
+        position: static;
+        max-width: none;
+    }
 }
 
 /* ---------- Dashboard ---------- */

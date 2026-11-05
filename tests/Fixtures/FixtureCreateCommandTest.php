@@ -5,6 +5,9 @@ namespace App\Tests\Fixtures;
 use App\Core\Tenancy\Entity\Tenant;
 use App\Core\Tenancy\TenantProvisioner;
 use App\Core\Tenancy\TenantSwitcher;
+use App\Customer\Entity\Company;
+use App\Customer\Entity\Customer;
+use App\Customer\Entity\Tag;
 use App\Fixtures\Console\FixtureCreateCommand;
 use App\Plan\Entity\Element;
 use App\Plan\Entity\Plan;
@@ -72,6 +75,21 @@ final class FixtureCreateCommandTest extends KernelTestCase
         self::assertTrue(static::getContainer()->get(UserPasswordHasherInterface::class)->isPasswordValid($users[0], 'anna-password'));
     }
 
+    public function testCreatesCustomersWithCompaniesSharingTheirTags(): void
+    {
+        self::assertSame(Command::SUCCESS, $this->tester()->execute(['--force' => true]));
+
+        $this->em()->clear();
+        self::assertCount(5, $this->em()->getRepository(Customer::class)->findAll());
+        self::assertCount(3, $this->em()->getRepository(Company::class)->findAll());
+        self::assertCount(4, $this->em()->getRepository(Tag::class)->findAll());
+
+        $customer = $this->em()->getRepository(Customer::class)->findOneBy(['lastname' => 'Muster']);
+        self::assertSame('Nordbau Projekt GmbH', $customer->getCompany()->getName());
+        self::assertSame(['Bauträger', 'Stammkunde'], $customer->getTags()->map(static fn (Tag $tag) => $tag->getName())->getValues());
+        self::assertNull($this->em()->getRepository(Customer::class)->findOneBy(['lastname' => 'Keller'])->getCompany());
+    }
+
     public function testCanBeRunAgain(): void
     {
         self::assertSame(Command::SUCCESS, $this->tester()->execute(['--force' => true]));
@@ -79,6 +97,7 @@ final class FixtureCreateCommandTest extends KernelTestCase
 
         $this->em()->clear();
         self::assertCount(1, $this->em()->getRepository(Plan::class)->findAll());
+        self::assertCount(5, $this->em()->getRepository(Customer::class)->findAll());
         self::assertSame(['Einfamilienhaus'], array_map(static fn (Project $p) => $p->getName(), $this->em()->getRepository(Project::class)->findAll()));
     }
 

@@ -1,0 +1,118 @@
+<?php
+
+namespace App\Tests\Customer\Controller;
+
+use App\Core\Tenancy\TenantSwitcher;
+use App\Customer\Entity\Company;
+use App\Tests\Security\LogsInTrait;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\KernelBrowser;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+
+final class CompanyListControllerTest extends WebTestCase
+{
+    use LogsInTrait;
+
+    private KernelBrowser $client;
+
+    protected function setUp(): void
+    {
+        $this->client = static::createClient();
+
+        // The database is not reset between tests, and these tests look at all companies.
+        static::getContainer()->get(TenantSwitcher::class)->switchTo($_ENV['DEFAULT_TENANT']);
+        $this->em()->createQuery('DELETE FROM '.Company::class)->execute();
+    }
+
+    public function testGuestIsSentToTheLogin(): void
+    {
+        $this->client->request('GET', '/de/customers/companies');
+
+        self::assertResponseRedirects('/de/login');
+    }
+
+    public function testGuestGetsNoData(): void
+    {
+        $this->client->request('GET', '/de/customers/companies/data');
+
+        self::assertResponseRedirects('/de/login');
+    }
+
+    public function testShowsThePageInTheCustomerArea(): void
+    {
+        $this->logIn($this->client, $this->createUser());
+
+        $crawler = $this->client->request('GET', '/de/customers/companies');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextSame('.page-head__title', 'Firmen');
+        self::assertSelectorTextSame('.page-head__action', 'Firma hinzufügen');
+        self::assertSelectorTextSame('.app-nav__link[aria-current="true"]', 'Kunden');
+        self::assertSelectorTextSame('.segmented__option[aria-current="page"]', 'Firmen');
+        self::assertSelectorTextContains('.panel__empty', 'Noch keine Firmen vorhanden.');
+        self::assertSelectorExists('.customer-pager');
+
+        $list = $crawler->filter('[data-controller="page--customer--list"]');
+        self::assertSame(
+            ['url' => '/de/customers/companies/data'],
+            json_decode($list->attr('data-page--customer--list-state-value'), true, flags: \JSON_THROW_ON_ERROR),
+        );
+    }
+
+    public function testReturnsTheCompaniesByName(): void
+    {
+        $this->logIn($this->client, $this->createUser());
+        $company = (new Company('Muster GmbH'))->setEmail('info@muster.example.com')->setPhone('+49 30 123456');
+        $em = $this->em();
+        $em->persist(new Company('Zimmerei Holz'));
+        $em->persist($company);
+        $em->flush();
+        $em->clear();
+
+        $result = $this->data('page=1&pageSize=20');
+
+        self::assertSame(2, $result['total']);
+        self::assertSame([
+            'id' => $company->getUuid()->toRfc4122(),
+            'name' => 'Muster GmbH',
+            'email' => 'info@muster.example.com',
+            'phone' => '+49 30 123456',
+            'created' => $company->getCreated()->format(\DATE_ATOM),
+            'updated' => $company->getUpdated()->format(\DATE_ATOM),
+        ], $result['items'][0]);
+        self::assertSame('Zimmerei Holz', $result['items'][1]['name']);
+        self::assertNull($result['items'][1]['email']);
+    }
+
+    public function testReturnsTheRequestedPage(): void
+    {
+        $this->logIn($this->client, $this->createUser());
+        $em = $this->em();
+        foreach (['Adler AG', 'Berger KG', 'Conrad GmbH'] as $name) {
+            $em->persist(new Company($name));
+        }
+        $em->flush();
+        $em->clear();
+
+        $result = $this->data('page=2&pageSize=2');
+
+        self::assertSame(['Conrad GmbH'], array_column($result['items'], 'name'));
+        self::assertSame(3, $result['total']);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function data(string $query): array
+    {
+        $this->client->request('GET', '/de/customers/companies/data?'.$query);
+        self::assertResponseIsSuccessful();
+
+        return json_decode($this->client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);
+    }
+
+    private function em(): EntityManagerInterface
+    {
+        return static::getContainer()->get(EntityManagerInterface::class);
+    }
+}

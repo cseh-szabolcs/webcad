@@ -1,16 +1,19 @@
-{# App bar: brand, main menu, user menu. The menu items except the dashboard have no pages yet. #}
+{#
+ # App bar: brand, main menu, user menu. The menu items with the href # have no pages yet. An item
+ # with a `section` (route name prefix) stays marked on all pages of its area.
+ #}
 {% set nav_items = [
     {label: 'app.nav.dashboard', href: path('app_dashboard'), route: 'app_dashboard'},
     {label: 'app.nav.plans', href: '#', route: null},
-    {label: 'app.nav.customers', href: '#', route: null},
+    {label: 'app.nav.customers', href: path('customer_list_index'), route: 'customer_list_index', section: 'customer_'},
     {label: 'app.nav.administration', href: '#', route: null},
 ] %}
-<header class="app-header grid-zone">
+<header class="app-header">
     <div class="app-header__inner">
         <a class="brand brand--app" href="{{ path('app_dashboard') }}">
-            <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true">
-                <rect x="7.5" y="7.5" width="17" height="17"/>
-                <path d="M4 7.5h7M21 7.5h7M4 24.5h7M21 24.5h7" stroke-width="7"/>
+            <svg class="brand__mark" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="4" y="4" width="16" height="16" rx="2"/>
+                <path d="M4 9h16M9 4v16"/>
             </svg>
             <span class="brand__name">{{ 'layout.brand'|trans }}</span>
         </a>
@@ -20,7 +23,8 @@
                 {% for item in nav_items %}
                     <li>
                         <a class="app-nav__link" href="{{ item.href }}"
-                           {%- if item.route and app.current_route == item.route %} aria-current="page"{% endif %}>{{ item.label|trans }}</a>
+                           {%- if item.route and app.current_route == item.route %} aria-current="page"
+                           {%- elseif item.section is defined and app.current_route starts with item.section %} aria-current="true"{% endif %}>{{ item.label|trans }}</a>
                     </li>
                 {% endfor %}
             </ul>
