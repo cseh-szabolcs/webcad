@@ -4,6 +4,7 @@ namespace App\Tests\Customer\Controller;
 
 use App\Core\Tenancy\TenantSwitcher;
 use App\Customer\Entity\Company;
+use App\Customer\Entity\Customer;
 use App\Tests\Security\LogsInTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -21,6 +22,7 @@ final class CompanyListControllerTest extends WebTestCase
 
         // The database is not reset between tests, and these tests look at all companies.
         static::getContainer()->get(TenantSwitcher::class)->switchTo($_ENV['DEFAULT_TENANT']);
+        $this->em()->createQuery('DELETE FROM '.Customer::class)->execute();
         $this->em()->createQuery('DELETE FROM '.Company::class)->execute();
     }
 
@@ -62,9 +64,9 @@ final class CompanyListControllerTest extends WebTestCase
     public function testReturnsTheCompaniesByName(): void
     {
         $this->logIn($this->client, $this->createUser());
-        $company = (new Company('Muster GmbH'))->setEmail('info@muster.example.com')->setPhone('+49 30 123456');
+        $company = Company::forOrganization('Muster GmbH')->setEmail('info@muster.example.com')->setPhone('+49 30 123456');
         $em = $this->em();
-        $em->persist(new Company('Zimmerei Holz'));
+        $em->persist(Company::forOrganization('Zimmerei Holz'));
         $em->persist($company);
         $em->flush();
         $em->clear();
@@ -84,12 +86,27 @@ final class CompanyListControllerTest extends WebTestCase
         self::assertNull($result['items'][1]['email']);
     }
 
+    public function testLeavesOutTheCompaniesOfPrivatePersons(): void
+    {
+        $this->logIn($this->client, $this->createUser());
+        $em = $this->em();
+        $em->persist(Company::forOrganization('Muster GmbH'));
+        $em->persist(new Customer(Company::forPrivatePerson()));
+        $em->flush();
+        $em->clear();
+
+        $result = $this->data('page=1&pageSize=20');
+
+        self::assertSame(1, $result['total']);
+        self::assertSame(['Muster GmbH'], array_column($result['items'], 'name'));
+    }
+
     public function testReturnsTheRequestedPage(): void
     {
         $this->logIn($this->client, $this->createUser());
         $em = $this->em();
         foreach (['Adler AG', 'Berger KG', 'Conrad GmbH'] as $name) {
-            $em->persist(new Company($name));
+            $em->persist(Company::forOrganization($name));
         }
         $em->flush();
         $em->clear();

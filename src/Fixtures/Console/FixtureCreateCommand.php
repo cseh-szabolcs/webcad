@@ -51,12 +51,15 @@ final readonly class FixtureCreateCommand
         ['name' => 'Stadtwerke Musterstadt', 'email' => 'info@stadtwerke.example.com', 'phone' => null],
     ];
 
-    /** With and without a company (by its name), so the list also shows empty fields and customers without a tag. */
+    /**
+     * Contacts of a company (by its name) and private persons with their contact data, so the list
+     * also shows empty fields and customers without a tag.
+     */
     private const array CUSTOMERS = [
-        ['company' => 'Nordbau Projekt GmbH', 'firstname' => 'Erika', 'lastname' => 'Muster', 'email' => 'e.muster@nordbau.example.com', 'phone' => '+49 30 5550101', 'tags' => ['Bauträger', 'Stammkunde']],
+        ['company' => 'Nordbau Projekt GmbH', 'firstname' => 'Erika', 'lastname' => 'Muster', 'tags' => ['Bauträger', 'Stammkunde']],
         ['company' => null, 'firstname' => 'Jonas', 'lastname' => 'Beispiel', 'email' => 'jonas.beispiel@example.com', 'phone' => '+49 170 5550102', 'tags' => ['Bauherr']],
-        ['company' => 'Wohnbau Süd eG', 'firstname' => 'Lena', 'lastname' => 'Hofmann', 'email' => 'hofmann@wohnbau-sued.example.com', 'phone' => '+49 89 5550103', 'tags' => ['Bauträger']],
-        ['company' => 'Stadtwerke Musterstadt', 'firstname' => null, 'lastname' => null, 'email' => 'bauamt@stadtwerke.example.com', 'phone' => '+49 40 5550104', 'tags' => ['Stammkunde', 'Öffentlich']],
+        ['company' => 'Wohnbau Süd eG', 'firstname' => 'Lena', 'lastname' => 'Hofmann', 'tags' => ['Bauträger']],
+        ['company' => 'Stadtwerke Musterstadt', 'firstname' => null, 'lastname' => null, 'tags' => ['Stammkunde', 'Öffentlich']],
         ['company' => null, 'firstname' => 'Mira', 'lastname' => 'Keller', 'email' => 'mira.keller@example.com', 'phone' => null, 'tags' => []],
     ];
 
@@ -132,7 +135,7 @@ final readonly class FixtureCreateCommand
     {
         $companies = [];
         foreach (self::COMPANIES as $data) {
-            $companies[$data['name']] = (new Company($data['name']))
+            $companies[$data['name']] = Company::forOrganization($data['name'])
                 ->setEmail($data['email'])
                 ->setPhone($data['phone']);
             $this->entityManager->persist($companies[$data['name']]);
@@ -140,12 +143,12 @@ final readonly class FixtureCreateCommand
 
         $tags = [];
         foreach (self::CUSTOMERS as $data) {
-            $customer = (new Customer())
-                ->setCompany(null !== $data['company'] ? $companies[$data['company']] : null)
+            $company = null !== $data['company']
+                ? $companies[$data['company']]
+                : Company::forPrivatePerson()->setEmail($data['email'])->setPhone($data['phone']);
+            $customer = (new Customer($company))
                 ->setFirstname($data['firstname'])
-                ->setLastname($data['lastname'])
-                ->setEmail($data['email'])
-                ->setPhone($data['phone']);
+                ->setLastname($data['lastname']);
 
             foreach ($data['tags'] as $name) {
                 if (!isset($tags[$name])) {

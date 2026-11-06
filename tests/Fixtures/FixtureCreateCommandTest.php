@@ -81,13 +81,16 @@ final class FixtureCreateCommandTest extends KernelTestCase
 
         $this->em()->clear();
         self::assertCount(5, $this->em()->getRepository(Customer::class)->findAll());
-        self::assertCount(3, $this->em()->getRepository(Company::class)->findAll());
+        self::assertCount(3, $this->em()->getRepository(Company::class)->findBy(['organization' => true]));
         self::assertCount(4, $this->em()->getRepository(Tag::class)->findAll());
 
         $customer = $this->em()->getRepository(Customer::class)->findOneBy(['lastname' => 'Muster']);
         self::assertSame('Nordbau Projekt GmbH', $customer->getCompany()->getName());
         self::assertSame(['Bauträger', 'Stammkunde'], $customer->getTags()->map(static fn (Tag $tag) => $tag->getName())->getValues());
-        self::assertNull($this->em()->getRepository(Customer::class)->findOneBy(['lastname' => 'Keller'])->getCompany());
+
+        $privatePerson = $this->em()->getRepository(Customer::class)->findOneBy(['lastname' => 'Keller'])->getCompany();
+        self::assertFalse($privatePerson->isOrganization());
+        self::assertSame('mira.keller@example.com', $privatePerson->getEmail());
     }
 
     public function testCanBeRunAgain(): void

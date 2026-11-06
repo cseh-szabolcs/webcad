@@ -113,7 +113,7 @@ final class CustomerListControllerTest extends WebTestCase
         $this->logIn($this->client, $this->createUser());
         $em = $this->em();
         foreach (['Adler', 'Berger', 'Conrad'] as $lastname) {
-            $em->persist((new Customer())->setLastname($lastname));
+            $em->persist((new Customer(Company::forPrivatePerson()))->setLastname($lastname));
         }
         $em->flush();
         $em->clear();
@@ -134,13 +134,8 @@ final class CustomerListControllerTest extends WebTestCase
     public function testReturnsTheCustomersWithTheirTagsByName(): void
     {
         $this->logIn($this->client, $this->createUser());
-        $company = new Company('Muster GmbH');
-        $customer = (new Customer())
-            ->setEmail('erika@example.com')
-            ->setCompany($company)
-            ->setFirstname('Erika')
-            ->setLastname('Muster')
-            ->setPhone('+49 30 123456');
+        $company = Company::forOrganization('Muster GmbH')->setEmail('erika@example.com')->setPhone('+49 30 123456');
+        $customer = (new Customer($company))->setFirstname('Erika')->setLastname('Muster');
         $em = $this->em();
         $em->persist($company);
         $tags = [];
@@ -150,7 +145,7 @@ final class CustomerListControllerTest extends WebTestCase
             $em->persist($tags[$name]);
         }
         $em->persist($customer);
-        $em->persist((new Customer())->setLastname('Zimmermann'));
+        $em->persist((new Customer(Company::forPrivatePerson()))->setLastname('Zimmermann'));
         $em->flush();
         $em->clear();
 
@@ -179,11 +174,11 @@ final class CustomerListControllerTest extends WebTestCase
     public function testOneCompanyCanHaveManyCustomers(): void
     {
         $this->logIn($this->client, $this->createUser());
-        $company = new Company('Muster GmbH');
+        $company = Company::forOrganization('Muster GmbH');
         $em = $this->em();
         $em->persist($company);
         foreach (['Adler', 'Berger'] as $lastname) {
-            $em->persist((new Customer())->setLastname($lastname)->setCompany($company));
+            $em->persist((new Customer($company))->setLastname($lastname));
         }
         $em->flush();
         $em->clear();
@@ -194,24 +189,20 @@ final class CustomerListControllerTest extends WebTestCase
         self::assertCount(2, $em->find(Company::class, $company->getId())->getCustomers());
     }
 
-    public function testDeletingACompanyKeepsItsCustomers(): void
+    public function testAPrivatePersonHasTheContactDataOfItsCompanyButNoCompanyName(): void
     {
         $this->logIn($this->client, $this->createUser());
-        $company = new Company('Muster GmbH');
+        $company = Company::forPrivatePerson()->setEmail('jonas@example.com')->setPhone('+49 170 123456');
         $em = $this->em();
-        $em->persist($company);
-        $em->persist((new Customer())->setLastname('Muster')->setCompany($company));
+        $em->persist((new Customer($company))->setFirstname('Jonas')->setLastname('Beispiel'));
         $em->flush();
         $em->clear();
 
-        $em->remove($em->find(Company::class, $company->getId()));
-        $em->flush();
-        $em->clear();
+        $item = $this->data('page=1&pageSize=20')['items'][0];
 
-        $result = $this->data('page=1&pageSize=20');
-
-        self::assertSame(1, $result['total']);
-        self::assertNull($result['items'][0]['company']);
+        self::assertNull($item['company']);
+        self::assertSame('jonas@example.com', $item['email']);
+        self::assertSame('+49 170 123456', $item['phone']);
     }
 
     public function testOneTagCanBeAssignedToManyCustomers(): void
@@ -221,7 +212,7 @@ final class CustomerListControllerTest extends WebTestCase
         $em = $this->em();
         $em->persist($tag);
         foreach (['Adler', 'Berger'] as $lastname) {
-            $customer = (new Customer())->setLastname($lastname);
+            $customer = (new Customer(Company::forPrivatePerson()))->setLastname($lastname);
             $customer->addTag($tag);
             $em->persist($customer);
         }
@@ -238,7 +229,7 @@ final class CustomerListControllerTest extends WebTestCase
         $this->logIn($this->client, $this->createUser());
         $em = $this->em();
         foreach (['Adler', 'Berger'] as $lastname) {
-            $customer = (new Customer())->setLastname($lastname);
+            $customer = (new Customer(Company::forPrivatePerson()))->setLastname($lastname);
             foreach (['Bauherr', 'Planer', 'Statik'] as $name) {
                 $tag = new Tag($name);
                 $customer->addTag($tag);
@@ -260,7 +251,7 @@ final class CustomerListControllerTest extends WebTestCase
     {
         $this->logIn($this->client, $this->createUser());
         $tag = new Tag('Bauherr');
-        $customer = (new Customer())->setLastname('Muster');
+        $customer = (new Customer(Company::forPrivatePerson()))->setLastname('Muster');
         $customer->addTag($tag);
         $em = $this->em();
         $em->persist($tag);
@@ -283,7 +274,7 @@ final class CustomerListControllerTest extends WebTestCase
         $this->logIn($this->client, $this->createUser());
         $em = $this->em();
         foreach (['Adler', 'Berger', 'Conrad'] as $lastname) {
-            $em->persist((new Customer())->setLastname($lastname));
+            $em->persist((new Customer(Company::forPrivatePerson()))->setLastname($lastname));
         }
         $em->flush();
         $em->clear();
@@ -332,11 +323,11 @@ final class CustomerListControllerTest extends WebTestCase
         $other = new Tag('Planer');
         $em->persist($wanted);
         $em->persist($other);
-        $customer = (new Customer())->setLastname('Adler');
+        $customer = (new Customer(Company::forPrivatePerson()))->setLastname('Adler');
         $customer->addTag($wanted);
         $customer->addTag($other);
         $em->persist($customer);
-        $withoutWanted = (new Customer())->setLastname('Berger');
+        $withoutWanted = (new Customer(Company::forPrivatePerson()))->setLastname('Berger');
         $withoutWanted->addTag($other);
         $em->persist($withoutWanted);
         $em->flush();
@@ -352,12 +343,12 @@ final class CustomerListControllerTest extends WebTestCase
     public function testSortsANameByTheCompanyIfTheCustomerHasNoLastName(): void
     {
         $this->logIn($this->client, $this->createUser());
-        $company = new Company('Moser AG');
+        $company = Company::forOrganization('Moser AG');
         $em = $this->em();
         $em->persist($company);
-        $em->persist((new Customer())->setCompany($company));
+        $em->persist(new Customer($company));
         foreach (['Zimmermann', 'Adler'] as $lastname) {
-            $em->persist((new Customer())->setLastname($lastname));
+            $em->persist((new Customer(Company::forPrivatePerson()))->setLastname($lastname));
         }
         $em->flush();
         $em->clear();
@@ -376,7 +367,7 @@ final class CustomerListControllerTest extends WebTestCase
         $this->logIn($this->client, $this->createUser());
         $em = $this->em();
         foreach (['Adler' => '2020-01-01', 'Berger' => '2022-01-01', 'Conrad' => '2021-01-01'] as $lastname => $date) {
-            $em->persist((new Customer())->setLastname($lastname));
+            $em->persist((new Customer(Company::forPrivatePerson()))->setLastname($lastname));
             $em->flush();
             $em->createQuery('UPDATE '.Customer::class.' c SET c.created = :date, c.updated = :date WHERE c.lastname = :lastname')
                 ->setParameter('date', new \DateTimeImmutable($date))
@@ -411,9 +402,9 @@ final class CustomerListControllerTest extends WebTestCase
     public function testReturnsOneCustomerForTheDetailView(): void
     {
         $this->logIn($this->client, $this->createUser());
-        $company = new Company('Muster GmbH');
+        $company = Company::forOrganization('Muster GmbH');
         $tag = new Tag('Bauherr');
-        $customer = (new Customer())->setLastname('Muster')->setCompany($company);
+        $customer = (new Customer($company))->setLastname('Muster');
         $customer->addTag($tag);
         $em = $this->em();
         $em->persist($company);
@@ -454,7 +445,7 @@ final class CustomerListControllerTest extends WebTestCase
         $this->logIn($this->client, $this->createUser());
         $em = $this->em();
         foreach (['Adler', 'Adlmann', 'Berger'] as $lastname) {
-            $em->persist((new Customer())->setLastname($lastname));
+            $em->persist((new Customer(Company::forPrivatePerson()))->setLastname($lastname));
         }
         $em->flush();
         $em->clear();
@@ -487,11 +478,10 @@ final class CustomerListControllerTest extends WebTestCase
 
     private function createSearchableCustomers(): void
     {
-        $company = new Company('Nordbau GmbH');
+        $company = Company::forOrganization('Nordbau GmbH')->setEmail('info@nord.test');
         $em = $this->em();
-        $em->persist($company);
-        $em->persist((new Customer())->setFirstname('Erika')->setLastname('Muster')->setCompany($company)->setEmail('erika@nord.test'));
-        $em->persist((new Customer())->setFirstname('Jonas')->setLastname('Beispiel')->setEmail('jonas@b.example'));
+        $em->persist((new Customer($company))->setFirstname('Erika')->setLastname('Muster'));
+        $em->persist((new Customer(Company::forPrivatePerson()->setEmail('jonas@b.example')))->setFirstname('Jonas')->setLastname('Beispiel'));
         $em->flush();
         $em->clear();
     }

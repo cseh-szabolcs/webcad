@@ -35,7 +35,7 @@ final class CustomerTimestampsTest extends KernelTestCase
     {
         $customer = $this->reload($this->createCustomerInThePast());
 
-        $customer->setPhone('+49 30 123456');
+        $customer->setFirstname('Erika');
         $this->em()->flush();
 
         $customer = $this->reload($customer);
@@ -46,7 +46,7 @@ final class CustomerTimestampsTest extends KernelTestCase
     public function testAssigningACompanySetsUpdated(): void
     {
         $customer = $this->reload($this->createCustomerInThePast());
-        $company = new Company('Muster GmbH');
+        $company = Company::forOrganization('Muster GmbH');
         $this->em()->persist($company);
 
         $customer->setCompany($company);
@@ -78,7 +78,7 @@ final class CustomerTimestampsTest extends KernelTestCase
 
     private function createCustomerInThePast(): Customer
     {
-        $customer = (new Customer())->setLastname('Muster');
+        $customer = (new Customer(Company::forPrivatePerson()))->setLastname('Muster');
         $em = $this->em();
         $em->persist($customer);
         $em->flush();

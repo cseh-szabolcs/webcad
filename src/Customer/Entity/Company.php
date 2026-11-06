@@ -10,7 +10,11 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
-/** A company: it can have many customers, a customer belongs to at most one company. */
+/**
+ * The name and contact data of a customer. An organization (a firm, an authority) has a name and
+ * can have many customers as its contacts. The company of a private person has no name, as that is
+ * the customer's, and only this one customer: Customer's unique index ensures that.
+ */
 #[ORM\Entity(repositoryClass: CompanyRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 class Company
@@ -38,11 +42,26 @@ class Company
     #[ORM\OneToMany(targetEntity: Customer::class, mappedBy: 'company')]
     private Collection $customers;
 
-    public function __construct(
-        #[ORM\Column(length: 255)]
-        private string $name,
+    /**
+     * @param bool $organization cannot change: Customer::$uniqueCompanyConstraint relies on it
+     */
+    private function __construct(
+        #[ORM\Column(length: 255, nullable: true)]
+        private ?string $name,
+        #[ORM\Column]
+        private bool $organization,
     ) {
         $this->customers = new ArrayCollection();
+    }
+
+    public static function forOrganization(string $name): self
+    {
+        return new self($name, true);
+    }
+
+    public static function forPrivatePerson(): self
+    {
+        return new self(null, false);
     }
 
     public function getId(): ?int
@@ -50,7 +69,8 @@ class Company
         return $this->id;
     }
 
-    public function getName(): string
+    /** Null for a private person. */
+    public function getName(): ?string
     {
         return $this->name;
     }
@@ -60,6 +80,11 @@ class Company
         $this->name = $name;
 
         return $this;
+    }
+
+    public function isOrganization(): bool
+    {
+        return $this->organization;
     }
 
     public function getEmail(): ?string

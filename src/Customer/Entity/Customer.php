@@ -10,8 +10,12 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
-/** A customer of the office, with or without a company; every field may stay empty. */
+/**
+ * A customer of the office: a contact of an organization or a private person, whose e-mail and
+ * phone are in its company in both cases. Every field of its own may stay empty.
+ */
 #[ORM\Entity(repositoryClass: CustomerRepository::class)]
+#[ORM\UniqueConstraint(name: 'uniq_customer_company', columns: ['company_id', 'unique_company_constraint'])]
 #[ORM\HasLifecycleCallbacks]
 class Customer
 {
@@ -25,21 +29,22 @@ class Customer
     private ?int $id = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $email = null;
-
-    #[ORM\Column(length: 255, nullable: true)]
     private ?string $firstname = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $lastname = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
-    private ?string $phone = null;
+    /**
+     * Purely technical: true or null, so the unique index allows a private person's company only
+     * one customer (NULLs never collide). Set by setCompany().
+     */
+    #[ORM\Column(nullable: true)]
+    private ?bool $uniqueCompanyConstraint = null;
 
-    /** Deleting a company keeps its customers. */
-    #[ORM\ManyToOne(targetEntity: Company::class, inversedBy: 'customers')]
-    #[ORM\JoinColumn(onDelete: 'SET NULL')]
-    private ?Company $company = null;
+    /** A company with customers cannot be deleted. */
+    #[ORM\ManyToOne(targetEntity: Company::class, cascade: ['persist'], inversedBy: 'customers')]
+    #[ORM\JoinColumn(nullable: false)]
+    private Company $company;
 
     /**
      * Deleting a tag keeps its customers.
@@ -50,26 +55,15 @@ class Customer
     #[ORM\OrderBy(['name' => 'ASC'])]
     private Collection $tags;
 
-    public function __construct()
+    public function __construct(Company $company)
     {
+        $this->setCompany($company);
         $this->tags = new ArrayCollection();
     }
 
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    public function getEmail(): ?string
-    {
-        return $this->email;
-    }
-
-    public function setEmail(?string $email): static
-    {
-        $this->email = $email;
-
-        return $this;
     }
 
     public function getFirstname(): ?string
@@ -96,26 +90,15 @@ class Customer
         return $this;
     }
 
-    public function getPhone(): ?string
-    {
-        return $this->phone;
-    }
-
-    public function setPhone(?string $phone): static
-    {
-        $this->phone = $phone;
-
-        return $this;
-    }
-
-    public function getCompany(): ?Company
+    public function getCompany(): Company
     {
         return $this->company;
     }
 
-    public function setCompany(?Company $company): static
+    public function setCompany(Company $company): static
     {
         $this->company = $company;
+        $this->uniqueCompanyConstraint = $company->isOrganization() ? null : true;
 
         return $this;
     }

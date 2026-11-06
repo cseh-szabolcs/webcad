@@ -39,7 +39,7 @@ class CustomerRepository extends ServiceEntityRepository
             $parameter = 'word'.$index;
             $builder
                 ->andWhere(\sprintf(
-                    'c.firstname LIKE :%1$s OR c.lastname LIKE :%1$s OR c.email LIKE :%1$s OR co.name LIKE :%1$s',
+                    'c.firstname LIKE :%1$s OR c.lastname LIKE :%1$s OR co.email LIKE :%1$s OR co.name LIKE :%1$s',
                     $parameter,
                 ))
                 ->setParameter($parameter, '%'.addcslashes($word, '%_\\').'%');
@@ -82,7 +82,7 @@ class CustomerRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('c')
             ->addSelect('co', 't')
-            ->leftJoin('c.company', 'co')
+            ->join('c.company', 'co')
             ->leftJoin('c.tags', 't');
     }
 }

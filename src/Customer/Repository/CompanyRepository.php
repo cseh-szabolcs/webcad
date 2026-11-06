@@ -17,10 +17,11 @@ class CompanyRepository extends ServiceEntityRepository
         parent::__construct($registry, Company::class);
     }
 
-    /** All companies, for App\Core\Doctrine\ListPaginator. */
+    /** All organizations, for App\Core\Doctrine\ListPaginator; private persons are in the customer list. */
     public function createListQueryBuilder(): QueryBuilder
     {
         return $this->createQueryBuilder('c')
+            ->where('c.organization = true')
             ->orderBy('c.name')
             ->addOrderBy('c.id');
     }
