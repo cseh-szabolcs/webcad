@@ -3,7 +3,7 @@ export function dispatch(name, payload = undefined, remember = true) {
         waiting[name] = payload;
     }
 
-    window.document.dispatchEvent(new CustomEvent(name, {
+    window.dispatchEvent(new CustomEvent(name, {
         detail: payload,
     }));
 }
@@ -14,7 +14,7 @@ export function on(name, handler, remember = true) {
     }
 
     const ctr = new AbortController();
-    window.document.addEventListener(name, (event) => {
+    window.addEventListener(name, (event) => {
         event.detail ? handler(event.detail, event) : handler(event);
     }, {
         signal: ctr.signal,

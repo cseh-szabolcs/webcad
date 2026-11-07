@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Twig\Components\Nav;
+namespace App\Twig\Components\Menu;
 
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
@@ -17,3 +17,4 @@ final class SegmentTab
 
     public bool $active = false;
 }
+

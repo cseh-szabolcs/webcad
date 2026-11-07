@@ -120,10 +120,27 @@
                 </svg>
             </button>
         </td>
+        <td class="customer-row__actions">
+            <twig:Menu:ContextMenu
+                label="Aktionen"
+                targetId="customer-context-menu"
+                itemObjectJS="item"
+                itemLabelGetterJS="getContextMenuLabel"
+            />
+        </td>
     </tr>
 {% endblock %}
 
 {% block aside %}
+    <twig:Menu:ContextMenuLayer
+        id="customer-context-menu"
+        label="{{ 'customer.list.actions'|trans }}"
+        items="{{ [
+            {action: 'edit', label: 'customer.list.edit'|trans },
+            {action: 'delete', label: 'customer.list.delete'|trans, button: true },
+            {action: 'createPlan', label: 'customer.list.create_plan'|trans },
+        ] }}"
+    />
     <div id="customer-menu" class="customer-menu" popover x-ref="menu" aria-label="{{ 'customer.list.actions'|trans }}"
          x-on:keydown.escape.window="onEscape()" x-on:scroll.window.capture="closeMenu()">
         <a class="customer-menu__item" href="#" x-on:click.prevent="closeMenu()">{{ 'customer.list.edit'|trans }}</a>

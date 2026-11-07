@@ -4,6 +4,7 @@ import { formatDate, formatRelativeDay } from '../../../scripts/date.js';
 import { extend } from '../../../scripts/extend.js';
 import { remoteListState } from '../../../scripts/states/remoteListState.js';
 import { withStateController } from '../../../scripts/withStateController.js';
+import event from '../../../scripts/event.js';
 
 /*
  * The customer list (templates/page/customer/list.html.twig): search, tag filter and sorting go to
@@ -40,6 +41,18 @@ const state = extend(remoteListState, {
     init() {
         remoteListState.init.call(this);
         this.loadTagOptions();
+
+        event.on('app_cmp_context-menu:customer-context-menu:action', ({item, action}) => {
+            this.handleAction(item, action);
+        })
+    },
+
+    handleAction(item, action) {
+        alert(item.id + ' : ' + action);
+    },
+
+    getContextMenuLabel(item, label) {
+        return label + this.displayName(item);
     },
 
     readLocation() {
