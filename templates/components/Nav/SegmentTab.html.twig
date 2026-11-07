@@ -1,0 +1,10 @@
+<a
+    data-key="{{ key }}"
+    {%- if href %} href="{{ href }}"{% endif %}
+    {%- if dataSource %} data-source="{{ dataSource }}"{% endif %}
+    {%- if active %} aria-current="page"{% endif %}
+    class="segmented__option"
+    {{ attributes }}>
+    {{- label }}
+    <span class="segmented__badge" x-text="getCount('{{ key }}')"></span>
+</a>

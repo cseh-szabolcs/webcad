@@ -20,6 +20,9 @@ export function withStateController(state) {
         connect() {
             createState(this, (controller) => {
                 const instance = clone(state);
+                instance.$element =  controller.element;
+                instance.$identifier =  controller.identifier;
+
                 // A field the defaults don't define is most likely a typo in Twig.
                 for (const key of Object.keys(controller.stateValue)) {
                     if (!(key in instance)) {

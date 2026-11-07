@@ -5,5 +5,6 @@ import Alpine from 'alpinejs'
  */
 import './styles/app.css';
 import './styles/app-layout.css';
+import './styles/app-components.css';
 
 Alpine.start();
