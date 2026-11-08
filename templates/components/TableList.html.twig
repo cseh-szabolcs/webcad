@@ -2,9 +2,8 @@
     class="data-card split__main"
     aria-label="{{ label }}"
     {% if bindController %}
-        {{ stimulus_controller('page--fixtures--list-example', {state: {url: dataSource}}) }} x-cloak
-    {% endif %}
-    {{ attributes }}>
+        {{ stimulus_controller(bindController, {url: dataSource, contextId: contextId}) }} x-cloak
+    {% endif %}>
 
     {% set filterExists = block('filter') is defined %}
 

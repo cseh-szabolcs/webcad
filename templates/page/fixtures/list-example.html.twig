@@ -17,7 +17,7 @@
 
     <section
         class="panel list-example" x-bind:aria-busy="loading"
-        {{ stimulus_controller('page--fixtures--list-example', { state: { url: path('fixtures_list_example_data') } }) }}
+        {{ stimulus_controller('page--fixtures--list-example', { url: path('fixtures_list_example_data') }) }}
         x-cloak>
         <p class="list-example__error" x-show="error" x-text="`Loading failed: ${error}`"></p>
         <table class="list-example__table" x-show="!error">

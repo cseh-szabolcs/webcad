@@ -14,7 +14,8 @@
             label="{{ 'customer.list.title'|trans }}"
             count="{{ 'customer.list.count_other'|trans({'%count%': 2}) }}"
             dataSource="{{ path('customer_company_list_data') }}"
-            bindController="page--customer-list">
+            contextId="customer-actions"
+            bindController="page--customer--list">
 
             <twig:block name="filter">
                 <twig:Form:SearchInput
@@ -62,7 +63,7 @@
                     <twig:TableList:Col>
                         <div class="meta-list">
                             <span class="meta-list__item meta-list__item--link">
-                                {{ svg_icon('email') }} info@stadtwerke.example.com
+                                {{ svg_icon('mail', {size:'sm'}) }} info@stadtwerke.example.com
                             </span>
                         </div>
                     </twig:TableList:Col>

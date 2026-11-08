@@ -16,16 +16,35 @@ final class SvgIconExtension
         'close' => '<path d="M6 6l12 12M18 6L6 18"/>',
     ];
 
-    private const string Svg = '<svg class="icon" viewBox="0 0 %d %d" aria-hidden="true">%s</svg>';
+    private const array Variant = [
+        'm' => 'icon',
+        'sm' => 'icon icon--sm',
+    ];
+
+    private const array Options = [
+        'viewBox' => 24,
+        'size' => 'normal',
+    ];
+
+    private const string Svg = '<svg class="%s" viewBox="0 0 %d %d" aria-hidden="true">%s</svg>';
 
     ##[AsTwigFilter('svg_icon')]
     #[AsTwigFunction(name: 'svg_icon', isSafe: ['html'])]
-    public function svgIcon(string $name, int $size = 24, string $default = ':/'): string
+    public function svgIcon(string $name, array $options = [], string $default = ':/'): string
     {
-        if ($icon = self::Icons[$name] ?? null) {
-            return sprintf(self::Svg, $size, $size, $icon);
+        $icon = self::Icons[$name] ?? null;
+        if (!$icon) {
+            return $default;
         }
 
-        return $default;
+        $options = array_merge(self::Options, $options);
+
+        return sprintf(
+            self::Svg,
+            self::Variant[$options['size']] ?? self::Variant['m'],
+            $options['viewBox'],
+            $options['viewBox'],
+            $icon,
+        );
     }
 }

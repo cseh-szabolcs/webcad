@@ -1,17 +1,16 @@
 import Alpine from 'alpinejs';
 
 /**
- * Gives a Stimulus controller's element an Alpine state.
- *
- * `factory(controller)` must return a new object on every call, so that instances never share
- * nested arrays or objects. The registration under the controller's identifier is global, but it
- * is renewed on every connect() and evaluated right away by initTree(), so each instance gets
- * the state of its own controller.
+ * Gives a Stimulus controller's element the Alpine state `factory(controller, magics)`. The
+ * Alpine.data() name is global, but renewed on every connect() and used right away.
  */
 export function createState(controller, factory) {
     const { element } = controller;
     const name = dataName(controller.identifier);
-    Alpine.data(name, () => factory(controller));
+    // A function, not an arrow: Alpine calls it with `this` = the magics of the x-data element.
+    Alpine.data(name, function () {
+        return factory(controller, stateMagics(this));
+    });
     // mutateDom() hides the change from Alpine's MutationObserver, which would otherwise
     // initialise the element a second time (init() would run twice).
     Alpine.mutateDom(() => element.setAttribute('x-data', name));
@@ -22,11 +21,34 @@ export function createState(controller, factory) {
 }
 
 /**
- * The Alpine.data() name of a Stimulus identifier. Alpine evaluates x-data as a JavaScript
- * expression, so `example-list` would be `example - list`: every character that is not allowed
- * in a name becomes `_` (`example-list` → `example_list`, `layout--theme` → `layout__theme`).
- * Stimulus identifiers contain no `_`, so two identifiers never get the same name.
+ * All of Alpine's magics of the element, read only when taken; call $watch() in init(), not in
+ * the factory. `$refs` and `$data` are read on every access: in the factory they don't exist yet,
+ * and Alpine would keep an empty $refs for good.
  */
+function stateMagics(magics) {
+    const result = {};
+    for (const name of Object.getOwnPropertyNames(magics)) {
+        Object.defineProperty(result, name, {
+            get: LIVE_MAGICS.includes(name) ? () => liveMagic(magics, name) : () => magics[name],
+            enumerable: true,
+        });
+    }
+
+    return result;
+}
+
+const LIVE_MAGICS = ['$refs', '$data'];
+
+/** An object that passes every access on to the magic `name`, read at the time of the access. */
+function liveMagic(magics, name) {
+    return new Proxy({}, {
+        get: (target, key) => magics[name][key],
+        set: (target, key, value) => Reflect.set(magics[name], key, value),
+        has: (target, key) => key in magics[name],
+    });
+}
+
+/** x-data is evaluated as JavaScript, so `layout--theme` becomes `layout__theme`. */
 function dataName(identifier) {
     return identifier.replace(/[^A-Za-z0-9_$]/g, '_');
 }

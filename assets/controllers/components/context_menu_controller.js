@@ -1,7 +1,7 @@
 import { withStateController } from '../../scripts/withStateController.js';
 import event from '../../scripts/event.js';
 
-const state = {
+const state = (controller, { $el }) => ({
     id: null,
     init() {
         this.id && event.on(`app_cmp_context-menu:${this.id}`, ({element, item = null}) => {
@@ -11,7 +11,7 @@ const state = {
     handleMenuClick(triggerElement, item) {
         this.item = item;
         if (!this.visible) {
-            setPosition(this['$element'], triggerElement);
+            setPosition($el, triggerElement);
         }
     },
     handleAction(action) {
@@ -21,12 +21,12 @@ const state = {
         });
     },
     closeMenu() {
-        this.visible && this['$element'].hidePopover();
+        this.visible && $el.hidePopover();
     },
     get visible() {
-        return this['$element']?.matches(':popover-open');
+        return $el.matches(':popover-open');
     },
-};
+});
 
 /**
  * Places the row menu at its button, before the button's `popovertarget` opens it. The menu

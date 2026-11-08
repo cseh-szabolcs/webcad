@@ -15,5 +15,7 @@ class TableList
 
     public string $dataSource = '';
 
+    public string $contextId = '';
+
     public null|int|string $count = null;
 }

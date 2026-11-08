@@ -1,11 +1,11 @@
 import { withStateController } from '../../scripts/withStateController.js';
 import event from '../../scripts/event.js';
 
-const state = {
+const state = (controller, { $el, $watch }) => ({
     activeTab: null,
     dataSource: null,
     init() {
-        this['$watch']('dataSource', () => {
+        $watch('dataSource', () => {
             event.dispatch('app.cmp.segmentTabs:change', {
                 key: this.activeTab,
                 dataSource: this.dataSource,
@@ -13,7 +13,7 @@ const state = {
         });
 
         queueMicrotask(() => {
-            const active = this.$element.querySelectorAll('a[aria-current="page"]')[0] ?? null;
+            const active = $el.querySelectorAll('a[aria-current="page"]')[0] ?? null;
             active && this.selectTab(active);
         });
     },
@@ -27,6 +27,6 @@ const state = {
     getCount(key) {
 
     },
-};
+});
 
 export default withStateController(state);

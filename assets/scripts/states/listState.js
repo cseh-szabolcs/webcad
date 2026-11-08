@@ -2,24 +2,10 @@
 const collator = new Intl.Collator(document.documentElement.lang || undefined, { numeric: true });
 
 /**
- * Base state of a list with search, sorting and pagination in the browser: `items` holds the
- * whole list, `filteredItems` the items matching `query`, `sortedItems` those sorted by `sortKey`,
- * the page shows `pageItems` of them. Build on it with extend(), e.g.
- *
- *     const state = extend(listState, { pageSize: 50 });
- *     export default withStateController(state);
- *
- * and set the items from Twig: `stimulus_controller('…', { state: { items: [ … ] } })`; bind the
- * search field with `x-model="query"`, a column header with `x-on:click="sortBy('name')"` and
- * `x-bind:aria-sort="ariaSort('name')"`. `sortKey` is a field of the items (a path like
- * `project.name` works too; '' leaves the order of `items`), `sortDirection` 'asc' or 'desc'.
- * Pages count from 1; a new query or sorting goes back to page 1. After `items` changed (fewer
- * of them), call goToPage(this.page) to bring `page` back into range.
- *
- * A state that overrides init() must call `listState.init.call(this)`. To search other than in
- * all values of an item, override searchText(item) (e.g. `return item.name;`) or matches(); to
- * sort by something else than the field, override sortValue(item, key) or compare(a, b).
- * The getters filter and sort again on every read, which is fine for the lists a page sends along.
+ * A list with search (`query`), sorting (`sortKey`, may be a path like `project.name`) and pages
+ * (from 1) in the browser, items set from Twig. A new query or sorting goes back to page 1; after
+ * `items` shrank, call goToPage(this.page). An overriding init() must call super.init();
+ * searchText(), sortValue() and compare() are meant to be overridden.
  */
 export const listState = {
     items: [],
@@ -145,12 +131,8 @@ export const listState = {
     },
 
     /**
-     * The page numbers to show as links, like `1 … 6 7 8 9 10 … 20`: the first and the last page,
-     * `pageLinkRadius` pages on each side of the current one and a gap (`page: null`) for the pages
-     * left out. Always `2 * pageLinkRadius + 5` entries (or all pages, if there are no more), so
-     * the links do not move under the pointer: near the start or the end, more pages take the
-     * place of a gap (`1 2 3 4 5 6 7 … 20`). Each entry is `{ key, page, current }`, `key` for
-     * x-for (`gap-start`/`gap-end` for the gaps).
+     * Page links like `1 … 6 7 8 9 10 … 20` (`page: null` is a gap), always the same number of
+     * entries, so the links don't move under the pointer. `key` is for x-for.
      */
     get pageLinks() {
         const count = this.pageCount;

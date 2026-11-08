@@ -1,36 +1,28 @@
 import { Controller } from '@hotwired/stimulus';
-import { clone } from './clone.js';
 import { createState, destroyState } from './createState.js';
 
 /**
- * Builds a Stimulus controller class whose element gets the Alpine state `state`, so a
- * controller file only has to `export default withStateController(state)`.
- *
- * `state` holds the defaults; every instance gets its own copy (clone(), so its data fields must
- * be plain data, like the JSON Twig can set). Twig can override any of its fields with the
- * Stimulus value `state` (JSON), e.g. `stimulus_controller('example', { state: { message: '…' } })`.
- * So every field Twig may set needs a default; an unknown one is still set, but logs a warning.
- * Object.assign() writes onto the copy instead of spreading it, so getters (Alpine's computed
- * properties) stay getters.
+ * A Stimulus controller class whose element gets the Alpine state of `state(controller, magics)`,
+ * a factory that returns a new object on every call (see createState.js for `magics`). `values`
+ * are further Stimulus values (`{ url: String }` → `controller.urlValue`), outside of Alpine.
+ * Twig can override the state's fields with the Stimulus value `state`.
  */
-export function withStateController(state) {
+export function withStateController(state, values = {}) {
+    if (typeof state !== 'function') {
+        throw new TypeError('withStateController() needs a factory: (controller, magics) => ({ … })');
+    }
+
     return class extends Controller {
-        static values = { state: { type: Object, default: {} } };
+        static values = { ...values, state: { type: Object, default: {} } };
 
         connect() {
-            createState(this, (controller) => {
-                const instance = clone(state);
-                instance.$element =  controller.element;
-                instance.$identifier =  controller.identifier;
-
-                // A field the defaults don't define is most likely a typo in Twig.
-                for (const key of Object.keys(controller.stateValue)) {
-                    if (!(key in instance)) {
-                        console.warn(`${controller.identifier}: unknown state field "${key}"`);
-                    }
+            createState(this, (controller, magics) => {
+                const instance = state(controller, magics);
+                for (const [key, value] of Object.entries(controller.stateValue)) {
+                    setField(controller, instance, key, value);
                 }
 
-                return Object.assign(instance, controller.stateValue);
+                return instance;
             });
         }
 
@@ -38,4 +30,18 @@ export function withStateController(state) {
             destroyState(this);
         }
     };
+}
+
+/** Sets a field from Twig; an assignment, so a getter with a setter stays one. */
+function setField(controller, instance, key, value) {
+    const descriptor = Object.getOwnPropertyDescriptor(instance, key);
+    if (!(key in instance)) {
+        // Most likely a typo in Twig; still set.
+        console.warn(`${controller.identifier}: unknown state field "${key}"`);
+    } else if (descriptor?.get && !descriptor.set) {
+        console.warn(`${controller.identifier}: state field "${key}" is a getter, Twig can't set it`);
+
+        return;
+    }
+    instance[key] = value;
 }
