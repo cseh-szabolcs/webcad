@@ -3,7 +3,7 @@ import { listState } from './listState.js';
 
 /**
  * listState with the pages from the backend: GET `url` as XHR (XhrHandler) with `page`, `pageSize`,
- * `query`, `sort`, `direction`, answer App\Core\Dto\ListResultDto (`items` of the page, `page`, `total`). With
+ * `sort`, `direction`, answer App\Core\Dto\ListResultDto (`items` of the page, `page`, `total`). With
  * `useHistory` these are in the address too (Back/Forward, shareable), so only one such list per
  * page. An overriding init() or destroy() must call super.init() / super.destroy().
  */
@@ -17,12 +17,11 @@ export const remoteListState = extend(listState, {
     /** The AbortController of the running request; a new request (or destroy()) aborts it. */
     abortController: null,
     popStateListener: null,
-    /** query and sorting at the start (state or Twig): what the address leaves out. */
+    /** The sorting at the start (state or Twig): what the address leaves out. */
     locationDefaults: null,
 
     init() {
         this.locationDefaults = {
-            query: this.query,
             sortKey: this.sortKey,
             sortDirection: this.sortDirection,
         };
@@ -100,7 +99,6 @@ export const remoteListState = extend(listState, {
         this.page = Math.max(1, Number.parseInt(params.get('page') ?? '', 10) || 1);
         const defaults = this.locationDefaults;
         const direction = params.get('direction');
-        this.query = params.get('query') ?? defaults.query;
         this.sortKey = params.get('sort') ?? defaults.sortKey;
         this.sortDirection = ['asc', 'desc'].includes(direction) ? direction : defaults.sortDirection;
     },
@@ -110,7 +108,7 @@ export const remoteListState = extend(listState, {
      * page 1, the address leaves out what equals locationDefaults (readLocation() restores it).
      */
     writeParams(params, forRequest) {
-        for (const name of ['page', 'pageSize', 'query', 'sort', 'direction']) {
+        for (const name of ['page', 'pageSize', 'sort', 'direction']) {
             params.delete(name);
         }
         if (forRequest || this.page > 1) {
@@ -120,10 +118,6 @@ export const remoteListState = extend(listState, {
             params.set('pageSize', String(this.pageSize));
         }
         const defaults = this.locationDefaults;
-        const query = this.query.trim();
-        if (forRequest ? query !== '' : query !== defaults.query.trim()) {
-            params.set('query', query);
-        }
         const isDefaultSort = this.sortKey === defaults.sortKey
             && this.sortDirection === defaults.sortDirection;
         if (forRequest ? this.sortKey !== '' : !isDefaultSort) {

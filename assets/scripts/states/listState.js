@@ -2,14 +2,13 @@
 const collator = new Intl.Collator(document.documentElement.lang || undefined, { numeric: true });
 
 /**
- * A list with search (`query`), sorting (`sortKey`, may be a path like `project.name`) and pages
- * (from 1) in the browser, items set from Twig. A new query or sorting goes back to page 1; after
- * `items` shrank, call goToPage(this.page). An overriding init() must call super.init();
- * searchText(), sortValue() and compare() are meant to be overridden.
+ * A list with sorting (`sortKey`, may be a path like `project.name`) and pages (from 1) in the
+ * browser, items set from Twig; filters belong to the lists that need them. A new sorting goes back
+ * to page 1; after `items` shrank, call goToPage(this.page). An overriding init() must call
+ * super.init(); sortValue() and compare() are meant to be overridden.
  */
 export const listState = {
     items: [],
-    query: '',
     sortKey: '',
     sortDirection: 'asc',
     page: 1,
@@ -18,21 +17,11 @@ export const listState = {
     pageLinkRadius: 2,
 
     init() {
-        for (const field of ['query', 'sortKey', 'sortDirection']) {
+        for (const field of ['sortKey', 'sortDirection']) {
             this.$watch(field, () => {
                 this.page = 1;
             });
         }
-    },
-
-    /** The items matching `query`; all of them while it is empty. */
-    get filteredItems() {
-        const terms = this.query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
-        if (terms.length === 0) {
-            return this.items;
-        }
-
-        return this.items.filter((item) => this.matches(item, terms));
     },
 
     /** This will be called by a select-input which should contain the key and the direction like 'foo:asc' */
@@ -44,28 +33,9 @@ export const listState = {
         }
     },
 
-    /** Whether `item` contains every one of the (lower-case) `terms`, case-insensitively. */
-    matches(item, terms) {
-        const text = this.searchText(item).toLocaleLowerCase();
-
-        return terms.every((term) => text.includes(term));
-    },
-
-    /** The text searched in: the item itself, or for an object its values, nested ones too. */
-    searchText(item) {
-        if (item === null || item === undefined) {
-            return '';
-        }
-        if (typeof item === 'object') {
-            return Object.values(item).map((value) => this.searchText(value)).join(' ');
-        }
-
-        return String(item);
-    },
-
-    /** `filteredItems` sorted by `sortKey` (stable, `items` stays unchanged). */
+    /** `items` sorted by `sortKey` (stable, `items` stays unchanged). */
     get sortedItems() {
-        const items = this.filteredItems;
+        const items = this.items;
         if (this.sortKey === '') {
             return items;
         }
@@ -122,7 +92,7 @@ export const listState = {
 
     /** At least 1, so an empty list is page 1 of 1. */
     get pageCount() {
-        return Math.max(1, Math.ceil(this.filteredItems.length / this.pageSize));
+        return Math.max(1, Math.ceil(this.items.length / this.pageSize));
     },
 
     get pageItems() {

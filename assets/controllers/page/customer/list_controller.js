@@ -9,6 +9,7 @@ const state = (controller, {$watch}) => extend(remoteListState, {
     pageSize: 2,
     sortKey: 'updated',
     sortDirection: 'desc',
+    filterSearch: '',
 
     init() {
         super.init();
@@ -19,8 +20,8 @@ const state = (controller, {$watch}) => extend(remoteListState, {
         });
     },
 
-    applyFilterSearch(text, e) {
-        console.log("SSSSSSSS", text);
+    applyFilterSearch(text) {
+        this.filterSearch = text;
     },
 
     get url() {
