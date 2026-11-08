@@ -34,11 +34,12 @@
                 <twig:Form:Select
                     icon="sort"
                     label="{{ 'customer.list.sort_label'|trans }}"
+                    testHandler="sortModel"
                     options="{{ [
-                        { value: 'updated:desc', label: 'customer.list.all_tags'|trans },
-                        { value: 'created:desc', label: 'customer.list.sort.updated'|trans },
-                        { value: 'name:asc', label: 'customer.list.sort.created'|trans },
-                        { value: 'name:desc', label: 'customer.list.sort.name_asc'|trans },
+                        { value: 'updated:desc', label: 'customer.list.sort.updated'|trans },
+                        { value: 'created:desc', label: 'customer.list.sort.created'|trans },
+                        { value: 'name:asc', label: 'customer.list.sort.name_asc'|trans },
+                        { value: 'name:desc', label: 'customer.list.sort.name_desc'|trans },
                     ] }}"
                 />
             </twig:block>

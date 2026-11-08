@@ -1,9 +1,13 @@
+{% set onChangeHandler = bindHandler ? bindHandler ~ '($event)' : null %}
 <label class="field-box">
     {% if icon %}
         {{ svg_icon(icon) }}
     {% endif %}
     <span class="visually-hidden">{{ label }}</span>
-    <select {% if bindModel %} x-model="{{ bindModel }}"{% endif %}>
+    <select
+        {% if bindModel %} x-model="{{ bindModel }}"{% endif %}
+        {% if bindHandler %} x-on:change="{{ onChangeHandler }}"{% endif %}
+    >
         {% for option in options %}
             <option value="{{ option['value'] }}">{{ option['label'] }}</option>
         {% endfor %}

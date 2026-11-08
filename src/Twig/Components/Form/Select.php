@@ -17,4 +17,6 @@ class Select
     public ?string $activeItem = null;
 
     public ?string $bindModel = null;
+
+    public ?string $bindHandler = null;
 }
