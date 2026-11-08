@@ -90,6 +90,16 @@ class Customer
         return $this;
     }
 
+    /** The organization's name for its contacts, else first and last name (or the one there is). */
+    public function getDisplayName(): string
+    {
+        if ($this->company->isOrganization()) {
+            return (string) $this->company->getName();
+        }
+
+        return trim(($this->firstname ?? '').' '.($this->lastname ?? ''));
+    }
+
     public function getCompany(): Company
     {
         return $this->company;

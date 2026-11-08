@@ -146,8 +146,10 @@ final class CustomerListControllerTest extends WebTestCase
         self::assertSame(2, $result['total']);
         self::assertSame([
             'id' => $customer->getUuid()->toRfc4122(),
+            'displayName' => 'Muster GmbH',
             'email' => 'erika@example.com',
             'company' => 'Muster GmbH',
+            'organization' => true,
             'firstname' => 'Erika',
             'lastname' => 'Muster',
             'phone' => '+49 30 123456',
@@ -159,6 +161,7 @@ final class CustomerListControllerTest extends WebTestCase
             'updated' => $customer->getUpdated()->format(\DATE_ATOM),
         ], $result['items'][0]);
         self::assertSame('Zimmermann', $result['items'][1]['lastname']);
+        self::assertSame('Zimmermann', $result['items'][1]['displayName']);
         self::assertNull($result['items'][1]['company']);
         self::assertSame([], $result['items'][1]['tags']);
     }

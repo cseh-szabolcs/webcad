@@ -36,3 +36,9 @@ export function formatRelativeDay(value, now = new Date()) {
 function startOfDay(date) {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
+
+export default {
+    formatDate,
+    formatRelativeDay,
+    startOfDay,
+}

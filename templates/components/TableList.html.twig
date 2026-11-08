@@ -3,6 +3,7 @@
     aria-label="{{ label }}"
     {% if bindController %}
         {{ stimulus_controller(bindController, {url: dataSource, contextId: contextId}) }} x-cloak
+        x-bind:aria-busy="loading"
     {% endif %}>
 
     {% set filterExists = block('filter') is defined %}

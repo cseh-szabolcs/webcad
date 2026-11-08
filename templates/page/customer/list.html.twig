@@ -54,35 +54,44 @@
                 </twig:TableList:Head>
             </twig:block>
             <twig:block name="body">
-                <twig:TableList:Row :selected="true">
-                    <twig:TableList:Col>
-                        <twig:Identity
-                            icon="building"
-                            name="Stadtwerke Musterstadt"
-                            subtext="{{ 'customer.list.company_contact'|trans }}"
-                        />
-                    </twig:TableList:Col>
-                    <twig:TableList:Col>
-                        <div class="meta-list">
-                            <span class="meta-list__item meta-list__item--link">
-                                {{ svg_icon('mail', {size:'sm'}) }} info@stadtwerke.example.com
-                            </span>
-                        </div>
-                    </twig:TableList:Col>
-                    <twig:TableList:Col>
-                        <div class="pills">
-                            <span class="pill tone--orange">Öffentlich</span>
-                            <span class="pill tone--green">Stammkunde</span>
-                        </div>
-                    </twig:TableList:Col>
-                    <twig:TableList:Col label="Gestern" />
-                    <twig:TableList:Col :contextMenu="true">
-                        <twig:ContextMenu:Trigger
-                            targetId="customer-actions"
-                            label="{{ 'customer.list.actions_for'|trans({'%name%': 'Mira Keller'}) }}"
-                        />
-                    </twig:TableList:Col>
-                </twig:TableList:Row>
+                <template x-for="item in pageItems" x-bind:key="item.id">
+                    <twig:TableList:Row :selected="true">
+                        <twig:TableList:Col>
+                            <twig:Identity
+                                :bind="true"
+                                bindIconCondition="item.company"
+                                icon="building"
+                                name="item.displayName"
+                                subtext="item.company ? '{{ 'customer.list.company_contact'|trans }}' : '{{ 'customer.list.private'|trans }}'"
+                                initials="app.identity.createInitials(item.displayName)"
+                                toneColor="app.identity.createColor(item.id)"
+                                toneStyle="pastel"
+                            />
+                        </twig:TableList:Col>
+                        <twig:TableList:Col>
+                            <div class="meta-list">
+                                <span class="meta-list__item meta-list__item--link">
+                                    {{ svg_icon('mail', {size:'sm'}) }} info@stadtwerke.example.com
+                                </span>
+                            </div>
+                        </twig:TableList:Col>
+                        <twig:TableList:Col>
+                            <div class="pills">
+                                <span class="pill tone--orange">Öffentlich</span>
+                                <span class="pill tone--green">Stammkunde</span>
+                            </div>
+                        </twig:TableList:Col>
+                        <twig:TableList:Col label="Gestern" />
+                        <twig:TableList:Col :contextMenu="true">
+                            <twig:ContextMenu:Trigger
+                                targetId="customer-actions"
+                                label="{{ 'customer.list.actions_for'|trans }}"
+                                bindItem="item"
+                                bindItemLabelFn="getContextMenuLabel"
+                            />
+                        </twig:TableList:Col>
+                    </twig:TableList:Row>
+                </template>
             </twig:block>
             <twig:block name="contextmenu">
                 <twig:ContextMenu

@@ -39,8 +39,12 @@ const state = (controller, {$watch}) => extend(remoteListState, {
         alert(item + ' : ' + action);
     },
 
-    getContextMenuLabel() {
-        return 'Text Text'
+    getContextMenuLabel(label, item) {
+        return label.replace('%name%', item.displayName);
+    },
+
+    phoneHref(phone) {
+        return `tel:${phone.replace(/[^+\d]/g, '')}`;
     },
 });
 

@@ -8,17 +8,21 @@ use App\Customer\Entity\Customer;
 final readonly class CustomerListItemDto
 {
     /**
-     * @param string|null          $email   the e-mail of the customer's company
-     * @param string|null          $company the name of the customer's company, null for a private person
-     * @param string|null          $phone   the phone of the customer's company
-     * @param list<TagListItemDto> $tags    the customer's tags
-     * @param string               $created ISO 8601
-     * @param string               $updated ISO 8601
+     * @param string               $displayName  see Customer::getDisplayName()
+     * @param string|null          $email        the e-mail of the customer's company
+     * @param string|null          $company      the name of the customer's company, null for a private person
+     * @param bool                 $organization organziation (company) or person
+     * @param string|null          $phone        the phone of the customer's company
+     * @param list<TagListItemDto> $tags         the customer's tags
+     * @param string               $created      ISO 8601
+     * @param string               $updated      ISO 8601
      */
     public function __construct(
         public string $id,
+        public string $displayName,
         public ?string $email,
         public ?string $company,
+        public ?bool $organization,
         public ?string $firstname,
         public ?string $lastname,
         public ?string $phone,
@@ -34,8 +38,10 @@ final readonly class CustomerListItemDto
 
         return new self(
             id: $customer->getUuid()->toRfc4122(),
+            displayName: $customer->getDisplayName(),
             email: $company->getEmail(),
             company: $company->getName(),
+            organization: $company->isOrganization(),
             firstname: $customer->getFirstname(),
             lastname: $customer->getLastname(),
             phone: $company->getPhone(),

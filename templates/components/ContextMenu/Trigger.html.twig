@@ -4,7 +4,7 @@
 {% set itemLabelGenerator = null %}
 
 {% if label and bindItem %}
-    {% set itemLabelGenerator = "%s(%s, '%s %s ')"|format(bindItemLabelFn, bindItem, label, 'für') %}
+    {% set itemLabelGenerator = "%s('%s',%s)"|format(bindItemLabelFn, label, bindItem) %}
 {% endif %}
 
 <button

@@ -1,13 +1,36 @@
 <div class="identity">
-    {% if icon %}
-        <span class="avatar avatar--square tone--neutral" aria-hidden="true">
+    {% if bind and icon %}
+        <template x-if="{{ bindIconCondition }}">
+            <span class="avatar avatar--square tone--neutral" aria-hidden="true">
+                {{ svg_icon(icon) }}
+            </span>
+        </template>
+        <template x-if="!{{ bindIconCondition }}">
+            <span
+                x-text="{{ initials === '??' ? 'null' : initials }}"
+                class="avatar tone--{{ toneStyle }}"
+                {% if toneColor %} x-bind:style="{{ toneColor }}"{% endif %}
+                aria-hidden="true"></span>
+        </template>
+    {% elseif icon %}
+        <span class="avatar avatar--square tone--{{ toneStyle }}" aria-hidden="true">
             {{ svg_icon(icon) }}
         </span>
     {% else %}
-        <span class="avatar tone--blue" aria-hidden="true">{{ initials }}</span>
+        <span
+            class="avatar tone--pastel"
+            aria-hidden="true"
+            {% if toneColor %} style="{{ toneColor }}"{% endif %}>
+            {{ initials }}
+        </span>
     {% endif %}
     <div>
-        <span class="identity__name">{{ name }}</span>
-        <span class="identity__sub">{{ subtext }}</span>
+        {% if bind %}
+            <span x-text="{{ name }}" class="identity__name"></span>
+            <span x-text="{{ subtext }}" class="identity__sub"></span>
+        {% else %}
+            <span class="identity__name">{{ name }}</span>
+            <span class="identity__sub">{{ subtext }}</span>
+        {% endif %}
     </div>
 </div>
