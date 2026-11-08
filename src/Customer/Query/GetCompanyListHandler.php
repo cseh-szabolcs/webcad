@@ -22,7 +22,7 @@ final readonly class GetCompanyListHandler
     public function __invoke(GetCompanyListQuery $query): ListResultDto
     {
         return ListPaginator::paginate(
-            $this->companies->createListQueryBuilder(),
+            $this->companies->createListQueryBuilder($query->filter->search, $query->sort, $query->direction),
             $query->page,
             $query->pageSize,
             CompanyListItemDto::fromEntity(...),

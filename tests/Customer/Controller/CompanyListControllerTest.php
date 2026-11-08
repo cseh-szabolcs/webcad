@@ -114,6 +114,53 @@ final class CompanyListControllerTest extends WebTestCase
         self::assertSame(3, $result['total']);
     }
 
+    public function testSearchesNameAndEmail(): void
+    {
+        $this->logIn($this->client, $this->createUser());
+        $em = $this->em();
+        $em->persist(Company::forOrganization('Nordbau GmbH')->setEmail('info@nord.test'));
+        $em->persist(Company::forOrganization('Zimmerei Holz')->setEmail('kontakt@holz.example'));
+        $em->flush();
+        $em->clear();
+
+        foreach (['muster' => [], 'NORDBAU' => ['Nordbau GmbH'], 'holz.example' => ['Zimmerei Holz'], 'nordbau+info' => ['Nordbau GmbH'], 'nordbau+holz' => []] as $search => $expected) {
+            self::assertSame($expected, array_column($this->data('filter[search]='.$search)['items'], 'name'), $search);
+        }
+        self::assertSame(0, $this->data('filter[search]=%25')['total']);
+    }
+
+    public function testSortsByNameAndTheDates(): void
+    {
+        $this->logIn($this->client, $this->createUser());
+        $em = $this->em();
+        foreach (['Adler AG' => '2020-01-01', 'Berger KG' => '2022-01-01', 'Conrad GmbH' => '2021-01-01'] as $name => $date) {
+            $em->persist(Company::forOrganization($name));
+            $em->flush();
+            $em->createQuery('UPDATE '.Company::class.' c SET c.created = :date, c.updated = :date WHERE c.name = :name')
+                ->setParameter('date', new \DateTimeImmutable($date))
+                ->setParameter('name', $name)
+                ->execute();
+        }
+        $em->clear();
+
+        self::assertSame(['Conrad GmbH', 'Berger KG', 'Adler AG'], array_column($this->data('sort=name&direction=desc')['items'], 'name'));
+        foreach (['updated', 'created'] as $sort) {
+            self::assertSame(['Berger KG', 'Conrad GmbH', 'Adler AG'], array_column($this->data('sort='.$sort.'&direction=desc')['items'], 'name'), $sort);
+            self::assertSame(['Adler AG', 'Conrad GmbH', 'Berger KG'], array_column($this->data('sort='.$sort.'&direction=asc')['items'], 'name'), $sort);
+        }
+    }
+
+    public function testRejectsAnUnknownSortingOrFilter(): void
+    {
+        $this->logIn($this->client, $this->createUser());
+
+        foreach (['sort=email', 'direction=up', 'filter[search][]=a', 'filter[search]='.str_repeat('a', 256)] as $query) {
+            $this->client->request('GET', '/de/customers/companies/data?'.$query);
+
+            self::assertResponseStatusCodeSame(404, $query);
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */

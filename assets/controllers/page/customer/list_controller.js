@@ -9,7 +9,6 @@ const state = (controller, {$watch}) => extend(remoteListState, {
     pageSize: 2,
     sortKey: 'updated',
     sortDirection: 'desc',
-    filterSearch: '',
 
     init() {
         super.init();
@@ -20,8 +19,16 @@ const state = (controller, {$watch}) => extend(remoteListState, {
         });
     },
 
+    /** The search goes to the backend as filter[search]. */
     applyFilterSearch(text) {
-        this.filterSearch = text;
+        if (text === (this.filters.search ?? '')) {
+            return;
+        }
+        if (text === '') {
+            this.removeFilter('search');
+        } else {
+            this.addFilter('search', text);
+        }
     },
 
     get url() {

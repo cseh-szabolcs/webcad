@@ -2,6 +2,7 @@
 
 namespace App\Customer\Repository;
 
+use App\Core\Doctrine\WordSearch;
 use App\Customer\Entity\Company;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\QueryBuilder;
@@ -17,12 +18,26 @@ class CompanyRepository extends ServiceEntityRepository
         parent::__construct($registry, Company::class);
     }
 
-    /** All organizations, for App\Core\Doctrine\ListPaginator; private persons are in the customer list. */
-    public function createListQueryBuilder(): QueryBuilder
+    /**
+     * All organizations, for App\Core\Doctrine\ListPaginator; private persons are in the customer list.
+     *
+     * @param string $search    every word must be found in the name or the e-mail
+     * @param string $sort      name, updated or created
+     * @param string $direction asc or desc
+     */
+    public function createListQueryBuilder(string $search = '', string $sort = 'name', string $direction = 'asc'): QueryBuilder
     {
-        return $this->createQueryBuilder('c')
-            ->where('c.organization = true')
-            ->orderBy('c.name')
+        $builder = $this->createQueryBuilder('c')->where('c.organization = true');
+        WordSearch::apply($builder, $search, ['c.name', 'c.email']);
+
+        $column = match ($sort) {
+            'updated' => 'c.updated',
+            'created' => 'c.created',
+            default => 'c.name',
+        };
+
+        return $builder
+            ->orderBy($column, 'desc' === $direction ? 'DESC' : 'ASC')
             ->addOrderBy('c.id');
     }
 }

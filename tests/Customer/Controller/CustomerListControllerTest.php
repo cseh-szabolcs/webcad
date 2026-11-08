@@ -283,10 +283,10 @@ final class CustomerListControllerTest extends WebTestCase
         $this->logIn($this->client, $this->createUser());
         $this->createSearchableCustomers();
 
-        foreach (['query=muster' => ['Muster'], 'query=NORDBAU' => ['Muster'], 'query=b.example' => ['Beispiel']] as $query => $expected) {
+        foreach (['filter[search]=muster' => ['Muster'], 'filter[search]=NORDBAU' => ['Muster'], 'filter[search]=b.example' => ['Beispiel']] as $query => $expected) {
             self::assertSame($expected, array_column($this->data($query)['items'], 'lastname'), $query);
         }
-        self::assertSame(0, $this->data('query=nichts')['total']);
+        self::assertSame(0, $this->data('filter[search]=nichts')['total']);
     }
 
     public function testEveryWordOfTheSearchMustMatch(): void
@@ -294,8 +294,8 @@ final class CustomerListControllerTest extends WebTestCase
         $this->logIn($this->client, $this->createUser());
         $this->createSearchableCustomers();
 
-        self::assertSame(['Muster'], array_column($this->data('query=erika+nordbau')['items'], 'lastname'));
-        self::assertSame(0, $this->data('query=erika+beispiel')['total']);
+        self::assertSame(['Muster'], array_column($this->data('filter[search]=erika+nordbau')['items'], 'lastname'));
+        self::assertSame(0, $this->data('filter[search]=erika+beispiel')['total']);
     }
 
     public function testWildcardsInTheSearchAreOrdinaryCharacters(): void
@@ -303,8 +303,8 @@ final class CustomerListControllerTest extends WebTestCase
         $this->logIn($this->client, $this->createUser());
         $this->createSearchableCustomers();
 
-        self::assertSame(0, $this->data('query=%25')['total']);
-        self::assertSame(0, $this->data('query=_')['total']);
+        self::assertSame(0, $this->data('filter[search]=%25')['total']);
+        self::assertSame(0, $this->data('filter[search]=_')['total']);
     }
 
     public function testFilteringByATagKeepsTheOtherTagsOfTheCustomer(): void
@@ -325,7 +325,7 @@ final class CustomerListControllerTest extends WebTestCase
         $em->flush();
         $em->clear();
 
-        $result = $this->data('tag='.$wanted->getUuid()->toRfc4122());
+        $result = $this->data('filter[tag]='.$wanted->getUuid()->toRfc4122());
 
         self::assertSame(1, $result['total']);
         self::assertSame('Adler', $result['items'][0]['lastname']);
@@ -380,11 +380,11 @@ final class CustomerListControllerTest extends WebTestCase
         }
     }
 
-    public function testRejectsAnUnknownSortingOrTag(): void
+    public function testRejectsAnUnknownSortingOrFilter(): void
     {
         $this->logIn($this->client, $this->createUser());
 
-        foreach (['sort=email', 'direction=up', 'tag=abc'] as $query) {
+        foreach (['sort=email', 'direction=up', 'filter[tag]=abc', 'filter[search][]=a'] as $query) {
             $this->client->request('GET', '/de/customers/data?'.$query);
 
             self::assertResponseStatusCodeSame(404, $query);
@@ -442,7 +442,7 @@ final class CustomerListControllerTest extends WebTestCase
         $em->flush();
         $em->clear();
 
-        $result = $this->data('query=adl&sort=name&page=2&pageSize=1');
+        $result = $this->data('filter[search]=adl&sort=name&page=2&pageSize=1');
 
         self::assertSame(2, $result['total']);
         self::assertSame(2, $result['page']);

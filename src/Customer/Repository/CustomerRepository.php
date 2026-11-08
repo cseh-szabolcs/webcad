@@ -2,6 +2,7 @@
 
 namespace App\Customer\Repository;
 
+use App\Core\Doctrine\WordSearch;
 use App\Customer\Entity\Customer;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\QueryBuilder;
@@ -35,15 +36,7 @@ class CustomerRepository extends ServiceEntityRepository
     ): QueryBuilder {
         $builder = $this->createDetailQueryBuilder();
 
-        foreach (preg_split('/\s+/', $search, flags: \PREG_SPLIT_NO_EMPTY) as $index => $word) {
-            $parameter = 'word'.$index;
-            $builder
-                ->andWhere(\sprintf(
-                    'c.firstname LIKE :%1$s OR c.lastname LIKE :%1$s OR co.email LIKE :%1$s OR co.name LIKE :%1$s',
-                    $parameter,
-                ))
-                ->setParameter($parameter, '%'.addcslashes($word, '%_\\').'%');
-        }
+        WordSearch::apply($builder, $search, ['c.firstname', 'c.lastname', 'co.email', 'co.name']);
 
         // Not a condition on the join `t`, which would leave only this tag in the customer's tags.
         if (null !== $tag) {

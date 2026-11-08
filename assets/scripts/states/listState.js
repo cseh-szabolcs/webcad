@@ -24,13 +24,22 @@ export const listState = {
         }
     },
 
-    /** This will be called by a select-input which should contain the key and the direction like 'foo:asc' */
+    /** Sets the sorting from a value like 'name:asc' (a select's option); anything else is ignored. */
     applySortString(value) {
-        const values = value.split(':');
-        if (values.length === 2) {
-            this.sortKey = values[0];
-            this.sortDirection = values[1];
+        const [key, direction, ...rest] = value.split(':');
+        if (key && ['asc', 'desc'].includes(direction) && rest.length === 0) {
+            this.sortKey = key;
+            this.sortDirection = direction;
         }
+    },
+
+    /** The sorting as 'key:direction', for a select's x-model. */
+    get sortString() {
+        return `${this.sortKey}:${this.sortDirection}`;
+    },
+
+    set sortString(value) {
+        this.applySortString(value);
     },
 
     /** `items` sorted by `sortKey` (stable, `items` stays unchanged). */

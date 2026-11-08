@@ -13,7 +13,7 @@
         <twig:TableList
             label="{{ 'customer.list.title'|trans }}"
             count="{{ 'customer.list.count_other'|trans({'%count%': 2}) }}"
-            dataSource="{{ path('customer_company_list_data') }}"
+            dataSource="{{ path('customer_list_data') }}"
             contextId="customer-actions"
             bindController="page--customer--list">
 
@@ -35,8 +35,7 @@
                 <twig:Form:Select
                     icon="sort"
                     label="{{ 'customer.list.sort_label'|trans }}"
-                    bindHandler="applySortString"
-                    value="updated:desc"
+                    bindModel="sortString"
                     options="{{ [
                         { value: 'updated:desc', label: 'customer.list.sort.updated'|trans },
                         { value: 'created:desc', label: 'customer.list.sort.created'|trans },

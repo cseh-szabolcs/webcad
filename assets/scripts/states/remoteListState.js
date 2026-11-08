@@ -2,10 +2,11 @@ import { extend } from '../extend.js';
 import { listState } from './listState.js';
 
 /**
- * listState with the pages from the backend: GET `url` as XHR (XhrHandler) with `page`, `pageSize`,
- * `sort`, `direction`, answer App\Core\Dto\ListResultDto (`items` of the page, `page`, `total`). With
- * `useHistory` these are in the address too (Back/Forward, shareable), so only one such list per
- * page. An overriding init() or destroy() must call super.init() / super.destroy().
+ * listState with the pages from the backend: GET `url` as XHR (XhrHandler) with `page`,
+ * `pageSize`, `sort`, `direction` and the `filters` as `filter[key]`, answer
+ * App\Core\Dto\ListResultDto (`items` of the page, `page`, `total`). With `useHistory` page and
+ * sorting are in the address too (Back/Forward, shareable), so only one such list per page.
+ * An overriding init() or destroy() must call super.init() / super.destroy().
  */
 export const remoteListState = extend(listState, {
     /** Number of all items, from the backend; the last page follows from it. */
@@ -17,6 +18,8 @@ export const remoteListState = extend(listState, {
     /** The AbortController of the running request; a new request (or destroy()) aborts it. */
     abortController: null,
     popStateListener: null,
+    /** Sent with every request as `filter[key]=value`, not in the address; see addFilter(). */
+    filters: {},
     /** The sorting at the start (state or Twig): what the address leaves out. */
     locationDefaults: null,
 
@@ -68,6 +71,15 @@ export const remoteListState = extend(listState, {
         super.sortBy(key);
         this.page = 1;
         this.navigate();
+    },
+
+    applySortString(value) {
+        const before = this.sortString;
+        super.applySortString(value);
+        if (this.sortString !== before) {
+            this.page = 1;
+            this.navigate();
+        }
     },
 
     /** After a change by the user: a new history entry, then the page from the backend. */
@@ -123,6 +135,38 @@ export const remoteListState = extend(listState, {
         if (forRequest ? this.sortKey !== '' : !isDefaultSort) {
             params.set('sort', this.sortKey);
             params.set('direction', this.sortDirection);
+        }
+        if (forRequest) {
+            this.generateFilterQuery(params);
+        }
+    },
+
+    /** Sets a filter; `reload` loads page 1 with it (pass false to set several, then load). */
+    addFilter(key, value, reload = true) {
+        this.filters[key] = value;
+        reload && this.filtersChanged();
+    },
+
+    removeFilter(key, reload = true) {
+        delete this.filters[key];
+        reload && this.filtersChanged();
+    },
+
+    /** Back to page 1, without a new history entry, and load. */
+    filtersChanged() {
+        this.page = 1;
+        this.replaceLocation();
+        void this.load();
+    },
+
+    /** Writes the filters into `params`: `filter[key]=value`, an array as `filter[key][]=…`. */
+    generateFilterQuery(params) {
+        for (const [key, value] of Object.entries(this.filters)) {
+            if (Array.isArray(value)) {
+                value.forEach((item) => params.append(`filter[${key}][]`, String(item)));
+            } else if (value !== null && value !== undefined && value !== '') {
+                params.set(`filter[${key}]`, String(value));
+            }
         }
     },
 

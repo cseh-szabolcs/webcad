@@ -24,8 +24,8 @@ final readonly class GetCustomerListHandler
     {
         return ListPaginator::paginate(
             $this->customers->createListQueryBuilder(
-                $query->query,
-                null !== $query->tag ? Uuid::fromString($query->tag) : null,
+                $query->filter->search,
+                null !== $query->filter->tag ? Uuid::fromString($query->filter->tag) : null,
                 $query->sort,
                 $query->direction,
             ),
