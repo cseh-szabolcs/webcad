@@ -17,8 +17,15 @@ export const remoteListState = extend(listState, {
     /** The AbortController of the running request; a new request (or destroy()) aborts it. */
     abortController: null,
     popStateListener: null,
+    /** query and sorting at the start (state or Twig): what the address leaves out. */
+    locationDefaults: null,
 
     init() {
+        this.locationDefaults = {
+            query: this.query,
+            sortKey: this.sortKey,
+            sortDirection: this.sortDirection,
+        };
         if (this.useHistory) {
             this.readLocation();
             this.popStateListener = () => {
@@ -27,7 +34,6 @@ export const remoteListState = extend(listState, {
             };
             window.addEventListener('popstate', this.popStateListener);
         }
-        void this.load();
     },
 
     /** Alpine calls it when the element's state is removed (destroyState()). */
@@ -88,18 +94,20 @@ export const remoteListState = extend(listState, {
         return address;
     },
 
-    /** Takes the page and the sorting from the address; what it lacks gets the default. */
+    /** Takes the page and the sorting from the address; what it lacks gets locationDefaults. */
     readLocation() {
         const params = new URLSearchParams(window.location.search);
         this.page = Math.max(1, Number.parseInt(params.get('page') ?? '', 10) || 1);
-        this.query = params.get('query') ?? '';
-        this.sortKey = params.get('sort') ?? '';
-        this.sortDirection = params.get('direction') === 'desc' ? 'desc' : 'asc';
+        const defaults = this.locationDefaults;
+        const direction = params.get('direction');
+        this.query = params.get('query') ?? defaults.query;
+        this.sortKey = params.get('sort') ?? defaults.sortKey;
+        this.sortDirection = ['asc', 'desc'].includes(direction) ? direction : defaults.sortDirection;
     },
 
     /**
      * Writes the page and the sorting into `params`; `forRequest` adds the page size and keeps
-     * page 1, the address leaves out what is the default.
+     * page 1, the address leaves out what equals locationDefaults (readLocation() restores it).
      */
     writeParams(params, forRequest) {
         for (const name of ['page', 'pageSize', 'query', 'sort', 'direction']) {
@@ -111,10 +119,14 @@ export const remoteListState = extend(listState, {
         if (forRequest) {
             params.set('pageSize', String(this.pageSize));
         }
-        if (this.query.trim() !== '') {
-            params.set('query', this.query.trim());
+        const defaults = this.locationDefaults;
+        const query = this.query.trim();
+        if (forRequest ? query !== '' : query !== defaults.query.trim()) {
+            params.set('query', query);
         }
-        if (this.sortKey !== '') {
+        const isDefaultSort = this.sortKey === defaults.sortKey
+            && this.sortDirection === defaults.sortDirection;
+        if (forRequest ? this.sortKey !== '' : !isDefaultSort) {
             params.set('sort', this.sortKey);
             params.set('direction', this.sortDirection);
         }

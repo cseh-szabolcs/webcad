@@ -14,9 +14,9 @@ class Select
 
     public ?string $icon = null;
 
-    public ?string $activeItem = null;
-
-    public ?string $bindModel = null;
+    public ?string $value = null;
 
     public ?string $bindHandler = null;
+
+    public ?string $bindModel = null;
 }

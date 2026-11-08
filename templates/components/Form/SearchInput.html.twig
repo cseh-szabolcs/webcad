@@ -1,10 +1,11 @@
+{% set onInputHandler = bindHandler ? bindHandler ~ '($event.target.value.trim(), $event)' : null %}
 <label class="field-box field-box--search">
     {{ svg_icon('search') }}
     <span class="visually-hidden">{{ label }}</span>
     <input
         type="search"
         placeholder="{{ placeholder ? placeholder : 'Search...' }}"
-        {% if bindHandler %} x-on:input.throttle.stop="{{ bindHandler }}"{% endif %}
+        {% if onInputHandler %} x-on:input.debounce.500ms.stop="{{ onInputHandler }}"{% endif %}
         {% if bindModel %} x-model="{{ bindModel }}"{% endif %}
     />
 </label>

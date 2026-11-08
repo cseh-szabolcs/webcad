@@ -1,4 +1,4 @@
-{% set onChangeHandler = bindHandler ? bindHandler ~ '($event)' : null %}
+{% set onChangeHandler = bindHandler ? bindHandler ~ '($event.target.value, $event)' : null %}
 <label class="field-box">
     {% if icon %}
         {{ svg_icon(icon) }}
@@ -9,7 +9,7 @@
         {% if bindHandler %} x-on:change="{{ onChangeHandler }}"{% endif %}
     >
         {% for option in options %}
-            <option value="{{ option['value'] }}">{{ option['label'] }}</option>
+            <option value="{{ option['value'] }}"{% if value === option['value'] %} selected{% endif %}>{{ option['label'] }}</option>
         {% endfor %}
     </select>
 </label>

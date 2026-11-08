@@ -7,6 +7,11 @@ import { withStateController } from '../../../scripts/withStateController.js';
 const state = (controller, { $watch, $refs }) => extend(remoteListState, {
     pageSize: 5,
 
+    init() {
+        super.init();
+        this.load();
+    },
+
     get url() {
         return controller.urlValue;
     },

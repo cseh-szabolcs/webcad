@@ -5,20 +5,22 @@ import { withStateController } from '../../../scripts/withStateController.js';
 import { on } from "../../../scripts/event.js";
 
 /* The customer list, pages from the backend (remoteListState). */
-const state = (controller) => extend(remoteListState, {
-    pageSize: 5,
-    sortModel: 'created:desc',
+const state = (controller, {$watch}) => extend(remoteListState, {
+    pageSize: 2,
+    sortKey: 'updated',
+    sortDirection: 'desc',
 
     init() {
         super.init();
+        this.load();
 
         on(`app_cmp_context-menu:${controller.contextIdValue}:action`, ({item, action}) => {
             this.handleContextMenuAction(item, action);
         });
     },
 
-    testHandler(event) {
-        alert(event.target.value)
+    applyFilterSearch(text, e) {
+        console.log("SSSSSSSS", text);
     },
 
     get url() {

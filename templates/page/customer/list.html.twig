@@ -21,6 +21,7 @@
                 <twig:Form:SearchInput
                     label="{{ 'customer.list.search_label'|trans }}"
                     placeholder="{{ 'customer.list.search_placeholder'|trans }}"
+                    bindHandler="applyFilterSearch"
                 />
                 <twig:Form:Select
                     icon="filter"
@@ -34,7 +35,8 @@
                 <twig:Form:Select
                     icon="sort"
                     label="{{ 'customer.list.sort_label'|trans }}"
-                    bindModel="sortModel"
+                    bindHandler="applySortString"
+                    value="updated:desc"
                     options="{{ [
                         { value: 'updated:desc', label: 'customer.list.sort.updated'|trans },
                         { value: 'created:desc', label: 'customer.list.sort.created'|trans },

@@ -35,6 +35,15 @@ export const listState = {
         return this.items.filter((item) => this.matches(item, terms));
     },
 
+    /** This will be called by a select-input which should contain the key and the direction like 'foo:asc' */
+    applySortString(value) {
+        const values = value.split(':');
+        if (values.length === 2) {
+            this.sortKey = values[0];
+            this.sortDirection = values[1];
+        }
+    },
+
     /** Whether `item` contains every one of the (lower-case) `terms`, case-insensitively. */
     matches(item, terms) {
         const text = this.searchText(item).toLocaleLowerCase();
