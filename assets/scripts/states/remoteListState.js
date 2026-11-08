@@ -23,7 +23,7 @@ export const remoteListState = extend(listState, {
             this.readLocation();
             this.popStateListener = () => {
                 this.readLocation();
-                this.load();
+                void this.load();
             };
             window.addEventListener('popstate', this.popStateListener);
         }
