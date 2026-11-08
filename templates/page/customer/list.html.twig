@@ -34,7 +34,7 @@
                 <twig:Form:Select
                     icon="sort"
                     label="{{ 'customer.list.sort_label'|trans }}"
-                    testHandler="sortModel"
+                    bindModel="sortModel"
                     options="{{ [
                         { value: 'updated:desc', label: 'customer.list.sort.updated'|trans },
                         { value: 'created:desc', label: 'customer.list.sort.created'|trans },
