@@ -1,0 +1,13 @@
+<div class="identity">
+    {% if icon %}
+        <span class="avatar avatar--square tone--neutral" aria-hidden="true">
+            {{ svg_icon(icon) }}
+        </span>
+    {% else %}
+        <span class="avatar tone--blue" aria-hidden="true">{{ initials }}</span>
+    {% endif %}
+    <div>
+        <span class="identity__name">{{ name }}</span>
+        <span class="identity__sub">{{ subtext }}</span>
+    </div>
+</div>

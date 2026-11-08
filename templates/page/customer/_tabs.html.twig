@@ -1,24 +1,22 @@
 {#
- # The tabs of the customer area: links to its lists, each with the number of its items, which
- # assets/controllers/page/customer/tabs_controller.js loads. The badges must stay empty in the
- # markup: an empty badge keeps its width but is invisible (app-layout.css).
+ # The tabs of the customer area: links to its lists, each with the number of its items. The
+ # numbers are dummies matching the dummy rows of the lists.
  #}
+
 {% set tabs = [
-    {key: 'customers', label: 'customer.nav.customers', route: 'customer_list_index', data_route: 'customer_list_data'},
-    {key: 'companies', label: 'customer.nav.companies', route: 'customer_company_list_index', data_route: 'customer_company_list_data'},
-    {key: 'tags', label: 'customer.nav.tags', route: 'customer_tag_list_index', data_route: 'customer_tag_list_data'},
+    {key: 'customers', label: 'customer.nav.customers', route: 'customer_list_index', data_src: 'customer_list_data'},
+    {key: 'companies', label: 'customer.nav.companies', route: 'customer_company_list_index', data_src: 'customer_company_list_data'},
+    {key: 'tags', label: 'customer.nav.tags', route: 'customer_tag_list_index', data_src: 'customer_tag_list_data'},
 ] %}
-{% set urls = {} %}
-{% for tab in tabs %}
-    {% set urls = urls|merge({(tab.key): path(tab.data_route, {page: 1, pageSize: 1})}) %}
-{% endfor %}
-<nav class="segmented segmented--tabs" aria-label="{{ 'customer.nav.label'|trans }}"
-     {{ stimulus_controller('page--customer--tabs', { state: { urls: urls } }) }}>
-    {% for tab in tabs %}
-        <a class="segmented__option" href="{{ path(tab.route) }}"
-           {%- if app.current_route == tab.route %} aria-current="page"{% endif %}>
-            {{- tab.label|trans }}
-            <span class="segmented__badge" x-text="counts.{{ tab.key }}"></span>
-        </a>
+
+<twig:SegmentTabs label="{{ 'customer.nav.label'|trans }}">
+    {% for tab in outerScope.tabs %}
+        <twig:SegmentTabs:Tab
+            key="{{ tab.key }}"
+            href="{{ path(tab.route) }}"
+            dataSource="{{ path(tab.data_src, {page: 1, pageSize: 1}) }}"
+            label="{{ tab.label|trans }}"
+            :active="app.current_route == tab.route"
+        />
     {% endfor %}
-</nav>
+</twig:SegmentTabs>

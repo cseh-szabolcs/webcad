@@ -86,7 +86,7 @@ Mögliche Doctrine-Entities:
 
 Ursprünglich war ein versioniertes JSON-Dokument pro `PlanVersion` vorgesehen. **Entschieden ist
 jetzt eine relationale Speicherung**: der Arbeitsstand eines Plans liegt als Entitäten in der
-Datenbank (`Plan`, `Layer`, `Group`, `ElementStyle`, `Vertex`, `Element` mit Single Table
+Datenbank (`Plan`, `ContextMenu`, `Group`, `ElementStyle`, `Vertex`, `Element` mit Single Table
 Inheritance pro Typ, `PolylineVertex`), entsprechend dem Dokumentmodell des Editors. Auch die
 Darstellungswerte (Radius, `closed`, Kontrollvektoren als Embeddable `Vector2` …) sind Spalten der
 jeweiligen Element-Unterklasse. Das passt zu

@@ -1,0 +1,38 @@
+<section
+    class="data-card split__main"
+    aria-label="{{ label }}"
+    {% if bindController %}
+        {{ stimulus_controller('page--fixtures--list-example', {state: {url: dataSource}}) }} x-cloak
+    {% endif %}
+    {{ attributes }}>
+
+    {% set filterExists = block('filter') is defined %}
+
+    {% if filterExists or count %}
+        <div class="toolbar">
+            {{ filterExists ? block('filter') : '' }}
+            {% if count %}
+                <span class="toolbar__count">{{ count }}</span>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <div class="data-card__scroll">
+        <table class="data-table data-table--wide">
+            <thead>
+                <tr>
+                    {% block head %}{% endblock %}
+                </tr>
+            </thead>
+            <tbody>
+                {% block body %}{% endblock %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if block('contextmenu') is defined %}
+       <div>
+           {{ block('contextmenu') }}
+       </div>
+    {% endif %}
+</section>

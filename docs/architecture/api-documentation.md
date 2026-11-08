@@ -61,7 +61,7 @@ lets it use the editor's TypeScript 6 (drop it once a release supports 6).
 
 The editor's document model (`cad/model`) is the generated types: `CadDocument` is
 `ApiSchema['PlanDocument']`, `CadElement` is `ApiSchema['Element']`, `LineElement`,
-`Vertex`, `Layer` … are aliases of their schemas. So the DTOs are the only definition of the
+`Vertex`, `ContextMenu` … are aliases of their schemas. So the DTOs are the only definition of the
 stored document, also inside the editor, and a DTO change shows up in `tsc` wherever the editor
 uses the changed property. Prose about a property belongs on the DTO (`#[OA\Property]`), not in
 `cad/model`. What the editor only derives or keeps for itself (`Point`, `Id`, `CadElementType`,

@@ -14,8 +14,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * The company list: the page renders without data, its Alpine state
- * (assets/controllers/page/customer/list_controller.js) then fetches the items from `data`.
+ * The company list: the page is static markup with dummy rows for now; `data` returns the items
+ * for the JavaScript that will load them.
  */
 #[Route('customers/companies', name: 'customer_company_list_')]
 final class CompanyListController extends BaseController

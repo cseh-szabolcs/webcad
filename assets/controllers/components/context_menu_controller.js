@@ -1,26 +1,23 @@
-import { withStateController } from '../../../scripts/withStateController.js';
-import event from '../../../scripts/event.js';
+import { withStateController } from '../../scripts/withStateController.js';
+import event from '../../scripts/event.js';
 
 const state = {
     id: null,
-    item: null,
     init() {
-        this.id && event.on(`app_cmp_context-menu:${this.id}`, ({item = null, element}) => {
-            item && this.handleMenuClick(item, element);
+        this.id && event.on(`app_cmp_context-menu:${this.id}`, ({element, item = null}) => {
+            this.handleMenuClick(element, item);
         });
     },
-    handleMenuClick(item, button) {
+    handleMenuClick(triggerElement, item) {
+        this.item = item;
         if (!this.visible) {
-            this.item = item;
-            setPosition(this['$element'], button);
-        } else {
-            this.item = null;
+            setPosition(this['$element'], triggerElement);
         }
     },
     handleAction(action) {
-        this.item && event.dispatch(`app_cmp_context-menu:${this.id}:action`, {
-            item: this.item,
+        event.dispatch(`app_cmp_context-menu:${this.id}:action`, {
             action,
+            item: this.item,
         });
     },
     closeMenu() {

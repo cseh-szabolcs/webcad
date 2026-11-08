@@ -38,6 +38,7 @@ export const remoteListState = extend(listState, {
     popStateListener: null,
 
     init() {
+        alert("test 11111")
         if (this.useHistory) {
             this.readLocation();
             this.popStateListener = () => {
@@ -46,7 +47,7 @@ export const remoteListState = extend(listState, {
             };
             window.addEventListener('popstate', this.popStateListener);
         }
-        this.load();
+        void this.load();
     },
 
     /** Alpine calls it when the element's state is removed (destroyState()). */
@@ -85,7 +86,7 @@ export const remoteListState = extend(listState, {
         if (this.useHistory) {
             window.history.pushState(null, '', this.locationAddress());
         }
-        this.load();
+        void this.load();
     },
 
     /** Writes the page and the sorting into the current history entry. */
@@ -137,6 +138,7 @@ export const remoteListState = extend(listState, {
 
     /** Loads the current page; a request still running is aborted, its answer never applied. */
     async load() {
+        if (!this.url) return;
         this.abortController?.abort();
         const controller = new AbortController();
         this.abortController = controller;

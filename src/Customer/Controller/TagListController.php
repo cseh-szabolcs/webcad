@@ -14,8 +14,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * The tag list: the page renders without data, its Alpine state
- * (assets/controllers/page/customer/list_controller.js) then fetches the items from `data`.
+ * The tag list: the page is static markup with dummy rows for now; `data` returns the items
+ * for the JavaScript that will load them.
  */
 #[Route('customers/tags', name: 'customer_tag_list_')]
 final class TagListController extends BaseController

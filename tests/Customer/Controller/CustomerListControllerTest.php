@@ -43,7 +43,7 @@ final class CustomerListControllerTest extends WebTestCase
         self::assertResponseRedirects('/de/login');
     }
 
-    public function testThePageLeavesLoadingTheListToItsController(): void
+    public function testShowsTheStaticPage(): void
     {
         $this->logIn($this->client, $this->createUser());
 
@@ -54,39 +54,22 @@ final class CustomerListControllerTest extends WebTestCase
         self::assertSelectorTextSame('.app-nav__link[aria-current="page"]', 'Kunden');
         self::assertSelectorTextSame('.page-head__action', 'Kunde hinzufügen');
         self::assertSelectorNotExists('.eyebrow');
-        self::assertSelectorTextContains('.panel__empty', 'Noch keine Kunden vorhanden.');
 
+        // The counts of the tabs are dummies for now.
         $tabs = $crawler->filter('.segmented--tabs a.segmented__option');
-        self::assertSame(['Kontakte', 'Firmen', 'Tags'], $tabs->each(static fn ($link) => $link->text()));
+        self::assertSame(['Kontakte 2', 'Firmen 1', 'Tags 1'], $tabs->each(static fn ($link) => $link->text()));
         self::assertSame(
             ['/de/customers', '/de/customers/companies', '/de/customers/tags'],
             $tabs->each(static fn ($link) => $link->attr('href')),
         );
-        self::assertSelectorTextSame('.segmented__option[aria-current="page"]', 'Kontakte');
+        self::assertSelectorTextSame('.segmented__option[aria-current="page"]', 'Kontakte 2');
         self::assertCount(1, $crawler->filter('.segmented__option[aria-current]'));
 
-        // The counts of the tabs are the totals of the data routes, one item per page is enough.
-        $counts = $crawler->filter('[data-controller="page--customer--tabs"]');
-        self::assertCount(1, $counts);
-        self::assertSame(
-            ['urls' => [
-                'customers' => '/de/customers/data?page=1&pageSize=1',
-                'companies' => '/de/customers/companies/data?page=1&pageSize=1',
-                'tags' => '/de/customers/tags/data?page=1&pageSize=1',
-            ]],
-            json_decode($counts->attr('data-page--customer--tabs-state-value'), true, flags: \JSON_THROW_ON_ERROR),
-        );
-
-        $list = $crawler->filter('[data-controller="page--customer--customer-list"]');
-        self::assertCount(1, $list);
-        $state = json_decode($list->attr('data-page--customer--customer-list-state-value'), true, flags: \JSON_THROW_ON_ERROR);
-        self::assertSame('/de/customers/data', $state['url']);
-        self::assertSame('/de/customers/tags/data?pageSize=100', $state['tagsUrl']);
-        self::assertSame('%count% Kunden', $state['texts']['countOther']);
-        self::assertSame('Aktionen für %name%', $state['texts']['actionsFor']);
+        // No JavaScript of its own: it comes back step by step.
+        self::assertCount(0, $crawler->filter('main [data-controller], main [x-data]'));
     }
 
-    public function testThePageHasTheColumnsAndTheControlsOfTheList(): void
+    public function testThePageHasTheColumnsTheControlsAndTheDummyRows(): void
     {
         $this->logIn($this->client, $this->createUser());
 
@@ -94,18 +77,27 @@ final class CustomerListControllerTest extends WebTestCase
 
         self::assertSame(
             ['Name', 'Kontakt', 'Tags', 'Geändert', 'Aktionen'],
-            $crawler->filter('.customer-list__table th')->each(static fn ($header) => $header->text()),
+            $crawler->filter('.data-table th')->each(static fn ($header) => $header->text()),
         );
-        self::assertSelectorExists('.customer-toolbar input[type="search"]');
-        self::assertCount(2, $crawler->filter('.customer-toolbar select'));
+        self::assertSelectorExists('.toolbar input[type="search"]');
+        self::assertCount(2, $crawler->filter('.toolbar select'));
+        self::assertSelectorTextSame('.toolbar__count', '2 Kunden');
+
         self::assertSame(
-            ['Bearbeiten', 'Löschen', 'Plan anlegen'],
-            $crawler->filter('#customer-menu .customer-menu__item')->each(static fn ($item) => $item->text()),
+            ['Stadtwerke Musterstadt', 'Mira Keller'],
+            $crawler->filter('.data-table tbody .identity__name')->each(static fn ($name) => $name->text()),
         );
-        self::assertSelectorExists('button[popovertarget="customer-menu"]');
-        self::assertSelectorExists('.customer-pager[aria-label="Seiten"]');
-        self::assertSelectorExists('.customer-pager button[aria-label="Vorherige Seite"]');
-        self::assertSelectorExists('.customer-pager button[aria-label="Nächste Seite"]');
+        self::assertSame(
+            ['Aktionen für Stadtwerke Musterstadt', 'Aktionen für Mira Keller'],
+            $crawler->filter('.data-table tbody .icon-btn')->each(static fn ($button) => $button->attr('aria-label')),
+        );
+        self::assertSelectorNotExists('[popover]');
+
+        self::assertSelectorTextSame('.detail-panel h2', 'Stadtwerke Musterstadt');
+        self::assertSame(
+            ['Bearbeiten', 'Plan anlegen'],
+            $crawler->filter('.detail-panel__actions a')->each(static fn ($link) => $link->text()),
+        );
     }
 
     public function testTheRouteOfTheTabCountReturnsTheTotal(): void

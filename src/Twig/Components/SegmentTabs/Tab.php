@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Twig\Components\Menu;
+namespace App\Twig\Components\SegmentTabs;
 
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
 #[AsTwigComponent]
-final class SegmentTab
+final class Tab
 {
     public string $key;
 

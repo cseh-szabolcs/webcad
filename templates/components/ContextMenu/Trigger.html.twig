@@ -1,10 +1,11 @@
-{% set itemLabelGenerator =  label and itemObjectJS
-    ? "%s(%s, '%s %s ')"|format(itemLabelGetterJS, itemObjectJS, label, 'für')
-    : false
-%}
 
 {% set eventName = "'app_cmp_context-menu:%s'"|format(targetId) %}
-{% set payload = "{detail: {element: $el, item: %s}}"|format(itemObjectJS) %}
+{% set payload = "{detail: {element: $el, item: %s}}"|format(bindItem ? bindItem : 'null') %}
+{% set itemLabelGenerator = null %}
+
+{% if label and bindItem %}
+    {% set itemLabelGenerator = "%s(%s, '%s %s ')"|format(bindItemLabelFn, bindItem, label, 'für') %}
+{% endif %}
 
 <button
     type="button"
@@ -13,8 +14,8 @@
     popovertarget="{{ targetId }}"
     {% if label %} aria-label="{{ label }}"{% endif %}
     {% if itemLabelGenerator %} x-bind:aria-label="{{ itemLabelGenerator }}"{% endif %}
-    x-on:click.stop="window.dispatchEvent(new CustomEvent( {{ eventName }}, {{ payload }} ))"
->
+    x-on:click.stop="window.dispatchEvent(new CustomEvent( {{ eventName }}, {{ payload }} ))">
+
     <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
         <circle cx="5" cy="12" r="1.8" />
         <circle cx="12" cy="12" r="1.8" />

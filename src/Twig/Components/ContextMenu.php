@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Twig\Components\Menu;
+namespace App\Twig\Components;
 
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
 #[AsTwigComponent]
-class ContextMenuLayer
+class ContextMenu
 {
     public string $id;
 

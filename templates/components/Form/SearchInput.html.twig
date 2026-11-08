@@ -1,0 +1,10 @@
+<label class="field-box field-box--search">
+    {{ svg_icon('search') }}
+    <span class="visually-hidden">{{ label }}</span>
+    <input
+        type="search"
+        placeholder="{{ placeholder ? placeholder : 'Search...' }}"
+        {% if bindHandler %} x-on:input.throttle.stop="{{ bindHandler }}"{% endif %}
+        {% if bindModel %} x-model="{{ bindModel }}"{% endif %}
+    />
+</label>

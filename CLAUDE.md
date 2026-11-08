@@ -18,8 +18,9 @@ apps in one repo:
   form (`/{_locale}/register`, only displays and validates; registering comes later), a
   dummy dashboard for logged-in users (`/{_locale}/app`), to which home, login and
   registration redirect them, and the customer area with its tabs: the lists of the
-  customers (`/{_locale}/customers`, with search, tag filter, sorting and a detail view), companies (`…/customers/companies`) and tags
-  (`…/customers/tags`); their create and edit pages come later.
+  customers (`/{_locale}/customers`, with toolbar and detail panel), companies (`…/customers/companies`) and tags
+  (`…/customers/tags`), for now static markup with dummy rows and no JavaScript (their `data`
+  routes already return the items); their create and edit pages come later.
 - **CAD editor frontend** in `depts/editor/`: Vite + React 19 + TypeScript + Paper.js,
   **being rebuilt from scratch, closer to AutoCAD behaviour**, in small steps. It loads a plan
   through the API and draws and edits it (selection, snapping, tracking, drawing commands,

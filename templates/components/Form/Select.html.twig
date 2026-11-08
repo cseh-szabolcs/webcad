@@ -1,11 +1,9 @@
-<label class="customer-tool">
+<label class="field-box">
     {% if icon %}
-        <svg class="customer-icon" viewBox="0 0 24 24" aria-hidden="true">
-            {{ renderIcon|raw }}
-        </svg>
+        {{ svg_icon(icon) }}
     {% endif %}
-    <span class="visually-hidden">{{ 'customer.list.sort_label'|trans }}</span>
-    <select {% if modelName %} x-model="{{ modelName }}"{% endif %}>
+    <span class="visually-hidden">{{ label }}</span>
+    <select {% if bindModel %} x-model="{{ bindModel }}"{% endif %}>
         {% for option in options %}
             <option value="{{ option['value'] }}">{{ option['label'] }}</option>
         {% endfor %}

@@ -50,15 +50,12 @@ final class CompanyListControllerTest extends WebTestCase
         self::assertSelectorTextSame('.page-head__title', 'Firmen');
         self::assertSelectorTextSame('.page-head__action', 'Firma hinzufügen');
         self::assertSelectorTextSame('.app-nav__link[aria-current="true"]', 'Kunden');
-        self::assertSelectorTextSame('.segmented__option[aria-current="page"]', 'Firmen');
-        self::assertSelectorTextContains('.panel__empty', 'Noch keine Firmen vorhanden.');
-        self::assertSelectorExists('.customer-pager');
-
-        $list = $crawler->filter('[data-controller="page--customer--list"]');
+        self::assertSelectorTextSame('.segmented__option[aria-current="page"]', 'Firmen 1');
         self::assertSame(
-            ['url' => '/de/customers/companies/data'],
-            json_decode($list->attr('data-page--customer--list-state-value'), true, flags: \JSON_THROW_ON_ERROR),
+            ['Stadtwerke Musterstadt', 'info@stadtwerke.example.com', '–', '06.11.2026', '06.11.2026'],
+            $crawler->filter('.data-table tbody td')->each(static fn ($cell) => $cell->text()),
         );
+        self::assertCount(0, $crawler->filter('main [data-controller], main [x-data]'));
     }
 
     public function testReturnsTheCompaniesByName(): void

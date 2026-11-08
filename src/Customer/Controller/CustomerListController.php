@@ -18,8 +18,8 @@ use Symfony\Component\Routing\Requirement\Requirement;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * The customer list: the page renders without data, its Alpine state
- * (assets/controllers/page/customer/list_controller.js) then fetches the items from `data`.
+ * The customer list: the page is static markup with dummy rows for now; `data` returns the items
+ * for the JavaScript that will load them.
  */
 #[Route('customers', name: 'customer_list_')]
 final class CustomerListController extends BaseController

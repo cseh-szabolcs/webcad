@@ -1,21 +1,18 @@
 {#
- # The lists of the customer area: the heading with the create button, the tabs and the
- # table, whose rows come from the route `data_route` via fetch()
- # (assets/controllers/page/customer/list_controller.js). A list sets `texts` (the prefix of its
- # translation keys) and `data_route` and fills the blocks `columns` and `cells`. The create pages
- # do not exist yet, so the button has the href #.
+ # The pages of the customer area: the heading with the create button, the tabs and the block
+ # `content`. A page sets `texts` (the prefix of its translation keys).
  #
- # A list with more to it may also set `list_controller`, `list_state` (more fields of its state)
- # and `table_class`, fill the blocks `toolbar` (top of the card) and `aside` (beside the card), and
- # replace `empty` and `row`.
+ # Static markup for now, with dummy rows and without JavaScript: loading, searching, filtering,
+ # sorting, selecting and the row menu come back step by step. The create pages do not exist
+ # yet, so the button has the href #.
  #}
 {% extends 'app.html.twig' %}
 
 {% block title %}{{ (texts ~ '.title')|trans }} – {{ 'layout.brand'|trans }}{% endblock %}
 
 {% block body %}
-    <div class="customer-area">
-        <header class="page-head page-head--action">
+    <div class="stack">
+        <header class="page-head page-head--action page-head--large">
             <div class="page-head__text">
                 <h1 class="page-head__title">{{ (texts ~ '.heading')|trans }}</h1>
                 <p class="page-head__lead">{{ (texts ~ '.lead')|trans }}</p>
@@ -28,48 +25,6 @@
 
         {{ include('page/customer/_tabs.html.twig') }}
 
-        <div class="customer-content" x-bind:aria-busy="loading"
-             {{ stimulus_controller(list_controller|default('page--customer--list'), { state: { url: path(data_route) }|merge(list_state|default({})) }) }}
-             x-cloak>
-            <section class="customer-list" aria-label="{{ (texts ~ '.title')|trans }}">
-                {% block toolbar %}{% endblock %}
-                <p class="customer-list__error" x-show="error">
-                    {{ (texts ~ '.error')|trans }} <span x-text="error"></span>
-                </p>
-                {% block empty %}
-                    <p class="panel__empty" x-show="!loading && !error && total === 0">{{ (texts ~ '.empty')|trans }}</p>
-                {% endblock %}
-                <p class="customer-list__loading" x-show="loading && total === 0">{{ (texts ~ '.loading')|trans }}</p>
-                <div class="customer-list__scroll" x-show="!error && total > 0">
-                    <table class="customer-list__table {{ table_class|default('') }}">
-                        <thead>
-                            <tr>{% block columns %}{% endblock %}</tr>
-                        </thead>
-                        <tbody>
-                            <template x-for="item in pageItems" x-bind:key="item.id">
-                                {% block row %}<tr>{% block cells %}{% endblock %}</tr>{% endblock %}
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-                <nav class="customer-pager" aria-label="{{ 'customer.pager.label'|trans }}" x-show="!error && pageCount > 1">
-                    <button type="button" class="customer-pager__button" aria-label="{{ 'customer.pager.previous'|trans }}"
-                            x-on:click="previousPage()" x-bind:disabled="!hasPreviousPage">‹</button>
-                    <template x-for="link in pageLinks" x-bind:key="link.key">
-                        <span class="customer-pager__link">
-                            <button type="button" class="customer-pager__button" x-show="link.page"
-                                    x-on:click="goToPage(link.page)"
-                                    x-bind:aria-current="link.current ? 'page' : null"
-                                    x-bind:aria-label="'{{ 'customer.pager.page'|trans|e('js') }}'.replace('%page%', link.page)"
-                                    x-text="link.page"></button>
-                            <span class="customer-pager__gap" x-show="!link.page" aria-hidden="true">…</span>
-                        </span>
-                    </template>
-                    <button type="button" class="customer-pager__button" aria-label="{{ 'customer.pager.next'|trans }}"
-                            x-on:click="nextPage()" x-bind:disabled="!hasNextPage">›</button>
-                </nav>
-            </section>
-            {% block aside %}{% endblock %}
-        </div>
+        {% block content %}{% endblock %}
     </div>
 {% endblock %}

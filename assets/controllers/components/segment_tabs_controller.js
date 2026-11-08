@@ -1,5 +1,5 @@
-import { withStateController } from '../../../scripts/withStateController.js';
-import event from '../../../scripts/event.js';
+import { withStateController } from '../../scripts/withStateController.js';
+import event from '../../scripts/event.js';
 
 const state = {
     activeTab: null,

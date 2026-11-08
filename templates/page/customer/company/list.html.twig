@@ -1,21 +1,31 @@
-{# The companies (App\Customer\Controller\CompanyListController). #}
+{# The companies (App\Customer\Controller\CompanyListController): static, with one dummy row. #}
 {% extends 'page/customer/_list_layout.html.twig' %}
 
 {% set texts = 'customer.company_list' %}
-{% set data_route = 'customer_company_list_data' %}
 
-{% block columns %}
-    <th scope="col">{{ 'customer.field.company_name'|trans }}</th>
-    <th scope="col">{{ 'customer.field.email'|trans }}</th>
-    <th scope="col">{{ 'customer.field.phone'|trans }}</th>
-    <th scope="col">{{ 'customer.field.created'|trans }}</th>
-    <th scope="col">{{ 'customer.field.updated'|trans }}</th>
-{% endblock %}
-
-{% block cells %}
-    <td x-text="item.name"></td>
-    <td x-text="item.email"></td>
-    <td x-text="item.phone"></td>
-    <td x-text="formatDate(item.created)"></td>
-    <td x-text="formatDate(item.updated)"></td>
+{% block content %}
+    <section class="data-card" aria-label="{{ 'customer.company_list.title'|trans }}">
+        <div class="data-card__scroll">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th scope="col">{{ 'customer.field.company_name'|trans }}</th>
+                        <th scope="col">{{ 'customer.field.email'|trans }}</th>
+                        <th scope="col">{{ 'customer.field.phone'|trans }}</th>
+                        <th scope="col">{{ 'customer.field.created'|trans }}</th>
+                        <th scope="col">{{ 'customer.field.updated'|trans }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Stadtwerke Musterstadt</td>
+                        <td>info@stadtwerke.example.com</td>
+                        <td class="text-muted">–</td>
+                        <td>06.11.2026</td>
+                        <td>06.11.2026</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
 {% endblock %}
