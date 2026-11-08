@@ -134,6 +134,9 @@ Rules that apply everywhere:
     needs a mapping in `config/packages/doctrine.yaml` and a row in `EntityMappingTest`), enums
     and other classes beside it (`Enum/`); `Repository/` one `ServiceEntityRepository` per entity.
   - `Command/` and `Query/`: a message and its handler side by side (with the query's result).
+    An area with several resources has a subfolder per resource; messages and handlers keep their
+    full name (`Query/Company/GetCompanyListQuery`), helper classes beside them leave the folder's
+    name out (`Query/Company/ListFilter`).
   - `Dto/`: the DTOs of the area's API, suffix **`Dto`** (never `DTO`: PHP class names are
     case-insensitive), holding only DTOs and scalar values, never entities.
   - `Controller/Api/`: one controller per `/api` endpoint, flat, with an `__invoke` action that

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Customer\Query;
+namespace App\Customer\Query\Customer;
 
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -16,7 +16,7 @@ final readonly class GetCustomerListQuery
         #[Assert\Range(min: 1, max: 100)]
         public int $pageSize = 20,
         #[Assert\Valid]
-        public CustomerListFilter $filter = new CustomerListFilter(),
+        public ListFilter $filter = new ListFilter(),
         #[Assert\Choice(choices: ['name', 'updated', 'created'])]
         public string $sort = 'name',
         #[Assert\Choice(choices: ['asc', 'desc'])]

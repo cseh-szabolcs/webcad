@@ -4,7 +4,7 @@ namespace App\Customer\Controller;
 
 use App\Core\Controller\BaseController;
 use App\Core\Dto\ListResultDto;
-use App\Customer\Query\GetTagListQuery;
+use App\Customer\Query\Tag\GetTagListQuery;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;

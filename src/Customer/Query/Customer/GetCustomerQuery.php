@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Customer\Query;
+namespace App\Customer\Query\Customer;
 
 use Symfony\Component\Uid\Uuid;
 

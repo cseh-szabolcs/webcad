@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Customer\Query;
+namespace App\Customer\Query\Customer;
 
 use App\Customer\Dto\CustomerListItemDto;
 use App\Customer\Repository\CustomerRepository;

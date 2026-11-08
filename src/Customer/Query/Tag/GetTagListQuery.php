@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Customer\Query;
+namespace App\Customer\Query\Tag;
 
 use Symfony\Component\Validator\Constraints as Assert;
 

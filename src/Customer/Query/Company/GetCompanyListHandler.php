@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Customer\Query;
+namespace App\Customer\Query\Company;
 
 use App\Core\Doctrine\ListPaginator;
 use App\Core\Dto\ListResultDto;
