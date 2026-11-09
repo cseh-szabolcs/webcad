@@ -50,12 +50,17 @@ final class CompanyListControllerTest extends WebTestCase
         self::assertSelectorTextSame('.page-head__title', 'Firmen');
         self::assertSelectorTextSame('.page-head__action', 'Firma hinzufügen');
         self::assertSelectorTextSame('.app-nav__link[aria-current="true"]', 'Kunden');
-        self::assertSelectorTextSame('.segmented__option[aria-current="page"]', 'Firmen 1');
+        self::assertSelectorTextSame('.segmented__option[aria-current="page"]', 'Firmen');
         self::assertSame(
             ['Stadtwerke Musterstadt', 'info@stadtwerke.example.com', '–', '06.11.2026', '06.11.2026'],
             $crawler->filter('.data-table tbody td')->each(static fn ($cell) => $cell->text()),
         );
-        self::assertCount(0, $crawler->filter('main [data-controller], main [x-data]'));
+        // Only the tabs load their counts; the list itself has no JavaScript yet.
+        self::assertSame(
+            ['components--segment-tabs'],
+            $crawler->filter('main [data-controller]')->each(static fn ($element) => $element->attr('data-controller')),
+        );
+        self::assertCount(0, $crawler->filter('main [x-data]'));
     }
 
     public function testReturnsTheCompaniesByName(): void
@@ -96,6 +101,29 @@ final class CompanyListControllerTest extends WebTestCase
 
         self::assertSame(1, $result['total']);
         self::assertSame(['Muster GmbH'], array_column($result['items'], 'name'));
+    }
+
+    public function testTheRouteOfTheTabCountLeavesOutPrivatePersons(): void
+    {
+        $this->logIn($this->client, $this->createUser());
+        $em = $this->em();
+        $em->persist(Company::forOrganization('Muster GmbH'));
+        $em->persist(Company::forOrganization('Beispiel AG'));
+        $em->persist(new Customer(Company::forPrivatePerson()));
+        $em->flush();
+        $em->clear();
+
+        $this->client->request('GET', '/de/customers/companies/count');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(['value' => 2], json_decode($this->client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR));
+    }
+
+    public function testGuestGetsNoCount(): void
+    {
+        $this->client->request('GET', '/de/customers/companies/count');
+
+        self::assertResponseRedirects('/de/login');
     }
 
     public function testReturnsTheRequestedPage(): void

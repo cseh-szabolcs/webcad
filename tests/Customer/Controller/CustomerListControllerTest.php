@@ -43,7 +43,7 @@ final class CustomerListControllerTest extends WebTestCase
         self::assertResponseRedirects('/de/login');
     }
 
-    public function testShowsTheStaticPage(): void
+    public function testShowsThePageWithTheTabs(): void
     {
         $this->logIn($this->client, $this->createUser());
 
@@ -55,48 +55,41 @@ final class CustomerListControllerTest extends WebTestCase
         self::assertSelectorTextSame('.page-head__action', 'Kunde hinzufügen');
         self::assertSelectorNotExists('.eyebrow');
 
-        // The counts of the tabs are dummies for now.
+        // The tabs load their counts from `data-source`, so the badges are empty in the markup.
         $tabs = $crawler->filter('.segmented--tabs a.segmented__option');
-        self::assertSame(['Kontakte 2', 'Firmen 1', 'Tags 1'], $tabs->each(static fn ($link) => $link->text()));
+        self::assertSame(['Kontakte', 'Firmen', 'Tags'], $tabs->each(static fn ($link) => $link->text()));
         self::assertSame(
             ['/de/customers', '/de/customers/companies', '/de/customers/tags'],
             $tabs->each(static fn ($link) => $link->attr('href')),
         );
-        self::assertSelectorTextSame('.segmented__option[aria-current="page"]', 'Kontakte 2');
+        self::assertSame(
+            ['/de/customers/count', '/de/customers/companies/count', '/de/customers/tags/count'],
+            $tabs->each(static fn ($link) => $link->attr('data-source')),
+        );
+        self::assertSelectorTextSame('.segmented__option[aria-current="page"]', 'Kontakte');
         self::assertCount(1, $crawler->filter('.segmented__option[aria-current]'));
-
-        // No JavaScript of its own: it comes back step by step.
-        self::assertCount(0, $crawler->filter('main [data-controller], main [x-data]'));
     }
 
-    public function testThePageHasTheColumnsTheControlsAndTheDummyRows(): void
+    public function testTheListLoadsItsRowsFromTheDataRoute(): void
     {
         $this->logIn($this->client, $this->createUser());
 
         $crawler = $this->client->request('GET', '/de/customers');
+        // Not the static copy below it, which is there for comparison only.
+        $list = $crawler->filter('section[data-controller="page--customer--list"]');
 
+        self::assertCount(1, $list);
+        self::assertSame('/de/customers/data', $list->attr('data-page--customer--list-url-value'));
         self::assertSame(
             ['Name', 'Kontakt', 'Tags', 'Geändert', 'Aktionen'],
-            $crawler->filter('.data-table th')->each(static fn ($header) => $header->text()),
+            $list->filter('.data-table th')->each(static fn ($header) => $header->text()),
         );
-        self::assertSelectorExists('.toolbar input[type="search"]');
-        self::assertCount(2, $crawler->filter('.toolbar select'));
-        self::assertSelectorTextSame('.toolbar__count', '2 Kunden');
-
+        self::assertCount(1, $list->filter('.toolbar input[type="search"]'));
+        self::assertCount(2, $list->filter('.toolbar select'));
+        self::assertCount(1, $list->filter('.data-table tbody template[x-for]'));
         self::assertSame(
-            ['Stadtwerke Musterstadt', 'Mira Keller'],
-            $crawler->filter('.data-table tbody .identity__name')->each(static fn ($name) => $name->text()),
-        );
-        self::assertSame(
-            ['Aktionen für Stadtwerke Musterstadt', 'Aktionen für Mira Keller'],
-            $crawler->filter('.data-table tbody .icon-btn')->each(static fn ($button) => $button->attr('aria-label')),
-        );
-        self::assertSelectorNotExists('[popover]');
-
-        self::assertSelectorTextSame('.detail-panel h2', 'Stadtwerke Musterstadt');
-        self::assertSame(
-            ['Bearbeiten', 'Plan anlegen'],
-            $crawler->filter('.detail-panel__actions a')->each(static fn ($link) => $link->text()),
+            ['Bearbeiten', 'Löschen', 'Plan anlegen'],
+            $list->filter('#customer-actions[popover] .context-menu__item')->each(static fn ($item) => $item->text()),
         );
     }
 
@@ -110,7 +103,17 @@ final class CustomerListControllerTest extends WebTestCase
         $em->flush();
         $em->clear();
 
-        self::assertSame(3, $this->data('page=1&pageSize=1')['total']);
+        $this->client->request('GET', '/de/customers/count');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(['value' => 3], json_decode($this->client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR));
+    }
+
+    public function testGuestGetsNoCount(): void
+    {
+        $this->client->request('GET', '/de/customers/count');
+
+        self::assertResponseRedirects('/de/login');
     }
 
     public function testAnEmptyListIsOneEmptyPage(): void

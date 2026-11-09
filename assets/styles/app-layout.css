@@ -559,11 +559,13 @@
     color: var(--ink-muted);
     font: 600 0.75rem/1 var(--font-sans);
     text-align: center;
+    transition: opacity 200ms;
+    opacity: 1;
 }
 
 /* A count that is not there yet keeps the tab's width, so the tabs do not jump */
 .segmented__badge:empty {
-    visibility: hidden;
+    opacity: 0;
 }
 
 .segmented__option[aria-current="page"] .segmented__badge {

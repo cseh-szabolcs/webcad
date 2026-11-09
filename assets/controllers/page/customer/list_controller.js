@@ -6,7 +6,7 @@ import { on } from "../../../scripts/event.js";
 
 /* The customer list, pages from the backend (remoteListState). */
 const state = (controller, {$watch}) => extend(remoteListState, {
-    pageSize: 2,
+    pageSize: 5,
     sortKey: 'updated',
     sortDirection: 'desc',
 
@@ -41,10 +41,6 @@ const state = (controller, {$watch}) => extend(remoteListState, {
 
     getContextMenuLabel(label, item) {
         return label.replace('%name%', item.displayName);
-    },
-
-    phoneHref(phone) {
-        return `tel:${phone.replace(/[^+\d]/g, '')}`;
     },
 });
 

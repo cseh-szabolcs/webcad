@@ -48,12 +48,17 @@ final class TagListControllerTest extends WebTestCase
         self::assertSelectorTextSame('.page-head__title', 'Tags');
         self::assertSelectorTextSame('.page-head__action', 'Tag erstellen');
         self::assertSelectorTextSame('.app-nav__link[aria-current="true"]', 'Kunden');
-        self::assertSelectorTextSame('.segmented__option[aria-current="page"]', 'Tags 1');
+        self::assertSelectorTextSame('.segmented__option[aria-current="page"]', 'Tags');
         self::assertSame(
             ['Stammkunde'],
             $crawler->filter('.data-table tbody td')->each(static fn ($cell) => $cell->text()),
         );
-        self::assertCount(0, $crawler->filter('main [data-controller], main [x-data]'));
+        // Only the tabs load their counts; the list itself has no JavaScript yet.
+        self::assertSame(
+            ['components--segment-tabs'],
+            $crawler->filter('main [data-controller]')->each(static fn ($element) => $element->attr('data-controller')),
+        );
+        self::assertCount(0, $crawler->filter('main [x-data]'));
     }
 
     public function testReturnsTheTagsByName(): void
@@ -71,6 +76,28 @@ final class TagListControllerTest extends WebTestCase
         self::assertSame(2, $result['total']);
         self::assertSame(['id' => $tag->getUuid()->toRfc4122(), 'name' => 'Bauherr', 'color' => null], $result['items'][0]);
         self::assertSame('Planer', $result['items'][1]['name']);
+    }
+
+    public function testTheRouteOfTheTabCountReturnsTheNumberOfTags(): void
+    {
+        $this->logIn($this->client, $this->createUser());
+        $em = $this->em();
+        $em->persist(new Tag('Bauherr'));
+        $em->persist(new Tag('Planer'));
+        $em->flush();
+        $em->clear();
+
+        $this->client->request('GET', '/de/customers/tags/count');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(['value' => 2], json_decode($this->client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR));
+    }
+
+    public function testGuestGetsNoCount(): void
+    {
+        $this->client->request('GET', '/de/customers/tags/count');
+
+        self::assertResponseRedirects('/de/login');
     }
 
     public function testReturnsTheColorTheUserChose(): void

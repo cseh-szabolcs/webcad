@@ -1,10 +1,11 @@
 <?php
 
-namespace App\Customer\Controller;
+namespace App\Customer\Controller\Customer;
 
 use App\Core\Controller\BaseController;
 use App\Core\Dto\ListResultDto;
 use App\Customer\Dto\CustomerListItemDto;
+use App\Customer\Query\Customer\GetCustomerCountQuery;
 use App\Customer\Query\Customer\GetCustomerListQuery;
 use App\Customer\Query\Customer\GetCustomerQuery;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -22,7 +23,7 @@ use Symfony\Component\Uid\Uuid;
  * for the JavaScript that will load them.
  */
 #[Route('customers', name: 'customer_list_')]
-final class CustomerListController extends BaseController
+final class ListController extends BaseController
 {
     use HandleTrait;
 
@@ -60,5 +61,14 @@ final class CustomerListController extends BaseController
         }
 
         return $this->json($customer);
+    }
+
+    #[Route(path: '/count', name: 'count', methods: ['GET'])]
+    public function count(): JsonResponse
+    {
+        /** @var int $count */
+        $count = $this->handle(new GetCustomerCountQuery());
+
+        return $this->json(['value' => $count]);
     }
 }

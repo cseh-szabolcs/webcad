@@ -1,7 +1,7 @@
 <nav
     class="segmented segmented--tabs"
     aria-label="{{ label ? label : '' }}"
-    {{ stimulus_controller('components--menu--segment-tabs', { state: {
+    {{ stimulus_controller('components--segment-tabs', { state: {
         activeTab: activeTab ? activeTab : 0,
     }}) }}
     {{ attributes }}>

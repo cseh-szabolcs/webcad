@@ -23,7 +23,21 @@
             </a>
         </header>
 
-        {{ include('page/customer/_tabs.html.twig') }}
+        <twig:SegmentTabs label="{{ 'customer.nav.label'|trans }}">
+            {% for tab in [
+                {key: 'customer', label: 'customers'},
+                {key: 'customer_company', label: 'companies'},
+                {key: 'customer_tag', label: 'tags'},
+            ] %}
+                <twig:SegmentTabs:Tab
+                    key="{{ tab.key }}"
+                    href="{{ path(tab.key ~ '_list_index') }}"
+                    dataSource="{{ path(tab.key ~ '_list_count') }}"
+                    label="{{ ('customer.nav.' ~ tab.label)|trans }}"
+                    active="{{ app.current_route == tab.key ~ '_list_index' }}"
+                />
+            {% endfor %}
+        </twig:SegmentTabs>
 
         {% block content %}{% endblock %}
     </div>
