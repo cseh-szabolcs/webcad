@@ -33,6 +33,7 @@
     --tone-purple-ink: #4a3ab8;
     --tone-neutral-bg: #ebe9e3;
     --tone-neutral-ink: #3d3b47;
+    --border-color-light: #ececed;
     /* Saturation and lightness of generated colors, the hue comes from the id: at least 5.6:1 for every hue */
     --pastel-bg: 70% 92%;
     --pastel-ink: 60% 25%;
@@ -76,6 +77,7 @@
         --tone-purple-ink: #c4bdf7;
         --tone-neutral-bg: #29303b;
         --tone-neutral-ink: #c9d0d9;
+        --border-color-light: #363636;
         --pastel-bg: 40% 22%;
         --pastel-ink: 70% 85%;
     }
@@ -118,6 +120,7 @@
     --tone-purple-ink: #c4bdf7;
     --tone-neutral-bg: #29303b;
     --tone-neutral-ink: #c9d0d9;
+    --border-color-light: #363636;
     --pastel-bg: 40% 22%;
     --pastel-ink: 70% 85%;
 }
@@ -804,6 +807,7 @@
     color: var(--tone-neutral-ink);
     font-size: 0.875rem;
     font-weight: 700;
+    border: 1px solid var(--border-color-light);
 }
 
 .avatar--square {
