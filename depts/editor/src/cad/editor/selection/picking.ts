@@ -24,7 +24,7 @@ export function pickAt(index: ShapeIndex, point: Point, halfSize: number): Id | 
 
 /** Window selection: elements lying completely inside `rect`, in drawing order. */
 export function pickWindow(index: ShapeIndex, rect: Rect): Id[] {
-    // The bounds are those of the outline points, so they lie inside exactly when all points do
+    // The bounds are exactly those of the outline, so it lies inside exactly when they do
     return index
         .search(rect)
         .filter(({ bounds }) => rectContains(rect, bounds))
@@ -35,7 +35,8 @@ export function pickWindow(index: ShapeIndex, rect: Rect): Id[] {
 export function pickCrossing(index: ShapeIndex, rect: Rect): Id[] {
     return index
         .search(rect)
-        .filter(({ points }) => polylineTouchesRect(points, rect))
+        // Wholly inside needs no look at the outline, which then is never flattened for it
+        .filter((shape) => rectContains(rect, shape.bounds) || polylineTouchesRect(shape.points, rect))
         .map(({ id }) => id);
 }
 

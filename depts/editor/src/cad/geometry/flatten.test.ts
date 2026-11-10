@@ -5,7 +5,9 @@ import { parseDocument } from '../persistence/CadSerializer';
 import { buildPathSpec } from '../renderer/PathSpec';
 import samplePlan from '../__fixtures__/sample-plan.json';
 import { sampleIds } from '../__fixtures__/sampleIds';
-import { flattenPathSpec } from './flatten';
+import { ellipsePathSpec } from '../renderer/PathSpec';
+import { flattenPathSpec, pathSpecBounds } from './flatten';
+import { boundsOf } from './selectionGeometry';
 import { distanceToPolyline } from './selectionGeometry';
 
 const { element: E } = sampleIds;
@@ -63,5 +65,35 @@ describe('flattenPathSpec', () => {
 
     it('returns nothing for an empty path', () => {
         expect(flattenPathSpec({ segments: [], closed: true }, 1)).toEqual([]);
+    });
+});
+
+describe('pathSpecBounds', () => {
+    it('reaches the turning point of a bezier, which no segment end marks', () => {
+        // The curtain dips to y = 3550 at t = 0.5 between its ends at y = 3700
+        const bounds = pathSpecBounds(buildPathSpec(index.elements.get(E.curtain)!, index));
+        expect(bounds).toEqual({ x: 3500, y: 3550, width: 1500, height: 150 });
+    });
+
+    it('is the box of a rotated ellipse', () => {
+        const bounds = pathSpecBounds(ellipsePathSpec({ x: 10, y: 20 }, 40, 20, Math.PI / 2));
+        expect(bounds.x).toBeCloseTo(-10);
+        expect(bounds.y).toBeCloseTo(-20);
+        expect(bounds.width).toBeCloseTo(40);
+        expect(bounds.height).toBeCloseTo(80);
+    });
+
+    it('contains the flattened outline of every sample element and is no wider than the tolerance allows', () => {
+        for (const element of index.elements.values()) {
+            const spec = buildPathSpec(element, index);
+            const exact = pathSpecBounds(spec);
+            const sampled = boundsOf(flattenPathSpec(spec, 0.1));
+            expect(sampled.x).toBeGreaterThanOrEqual(exact.x - 1e-9);
+            expect(sampled.y).toBeGreaterThanOrEqual(exact.y - 1e-9);
+            expect(sampled.x + sampled.width).toBeLessThanOrEqual(exact.x + exact.width + 1e-9);
+            expect(sampled.y + sampled.height).toBeLessThanOrEqual(exact.y + exact.height + 1e-9);
+            expect(Math.abs(exact.width - sampled.width)).toBeLessThanOrEqual(0.2);
+            expect(Math.abs(exact.height - sampled.height)).toBeLessThanOrEqual(0.2);
+        }
     });
 });
