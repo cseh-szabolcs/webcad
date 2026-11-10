@@ -100,6 +100,8 @@ export class SnapEngine {
     private readonly shapesByElement = new Map<Id, SnapShape[]>();
     /** Snap points of an element in all modes, unmerged (see objectSnapPoints); filled on demand. */
     private readonly objectPoints = new Map<Id, SnapPoint[]>();
+    /** Result of the last previewPoints() with its elements and modes, reused while they stay the same. */
+    private lastPreview: { key: string; points: readonly SnapPoint[] } | null = null;
     private readonly regions: ShapeIndex<Region>;
     /** Geometric centres of closed polylines (see ElementSnapPoint). */
     private readonly elementPoints: ShapeIndex<ElementSnapPoint>;
@@ -208,7 +210,7 @@ export class SnapEngine {
      * higher mode; the order is stable (drawing order of the elements). They only show where
      * snapping is possible, a centre included.
      */
-    previewPoints(query: SnapQuery, memory: SnapMemory = new SnapMemory()): SnapPoint[] {
+    previewPoints(query: SnapQuery, memory: SnapMemory = new SnapMemory()): readonly SnapPoint[] {
         if (query.modes.size === 0) {
             return [];
         }
@@ -231,9 +233,15 @@ export class SnapEngine {
                 elementIds.add(around.reduce((inner, region) => (region.area < inner.area ? region : inner)).elementId);
             }
         }
-        return distinctPoints(
-            [...elementIds].flatMap((id) => this.objectSnapPoints(id)).filter(({ mode }) => query.modes.has(mode)),
-        );
+        // The same elements in the same modes as at the last cursor position: nothing to merge again
+        const key = `${[...elementIds].join('|')}#${[...query.modes].join(',')}`;
+        if (this.lastPreview?.key !== key) {
+            const points = distinctPoints(
+                [...elementIds].flatMap((id) => this.objectSnapPoints(id)).filter(({ mode }) => query.modes.has(mode)),
+            );
+            this.lastPreview = { key, points };
+        }
+        return this.lastPreview.points;
     }
 
     /**
@@ -308,9 +316,29 @@ function overlap(a: Rect, b: Rect): Rect {
 /** Coinciding points as one, in the higher mode, at the place of the first. */
 function distinctPoints(points: SnapPoint[]): SnapPoint[] {
     const distinct: SnapPoint[] = [];
+    // Grid of COINCIDENCE_MM cells: coinciding points lie in the same or a neighbouring cell
+    const cells = new Map<string, number[]>();
     for (const candidate of points) {
-        const i = distinct.findIndex(({ point }) => coincide(point, candidate.point));
+        const cx = Math.floor(candidate.point.x / COINCIDENCE_MM);
+        const cy = Math.floor(candidate.point.y / COINCIDENCE_MM);
+        let i = -1;
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+                for (const j of cells.get(`${cx + dx},${cy + dy}`) ?? NO_INDICES) {
+                    if ((i === -1 || j < i) && coincide(distinct[j].point, candidate.point)) {
+                        i = j;
+                    }
+                }
+            }
+        }
         if (i === -1) {
+            const key = `${cx},${cy}`;
+            const cell = cells.get(key);
+            if (cell) {
+                cell.push(distinct.length);
+            } else {
+                cells.set(key, [distinct.length]);
+            }
             distinct.push(candidate);
         } else if (SNAP_MODE_RANK[candidate.mode] < SNAP_MODE_RANK[distinct[i].mode]) {
             distinct[i] = { point: distinct[i].point, mode: candidate.mode };
@@ -318,6 +346,8 @@ function distinctPoints(points: SnapPoint[]): SnapPoint[] {
     }
     return distinct;
 }
+
+const NO_INDICES: readonly number[] = [];
 
 /** Same mode at (almost) the same point: the same snap point, also in a new search. */
 export function sameSnapPoint(a: SnapResult, b: SnapResult): boolean {

@@ -27,7 +27,7 @@ const round3 = (n: number) => Math.round(n * 1000) / 1000 + 0;
 const snapped = (result: SnapResult | null) =>
     result && { mode: result.mode, x: round3(result.point.x), y: round3(result.point.y) };
 const only = (...modes: SnapMode[]) => ({ modes: new Set(modes) });
-const points = (list: { point: Point; mode: SnapMode }[]) =>
+const points = (list: readonly { point: Point; mode: SnapMode }[]) =>
     list.map(({ point, mode }) => snapped({ point, mode, elementIds: [] }));
 
 const withLayer = (layerId: string, change: { visible?: boolean; locked?: boolean }): CadDocument => ({
