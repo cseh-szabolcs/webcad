@@ -27,7 +27,7 @@ These commands accept `--format`: `json` to parse the result, `toon` (when `helg
 
 ## Reading
 
-- Correlate `channel` + `level` + `datetime`. The channel tells you the subsystem (`doctrine` = DB, `security` = auth, `request`/`php` = framework), the level tells you severity, the timestamp anchors it to a deploy or an incident.
+- Correlate `channel` + `level` + `datetime`. The channel tells you the subsystem (`doctrine` = DB, `security` = auth, `RequestProvider`/`php` = framework), the level tells you severity, the timestamp anchors it to a deploy or an incident.
 - A cluster of same-`message` errors starting at one timestamp is the onset. Use it as the `--from` to see what preceded it.
 - `source_file` + `line_number` point back into the log file, not your application code.
 

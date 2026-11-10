@@ -1284,3 +1284,7 @@ a {
     color: var(--footer-ink);
     text-decoration: underline;
 }
+
+.no-style-div {
+    display: contents;
+}

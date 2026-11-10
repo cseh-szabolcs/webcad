@@ -1,6 +1,6 @@
 import { withStateController } from '../../scripts/withStateController.js';
 
-const state = (controller, { $el, $nextTick }) => ({
+const state = (_, { $el, $nextTick }) => ({
     count: {},
     dataSource: null,
     init() {

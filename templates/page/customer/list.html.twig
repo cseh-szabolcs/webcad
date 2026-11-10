@@ -23,15 +23,15 @@
                     placeholder="{{ 'customer.list.search_placeholder'|trans }}"
                     bindHandler="applyFilterSearch"
                 />
-                <twig:Form:Select
-                    icon="filter"
-                    label="{{ 'customer.list.filter_label'|trans }}"
-                    options="{{ [
-                        { value: '', label: 'customer.list.all_tags'|trans },
-                        { value: 'uuid-01', label: 'Öffentlich' },
-                        { value: 'uuid-02', label: 'Stammkunde' },
-                    ] }}"
-                />
+                <twig:RequestProvider path="{{ path('customer_tag_list_data') }}" prop="items">
+                    <twig:Form:Select icon="filter" label="{{ 'customer.list.filter_label'|trans }}" bindHandler="$parent.applyFilterTag">
+                        <twig:Form:Select:BindOptions
+                            data="providerData"
+                            identifier="id"
+                            label="name"
+                        />
+                    </twig:Form:Select>
+                </twig:RequestProvider>
                 <twig:Form:Select
                     icon="sort"
                     label="{{ 'customer.list.sort_label'|trans }}"

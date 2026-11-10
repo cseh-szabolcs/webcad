@@ -28,4 +28,5 @@ return [
     '@symfony/stimulus-bundle' => ['path' => './vendor/symfony/stimulus-bundle/assets/dist/loader.js'],
     'alpinejs' => ['version' => '3.17.5'],
     'lettermark' => ['version' => '0.1.1'],
+    '@ryangjchandler/alpine-parent' => ['version' => '1.0.0'],
 ];

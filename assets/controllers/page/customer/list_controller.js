@@ -9,6 +9,7 @@ const state = (controller, {$watch}) => extend(remoteListState, {
     pageSize: 5,
     sortKey: 'updated',
     sortDirection: 'desc',
+    scope: this,
 
     init() {
         super.init();
@@ -29,6 +30,10 @@ const state = (controller, {$watch}) => extend(remoteListState, {
         } else {
             this.addFilter('search', text);
         }
+    },
+
+    applyFilterTag(tag) {
+        alert(tag);
     },
 
     get url() {

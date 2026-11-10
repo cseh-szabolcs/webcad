@@ -8,8 +8,10 @@
         {% if bindModel %} x-model="{{ bindModel }}"{% endif %}
         {% if bindHandler %} x-on:change="{{ onChangeHandler }}"{% endif %}
     >
-        {% for option in options %}
-            <option value="{{ option['value'] }}"{% if value === option['value'] %} selected{% endif %}>{{ option['label'] }}</option>
-        {% endfor %}
+        {% block content %}
+            {% for option in options %}
+                <option value="{{ option['value'] }}"{% if value === option['value'] %} selected{% endif %}>{{ option['label'] }}</option>
+            {% endfor %}
+        {% endblock %}
     </select>
 </label>
