@@ -54,7 +54,10 @@ type LoadState =
 function App() {
     const { t } = useTranslation();
     const language = currentLanguage();
-    const planId = new URLSearchParams(window.location.search).get('plan') ?? (import.meta.env.DEV ? DEV_PLAN_ID : null);
+    const query = new URLSearchParams(window.location.search);
+    const planId = query.get('plan') ?? (import.meta.env.DEV ? DEV_PLAN_ID : null);
+    // Dev only: `?stress=<count>` shows a generated plan of that many elements instead (see stressPlan)
+    const stressCount = import.meta.env.DEV ? Number(query.get('stress')) || 0 : 0;
     const canvasRef = useRef<CadCanvasHandle>(null);
     const [viewport, setViewport] = useState<Viewport | null>(null);
     const [pointer, setPointer] = useState<Point | null>(null);
@@ -149,6 +152,17 @@ function App() {
         if (planId === null) {
             return;
         }
+        if (stressCount > 0) {
+            let cancelled = false;
+            void import('app/dev/stressPlan').then(({ stressPlan }) => {
+                if (!cancelled) {
+                    setState({ status: 'loaded', document: stressPlan(stressCount) });
+                }
+            });
+            return () => {
+                cancelled = true;
+            };
+        }
         const controller = new AbortController();
         api.loadPlanDocument(planId, controller.signal).then(
             ({ document }) => setState({ status: 'loaded', document }),
@@ -159,7 +173,7 @@ function App() {
             },
         );
         return () => controller.abort();
-    }, [planId]);
+    }, [planId, stressCount]);
 
     if (planId === null) {
         return <p className="app-message">{t('app.noPlan')}</p>;

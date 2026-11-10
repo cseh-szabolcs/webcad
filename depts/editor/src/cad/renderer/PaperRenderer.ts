@@ -4,6 +4,7 @@ import { indexDocument, type DocumentIndex } from '../model/DocumentIndex';
 import type { Id } from '../model/Point';
 import type { DisplayTheme } from './displayColor';
 import { applyStyle, createItem, DEFAULT_STYLE, styleOf } from './ElementRenderer';
+import { planSceneUpdate } from './sceneUpdate';
 import type { Rect, Size, Viewport } from './Viewport';
 
 const DEFAULT_LAYER = '__default';
@@ -16,26 +17,43 @@ const DIMMED = {
 /**
  * Builds a Paper.js scene from a CadDocument. Items live in model space; the viewport is
  * applied through the view matrix, which also flips Y. Holds no editing state; editor
- * overlays draw into the separate overlay layer.
+ * overlays draw into the overlay layer, which is a Paper.js project of its own on a second
+ * canvas above the drawing with the same viewport: an overlay change (hover, preview) then
+ * repaints only that canvas, not the whole drawing.
  */
 export class PaperRenderer {
     private readonly scope: paper.PaperScope;
+    private readonly overlayScope: paper.PaperScope;
+    private readonly overlay: paper.Layer;
     private readonly items = new Map<Id, paper.Path>();
     private readonly layers = new Map<Id, paper.Layer>();
-    private overlay: paper.Layer | null = null;
     private viewport: Viewport | null = null;
     private index: DocumentIndex | null = null;
+    /** The layer list the scene was built from; commands that leave the layers alone keep it. */
+    private documentLayers: CadDocument['layers'] | null = null;
     private theme: DisplayTheme = 'light';
     private dimmed: ReadonlySet<Id> = new Set();
+    private changes = 0;
 
-    constructor(canvas: HTMLCanvasElement) {
+    constructor(canvas: HTMLCanvasElement, overlayCanvas: HTMLCanvasElement) {
+        this.overlayScope = new paper.PaperScope();
+        this.overlayScope.setup(overlayCanvas);
+        this.overlay = this.overlayScope.project.activeLayer;
+        this.overlay.name = '__overlay';
+        // Set up last, so it is the active scope
         this.scope = new paper.PaperScope();
         this.scope.setup(canvas);
+    }
+
+    /** Counts the changes to the items or their display style, so an overlay knows when its copies are stale. */
+    get revision(): number {
+        return this.changes;
     }
 
     /** Rebuilds the whole scene. */
     setDocument(doc: CadDocument): void {
         this.scope.activate();
+        this.changes++;
         for (const layer of this.layers.values()) {
             layer.remove();
         }
@@ -43,6 +61,7 @@ export class PaperRenderer {
         this.layers.clear();
         const index = indexDocument(doc);
         this.index = index;
+        this.documentLayers = doc.layers;
 
         this.layers.set(DEFAULT_LAYER, new this.scope.Layer({ name: DEFAULT_LAYER }));
         for (const layer of doc.layers) {
@@ -58,35 +77,50 @@ export class PaperRenderer {
                 this.restyle(element.id);
             }
         }
-        this.overlay?.bringToFront();
     }
 
     /**
-     * Rebuilds the items of the given elements in place, keeping their layer and drawing
-     * order; the other items stay. Falls back to setDocument() if an element was added or
-     * removed.
+     * Follows a document change that touched the given elements: replaces their items in place,
+     * removes those of elements that are gone and adds new ones at their place in the drawing
+     * order; the other items stay. Falls back to setDocument() if the layers changed, an element
+     * changed its layer or the ids do not cover the change.
      */
     updateElements(doc: CadDocument, ids: Iterable<Id>): void {
         this.scope.activate();
         const index = indexDocument(doc);
-        if (index.elements.size !== this.items.size) {
+        const steps = doc.layers === this.documentLayers ? planSceneUpdate(doc, index, this.items, ids) : 'rebuild';
+        if (steps === 'rebuild') {
             this.setDocument(doc);
             return;
         }
         this.index = index;
-        for (const id of ids) {
-            const element = index.elements.get(id);
-            const old = this.items.get(id);
-            if (!element || !old) {
+        this.changes++;
+        for (const step of steps) {
+            const old = this.items.get(step.id);
+            if (step.kind === 'remove') {
+                old?.remove();
+                this.items.delete(step.id);
+                continue;
+            }
+            const element = index.elements.get(step.id)!;
+            const layer = this.layerFor(element.layerId);
+            if (step.kind === 'replace' && old?.parent !== layer) {
                 this.setDocument(doc);
                 return;
             }
             const item = createItem(this.scope, element, index, this.theme);
-            item.data.elementId = id;
-            old.replaceWith(item);
-            this.items.set(id, item);
-            if (this.dimmed.has(id)) {
-                this.restyle(id);
+            item.data.elementId = step.id;
+            const before = step.kind === 'add' && step.beforeId !== null ? this.items.get(step.beforeId) : undefined;
+            if (step.kind === 'replace') {
+                old!.replaceWith(item);
+            } else if (before) {
+                item.insertBelow(before);
+            } else {
+                layer.addChild(item);
+            }
+            this.items.set(step.id, item);
+            if (this.dimmed.has(step.id)) {
+                this.restyle(step.id);
             }
         }
     }
@@ -128,6 +162,7 @@ export class PaperRenderer {
             return;
         }
         this.theme = theme;
+        this.changes++;
         const index = this.index;
         if (!index) {
             return;
@@ -142,12 +177,12 @@ export class PaperRenderer {
         return this.items.get(id) ?? null;
     }
 
-    /** Layer above all document layers for editor overlays; kept across setDocument(). */
-    get overlayLayer(): paper.Layer {
-        if (!this.overlay) {
-            this.scope.activate();
-            this.overlay = new this.scope.Layer({ name: '__overlay' });
-        }
+    /**
+     * The layer for editor overlays, on the canvas above the drawing. Makes its Paper.js scope
+     * the active one, so items created next belong to it; call it before drawing an overlay.
+     */
+    activateOverlay(): paper.Layer {
+        this.overlayScope.activate();
         return this.overlay;
     }
 
@@ -159,10 +194,12 @@ export class PaperRenderer {
     setViewport(viewport: Viewport): void {
         this.viewport = viewport;
         this.scope.view.matrix = new this.scope.Matrix(viewport.toMatrix());
+        this.overlayScope.view.matrix = new this.overlayScope.Matrix(viewport.toMatrix());
     }
 
     resize(size: Size): void {
         this.scope.view.viewSize = new this.scope.Size(size.width, size.height);
+        this.overlayScope.view.viewSize = new this.overlayScope.Size(size.width, size.height);
         // Paper.js recentres the view on resize; keep the viewport's origin instead.
         if (this.viewport) {
             this.setViewport(this.viewport);
@@ -184,9 +221,9 @@ export class PaperRenderer {
     dispose(): void {
         this.items.clear();
         this.layers.clear();
-        this.overlay = null;
         this.index = null;
         this.scope.project.remove();
+        this.overlayScope.project.remove();
     }
 
     /** Own style, then the grey of a dimmed element on top. */

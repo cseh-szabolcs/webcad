@@ -60,7 +60,8 @@ nothing to `~/.npm`; never install packages globally. The same holds for `depts/
 Vite proxies `/api` to `http://nginx` (same origin, no CORS); for `npm run dev` on the host set
 `API_PROXY_TARGET=http://localhost:8080`. In dev the editor loads the plan
 `01994f4e-6f3a-7c2d-9b1e-5a3c2d1e0f42` when the URL names none (`DEV_PLAN_ID` in `App.tsx`,
-`?plan=<id>` names another). `src/cad/__fixtures__/sample-plan.json` (unit tests) must stay
+`?plan=<id>` names another; `?stress=<count>` shows a generated plan of that many elements
+instead, dev only, to measure large drawings: `src/dev/stressPlan.ts`). `src/cad/__fixtures__/sample-plan.json` (unit tests) must stay
 byte-identical to the backend's `fixtures/plans/sample-plan.json`; readable names of its ids in
 `sampleIds.ts`. `app/*` is a Vite alias for `src/*`. Model coordinates are **mm with Y up**; the
 viewport flips Y for the screen.
@@ -77,7 +78,10 @@ viewport flips Y for the screen.
 - **Layering:** document model → editor core (tools, selection, command history, snapping,
   tracking, overlays) → Paper.js adapter (`PaperRenderer` keeps an `ElementId → paper.Item`
   map for incremental updates). One renderer serves View and Edit mode; Edit mode adds overlays
-  on top, and the renderer holds no editing state.
+  on top, and the renderer holds no editing state. **The overlay has its own canvas and
+  Paper.js project** above the drawing (same viewport, `pointer-events: none`), so hover and
+  previews never repaint the drawing; `activateOverlay()` makes its scope the active one,
+  which code creating overlay items through the global `paper` relies on.
 - **Every persistent model change goes through a command** (`execute()`/`undo()`). A drag or
   a tool shows a temporary preview and then commits one command (one undo step). Each element
   type gets its own handles (line: endpoints; circle: centre and radius; Bézier: endpoints and
@@ -186,8 +190,9 @@ All pure TS and unit-tested unless noted.
   stacks, listeners, `revertLast`, `combineLast`), `MoveCommand`, `AddLineCommand`,
   `AddPolylineCommand` (its `label` names the command), `AddCircleCommand`, `AddEllipseCommand`,
   `CompositeCommand`. `CadCanvas` keeps the history of the loaded document; the editor and the
-  renderer follow it (`PaperRenderer.updateElements` replaces only the changed items,
-  subscribed before the editor so its overlay sees the new paths). The editor's derived
+  renderer follow it (`PaperRenderer.updateElements` replaces, adds and removes only the
+  changed items as planned by the pure `cad/renderer/sceneUpdate.ts`, subscribed before the
+  editor so its overlay sees the new paths). The editor's derived
   structures are rebuilt as a whole on every change for now.
 - `cad/editor/tracking/`: `PolarTracking.ts` (`polarAngles`, `nearestRay`, `findPolarTrack`,
   `parseAngleList`/`formatAngleList`), `ObjectSnapTracking.ts` (`toggleAcquired`,
@@ -212,6 +217,9 @@ All pure TS and unit-tested unless noted.
   copies of the rendered paths, grips (beziers also get a dashed control frame), rectangle/
   lasso, the move preview (offset copies, originals dimmed by `PaperRenderer.setDimmed`), the
   tool previews (`PathSpec.ellipsePathSpec`, closed path for a polygon), one palette per theme.
+  Its parts are groups: selection highlights, move copies and grips are rebuilt only when the
+  selection, the rendered paths (`OverlayHost.revision`), the theme or the zoom change; a move
+  shifts the group of its copies.
 - `ui/canvasInput.ts`: the single owner of canvas input (zoom, pan, forwarding to the editor,
   pointer capture, lost-release and `pointercancel` handling, Shift state via
   `InputTarget.setShiftHeld`) and of the cursor. `ui/CommandLine.tsx` is display only.
