@@ -1,4 +1,4 @@
-import { boundsOf, pointInPolygon, polylineTouchesRect } from '../../geometry/selectionGeometry';
+import { pointInPolygon, polylineTouchesRect } from '../../geometry/selectionGeometry';
 import type { CadDocument } from '../../model/CadDocument';
 import type { Id, Point } from '../../model/Point';
 import type { Rect } from '../../renderer/Viewport';
@@ -63,12 +63,41 @@ export class SnapMemory {
 }
 
 /** Area enclosed by a closed element (circle, ellipse, closed polyline …), for the snap point preview. */
-interface Region {
-    elementId: Id;
-    /** The element's sampled outline, closed implicitly. */
-    polygon: Point[];
-    area: number;
-    bounds: Rect;
+class Region {
+    readonly elementId: Id;
+    /** Contains the outline. */
+    readonly bounds: Rect;
+    private readonly shapes: readonly SnapShape[];
+    private outline: { polygon: Point[]; area: number } | null = null;
+
+    constructor(elementId: Id, shapes: readonly SnapShape[]) {
+        this.elementId = elementId;
+        this.shapes = shapes;
+        this.bounds = unite(shapes.map((shape) => shape.bounds));
+    }
+
+    /** The element's sampled outline, closed implicitly; sampled on first use. */
+    get polygon(): Point[] {
+        return this.sample().polygon;
+    }
+
+    /** 0 where the outline encloses nothing. */
+    get area(): number {
+        return this.sample().area;
+    }
+
+    private sample(): { polygon: Point[]; area: number } {
+        if (this.outline === null) {
+            // Each primitive without its last point, which is the next one's first
+            const polygon = this.shapes.flatMap((shape) => shape.points.slice(0, -1));
+            let twiceArea = 0;
+            for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+                twiceArea += (polygon[j].x - polygon[i].x) * (polygon[j].y + polygon[i].y);
+            }
+            this.outline = { polygon, area: polygon.length < 3 ? 0 : Math.abs(twiceArea) / 2 };
+        }
+        return this.outline;
+    }
 }
 
 interface Candidate extends SnapResult {
@@ -228,7 +257,7 @@ export class SnapEngine {
             const { cursor } = query;
             const around = this.regions
                 .search({ x: cursor.x, y: cursor.y, width: 0, height: 0 })
-                .filter((region) => memory.has(region.elementId) && pointInPolygon(cursor, region.polygon));
+                .filter((region) => memory.has(region.elementId) && region.area > 0 && pointInPolygon(cursor, region.polygon));
             if (around.length > 0) {
                 elementIds.add(around.reduce((inner, region) => (region.area < inner.area ? region : inner)).elementId);
             }
@@ -280,19 +309,24 @@ export class SnapEngine {
  * Null for an open element.
  */
 function closedRegion(elementId: Id, shapes: readonly SnapShape[]): Region | null {
-    const ends = (shape: SnapShape) => [shape.points[0], shape.points[shape.points.length - 1]] as const;
-    const chained = shapes.every((shape, i) => coincide(ends(shapes[(i + 1) % shapes.length])[0], ends(shape)[1]));
-    // Each primitive without its last point, which is the next one's first
-    const polygon = shapes.flatMap((shape) => shape.points.slice(0, -1));
-    if (!chained || polygon.length < 3) {
-        return null;
+    // The ends of the sampled outlines, without sampling them
+    const chained = shapes.every((shape, i) => coincide(shapes[(i + 1) % shapes.length].curve.point(0), shape.curve.point(1)));
+    return chained ? new Region(elementId, shapes) : null;
+}
+
+/** Smallest rectangle around the given ones (at least one). */
+function unite(rects: readonly Rect[]): Rect {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const rect of rects) {
+        minX = Math.min(minX, rect.x);
+        minY = Math.min(minY, rect.y);
+        maxX = Math.max(maxX, rect.x + rect.width);
+        maxY = Math.max(maxY, rect.y + rect.height);
     }
-    let twiceArea = 0;
-    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-        twiceArea += (polygon[j].x - polygon[i].x) * (polygon[j].y + polygon[i].y);
-    }
-    const area = Math.abs(twiceArea) / 2;
-    return area > 0 ? { elementId, polygon, area, bounds: boundsOf(polygon) } : null;
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }
 
 /** The aperture box around the cursor in model space. */
@@ -313,32 +347,52 @@ function overlap(a: Rect, b: Rect): Rect {
     };
 }
 
-/** Coinciding points as one, in the higher mode, at the place of the first. */
-function distinctPoints(points: SnapPoint[]): SnapPoint[] {
-    const distinct: SnapPoint[] = [];
-    // Grid of COINCIDENCE_MM cells: coinciding points lie in the same or a neighbouring cell
-    const cells = new Map<string, number[]>();
-    for (const candidate of points) {
-        const cx = Math.floor(candidate.point.x / COINCIDENCE_MM);
-        const cy = Math.floor(candidate.point.y / COINCIDENCE_MM);
-        let i = -1;
+/**
+ * Finds coinciding points without comparing each with all: a grid of COINCIDENCE_MM cells, so
+ * a coinciding point lies in the same or a neighbouring cell. Holds indices into the caller's list.
+ */
+class CoincidenceGrid {
+    private readonly cells = new Map<string, number[]>();
+
+    /** Lowest index whose point (by `pointAt`) coincides with `point`, or -1. */
+    find(point: Point, pointAt: (index: number) => Point): number {
+        const cx = Math.floor(point.x / COINCIDENCE_MM);
+        const cy = Math.floor(point.y / COINCIDENCE_MM);
+        let found = -1;
         for (let dx = -1; dx <= 1; dx++) {
             for (let dy = -1; dy <= 1; dy++) {
-                for (const j of cells.get(`${cx + dx},${cy + dy}`) ?? NO_INDICES) {
-                    if ((i === -1 || j < i) && coincide(distinct[j].point, candidate.point)) {
-                        i = j;
+                for (const i of this.cells.get(`${cx + dx},${cy + dy}`) ?? NO_INDICES) {
+                    if ((found === -1 || i < found) && coincide(pointAt(i), point)) {
+                        found = i;
                     }
                 }
             }
         }
+        return found;
+    }
+
+    /** Registers `index` at `point`; again after its point moved, the old place may stay. */
+    add(point: Point, index: number): void {
+        const key = `${Math.floor(point.x / COINCIDENCE_MM)},${Math.floor(point.y / COINCIDENCE_MM)}`;
+        const cell = this.cells.get(key);
+        if (!cell) {
+            this.cells.set(key, [index]);
+        } else if (!cell.includes(index)) {
+            cell.push(index);
+        }
+    }
+}
+
+const NO_INDICES: readonly number[] = [];
+
+/** Coinciding points as one, in the higher mode, at the place of the first. */
+function distinctPoints(points: SnapPoint[]): SnapPoint[] {
+    const distinct: SnapPoint[] = [];
+    const grid = new CoincidenceGrid();
+    for (const candidate of points) {
+        const i = grid.find(candidate.point, (j) => distinct[j].point);
         if (i === -1) {
-            const key = `${cx},${cy}`;
-            const cell = cells.get(key);
-            if (cell) {
-                cell.push(distinct.length);
-            } else {
-                cells.set(key, [distinct.length]);
-            }
+            grid.add(candidate.point, distinct.length);
             distinct.push(candidate);
         } else if (SNAP_MODE_RANK[candidate.mode] < SNAP_MODE_RANK[distinct[i].mode]) {
             distinct[i] = { point: distinct[i].point, mode: candidate.mode };
@@ -346,8 +400,6 @@ function distinctPoints(points: SnapPoint[]): SnapPoint[] {
     }
     return distinct;
 }
-
-const NO_INDICES: readonly number[] = [];
 
 /** Same mode at (almost) the same point: the same snap point, also in a new search. */
 export function sameSnapPoint(a: SnapResult, b: SnapResult): boolean {
@@ -362,15 +414,19 @@ export function coincide(a: Point, b: Point): boolean {
 /** Merges coinciding candidates: the higher mode wins, the elements add up. */
 function merge(candidates: Candidate[]): Candidate[] {
     const merged: Candidate[] = [];
+    const grid = new CoincidenceGrid();
     for (const candidate of candidates) {
-        const same = merged.find((other) => coincide(other.point, candidate.point));
-        if (!same) {
+        const i = grid.find(candidate.point, (j) => merged[j].point);
+        if (i === -1) {
+            grid.add(candidate.point, merged.length);
             merged.push({ ...candidate });
             continue;
         }
+        const same = merged[i];
         if (SNAP_MODE_RANK[candidate.mode] < SNAP_MODE_RANK[same.mode]) {
             same.mode = candidate.mode;
             same.point = candidate.point;
+            grid.add(same.point, i);
         }
         same.order = Math.max(same.order, candidate.order);
         same.elementIds = [...new Set([...same.elementIds, ...candidate.elementIds])];
@@ -386,16 +442,20 @@ function merge(candidates: Candidate[]): Candidate[] {
 function rank(candidates: Candidate[]): Candidate[] {
     const rest = [...candidates].sort((a, b) => a.distance - b.distance);
     const ranked: Candidate[] = [];
-    while (rest.length > 0) {
-        const limit = rest[0].distance + TIE_TOLERANCE_PX;
-        const end = rest.findIndex((candidate) => candidate.distance > limit);
-        const band = rest.splice(0, end === -1 ? rest.length : end);
-        ranked.push(
-            ...band.sort(
-                (a, b) =>
-                    SNAP_MODE_RANK[a.mode] - SNAP_MODE_RANK[b.mode] || a.distance - b.distance || b.order - a.order,
-            ),
+    for (let start = 0; start < rest.length; ) {
+        const limit = rest[start].distance + TIE_TOLERANCE_PX;
+        let end = start + 1;
+        while (end < rest.length && rest[end].distance <= limit) {
+            end++;
+        }
+        const band = rest.slice(start, end);
+        band.sort(
+            (a, b) => SNAP_MODE_RANK[a.mode] - SNAP_MODE_RANK[b.mode] || a.distance - b.distance || b.order - a.order,
         );
+        for (const candidate of band) {
+            ranked.push(candidate);
+        }
+        start = end;
     }
     return ranked;
 }

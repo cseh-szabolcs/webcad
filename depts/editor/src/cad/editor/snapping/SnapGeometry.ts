@@ -17,6 +17,9 @@ const TAU = 2 * Math.PI;
 export const SAMPLE_TOLERANCE_MM = 0.1;
 /** Upper bound for the pieces of one primitive, so a huge curve cannot explode. */
 const MAX_PIECES = 1024;
+const QUADRANT_ANGLES = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
+/** How much wider an ellipse's computed bounds are than the ellipse (mm). */
+const BOUNDS_MARGIN_MM = 1e-9;
 
 /** Exact geometry an element snaps on; a polyline gives one segment per edge. */
 export type SnapPrimitive =
@@ -33,21 +36,25 @@ export interface SnapPoint {
     mode: SnapMode;
 }
 
-/** One snap primitive of an element with what the snap search needs. Derived, never persisted. */
+/**
+ * One snap primitive of an element with what the snap search needs. Derived, never persisted.
+ * `points`, `params` and `snapPoints` are worked out on first use, so only the shapes the
+ * cursor comes near pay for them.
+ */
 export interface SnapShape {
-    elementId: Id;
+    readonly elementId: Id;
     /** Drawing order of the element; higher is drawn on top. */
-    order: number;
-    primitive: SnapPrimitive;
+    readonly order: number;
+    readonly primitive: SnapPrimitive;
     /** The primitive over t ∈ [0, 1], for numeric intersections. */
-    curve: ParametricCurve;
+    readonly curve: ParametricCurve;
     /** Polyline within SAMPLE_TOLERANCE_MM of the primitive, and the parameter t of each point. */
-    points: Point[];
-    params: number[];
-    /** Bounding box of `points`, slightly larger than the curve's at most. */
-    bounds: Rect;
+    readonly points: Point[];
+    readonly params: number[];
+    /** Bounding box of the primitive (of its control points for a Bézier); contains `points`. */
+    readonly bounds: Rect;
     /** Endpoints, midpoint, centre and quadrants; intersections are found per query. */
-    snapPoints: SnapPoint[];
+    readonly snapPoints: SnapPoint[];
 }
 
 /**
@@ -148,11 +155,79 @@ export function elementPrimitives(element: CadElement, index: DocumentIndex): Sn
 }
 
 function snapShape(elementId: Id, order: number, primitive: SnapPrimitive): SnapShape {
-    const curve = parametricCurve(primitive);
-    const pieces = pieceCount(primitive);
-    const params = Array.from({ length: pieces + 1 }, (_, i) => i / pieces);
-    const points = params.map((t) => curve.point(t));
-    return { elementId, order, primitive, curve, points, params, bounds: boundsOf(points), snapPoints: snapPoints(primitive) };
+    return new LazySnapShape(elementId, order, primitive);
+}
+
+class LazySnapShape implements SnapShape {
+    readonly elementId: Id;
+    readonly order: number;
+    readonly primitive: SnapPrimitive;
+    readonly curve: ParametricCurve;
+    readonly bounds: Rect;
+    private sampled: { points: Point[]; params: number[] } | null = null;
+    private fixedPoints: SnapPoint[] | null = null;
+
+    constructor(elementId: Id, order: number, primitive: SnapPrimitive) {
+        this.elementId = elementId;
+        this.order = order;
+        this.primitive = primitive;
+        this.curve = parametricCurve(primitive);
+        this.bounds = primitiveBounds(primitive);
+    }
+
+    get points(): Point[] {
+        return this.sample().points;
+    }
+
+    get params(): number[] {
+        return this.sample().params;
+    }
+
+    get snapPoints(): SnapPoint[] {
+        return (this.fixedPoints ??= snapPoints(this.primitive));
+    }
+
+    private sample(): { points: Point[]; params: number[] } {
+        if (this.sampled === null) {
+            const pieces = pieceCount(this.primitive);
+            const params = Array.from({ length: pieces + 1 }, (_, i) => i / pieces);
+            this.sampled = { points: params.map((t) => this.curve.point(t)), params };
+        }
+        return this.sampled;
+    }
+}
+
+/** Bounding box of a primitive without sampling it; for a Bézier that of its control points. */
+function primitiveBounds(primitive: SnapPrimitive): Rect {
+    switch (primitive.kind) {
+        case 'segment':
+            return boundsOf([primitive.a, primitive.b]);
+        case 'arc': {
+            const { center, radius, startAngle, sweep } = primitive;
+            const onArc = (angle: number) => ({ x: center.x + radius * Math.cos(angle), y: center.y + radius * Math.sin(angle) });
+            // The ends and the quadrant points on the arc are its extremes
+            const extremes = [onArc(startAngle), onArc(startAngle + sweep)];
+            for (const angle of QUADRANT_ANGLES) {
+                if (angleOnArc(angle, startAngle, sweep)) {
+                    extremes.push(onArc(angle));
+                }
+            }
+            return boundsOf(extremes);
+        }
+        case 'ellipse': {
+            const { center, radiusX, radiusY, rotation } = primitive;
+            const cos = Math.cos(rotation);
+            const sin = Math.sin(rotation);
+            // A hair wider, so rounding never leaves a sampled point outside
+            const halfWidth = Math.hypot(radiusX * cos, radiusY * sin) + BOUNDS_MARGIN_MM;
+            const halfHeight = Math.hypot(radiusX * sin, radiusY * cos) + BOUNDS_MARGIN_MM;
+            return { x: center.x - halfWidth, y: center.y - halfHeight, width: 2 * halfWidth, height: 2 * halfHeight };
+        }
+        case 'bezier': {
+            const { p0, p1, p2, p3 } = primitive.curve;
+            return boundsOf([p0, p1, p2, p3]);
+        }
+    }
 }
 
 /** Whether the arc is a whole circle. */
@@ -182,7 +257,7 @@ function snapPoints(primitive: SnapPrimitive): SnapPoint[] {
                 );
             }
             // Only the quadrant points that lie on the arc
-            for (const angle of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+            for (const angle of QUADRANT_ANGLES) {
                 if (angleOnArc(angle, startAngle, sweep)) {
                     points.push({ point: onArc(angle), mode: 'QUA' });
                 }
