@@ -38,10 +38,13 @@ const PALETTES = {
 
 /** Source of the paths to highlight and the layer to draw into. */
 export interface OverlayHost {
-    readonly overlayLayer: paper.Layer;
+    /** The layer to draw into; makes its Paper.js scope the active one (see PaperRenderer). */
+    activateOverlay(): paper.Layer;
     /** Current px per mm, to keep grips at a constant screen size. */
     readonly scale: number;
     getItemPath(id: Id): paper.Path | null;
+    /** Changes whenever the rendered paths or their display style may have changed. */
+    readonly revision: number;
     /** Gives `item` the display style of element `id` (the rendered item may be dimmed). */
     applyElementStyle(item: paper.Path, id: Id): void;
     /** Gives `item` the display style `styleId`, the default style for null. */
@@ -63,10 +66,20 @@ export interface OverlayHost {
  * highlighted; the canvas dims them (PaperRenderer.setDimmed); the document stays
  * unchanged. Grips depend on the zoom, so render again after every viewport change (and
  * after setTheme()).
+ *
+ * Only what changed is rebuilt: the selection highlights, the move copies and the grips stay
+ * until the selection, the rendered paths (OverlayHost.revision), the theme or the zoom change;
+ * a move only shifts the group of its copies.
  */
 export class SelectionOverlay {
     private readonly host: OverlayHost;
     private palette: (typeof PALETTES)[DisplayTheme] = PALETTES.light;
+    /** The parts of the overlay, bottom to top; made on the first render(). */
+    private groups: OverlayGroups | null = null;
+    /** What the selection highlights, the move copies and the grips were last built from. */
+    private selectionKey: readonly unknown[] | null = null;
+    private moveKey: readonly unknown[] | null = null;
+    private gripsKey: readonly unknown[] | null = null;
 
     constructor(host: OverlayHost) {
         this.host = host;
@@ -78,51 +91,81 @@ export class SelectionOverlay {
     }
 
     render({ hovered, highlighted, grips, controlFrames, area, from, preview, previewPoint }: SelectionSnapshot): void {
-        const layer = this.host.overlayLayer;
+        const layer = this.host.activateOverlay();
+        const groups = (this.groups ??= createGroups(layer));
+        const { revision, scale } = this.host;
+        const palette = this.palette;
         const basePoint = preview === 'move' ? from : null;
-        layer.removeChildren();
+
+        groups.hover.removeChildren();
         for (const id of hovered) {
-            this.highlight(layer, id, this.palette.hovered, HOVER_EXTRA_WIDTH);
+            this.highlight(groups.hover, id, palette.hovered, HOVER_EXTRA_WIDTH);
         }
+
         // While moving, the originals are dimmed instead
-        if (!basePoint) {
+        groups.selection.visible = !basePoint;
+        if (!basePoint && changed(this.selectionKey, [highlighted, revision, palette])) {
+            this.selectionKey = [highlighted, revision, palette];
+            groups.selection.removeChildren();
             for (const id of highlighted) {
-                this.highlight(layer, id, this.palette.selected, SELECTED_EXTRA_WIDTH);
+                this.highlight(groups.selection, id, palette.selected, SELECTED_EXTRA_WIDTH);
             }
         }
-        if (basePoint && previewPoint) {
-            this.movePreview(layer, highlighted, basePoint, previewPoint);
+
+        // The copies are made once per move; each cursor position only shifts their group
+        const moving = basePoint !== null && previewPoint !== null;
+        groups.move.visible = moving;
+        if (moving) {
+            if (changed(this.moveKey, [highlighted, revision])) {
+                this.moveKey = [highlighted, revision];
+                groups.move.removeChildren();
+                this.moveCopies(groups.move, highlighted);
+            }
+            groups.move.matrix = new paper.Matrix(1, 0, 0, 1, previewPoint.x - basePoint.x, previewPoint.y - basePoint.y);
+        } else if (this.moveKey !== null) {
+            this.moveKey = null;
+            groups.move.removeChildren();
         }
+
+        groups.preview.removeChildren();
         if (preview === 'line' && from && previewPoint) {
-            this.linePreview(layer, from, previewPoint);
+            this.linePreview(groups.preview, from, previewPoint);
         }
         if (typeof preview === 'object' && preview?.kind === 'polyline') {
             const points = previewPoint ? [...preview.points, polylineEnd(preview, previewPoint)] : preview.points;
-            this.polylinePreview(layer, points);
+            this.polylinePreview(groups.preview, points);
         }
         if (typeof preview === 'object' && preview?.kind === 'curve' && previewPoint) {
             const curve = preview.curveAt(previewPoint);
             if (curve) {
-                this.curvePreview(layer, curve);
+                this.curvePreview(groups.preview, curve);
             }
         }
-        // Below the grips, so the grips stay whole at the line ends
-        for (const [from, to] of controlFrames) {
-            const line = new paper.Path.Line({ from: [from.x, from.y], to: [to.x, to.y], insert: false });
-            line.strokeColor = new paper.Color(this.palette.grip);
-            line.strokeWidth = 1;
-            line.dashArray = CONTROL_FRAME_DASH;
-            line.strokeScaling = false;
-            layer.addChild(line);
+
+        // Grips keep their screen size, so they also follow the zoom
+        if (changed(this.gripsKey, [grips, controlFrames, scale, palette])) {
+            this.gripsKey = [grips, controlFrames, scale, palette];
+            groups.grips.removeChildren();
+            // The frames below the grips, so the grips stay whole at the line ends
+            for (const [from, to] of controlFrames) {
+                const line = new paper.Path.Line({ from: [from.x, from.y], to: [to.x, to.y], insert: false });
+                line.strokeColor = new paper.Color(palette.grip);
+                line.strokeWidth = 1;
+                line.dashArray = CONTROL_FRAME_DASH;
+                line.strokeScaling = false;
+                groups.grips.addChild(line);
+            }
+            const size = GRIP_SIZE_PX / scale;
+            for (const { x, y } of grips) {
+                const grip = new paper.Path.Rectangle({ center: [x, y], size: [size, size], insert: false });
+                grip.fillColor = new paper.Color(palette.grip);
+                groups.grips.addChild(grip);
+            }
         }
-        const size = GRIP_SIZE_PX / this.host.scale;
-        for (const { x, y } of grips) {
-            const grip = new paper.Path.Rectangle({ center: [x, y], size: [size, size], insert: false });
-            grip.fillColor = new paper.Color(this.palette.grip);
-            layer.addChild(grip);
-        }
+
+        groups.area.removeChildren();
         if (area) {
-            layer.addChild(this.areaPath(area));
+            groups.area.addChild(this.areaPath(area));
         }
     }
 
@@ -144,42 +187,41 @@ export class SelectionOverlay {
         return path;
     }
 
-    private movePreview(layer: paper.Layer, ids: Iterable<Id>, from: Point, to: Point): void {
-        const offset = new paper.Point(to.x - from.x, to.y - from.y);
+    /** Copies of the elements in their own style, slightly see-through, at their place. */
+    private moveCopies(parent: paper.Group, ids: Iterable<Id>): void {
         for (const id of ids) {
             const source = this.host.getItemPath(id);
             if (!source) {
                 continue;
             }
             const copy = source.clone({ insert: false, deep: false }) as paper.Path;
-            copy.translate(offset);
             this.host.applyElementStyle(copy, id);
             copy.opacity = PREVIEW_OPACITY;
             copy.data = {};
-            layer.addChild(copy);
+            parent.addChild(copy);
         }
     }
 
     /** The line LINIE would add, solid in the style of new lines, like AutoCAD's rubber band. */
-    private linePreview(layer: paper.Layer, from: Point, to: Point): void {
+    private linePreview(parent: paper.Group, from: Point, to: Point): void {
         const line = new paper.Path.Line({ from: [from.x, from.y], to: [to.x, to.y], insert: false });
         line.strokeScaling = false;
         this.host.applyStyleById(line, null);
-        layer.addChild(line);
+        parent.addChild(line);
     }
 
     /** The polyline PLINIE draws, not yet in the document, in the style of new elements. */
-    private polylinePreview(layer: paper.Layer, points: readonly Point[], closed = false): void {
+    private polylinePreview(parent: paper.Group, points: readonly Point[], closed = false): void {
         const path = new paper.Path({ segments: points.map((p) => [p.x, p.y]), closed, insert: false });
         path.strokeScaling = false;
         this.host.applyStyleById(path, null);
-        layer.addChild(path);
+        parent.addChild(path);
     }
 
     /** The circle, ellipse or rectangle KREIS, ELLIPSE or RECHTECK would add, in the style of new elements. */
-    private curvePreview(layer: paper.Layer, curve: PreviewCurve): void {
+    private curvePreview(parent: paper.Group, curve: PreviewCurve): void {
         if (curve.kind === 'polygon') {
-            this.polylinePreview(layer, curve.points, true);
+            this.polylinePreview(parent, curve.points, true);
             return;
         }
         const spec =
@@ -200,10 +242,10 @@ export class SelectionOverlay {
         });
         path.strokeScaling = false;
         this.host.applyStyleById(path, null);
-        layer.addChild(path);
+        parent.addChild(path);
     }
 
-    private highlight(layer: paper.Layer, id: Id, color: string, extraWidth: number): void {
+    private highlight(parent: paper.Group, id: Id, color: string, extraWidth: number): void {
         const source = this.host.getItemPath(id);
         if (!source) {
             return;
@@ -215,8 +257,33 @@ export class SelectionOverlay {
         copy.strokeWidth = source.strokeWidth + extraWidth;
         copy.strokeScaling = false;
         copy.data = {};
-        layer.addChild(copy);
+        parent.addChild(copy);
     }
+}
+
+interface OverlayGroups {
+    hover: paper.Group;
+    selection: paper.Group;
+    move: paper.Group;
+    preview: paper.Group;
+    grips: paper.Group;
+    area: paper.Group;
+}
+
+function createGroups(layer: paper.Layer): OverlayGroups {
+    const group = () => {
+        const item = new paper.Group({ insert: false });
+        // Shifting a group must not rewrite its children (see the move copies)
+        item.applyMatrix = false;
+        layer.addChild(item);
+        return item;
+    };
+    return { hover: group(), selection: group(), move: group(), preview: group(), grips: group(), area: group() };
+}
+
+/** Whether `key` differs from the key something was last built from. */
+function changed(previous: readonly unknown[] | null, key: readonly unknown[]): boolean {
+    return previous === null || previous.length !== key.length || key.some((value, i) => value !== previous[i]);
 }
 
 /** Where the segment to `point` ends: there, or along `direction` as far as `point` is from the last point. */

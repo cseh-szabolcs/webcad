@@ -151,6 +151,11 @@
     touch-action: none;
 }
 
+/* Editor overlay (SelectionOverlay) on its own canvas above the drawing; input goes to the drawing canvas */
+.cad-canvas .cad-overlay {
+    pointer-events: none;
+}
+
 /* Grid (GridLayer) under the drawing canvas; its backing size follows the device pixel ratio */
 .cad-canvas .cad-grid {
     width: 100%;

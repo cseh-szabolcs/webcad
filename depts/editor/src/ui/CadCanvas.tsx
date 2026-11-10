@@ -81,6 +81,7 @@ export function CadCanvas({
 }: CadCanvasProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
     const rendererRef = useRef<PaperRenderer | null>(null);
     const editorRef = useRef<SelectionEditor | null>(null);
     const overlayRef = useRef<SelectionOverlay | null>(null);
@@ -143,7 +144,7 @@ export function CadCanvas({
     useEffect(() => {
         const container = containerRef.current!;
         const canvas = canvasRef.current!;
-        const renderer = new PaperRenderer(canvas);
+        const renderer = new PaperRenderer(canvas, overlayCanvasRef.current!);
         rendererRef.current = renderer;
         renderer.setViewport(viewportRef.current);
         renderer.setTheme(themeRef.current);
@@ -381,6 +382,7 @@ export function CadCanvas({
     return (
         <div ref={containerRef} className="cad-canvas">
             <canvas ref={canvasRef} />
+            <canvas ref={overlayCanvasRef} className="cad-overlay" />
         </div>
     );
 }
