@@ -24,6 +24,9 @@ const at = (modelPoint: Point, change: Partial<EditorPointerEvent> = {}): Editor
 });
 const WALL = { x: 3000, y: 0 };
 const TABLE = { x: 4600, y: 1800 };
+/** On the same outlines, away from their grips (where Shift + click would make a grip hot). */
+const WALL_EDGE = { x: 2000, y: 0 };
+const TABLE_EDGE = { x: 4000 + 600 * Math.SQRT1_2, y: 1800 + 600 * Math.SQRT1_2 };
 const EMPTY = { x: 3000, y: 2000 };
 
 const BASE_POINT_PROMPT = 'Basispunkt angeben oder [Verschiebung] <Verschiebung>:';
@@ -92,7 +95,8 @@ describe('SelectionEditor hover', () => {
         editor.pointerMove(at(WALL));
         click(editor, WALL);
         expect(editor.snapshot.hovered.size).toBe(0);
-        click(editor, WALL, { shiftKey: true });
+        click(editor, WALL_EDGE, { shiftKey: true });
+        editor.pointerMove(at(WALL));
         expect(ids(editor.snapshot.hovered)).toEqual([E['wall-outer']]);
     });
 });
@@ -110,7 +114,7 @@ describe('SelectionEditor pickfirst selection', () => {
         const editor = create();
         click(editor, WALL);
         click(editor, TABLE);
-        click(editor, WALL, { shiftKey: true });
+        click(editor, WALL_EDGE, { shiftKey: true });
         click(editor, { x: 1600, y: 2600 }, { shiftKey: true });
         expect(ids(editor.snapshot.highlighted)).toEqual([E.table]);
     });
@@ -138,7 +142,7 @@ describe('SelectionEditor pickfirst selection', () => {
         expect(editor.snapshot.grips).toHaveLength(5);
         click(editor, WALL);
         expect(editor.snapshot.grips).toHaveLength(5 + 8);
-        click(editor, TABLE, { shiftKey: true });
+        click(editor, TABLE_EDGE, { shiftKey: true });
         expect(editor.snapshot.grips).toHaveLength(8);
     });
 });
@@ -1323,7 +1327,8 @@ describe('SelectionEditor group selection', () => {
         const editor = create();
         click(editor, TABLE);
         click(editor, DOOR_LEAF);
-        click(editor, DOOR_LEAF, { shiftKey: true });
+        // Away from the grip in the middle of the leaf
+        click(editor, { x: DOOR_LEAF.x, y: DOOR_LEAF.y + 200 }, { shiftKey: true });
         expect(ids(editor.snapshot.highlighted)).toEqual([E.table]);
     });
 

@@ -91,6 +91,9 @@ export const de = {
         gripReferenceAngle: '{{header}} Bezugswinkel angeben <0>:',
         gripReferenceLength: '{{header}} Bezugslänge angeben <1.0000>:',
         gripSecondPoint: '{{header}} Zweiten Punkt angeben:',
+        gripLengthen: '** LÄNGE ** Endpunkt angeben:',
+        gripRadius: '** RADIUS ** Radius angeben:',
+        gripAddVertex: '** SCHEITELPUNKT HINZUFÜGEN ** Neuen Scheitelpunkt angeben:',
         corner: 'Entgegengesetzte Ecke angeben:',
         lasso: 'Lasso – Leertaste wechselt Fenster/Kreuzen',
     },
@@ -101,6 +104,19 @@ export const de = {
         rotate: 'DREHEN',
         scale: 'SKALIEREN',
         mirror: 'SPIEGELN',
+        lengthen: 'LÄNGE',
+        radius: 'RADIUS',
+        addVertex: 'SCHEITELPUNKT HINZUFÜGEN',
+        removeVertex: 'SCHEITELPUNKT ENTFERNEN',
+    },
+    /** What a grip can do, in the menu that opens over it. */
+    gripAction: {
+        menu: 'Grip-Aktionen',
+        stretch: 'Strecken',
+        lengthen: 'Länge',
+        radius: 'Radius',
+        addVertex: 'Scheitelpunkt hinzufügen',
+        removeVertex: 'Scheitelpunkt entfernen',
     },
     message: {
         /** The option of the base point prompt that takes a displacement vector instead. */

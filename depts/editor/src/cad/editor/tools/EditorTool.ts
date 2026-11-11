@@ -148,6 +148,11 @@ export interface EditorTool {
      * own. Null if the text means nothing here (the editor reports an invalid entry).
      */
     text(text: string): ToolStep | null;
+    /**
+     * Ctrl on its own was pressed: the next variant of what the tool does at this prompt (the
+     * actions of a hot grip). Null if there is none.
+     */
+    cycle?(): ToolStep | null;
     /** Esc ends the command; the editor reports the cancel. */
     cancel(): void;
 }

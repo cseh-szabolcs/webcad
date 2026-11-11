@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CircleElement } from '../../model/CadElement';
 import type { Point } from '../../model/Point';
 import { parseDocument } from '../../persistence/CadSerializer';
@@ -7,8 +7,8 @@ import { sampleIds } from '../../__fixtures__/sampleIds';
 import type { EditorPointerEvent } from '../EditorPointerEvent';
 import { DocumentHistory } from '../commands/DocumentHistory';
 import { SelectionEditor } from '../SelectionEditor';
-import { DEFAULT_DYNAMIC_INPUT_SETTINGS, DEFAULT_SNAP_SETTINGS } from '../../../settings/editorSettings';
-import type { CadElement } from '../../model/CadElement';
+import { DEFAULT_DYNAMIC_INPUT_SETTINGS, DEFAULT_EDITOR_SETTINGS, DEFAULT_SNAP_SETTINGS } from '../../../settings/editorSettings';
+import type { CadElement, PolylineElement } from '../../model/CadElement';
 
 const { element: E, vertex: V } = sampleIds;
 
@@ -247,14 +247,6 @@ describe('grips: stretching', () => {
         expect(editor.redo()).toBe(true);
         expect(editor.snapshot.message).toBe('Wiederherstellen: STRECKEN');
         expect(radius()).toBe(1300);
-    });
-
-    it('still removes the element with Shift+click on its grip', () => {
-        const { editor } = setup();
-        click(editor, QUADRANT);
-        click(editor, QUADRANT, { shiftKey: true });
-        expect(editor.snapshot.command).toBeNull();
-        expect(editor.snapshot.highlighted.size).toBe(0);
     });
 
     it('hands the selection to a command started meanwhile', () => {
@@ -686,5 +678,318 @@ describe('grips: reference', () => {
             { x: 5000, y: 2380 },
             { x: 6500, y: 3880 },
         ]);
+    });
+});
+
+describe('grips: several hot grips', () => {
+    const hot = (editor: SelectionEditor) => editor.snapshot.hotGrips.map((grip) => grip.point);
+    const SHIFT = { shiftKey: true };
+    /** The outer wall selected: corners (0,0) (6000,0) (6000,4000) (0,4000). */
+    const wall = () => {
+        const context = setup();
+        click(context.editor, { x: 2000, y: 0 });
+        return context;
+    };
+    const LOWER_LEFT = { x: 0, y: 0 };
+    const LOWER_RIGHT = { x: 6000, y: 0 };
+    const UPPER_RIGHT = { x: 6000, y: 4000 };
+
+    it('makes a grip hot with Shift + click and warm again with another', () => {
+        const { editor } = wall();
+        click(editor, LOWER_RIGHT, SHIFT);
+        click(editor, UPPER_RIGHT, SHIFT);
+        expect(editor.snapshot).toMatchObject({ command: null, prompt: 'Befehl:' });
+        expect(hot(editor)).toEqual([LOWER_RIGHT, UPPER_RIGHT]);
+        expect([...editor.snapshot.highlighted]).toEqual([E['wall-outer']]);
+        click(editor, LOWER_RIGHT, SHIFT);
+        expect(hot(editor)).toEqual([UPPER_RIGHT]);
+    });
+
+    it('stretches all hot grips together from the one clicked', () => {
+        const { editor, vertex } = wall();
+        click(editor, LOWER_RIGHT, SHIFT);
+        click(editor, UPPER_RIGHT, SHIFT);
+        click(editor, UPPER_RIGHT);
+        expect(editor.snapshot).toMatchObject({ command: 'GRIP_EDIT', from: UPPER_RIGHT });
+        expect(hot(editor)).toEqual([UPPER_RIGHT, LOWER_RIGHT]);
+        type(editor, '@500,100');
+        expect(vertex(V['w-o2'])).toEqual({ x: 6500, y: 100 });
+        expect(vertex(V['w-o3'])).toEqual({ x: 6500, y: 4100 });
+        expect(vertex(V['w-o1'])).toEqual(LOWER_LEFT);
+        expect(editor.snapshot).toMatchObject({ command: null, hotGrips: [] });
+    });
+
+    it('takes a warm grip clicked as the base point along with the hot ones', () => {
+        const { editor, vertex } = wall();
+        click(editor, LOWER_RIGHT, SHIFT);
+        click(editor, UPPER_RIGHT);
+        expect(hot(editor)).toEqual([UPPER_RIGHT, LOWER_RIGHT]);
+        type(editor, '@0,200');
+        expect(vertex(V['w-o2'])).toEqual({ x: 6000, y: 200 });
+        expect(vertex(V['w-o3'])).toEqual({ x: 6000, y: 4200 });
+    });
+
+    it('previews every element of the hot grips', () => {
+        const { editor } = setup();
+        click(editor, { x: 2000, y: 0 });
+        click(editor, WINDOW);
+        click(editor, LOWER_RIGHT, SHIFT);
+        click(editor, WINDOW_END, SHIFT);
+        click(editor, WINDOW_END);
+        const { preview } = editor.snapshot;
+        if (typeof preview !== 'object' || preview?.kind !== 'elements') {
+            throw new Error('no element preview');
+        }
+        expect([...preview.ids]).toEqual([E.window, E['wall-outer']]);
+        expect(preview.elementsAt({ x: 5100, y: 3880 }).map((element) => element.id)).toEqual([E.window, E['wall-outer']]);
+    });
+
+    it('makes the hot grips warm with Escape before it clears the selection', () => {
+        const { editor } = wall();
+        click(editor, LOWER_RIGHT, SHIFT);
+        expect(editor.keyDown({ key: 'Escape' })).toBe(true);
+        expect(hot(editor)).toEqual([]);
+        expect([...editor.snapshot.highlighted]).toEqual([E['wall-outer']]);
+        expect(editor.keyDown({ key: 'Escape' })).toBe(true);
+        expect(editor.snapshot.highlighted.size).toBe(0);
+    });
+
+    it('keeps the hot grips when the selection grows, and drops those of an element removed', () => {
+        const { editor } = wall();
+        click(editor, LOWER_RIGHT, SHIFT);
+        click(editor, WINDOW);
+        click(editor, WINDOW_END, SHIFT);
+        expect(hot(editor)).toEqual([LOWER_RIGHT, WINDOW_END]);
+        // Shift + click away from the grips still removes from the selection
+        click(editor, { x: 2000, y: 0 }, SHIFT);
+        expect([...editor.snapshot.highlighted]).toEqual([E.window]);
+        expect(hot(editor)).toEqual([WINDOW_END]);
+    });
+
+    it('drops the hot grips when a command starts or the edit is cancelled', () => {
+        const { editor } = wall();
+        click(editor, LOWER_RIGHT, SHIFT);
+        click(editor, LOWER_RIGHT);
+        editor.keyDown({ key: 'Escape' });
+        expect(hot(editor)).toEqual([]);
+        click(editor, LOWER_RIGHT, SHIFT);
+        editor.startCommand('MOVE');
+        editor.keyDown({ key: 'Escape' });
+        click(editor, { x: 2000, y: 0 });
+        expect(hot(editor)).toEqual([]);
+    });
+
+    it('rotates the whole selection about the clicked grip, whatever else is hot', () => {
+        const { editor, vertex } = wall();
+        click(editor, LOWER_RIGHT, SHIFT);
+        click(editor, LOWER_LEFT);
+        enter(editor, 2);
+        type(editor, '90');
+        expect(vertex(V['w-o2'])).toEqual({ x: 0, y: 6000 });
+        expect(vertex(V['w-o4'])).toEqual({ x: -4000, y: 0 });
+    });
+});
+
+describe('grips: menu and actions', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    const DELAY = DEFAULT_EDITOR_SETTINGS.gripMenuDelay;
+    /** On the sofa's lower edge, away from its grips. */
+    const SOFA_EDGE = { x: 1000, y: 2600 };
+    const SOFA_CORNER = { x: 2600, y: 2600 };
+    const SOFA_MIDPOINT = { x: 1600, y: 2600 };
+    const sofa = (history: DocumentHistory) => history.document.elements.find((e) => e.id === E.sofa) as PolylineElement;
+    /** The element selected by a click at `on`, the cursor resting on its grip at `grip` until the menu is open. */
+    const menuAt = (on: Point, grip: Point) => {
+        vi.useFakeTimers();
+        const context = setup();
+        click(context.editor, on);
+        context.editor.pointerMove(at(grip));
+        vi.advanceTimersByTime(DELAY);
+        return context;
+    };
+    const actions = (editor: SelectionEditor) => editor.snapshot.gripMenu?.actions;
+
+    it('opens the menu of a grip the cursor rests on, with what it can do', () => {
+        vi.useFakeTimers();
+        const { editor } = setup();
+        click(editor, WINDOW);
+        editor.pointerMove(at(WINDOW_END));
+        vi.advanceTimersByTime(DELAY - 1);
+        expect(editor.snapshot.gripMenu).toBeNull();
+        vi.advanceTimersByTime(1);
+        expect(editor.snapshot.gripMenu?.grip.point).toEqual(WINDOW_END);
+        expect(actions(editor)).toEqual(['stretch', 'lengthen']);
+    });
+
+    it('has no menu for a grip that only stretches, or while only passing by', () => {
+        vi.useFakeTimers();
+        const { editor } = setup();
+        click(editor, QUADRANT);
+        vi.advanceTimersByTime(DELAY);
+        expect(editor.snapshot.gripMenu).toBeNull();
+        editor.keyDown({ key: 'Escape' });
+        click(editor, WINDOW);
+        editor.pointerMove(at(WINDOW_END));
+        vi.advanceTimersByTime(DELAY - 1);
+        editor.pointerMove(at({ x: 4800, y: 3880 }));
+        vi.advanceTimersByTime(DELAY);
+        expect(editor.snapshot.gripMenu).toBeNull();
+    });
+
+    it('has no menu with the setting off', () => {
+        vi.useFakeTimers();
+        const editor = new SelectionEditor(parseDocument(samplePlan), { ...DEFAULT_EDITOR_SETTINGS, gripMenu: false });
+        click(editor, WINDOW);
+        editor.pointerMove(at(WINDOW_END));
+        vi.advanceTimersByTime(DELAY);
+        expect(editor.snapshot.gripMenu).toBeNull();
+    });
+
+    it('keeps the menu while the pointer is off the canvas and closes it when the cursor moves on', () => {
+        const { editor } = menuAt(WINDOW, WINDOW_END);
+        editor.pointerLeave();
+        expect(editor.snapshot.gripMenu).not.toBeNull();
+        // Its grip still shows as the one under the cursor
+        expect(editor.snapshot.hoveredGrip?.point).toEqual(WINDOW_END);
+        editor.pointerMove(at(WINDOW_END));
+        expect(editor.snapshot.gripMenu).not.toBeNull();
+        editor.pointerMove(at({ x: 4800, y: 3600 }));
+        expect(editor.snapshot).toMatchObject({ gripMenu: null, hoveredGrip: null });
+    });
+
+    it('closes the menu with Escape and keeps the selection, and with a click on the grip stretches it', () => {
+        const { editor } = menuAt(WINDOW, WINDOW_END);
+        expect(editor.keyDown({ key: 'Escape' })).toBe(true);
+        expect(editor.snapshot.gripMenu).toBeNull();
+        expect([...editor.snapshot.highlighted]).toEqual([E.window]);
+        // Resting on: no second menu
+        vi.advanceTimersByTime(DELAY);
+        expect(editor.snapshot.gripMenu).toBeNull();
+        const again = menuAt(WINDOW, WINDOW_END);
+        click(again.editor, WINDOW_END);
+        expect(again.editor.snapshot).toMatchObject({ gripMenu: null, command: 'GRIP_EDIT', prompt: STRETCH_PROMPT });
+    });
+
+    it('stretches from the menu like a click on the grip', () => {
+        const { editor } = menuAt(WINDOW, WINDOW_END);
+        editor.chooseGripAction('stretch');
+        expect(editor.snapshot).toMatchObject({ gripMenu: null, command: 'GRIP_EDIT', prompt: STRETCH_PROMPT });
+    });
+
+    it('lengthens a line along itself to the point given', () => {
+        const { editor, vertex } = menuAt(WINDOW, WINDOW_END);
+        editor.chooseGripAction('lengthen');
+        expect(editor.snapshot).toMatchObject({ command: 'GRIP_EDIT', prompt: '** LÄNGE ** Endpunkt angeben:', from: WINDOW_END });
+        const below = { x: 5400, y: 3600 };
+        editor.pointerMove(at(below));
+        const { preview } = editor.snapshot;
+        if (typeof preview !== 'object' || preview?.kind !== 'elements') {
+            throw new Error('no element preview');
+        }
+        expect(preview.elementsAt(below)[0].path.segments[1].point).toMatchObject({ x: 5400, y: 3880 });
+        click(editor, below);
+        expect(vertex(V['win-2'])).toEqual({ x: 5400, y: 3880 });
+        expect([...editor.snapshot.highlighted]).toEqual([E.window]);
+        editor.undo();
+        expect(editor.snapshot.message).toBe('Rückgängig: LÄNGE');
+    });
+
+    it('leaves no undo step where the line cannot go', () => {
+        const { editor } = menuAt(WINDOW, WINDOW_END);
+        editor.chooseGripAction('lengthen');
+        click(editor, { x: 3200, y: 3600 });
+        expect(editor.snapshot).toMatchObject({ command: null, canUndo: false });
+    });
+
+    it('goes through the actions of the hot grip with Ctrl', () => {
+        const { editor } = hotWindowEnd();
+        expect(editor.keyDown({ key: 'Control' })).toBe(true);
+        expect(editor.snapshot.prompt).toBe('** LÄNGE ** Endpunkt angeben:');
+        expect(editor.keyDown({ key: 'Control' })).toBe(true);
+        expect(editor.snapshot.prompt).toBe(STRETCH_PROMPT);
+        // Not in another mode, and not for a grip that only stretches
+        enter(editor, 1);
+        expect(editor.keyDown({ key: 'Control' })).toBe(false);
+        const table = hotQuadrant();
+        expect(table.editor.keyDown({ key: 'Control' })).toBe(false);
+        expect(setup().editor.keyDown({ key: 'Control' })).toBe(false);
+    });
+
+    it('has no options in an action, but goes on to the modes', () => {
+        const { editor } = hotWindowEnd();
+        editor.keyDown({ key: 'Control' });
+        type(editor, 'k');
+        expect(editor.snapshot).toMatchObject({
+            prompt: '** LÄNGE ** Endpunkt angeben:',
+            message: 'Punkt oder Option-Schlüsselwort erforderlich.',
+        });
+        enter(editor, 1);
+        expect(editor.snapshot.prompt).toBe(MOVE_PROMPT);
+    });
+
+    it('changes the radius of an arc about its centre', () => {
+        const r = 900 / Math.SQRT2;
+        const mid = { x: 1000 + r, y: 240 + r };
+        // The door: leaf and swing are one group
+        const { editor, history, vertex } = menuAt({ x: 1000, y: 900 }, mid);
+        expect(actions(editor)).toEqual(['stretch', 'radius']);
+        editor.chooseGripAction('radius');
+        expect(editor.snapshot).toMatchObject({ prompt: '** RADIUS ** Radius angeben:', from: { x: 1000, y: 240 } });
+        type(editor, '0');
+        expect(editor.snapshot.message).toBe('Wert muss positiv und ungleich Null sein.');
+        type(editor, '500');
+        expect(vertex(V['d-closed'])).toEqual({ x: 1500, y: 240 });
+        const swing = history.document.elements.find((e) => e.id === E['door-swing']) as { endVertexId: string };
+        const end = vertex(swing.endVertexId);
+        expect({ x: Math.round(end.x), y: Math.round(end.y) }).toEqual({ x: 1000, y: 740 });
+        // The leaf, which shared the open end, stays as it was
+        const leaf = history.document.elements.find((e) => e.id === E['door-leaf']) as { endVertexId: string };
+        expect(vertex(leaf.endVertexId)).toEqual({ x: 1000, y: 1140 });
+        expect(history.undoCommand?.label).toBe('GRIP_RADIUS');
+    });
+
+    it('adds a vertex to a polyline at the point given', () => {
+        const { editor, history, vertex } = menuAt(SOFA_EDGE, SOFA_MIDPOINT);
+        expect(actions(editor)).toEqual(['stretch', 'addVertex']);
+        editor.chooseGripAction('addVertex');
+        expect(editor.snapshot.prompt).toBe('** SCHEITELPUNKT HINZUFÜGEN ** Neuen Scheitelpunkt angeben:');
+        const point = { x: 1600, y: 2300 };
+        editor.pointerMove(at(point));
+        const { preview } = editor.snapshot;
+        if (typeof preview !== 'object' || preview?.kind !== 'elements') {
+            throw new Error('no element preview');
+        }
+        expect(preview.elementsAt(point)[0].path.segments.map((segment) => segment.point)[1]).toMatchObject(point);
+        click(editor, point);
+        expect(sofa(history).vertexIds).toHaveLength(5);
+        expect(vertex(sofa(history).vertexIds[1])).toEqual(point);
+        expect(editor.snapshot.grips).toHaveLength(10);
+        editor.undo();
+        expect(editor.snapshot.message).toBe('Rückgängig: SCHEITELPUNKT HINZUFÜGEN');
+        expect(sofa(history).vertexIds).toHaveLength(4);
+    });
+
+    it('removes a vertex from a polyline at once and keeps the selection', () => {
+        const { editor, history } = menuAt(SOFA_EDGE, SOFA_CORNER);
+        expect(actions(editor)).toEqual(['stretch', 'addVertex', 'removeVertex']);
+        editor.chooseGripAction('removeVertex');
+        expect(editor.snapshot).toMatchObject({ gripMenu: null, command: null, canUndo: true });
+        expect(sofa(history).vertexIds).toEqual([V['s-1'], V['s-3'], V['s-4']]);
+        expect([...editor.snapshot.highlighted]).toEqual([E.sofa]);
+        expect(editor.snapshot.grips).toHaveLength(6);
+        editor.undo();
+        expect(editor.snapshot.message).toBe('Rückgängig: SCHEITELPUNKT ENTFERNEN');
+        expect(sofa(history).vertexIds).toHaveLength(4);
+    });
+
+    it('ignores a choice the open menu does not offer, or without a menu', () => {
+        const { editor } = menuAt(WINDOW, WINDOW_END);
+        editor.chooseGripAction('removeVertex');
+        expect(editor.snapshot).toMatchObject({ gripMenu: null, command: null, canUndo: false });
+        editor.chooseGripAction('lengthen');
+        expect(editor.snapshot.command).toBeNull();
     });
 });

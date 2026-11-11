@@ -35,6 +35,10 @@ const GRIP_LABELS = {
     GRIP_ROTATE: 'gripMode.rotate',
     GRIP_SCALE: 'gripMode.scale',
     GRIP_MIRROR: 'gripMode.mirror',
+    GRIP_LENGTHEN: 'gripMode.lengthen',
+    GRIP_RADIUS: 'gripMode.radius',
+    GRIP_ADD_VERTEX: 'gripMode.addVertex',
+    GRIP_REMOVE_VERTEX: 'gripMode.removeVertex',
 } as const;
 
 export type GripLabel = keyof typeof GRIP_LABELS;

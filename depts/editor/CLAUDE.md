@@ -12,7 +12,8 @@ pan, status line, light/dark mode), has AutoCAD-like object selection, a grid, a
 object snap, polar tracking, Ortho, object snap tracking, Dynamic Input, the commands LINIE,
 PLINIE (straight segments only), KREIS, ELLIPSE, RECHTECK and SCHIEBEN with preview, typed
 coordinates and undo/redo, and grips that edit the selection (the grip modes STRETCH, MOVE,
-ROTATE, SCALE, MIRROR with their options Base point, Copy, Undo, Reference, eXit).
+ROTATE, SCALE, MIRROR with their options Base point, Copy, Undo, Reference, eXit; several hot
+grips; a menu of further actions per grip).
 Changes are not saved to the backend yet.
 
 **How it behaves for the user is in `docs/bedienung.md`** (German, every mouse and keyboard
@@ -143,8 +144,10 @@ The behaviour itself is in `docs/bedienung.md`; these are the decisions code mus
   the tracked point at once (`dynamicPoint`, applied in `pointAt`, so preview, rubber band,
   click and Enter agree); non-numeric text goes to `submitText` as if typed at the command line.
 - **Grips** (`selection/grips.ts`, `grips/stretch.ts`, `tools/GripTool.ts`): a click on a grip
-  of the pickfirst selection (the pick box touching it; it wins over the element below, Shift
-  still removes) makes it hot and runs a `GripTool`, an `EditorTool` with a `next` prompt from
+  of the pickfirst selection (the pick box touching it; it wins over the element below) makes
+  it hot and runs a `GripTool` on it and on the grips made hot before with Shift + click
+  (`hotPicked`, kept by position when the grips are rebuilt; Shift + click removes an element
+  only away from its grips; Esc first makes them warm), an `EditorTool` with a `next` prompt from
   the grip, so snap, tracking, typed input and Dynamic Input work as in any command. It is no
   command: its id is `GRIP_EDIT`, Enter never repeats it, and the pickfirst selection comes
   back when it ends (also after Esc). A release after dragging the grip gives the point too.
@@ -162,7 +165,14 @@ The behaviour itself is in `docs/bedienung.md`; these are the decisions code mus
   element at its position and all of them stretch together; any other element that uses a
   moved vertex keeps a copy at the old position (`commands/elementEdits.ts`, also behind
   `MoveCommand`). An arc end or middle redefines the arc through three points. What is left
-  (several hot grips, hover menu, grips as snap points) is in `docs/todo/Grips_NotImplemented.md`.
+  (grips as snap points, a grip limit) is in `docs/todo/Grips_NotImplemented.md`.
+  **Grip menu** (`grips/actions.ts`, `ui/GripMenu.ts`): a grip of one element may do more than
+  stretch (`GripAction`: `lengthen`, `radius`, `addVertex`, `removeVertex`). The editor opens
+  its menu after the cursor rested on it (`gripMenuDelay`, the timer is the editor's like the
+  acquire timer) and publishes it in the snapshot; the menu is the one canvas layer that takes
+  the pointer, so `pointerLeave` keeps it open and only a move on the canvas off the grip
+  closes it. `chooseGripAction` runs the `GripTool` with that action in place of STRETCH, or
+  removes the vertex at once. Ctrl on its own goes through the actions (`EditorTool.cycle`).
 - **Grid** (`cad/renderer/grid.ts`, `ui/GridLayer.ts`) and **UCS icon**
   (`cad/renderer/ucsIcon.ts`, `ui/UcsIcon.ts`) are display only, on layers of their own, never
   in the document, the bounds, picking or snapping. There is only the WCS (no custom UCS).
@@ -228,9 +238,15 @@ All pure TS and unit-tested unless noted.
   and `TransformCommand` (rotation, scaling or reflection as a `Similarity`, named by its
   `label`: the grip modes now, the commands DREHEN, VARIA, SPIEGELN later) do. `CopyCommand`
   adds copies of elements as such edits would leave them (own vertices, shared where the
-  originals share and agree; grouped elements in a copy of their group). A label is an `EditorCommand` or a `GripLabel` (`commandNames.ts`, `labelName`).
+  originals share and agree; grouped elements in a copy of their group). `EditCommand` applies
+  edits given as a function of the document (a grip's Lengthen and Radius);
+  `PolylineVertexCommands.ts` adds or removes a polyline vertex. A label is an `EditorCommand` or a `GripLabel` (`commandNames.ts`, `labelName`).
+- `cad/editor/grips/actions.ts` (pure): `gripActions` and what they do (`lengthenEdits`,
+  `radiusEdits`, `vertexInsertion`, `vertexRemoval`).
 - `cad/editor/grips/stretch.ts`: `stretchTargets` (pure): what each `GripPart` changes when its
-  grip goes by a delta, as `ElementEdit`s; null where a grip cannot go.
+  grip goes by a delta, as `ElementEdit`s; null where a grip cannot go. The hot parts of one
+  element are taken together (a `move` part takes the element as a whole, an arc goes through
+  its three points wherever they are now).
 - `cad/editor/tracking/`: `PolarTracking.ts` (`polarAngles`, `nearestRay`, `findPolarTrack`,
   `parseAngleList`/`formatAngleList`), `ObjectSnapTracking.ts` (`toggleAcquired`,
   `trackingAngles`, `findObjectTrack`, `polarWins`), `ortho.ts` (`orthoPoint`); pure and
@@ -270,6 +286,8 @@ All pure TS and unit-tested unless noted.
   draws the Dynamic Input panel or dimension. `ui/StatusBar.tsx`: RASTER, ORTHO, POLAR, OFANG,
   OTRACK and DYN switches on the left, position and zoom on the right (so the switches never
   move).
+- `ui/GripMenu.ts`: DOM menu of a grip's actions at the grip, flipped at the canvas edge;
+  unlike the other layers it takes the pointer and reports the action clicked.
 - `ui/CrosshairCursor.ts`: the system pointer is hidden over the canvas; an AutoCAD-like
   crosshair as a DOM layer moved by CSS transform (the drawing is never redrawn for it), pick
   box in its centre, a minus sign while Shift is held; the grab hand while panning.
@@ -281,7 +299,8 @@ AutoCAD-like system variables (`crosshairSize` ~ CURSORSIZE, `pickboxSize` ~ PIC
 hover/click tolerance, `apertureSize` ~ APERTURE, `showApertureBox` ~ APBOX, `snapMarkerSize`
 ~ AUTOSNAPSIZE, `snapMarker`/`snapTooltip`/`snapMagnet` ~ AUTOSNAP, `polarTolerance` (also for
 OTRACK), `trackingAcquireDelay`, `snapPreview`, `previewColor` and `gridColor` per theme,
-`gripSize` ~ GRIPSIZE, `gripColor` ~ GRIPCOLOR/GRIPHOVER/GRIPHOT,
+`gripSize` ~ GRIPSIZE, `gripColor` ~ GRIPCOLOR/GRIPHOVER/GRIPHOT, `gripMenu` ~
+GRIPMULTIFUNCTIONAL, `gripMenuDelay`,
 `gridMinSpacing`, `ucsIcon…` ~ UCSICON). Code receives the object (App → `CadCanvas` → editor
 and crosshair) rather than importing the defaults, so the user can change them later; for now
 they are read when a document is loaded. The switches live in App state and may change at any

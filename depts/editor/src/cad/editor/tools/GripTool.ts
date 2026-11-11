@@ -7,12 +7,15 @@ import { buildPathSpec } from '../../renderer/PathSpec';
 import { matchesKeyword } from '../commandInput';
 import type { GripLabel } from '../commandNames';
 import { CopyCommand } from '../commands/CopyCommand';
+import { EditCommand } from '../commands/EditCommand';
 import type { DocumentCommand } from '../commands/DocumentCommand';
 import type { DocumentHistory } from '../commands/DocumentHistory';
-import type { ElementEdit } from '../commands/elementEdits';
+import { samePosition, type ElementEdit } from '../commands/elementEdits';
 import { MoveCommand, translateElement } from '../commands/MoveCommand';
+import { AddPolylineVertexCommand } from '../commands/PolylineVertexCommands';
 import { StretchCommand } from '../commands/StretchCommand';
 import { TransformCommand, transformElement } from '../commands/TransformCommand';
+import { gripActions, lengthenEdits, radiusCenter, radiusEdits, vertexInsertion, type GripAction } from '../grips/actions';
 import { stretchTargets } from '../grips/stretch';
 import type { Grip } from '../selection/grips';
 import type { EditorTool, PreviewElement, PreviewMatrix, ToolPreview, ToolPrompt, ToolStep } from './EditorTool';
@@ -54,6 +57,10 @@ interface Operation {
  * reference, a number or two points: the angle given then turns from the reference angle, the
  * length given scales by its ratio to the reference length. The copies of one run are one undo
  * step together, also after Esc.
+ *
+ * A single hot grip of one element may do something else in place of STRETCH (see GripAction):
+ * chosen from the grip's menu, or by Ctrl, which goes through its actions. These take their
+ * point (the radius: a distance from the arc's centre) and end; they have no options.
  */
 export class GripTool implements EditorTool {
     readonly command = 'GRIP_EDIT';
@@ -76,14 +83,29 @@ export class GripTool implements EditorTool {
     /** Copies in the history, which become one undo step named `copyLabel`. */
     private copies = 0;
     private copyLabel: GripLabel = 'GRIP_STRETCH';
+    /** What the mode STRETCH does, and what else it could do instead (those that take a point). */
+    private action: GripAction;
+    private readonly actions: readonly GripAction[];
 
     /** `index` is the document the grips were taken from; the originals never change while the tool runs. */
-    constructor(history: DocumentHistory, index: DocumentIndex, grips: readonly Grip[]) {
+    constructor(history: DocumentHistory, index: DocumentIndex, grips: readonly Grip[], action: GripAction = 'stretch') {
         this.history = history;
         this.index = index;
         this.grips = grips;
         this.base = grips[0].point;
+        const actions = grips.length === 1 ? gripActions(grips[0], index) : ['stretch' as const];
+        this.actions = actions.filter((candidate) => candidate !== 'removeVertex');
+        this.action = this.actions.includes(action) ? action : 'stretch';
         this.ask('mode');
+    }
+
+    /** Ctrl: the next action of the hot grip, while the mode STRETCH asks for its point. */
+    cycle(): ToolStep | null {
+        if (this.asking !== 'mode' || this.current !== 'stretch' || this.multiple || this.actions.length < 2) {
+            return null;
+        }
+        this.action = this.actions[(this.actions.indexOf(this.action) + 1) % this.actions.length];
+        return this.ask('mode');
     }
 
     get mode(): GripMode {
@@ -126,6 +148,9 @@ export class GripTool implements EditorTool {
             this.reference = this.current === 'scale' ? length : degreesTo(first, point);
             return this.ask('mode');
         }
+        if (this.current === 'stretch' && this.action !== 'stretch') {
+            return { done: true, command: this.actionCommand(point) };
+        }
         const delta = { x: point.x - this.base.x, y: point.y - this.base.y };
         const moved = delta.x !== 0 || delta.y !== 0;
         switch (this.current) {
@@ -162,6 +187,13 @@ export class GripTool implements EditorTool {
 
     /** SCALE: the reference length, the new length or the factor; never zero or negative. */
     distance(value: number): ToolStep {
+        if (this.current === 'stretch' && this.action === 'radius' && this.asking === 'mode') {
+            if (value <= 0) {
+                return { message: () => t('message.positiveValue') };
+            }
+            const grip = this.grips[0];
+            return { done: true, command: new EditCommand('GRIP_RADIUS', (index) => radiusEdits(index, grip, value) ?? []) };
+        }
         if (this.current !== 'scale' || (this.asking !== 'mode' && this.asking !== 'reference')) {
             return {};
         }
@@ -206,6 +238,9 @@ export class GripTool implements EditorTool {
             this.reference = null;
             return this.ask('mode');
         }
+        if (this.current === 'stretch' && this.action !== 'stretch') {
+            return null;
+        }
         if (matchesKeyword(text, t('message.basePointKeyword'))) {
             return this.ask('basePoint');
         }
@@ -240,6 +275,20 @@ export class GripTool implements EditorTool {
             this.copyLabel = operation.label;
         }
         return this.ask('mode');
+    }
+
+    /** What the action of the hot grip does with the point given; nothing where it changes nothing. */
+    private actionCommand(point: Point): DocumentCommand | undefined {
+        const grip = this.grips[0];
+        if (this.action === 'lengthen') {
+            const edits = lengthenEdits(this.index, grip, point);
+            const end = edits && [...edits[0].vertices.values()][0];
+            return end && !samePosition(end, grip.point)
+                ? new EditCommand('GRIP_LENGTHEN', (index) => lengthenEdits(index, grip, point) ?? [])
+                : undefined;
+        }
+        const insertion = this.action === 'addVertex' ? vertexInsertion(this.index, grip) : null;
+        return insertion ? new AddPolylineVertexCommand(insertion.polyline.id, insertion.at, point) : undefined;
     }
 
     private transform(label: 'GRIP_ROTATE' | 'GRIP_SCALE' | 'GRIP_MIRROR', similarity: Similarity | null): ToolStep {
@@ -305,15 +354,31 @@ export class GripTool implements EditorTool {
         const from = this.base;
         const reference = this.reference;
         const distance = (point: Point) => Math.hypot(point.x - from.x, point.y - from.y);
+        const ids = new Set(this.grips.flatMap((grip) => grip.targets.map((target) => target.elementId)));
         switch (this.current) {
-            case 'stretch':
-                prompt('next', from, 'gripStretch');
-                this.preview = {
-                    kind: 'elements',
-                    ids: new Set(this.grips.flatMap((grip) => grip.targets.map((target) => target.elementId))),
-                    elementsAt: (point) => this.stretched(point),
-                };
+            case 'stretch': {
+                const grip = this.grips[0];
+                const center = this.action === 'radius' ? radiusCenter(this.index, grip) : null;
+                if (this.action === 'lengthen') {
+                    prompt('next', grip.point, 'gripLengthen');
+                    this.preview = { kind: 'elements', ids, elementsAt: (point) => this.edited(lengthenEdits(this.index, grip, point)) };
+                } else if (center !== null) {
+                    prompt('distance', center, 'gripRadius');
+                    const radius = (point: Point) => Math.hypot(point.x - center.x, point.y - center.y);
+                    this.preview = {
+                        kind: 'elements',
+                        ids,
+                        elementsAt: (point) => this.edited(radiusEdits(this.index, grip, radius(point))),
+                    };
+                } else if (this.action === 'addVertex') {
+                    prompt('next', grip.point, 'gripAddVertex');
+                    this.preview = { kind: 'elements', ids, elementsAt: (point) => this.withVertex(grip, point) };
+                } else {
+                    prompt('next', from, 'gripStretch');
+                    this.preview = { kind: 'elements', ids, elementsAt: (point) => this.stretched(point) };
+                }
                 break;
+            }
             case 'move':
                 prompt('next', from, 'gripMove');
                 this.preview = 'move';
@@ -337,9 +402,26 @@ export class GripTool implements EditorTool {
         }
     }
 
-    /** The stretched elements with the base point at `point`, each on its own vertices. */
+    /** The stretched elements with the base point at `point`. */
     private stretched(point: Point): PreviewElement[] {
-        const edits = stretchTargets(this.index, this.grips, { x: point.x - this.base.x, y: point.y - this.base.y });
+        return this.edited(stretchTargets(this.index, this.grips, { x: point.x - this.base.x, y: point.y - this.base.y }));
+    }
+
+    /** The polyline of the grip with a vertex more at `point`. */
+    private withVertex(grip: Grip, point: Point): PreviewElement[] {
+        const insertion = vertexInsertion(this.index, grip);
+        if (insertion === null) {
+            return [];
+        }
+        const { polyline, at } = insertion;
+        const added = { id: '', ...point };
+        const vertices = new Map([...polyline.vertexIds.map((id) => [id, this.index.vertices.get(id)!] as const), ['', added]]);
+        const element = { ...polyline, vertexIds: polyline.vertexIds.toSpliced(at, 0, '') };
+        return [{ id: polyline.id, path: buildPathSpec(element, { ...this.index, vertices }) }];
+    }
+
+    /** The paths of edited elements, each on its own vertices; none for edits that go nowhere. */
+    private edited(edits: readonly ElementEdit[] | null): PreviewElement[] {
         return (edits ?? []).map(({ element, vertices }) => {
             const own = new Map(
                 vertexRefs(element).map((id) => [id, { ...this.index.vertices.get(id)!, ...vertices.get(id) }]),
@@ -360,7 +442,10 @@ type PromptKey =
     | 'gripBasePoint'
     | 'gripReferenceAngle'
     | 'gripReferenceLength'
-    | 'gripSecondPoint';
+    | 'gripSecondPoint'
+    | 'gripLengthen'
+    | 'gripRadius'
+    | 'gripAddVertex';
 
 /** Direction from `from` to `to` in degrees, counter-clockwise from +X. */
 function degreesTo(from: Point, to: Point): number {

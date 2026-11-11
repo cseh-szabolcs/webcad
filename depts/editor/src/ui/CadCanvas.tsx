@@ -20,6 +20,7 @@ import { attachCanvasInput } from './canvasInput';
 import { CrosshairCursor } from './CrosshairCursor';
 import { DynamicInputLayer } from './DynamicInputLayer';
 import { GridLayer } from './GridLayer';
+import { GripMenu } from './GripMenu';
 import { polarTooltipText, SnapMarker, trackingTooltipText, type TrackingDisplay } from './SnapMarker';
 import { UcsIcon } from './UcsIcon';
 
@@ -172,6 +173,8 @@ export function CadCanvas({
         snapMarkerRef.current = snapMarker;
         // Above the snap display, whose tooltips it must not hide
         const dynamicLayer = new DynamicInputLayer(container);
+        // On top of everything: the one layer that takes the pointer
+        const gripMenu = new GripMenu(container, (action) => editor.chooseGripAction(action));
         const overlay = new SelectionOverlay(renderer, settingsRef.current);
         overlay.setTheme(themeRef.current);
         overlayRef.current = overlay;
@@ -220,8 +223,9 @@ export function CadCanvas({
         const refreshOverlay = () => {
             const { snap, snapCycle, snapPreview, polar, acquired, objectTrack, from, preview, previewKeeps, previewPoint, cursor } =
                 editor.snapshot;
-            const { command, hotGrips } = editor.snapshot;
+            const { command, hotGrips, gripMenu: menu } = editor.snapshot;
             const viewport = viewportRef.current;
+            gripMenu.show(menu && { at: viewport.modelToView(menu.grip.point), actions: menu.actions });
             // While moving, the originals show dimmed under the preview, like AutoCAD
             const basePoint = preview === 'move' ? from : null;
             // Likewise the elements a grip changes, under their preview
@@ -331,6 +335,7 @@ export function CadCanvas({
             detachInput();
             crosshair.dispose();
             dynamicLayer.dispose();
+            gripMenu.dispose();
             snapMarker.dispose();
             snapMarkerRef.current = null;
             grid.dispose();

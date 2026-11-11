@@ -408,6 +408,44 @@
     margin-left: auto;
 }
 
+/* Menu of a grip (GripMenu): the only canvas layer that takes the pointer */
+.grip-menu {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 2px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    white-space: nowrap;
+    cursor: default;
+}
+
+.grip-menu[hidden] {
+    display: none;
+}
+
+.grip-menu-item {
+    padding: 3px 10px;
+    border: 0;
+    border-radius: 3px;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    font-size: 12px;
+    text-align: left;
+    cursor: default;
+}
+
+.grip-menu-item:hover,
+.grip-menu-item:focus-visible {
+    background: var(--surface);
+    outline: none;
+}
+
 /* Status bar switches and their menus, which open upwards (also used by ToolbarSelect) */
 .snap-switch {
     position: relative;

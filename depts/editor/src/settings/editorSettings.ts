@@ -50,6 +50,13 @@ export interface EditorSettings {
      */
     gripColor: Readonly<Record<DisplayTheme, { warm: string; hover: string; hot: string }>>;
     /**
+     * A grip that can do more than stretch shows a menu of its actions while the cursor rests
+     * on it, like the dynamic menu of AutoCAD's GRIPMULTIFUNCTIONAL.
+     */
+    gripMenu: boolean;
+    /** How long (ms) the cursor must rest on a grip before its menu opens. */
+    gripMenuDelay: number;
+    /**
      * Tracking tolerance in screen px: a polar path or an object snap tracking path is taken
      * while the cursor is at most this far from it, so the behaviour does not depend on the zoom.
      */
@@ -98,6 +105,8 @@ export const DEFAULT_EDITOR_SETTINGS: Readonly<EditorSettings> = {
         light: { warm: '#1e90ff', hover: '#f472b6', hot: '#dc2626' },
         dark: { warm: '#1e90ff', hover: '#f9a8d4', hot: '#ef4444' },
     },
+    gripMenu: true,
+    gripMenuDelay: 500,
     polarTolerance: 10,
     trackingAcquireDelay: 400,
     gridMinSpacing: 10,

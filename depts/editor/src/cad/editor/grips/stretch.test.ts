@@ -115,6 +115,44 @@ describe('stretchTargets', () => {
         expect(end.element).toBe(element(E.curtain));
     });
 
+    it('moves both ends of a line when both are hot, and the circle with a hot quadrant along with its centre', () => {
+        const ends = [grip(E['door-leaf'], { x: 1000, y: 240 }), grip(E['door-leaf'], { x: 1000, y: 1140 })];
+        expect(stretch(ends, { x: 30, y: 0 }).vertices).toEqual({
+            [V['d-hinge']]: { x: 1030, y: 240 },
+            [V['d-open']]: { x: 1030, y: 1140 },
+        });
+        const table = [grip(E.table, { x: 4600, y: 1800 }), grip(E.table, { x: 4000, y: 1800 })];
+        const moved = stretch(table, { x: 500, y: 0 });
+        expect(moved.element).toBe(element(E.table));
+        expect(moved.vertices).toEqual({ [V['t-center']]: { x: 4500, y: 1800 } });
+    });
+
+    it('moves an arc whose ends and middle are all hot, and keeps the middle where only the ends are', () => {
+        const r = 900 / Math.SQRT2;
+        const start = grip(E['door-swing'], { x: 1900, y: 240 });
+        const end = grip(E['door-swing'], { x: 1000, y: 1140 });
+        const mid = grip(E['door-swing'], { x: 1000 + r, y: 240 + r });
+        const all = stretch([start, end, mid], { x: 100, y: 50 });
+        expect(all.vertices).toEqual({
+            [V['d-hinge']]: { x: 1100, y: 290 },
+            [V['d-closed']]: { x: 2000, y: 290 },
+            [V['d-open']]: { x: 1100, y: 1190 },
+        });
+        // Both ends outwards by the same step along the diagonal: the old middle stays on the arc
+        const ends = stretchTargets(index, [start, end], { x: 100, y: 100 })!;
+        const centre = ends[0].vertices.get(V['d-hinge'])!;
+        const radius = Math.hypot(2000 - centre.x, 340 - centre.y);
+        expect(Math.hypot(1000 + r - centre.x, 240 + r - centre.y)).toBeCloseTo(radius);
+        expect(Math.hypot(1100 - centre.x, 1240 - centre.y)).toBeCloseTo(radius);
+    });
+
+    it('keeps a bezier control point at its end when both are hot', () => {
+        const both = [grip(E.curtain, { x: 3500, y: 3700 }), grip(E.curtain, { x: 4000, y: 3500 })];
+        const moved = stretch(both, { x: 0, y: 100 });
+        expect(moved.vertices).toEqual({ [V['c-1']]: { x: 3500, y: 3800 } });
+        expect((moved.element as CubicBezierElement).startControl).toEqual({ x: 500, y: -200 });
+    });
+
     it('stretches every element that has a grip at the position', () => {
         // The hinge is the leaf's start and the swing's centre
         const [hinge] = selectionGrips([element(E['door-leaf']), element(E['door-swing'])], index);

@@ -5,46 +5,95 @@ import type { Id, Point, Vector2 } from '../../model/Point';
 import type { ElementEdit } from '../commands/elementEdits';
 import type { Grip, GripPart } from '../selection/grips';
 
+/** A part of an element that goes with its grip, and where the grip goes. */
+interface HotPart {
+    part: GripPart;
+    to: Point;
+}
+
 /**
  * Stretches the grips by `delta` (AutoCAD's grip mode STRETCH): each target changes its element
- * as its part says (see GripPart). Null if a target cannot go there: a radius of zero, or an
- * arc whose three points lie on one line.
+ * as its part says (see GripPart); several hot grips go together, so what lies between them
+ * keeps its shape. An element whose `move` grip is hot goes as a whole, whatever else of it is
+ * hot. Null if a target cannot go there: a radius of zero, or an arc whose three points lie on
+ * one line.
  */
 export function stretchTargets(index: DocumentIndex, grips: readonly Grip[], delta: Vector2): ElementEdit[] | null {
-    const edits = new Map<Id, { element: CadElement; vertices: Map<Id, Point> }>();
+    const hot = new Map<Id, HotPart[]>();
     for (const grip of grips) {
         const to = { x: grip.point.x + delta.x, y: grip.point.y + delta.y };
         for (const { elementId, part } of grip.targets) {
-            const original = index.elements.get(elementId);
-            if (!original) {
-                continue;
-            }
-            const edit = edits.get(elementId) ?? { element: original, vertices: new Map<Id, Point>() };
-            edits.set(elementId, edit);
-            const position = (id: Id): Point => edit.vertices.get(id) ?? pointOf(index, id);
-            // From the original position, so a vertex two targets move goes once
-            const shift = (id: Id) => {
-                const { x, y } = pointOf(index, id);
-                edit.vertices.set(id, { x: x + delta.x, y: y + delta.y });
-            };
-            const element = stretchPart(edit.element, part, to, position, shift, (id, point) => edit.vertices.set(id, point));
-            if (element === null) {
-                return null;
-            }
-            edit.element = element;
+            hot.set(elementId, [...(hot.get(elementId) ?? []), { part, to }]);
         }
     }
-    return [...edits.values()];
+    const edits: ElementEdit[] = [];
+    for (const [elementId, parts] of hot) {
+        const original = index.elements.get(elementId);
+        if (!original) {
+            continue;
+        }
+        const vertices = new Map<Id, Point>();
+        const position = (id: Id): Point => vertices.get(id) ?? pointOf(index, id);
+        // From the original position, so a vertex two parts move goes once
+        const shift = (id: Id) => {
+            const { x, y } = pointOf(index, id);
+            vertices.set(id, { x: x + delta.x, y: y + delta.y });
+        };
+        const place = (id: Id, point: Point) => vertices.set(id, point);
+        let element: CadElement | null = original;
+        if (parts.some(({ part }) => part.kind === 'move')) {
+            vertexRefs(original).forEach(shift);
+        } else if (original.type === 'arc') {
+            element = stretchArc(original, parts, position, place);
+        } else {
+            for (const { part, to } of parts) {
+                element = element && stretchPart(element, part, to, position, shift);
+            }
+        }
+        if (element === null) {
+            return null;
+        }
+        edits.push({ element, vertices });
+    }
+    return edits;
 }
 
-/** The element after one of its grips went to `to`; moves its vertices through `shift` and `place`. */
+/**
+ * The arc through its start, middle and end, each where its hot grip goes or where it was: one
+ * end alone leaves the other end and the old middle, all three move the arc.
+ */
+function stretchArc(
+    arc: ArcElement,
+    parts: readonly HotPart[],
+    position: (id: Id) => Point,
+    place: (id: Id, point: Point) => void,
+): CadElement | null {
+    const { start, mid, end } = arcPoints(arc, position);
+    const through: [Point, Point, Point] = [start, mid, end];
+    for (const { part, to } of parts) {
+        if (part.kind === 'arcMid') {
+            through[1] = to;
+        } else if (part.kind === 'arcEnd') {
+            through[part.end === 'start' ? 0 : 2] = to;
+        }
+    }
+    const next = arcThrough(...through);
+    if (next === null) {
+        return null;
+    }
+    place(arc.centerVertexId, next.center);
+    place(arc.startVertexId, through[0]);
+    place(arc.endVertexId, through[2]);
+    return { ...arc, clockwise: next.clockwise };
+}
+
+/** The element (no arc) after one of its grips went to `to`; moves its vertices through `shift`. */
 function stretchPart(
     element: CadElement,
     part: GripPart,
     to: Point,
     position: (id: Id) => Point,
     shift: (id: Id) => void,
-    place: (id: Id, point: Point) => void,
 ): CadElement | null {
     switch (part.kind) {
         case 'vertex':
@@ -78,22 +127,8 @@ function stretchPart(
             return part.axis === 'x' ? { ...element, radiusX: radius } : { ...element, radiusY: radius };
         }
         case 'arcEnd':
-        case 'arcMid': {
-            if (element.type !== 'arc') {
-                return element;
-            }
-            const { start, mid, end } = arcPoints(element, position);
-            const through: [Point, Point, Point] =
-                part.kind === 'arcMid' ? [start, to, end] : part.end === 'start' ? [to, mid, end] : [start, mid, to];
-            const arc = arcThrough(...through);
-            if (arc === null) {
-                return null;
-            }
-            place(element.centerVertexId, arc.center);
-            place(element.startVertexId, through[0]);
-            place(element.endVertexId, through[2]);
-            return { ...element, clockwise: arc.clockwise };
-        }
+        case 'arcMid':
+            return element;
         case 'control': {
             if (element.type !== 'bezier') {
                 return element;

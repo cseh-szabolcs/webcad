@@ -221,6 +221,10 @@ export function attachCanvasInput(canvas: HTMLCanvasElement, options: CanvasInpu
             }
             return;
         }
+        // Ctrl on its own means something to the target (the next action of a hot grip): once per press
+        if (event.key === 'Control' && event.repeat) {
+            return;
+        }
         const ctrlKey = (event.ctrlKey || event.metaKey) && !event.altKey;
         if (target.keyDown({ key: event.key, shiftKey: event.shiftKey, ctrlKey })) {
             event.preventDefault();

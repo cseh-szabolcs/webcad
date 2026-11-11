@@ -31,6 +31,8 @@ import type { DrawingMemory } from './tools/DrawingMemory';
 import { CircleTool } from './tools/CircleTool';
 import { EllipseTool } from './tools/EllipseTool';
 import { GripTool } from './tools/GripTool';
+import { gripActions, vertexRemoval, type GripAction } from './grips/actions';
+import { RemovePolylineVertexCommand } from './commands/PolylineVertexCommands';
 import { LineTool } from './tools/LineTool';
 import { MoveTool } from './tools/MoveTool';
 import { PolylineTool } from './tools/PolylineTool';
@@ -128,8 +130,13 @@ export interface SelectionSnapshot {
     grips: readonly Grip[];
     /** The grip under the cursor, which a click would edit; one of `grips`, or null. */
     hoveredGrip: Grip | null;
-    /** The grips being edited (hot), among `grips`; none otherwise. */
+    /** The hot grips: those being edited, or made hot with Shift + click to be edited together; none otherwise. */
     hotGrips: readonly Grip[];
+    /**
+     * The menu of the grip the cursor rested on, with what it can do besides being stretched
+     * (see chooseGripAction), or null.
+     */
+    gripMenu: GripMenuView | null;
     /** Control frame lines shown with the grips (bezier end to its control point). */
     controlFrames: readonly (readonly [Point, Point])[];
     /** Selection rectangle or lasso in progress, or null. */
@@ -181,6 +188,12 @@ export interface SelectionSnapshot {
     /** Undo and redo are possible now (not while a command runs). */
     canUndo: boolean;
     canRedo: boolean;
+}
+
+export interface GripMenuView {
+    grip: Grip;
+    /** `stretch` first. */
+    actions: readonly GripAction[];
 }
 
 /** What the Dynamic Input display shows at a point prompt (see dynamicInput). */
@@ -274,8 +287,9 @@ interface GripEdit {
  * Picking a grouped element picks its whole group, also by window, crossing or lasso when
  * only one member qualifies. Never persisted.
  *
- * With no command, the pickfirst selection shows its grips (see grips). A click on one (the
- * pick box touching it; it wins over the element below) makes it hot and edits it with a
+ * With no command, the pickfirst selection shows its grips (see grips). Shift + click on one
+ * makes it hot or warm again, and Esc makes all warm before it clears the selection. A click on one (the
+ * pick box touching it; it wins over the element below) makes it hot and edits it, with the other hot ones, in a
  * GripTool: the next point given stretches it, also the release after dragging it; Enter on
  * its own, Space or a right click go on to its other modes instead (the only prompt where
  * Space on its own acts like Enter, see PointPrompt.spaceEnters). The selection stays through
@@ -343,6 +357,12 @@ export class SelectionEditor {
     } | null = null;
     /** Grip of the pickfirst selection under the cursor; it wins over `underCursor`. */
     private gripUnderCursor: Grip | null = null;
+    /** Grips made hot with Shift + click before one of them is edited; among the current grips. */
+    private hotPicked: readonly Grip[] = NO_GRIPS;
+    /** The open grip menu (see SelectionSnapshot.gripMenu). */
+    private gripMenu: GripMenuView | null = null;
+    /** The grip the cursor rests on and the timer that opens its menu; the timer is null once it fired. */
+    private gripDwell: { grip: Grip; timer: ReturnType<typeof setTimeout> | null } | null = null;
     /** Where (view px) the press went down that made a grip hot, until its release. */
     private gripPress: Point | null = null;
     private message: Message | null = null;
@@ -363,6 +383,9 @@ export class SelectionEditor {
     private readonly pickboxSize: number;
     /** Side of a grip in screen px (see EditorSettings.gripSize). */
     private readonly gripSize: number;
+    /** See EditorSettings.gripMenu and gripMenuDelay. */
+    private readonly gripMenuEnabled: boolean;
+    private readonly gripMenuDelay: number;
     /** Half the aperture box side in screen px (see EditorSettings.apertureSize). */
     private readonly apertureSize: number;
     /** See EditorSettings.polarTolerance. */
@@ -377,11 +400,20 @@ export class SelectionEditor {
         history: DocumentHistory | CadDocument,
         settings: Pick<
             EditorSettings,
-            'pickboxSize' | 'apertureSize' | 'polarTolerance' | 'snapPreview' | 'trackingAcquireDelay' | 'gripSize'
+            | 'pickboxSize'
+            | 'apertureSize'
+            | 'polarTolerance'
+            | 'snapPreview'
+            | 'trackingAcquireDelay'
+            | 'gripSize'
+            | 'gripMenu'
+            | 'gripMenuDelay'
         > = DEFAULT_EDITOR_SETTINGS,
     ) {
         this.pickboxSize = settings.pickboxSize;
         this.gripSize = settings.gripSize;
+        this.gripMenuEnabled = settings.gripMenu;
+        this.gripMenuDelay = settings.gripMenuDelay;
         this.apertureSize = settings.apertureSize;
         this.polarTolerance = settings.polarTolerance;
         this.showSnapPreview = settings.snapPreview;
@@ -398,6 +430,7 @@ export class SelectionEditor {
     /** Stops following the history. */
     dispose(): void {
         this.stopDwell();
+        this.closeGripMenu();
         this.unsubscribeHistory();
         this.listeners.clear();
     }
@@ -456,6 +489,31 @@ export class SelectionEditor {
             this.cancelCommand();
         }
         this.startTool(this.newTool(command));
+    }
+
+    /**
+     * Does what was chosen from the open grip menu: edits the grip that way (see GripTool), or
+     * for `removeVertex` takes the vertex out of its polyline at once. The selection stays.
+     */
+    chooseGripAction(action: GripAction): void {
+        const menu = this.gripMenu;
+        this.closeGripMenu();
+        if (menu === null || this.state.kind !== 'idle' || !menu.actions.includes(action)) {
+            this.changed();
+            return;
+        }
+        const { grip } = menu;
+        if (action === 'removeVertex') {
+            const removal = vertexRemoval(this.index, grip);
+            if (removal !== null) {
+                this.history.execute(new RemovePolylineVertexCommand(removal.polyline.id, removal.at));
+            }
+            this.changed();
+            return;
+        }
+        // Stretching takes the other hot grips along, like a click on the grip
+        const hot = action === 'stretch' ? [grip, ...this.hotPicked.filter((other) => other !== grip)] : [grip];
+        this.startTool(new GripTool(this.history, this.index, hot, action), hot);
     }
 
     private newTool(command: EditorCommand): EditorTool {
@@ -550,6 +608,7 @@ export class SelectionEditor {
 
     pointerDown(event: EditorPointerEvent): void {
         this.shiftHeld = event.shiftKey;
+        this.closeGripMenu();
         const state = this.state;
         if (this.pointPrompt() !== null) {
             if (event.button === 0) {
@@ -591,11 +650,20 @@ export class SelectionEditor {
         if (this.area !== null) {
             return;
         }
-        // A grip wins over the element below it; Shift keeps removing from the selection
-        const grip = state.kind === 'idle' && !event.shiftKey ? this.gripAt(event) : null;
+        // A grip wins over the element below it
+        const grip = state.kind === 'idle' ? this.gripAt(event) : null;
+        if (grip !== null && event.shiftKey) {
+            // Hot or warm again, to edit several grips together
+            const hot = this.hotPicked;
+            this.hotPicked = hot.includes(grip) ? hot.filter((other) => other !== grip) : [...hot, grip];
+            this.changed();
+            return;
+        }
         if (grip !== null) {
+            // The clicked grip is the base point; the others made hot before go with it
+            const hot = [grip, ...this.hotPicked.filter((other) => other !== grip)];
             this.gripPress = event.viewPoint;
-            this.startTool(new GripTool(this.history, this.index, [grip]), [grip]);
+            this.startTool(new GripTool(this.history, this.index, hot), hot);
             return;
         }
         const id = this.pick(event);
@@ -692,6 +760,8 @@ export class SelectionEditor {
     pointerLeave(): void {
         this.underCursor = null;
         this.gripUnderCursor = null;
+        // An open grip menu stays: the pointer may be on its way to it
+        this.watchGrip(false);
         this.lastPointer = null;
         this.updateSnap(null);
         this.changed();
@@ -699,6 +769,21 @@ export class SelectionEditor {
 
     /** Returns true if the key was handled. */
     keyDown(event: EditorKeyEvent): boolean {
+        if (this.gripMenu !== null) {
+            // Esc only closes the menu; any other key closes it and does what it does
+            this.closeGripMenu();
+            this.changed();
+            if (event.key === 'Escape') {
+                return true;
+            }
+        }
+        if (event.key === 'Control') {
+            const step = this.state.kind === 'command' ? (this.state.tool.cycle?.() ?? null) : null;
+            if (step !== null) {
+                this.applyStep(step);
+            }
+            return step !== null;
+        }
         const area = this.area;
         if (area?.shape === 'lasso' && event.key === ' ') {
             this.area = { ...area, mode: area.mode === 'window' ? 'crossing' : 'window' };
@@ -752,6 +837,12 @@ export class SelectionEditor {
         if (this.area === null && this.typeCommandKey(event)) {
             return true;
         }
+        if (event.key === 'Escape' && this.hotPicked.length > 0) {
+            // First the hot grips, then the selection
+            this.hotPicked = NO_GRIPS;
+            this.changed();
+            return true;
+        }
         if (event.key === 'Escape' && state.pickfirst.size > 0) {
             this.state = { kind: 'idle', pickfirst: new Set() };
             this.changed();
@@ -772,6 +863,8 @@ export class SelectionEditor {
         this.area = null;
         this.press = null;
         this.gripUnderCursor = null;
+        this.closeGripMenu();
+        this.hotPicked = NO_GRIPS;
         if (tool.command !== 'GRIP_EDIT') {
             this.lastCommand = tool.command;
         }
@@ -1423,6 +1516,44 @@ export class SelectionEditor {
         const free = this.state.kind === 'idle' && this.area === null && this.press === null;
         this.gripUnderCursor = event !== null && free ? this.gripAt(event) : null;
         this.underCursor = event !== null && this.gripUnderCursor === null ? this.pick(event) : null;
+        this.watchGrip(event !== null);
+    }
+
+    /**
+     * Follows the grip under the cursor: its menu opens once the cursor rested on it for the
+     * delay, if the grip can do more than stretch. An open menu closes when the cursor is on the
+     * canvas (`onCanvas`) and not on its grip any more.
+     */
+    private watchGrip(onCanvas: boolean): void {
+        const grip = this.gripUnderCursor;
+        if (this.gripMenu !== null && onCanvas && grip !== this.gripMenu.grip) {
+            this.gripMenu = null;
+        }
+        if (grip === (this.gripDwell?.grip ?? null)) {
+            return;
+        }
+        if (this.gripDwell?.timer != null) {
+            clearTimeout(this.gripDwell.timer);
+        }
+        this.gripDwell = null;
+        if (grip === null || !this.gripMenuEnabled || this.gripMenu?.grip === grip) {
+            return;
+        }
+        const actions = gripActions(grip, this.index);
+        const open = () => {
+            this.gripDwell = { grip, timer: null };
+            this.gripMenu = { grip, actions };
+            this.changed();
+        };
+        this.gripDwell = { grip, timer: actions.length > 1 ? setTimeout(open, this.gripMenuDelay) : null };
+    }
+
+    private closeGripMenu(): void {
+        if (this.gripDwell?.timer != null) {
+            clearTimeout(this.gripDwell.timer);
+        }
+        this.gripDwell = null;
+        this.gripMenu = null;
     }
 
     /**
@@ -1433,6 +1564,7 @@ export class SelectionEditor {
         const state = this.state;
         const selection = state.kind === 'idle' ? state.pickfirst : state.gripEdit?.pickfirst;
         if (!selection || selection.size === 0) {
+            this.hotPicked = NO_GRIPS;
             return { grips: NO_GRIPS, controlFrames: NO_FRAMES };
         }
         const cache = this.gripCache;
@@ -1440,13 +1572,15 @@ export class SelectionEditor {
             return cache;
         }
         const elements = [...selection].map((id) => this.index.elements.get(id)!);
+        const grips = selectionGrips(elements, this.index);
         this.gripUnderCursor = null;
-        this.gripCache = {
-            selection,
-            index: this.index,
-            grips: selectionGrips(elements, this.index),
-            controlFrames: selectionControlFrames(elements, this.index),
-        };
+        this.closeGripMenu();
+        // The grips are new objects: the hot ones are those now at the same places
+        this.hotPicked =
+            this.hotPicked.length === 0
+                ? NO_GRIPS
+                : this.hotPicked.flatMap((hot) => grips.find((grip) => coincide(grip.point, hot.point)) ?? []);
+        this.gripCache = { selection, index: this.index, grips, controlFrames: selectionControlFrames(elements, this.index) };
         return this.gripCache;
     }
 
@@ -1512,8 +1646,10 @@ export class SelectionEditor {
         const sameDocument = this.snapshotIndex === this.index;
         this.snapshotIndex = this.index;
         const { grips, controlFrames } = this.selectionGrips();
-        const hoveredGrip = this.gripUnderCursor;
-        const hotGrips = (state.kind === 'command' && state.gripEdit?.hot) || NO_GRIPS;
+        const gripMenu = this.gripMenu;
+        // Still shown as under the cursor while the pointer is on its menu
+        const hoveredGrip = this.gripUnderCursor ?? gripMenu?.grip ?? null;
+        const hotGrips = state.kind === 'command' ? (state.gripEdit?.hot ?? NO_GRIPS) : this.hotPicked;
         if (
             previous !== null &&
             sameDocument &&
@@ -1522,6 +1658,7 @@ export class SelectionEditor {
             grips === previous.grips &&
             hoveredGrip === previous.hoveredGrip &&
             hotGrips === previous.hotGrips &&
+            gripMenu === previous.gripMenu &&
             prompt === previous.prompt &&
             message === previous.message &&
             input === previous.input &&
@@ -1554,6 +1691,7 @@ export class SelectionEditor {
             grips,
             hoveredGrip,
             hotGrips,
+            gripMenu,
             controlFrames,
             area,
             cursor: pointPrompt ? 'point' : selecting ? 'select' : 'command',
