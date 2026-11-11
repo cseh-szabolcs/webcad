@@ -87,12 +87,15 @@ export function resolvePointInput(input: PointInput, reference: Point, toward: P
 }
 
 /**
- * Typed text chooses an option, in any case: a non-empty start of its keyword from its first
- * capital letter on, which marks the shortcut like in AutoCAD (`L` or `Länge` for
- * `sehnenLänge`), or the whole keyword.
+ * Typed text chooses an option, in any case: a start of its keyword from its first capital
+ * letter on, which marks the shortcut like in AutoCAD (`L` or `Länge` for `sehnenLänge`), at
+ * least all the capitals there (`BA` for `BAsispunkt`, so it differs from `BEzug`), or the
+ * whole keyword.
  */
 export function matchesKeyword(text: string, keyword: string): boolean {
     const typed = text.trim().toLowerCase();
-    const shortcut = keyword.slice(Math.max(0, keyword.search(/\p{Lu}/u))).toLowerCase();
-    return typed !== '' && (shortcut.startsWith(typed) || typed === keyword.toLowerCase());
+    const shortcut = keyword.slice(Math.max(0, keyword.search(/\p{Lu}/u)));
+    const capitals = /^\p{Lu}*/u.exec(shortcut)![0].toLowerCase();
+    const abbreviates = typed !== '' && typed.startsWith(capitals) && shortcut.toLowerCase().startsWith(typed);
+    return abbreviates || (typed !== '' && typed === keyword.toLowerCase());
 }

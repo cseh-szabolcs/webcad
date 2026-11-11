@@ -1,5 +1,5 @@
 import type { CadDocument } from '../../model/CadDocument';
-import type { EditorCommand } from '../commandNames';
+import type { CommandLabel } from '../commandNames';
 import { CompositeCommand } from './CompositeCommand';
 import type { DocumentChange, DocumentCommand } from './DocumentCommand';
 
@@ -83,7 +83,7 @@ export class DocumentHistory {
      * Makes the last `count` steps one step named `label`, e.g. all segments of one LINIE run.
      * The document stays as it is, so listeners hear nothing.
      */
-    combineLast(count: number, label: EditorCommand): void {
+    combineLast(count: number, label: CommandLabel): void {
         if (count < 2 || count > this.done.length) {
             return;
         }

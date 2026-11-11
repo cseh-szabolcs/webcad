@@ -1,14 +1,14 @@
 import type { CadDocument } from '../../model/CadDocument';
 import type { Id } from '../../model/Point';
-import type { EditorCommand } from '../commandNames';
+import type { CommandLabel } from '../commandNames';
 import type { DocumentChange, DocumentCommand } from './DocumentCommand';
 
 /** Several commands as one undo step, e.g. all segments of one LINIE run. */
 export class CompositeCommand implements DocumentCommand {
-    readonly label: EditorCommand;
+    readonly label: CommandLabel;
     private readonly commands: readonly DocumentCommand[];
 
-    constructor(label: EditorCommand, commands: readonly DocumentCommand[]) {
+    constructor(label: CommandLabel, commands: readonly DocumentCommand[]) {
         this.label = label;
         this.commands = commands;
     }

@@ -77,16 +77,47 @@ export const de = {
         rectangleOtherCorner: 'Anderen Eckpunkt angeben oder [Abmessungen]:',
         rectangleLength: 'Länge der Rechtecke angeben:',
         rectangleWidth: 'Breite der Rechtecke angeben:',
+        /** A grip's mode in front of its prompts; `(mehrere)` once the option Copy is on. */
+        gripHeader: '** {{mode}} **',
+        gripHeaderMultiple: '** {{mode}} (mehrere) **',
+        gripStretch: '{{header}} Streckpunkt angeben oder [BAsispunkt/Kopieren/Zurück/eXit]:',
+        gripMove: '{{header}} Verschiebepunkt angeben oder [BAsispunkt/Kopieren/Zurück/eXit]:',
+        gripRotate: '{{header}} Drehwinkel angeben oder [BAsispunkt/Kopieren/Zurück/BEzug/eXit]:',
+        gripRotateNew: '{{header}} Neuen Winkel angeben oder [BAsispunkt/Kopieren/Zurück/BEzug/eXit]:',
+        gripScale: '{{header}} Skalierfaktor angeben oder [BAsispunkt/Kopieren/Zurück/BEzug/eXit]:',
+        gripScaleNew: '{{header}} Neue Länge angeben oder [BAsispunkt/Kopieren/Zurück/BEzug/eXit]:',
+        gripMirror: '{{header}} Zweiten Punkt angeben oder [BAsispunkt/Kopieren/Zurück/eXit]:',
+        gripBasePoint: '{{header}} Basispunkt angeben:',
+        gripReferenceAngle: '{{header}} Bezugswinkel angeben <0>:',
+        gripReferenceLength: '{{header}} Bezugslänge angeben <1.0000>:',
+        gripSecondPoint: '{{header}} Zweiten Punkt angeben:',
         corner: 'Entgegengesetzte Ecke angeben:',
         lasso: 'Lasso – Leertaste wechselt Fenster/Kreuzen',
+    },
+    /** Grip modes, as the undo messages name them. */
+    gripMode: {
+        stretch: 'STRECKEN',
+        move: 'SCHIEBEN',
+        rotate: 'DREHEN',
+        scale: 'SKALIEREN',
+        mirror: 'SPIEGELN',
     },
     message: {
         /** The option of the base point prompt that takes a displacement vector instead. */
         displacementKeyword: 'Verschiebung',
         /** LINIE, PLINIE: back to the first point of the series, and the command ends. */
         closeKeyword: 'Schließen',
-        /** LINIE, PLINIE: takes back the last segment. */
+        /** LINIE, PLINIE: takes back the last segment; grips: the last copy or base point. */
         undoKeyword: 'Zurück',
+        /** Grips: another base point than the hot grip. */
+        basePointKeyword: 'BAsispunkt',
+        /** Grips: the originals stay, every point adds a copy. */
+        copyKeyword: 'Kopieren',
+        /** Grips, DREHEN and SKALIEREN: measured against a reference angle or length. */
+        referenceKeyword: 'BEzug',
+        /** Grips: ends the editing. */
+        exitKeyword: 'eXit',
+        nothingToUndo: 'Nichts zum Zurücknehmen.',
         /** PLINIE: a segment of a typed length in the direction of the last one; `L` is its shortcut. */
         lengthKeyword: 'sehnenLänge',
         /** KREIS: the diameter instead of the radius. */
@@ -99,6 +130,7 @@ export const de = {
         allSegmentsUndone: 'Alle Segmente bereits zurückgenommen.',
         invalidInput: 'Punkt oder Option-Schlüsselwort erforderlich.',
         invalidDistance: 'Erfordert numerischen Abstand oder zweiten Punkt.',
+        invalidAngle: 'Erfordert gültigen numerischen Winkel oder zweiten Punkt.',
         positiveValue: 'Wert muss positiv und ungleich Null sein.',
         unknownCommand: 'Unbekannter Befehl "{{name}}".',
         cancel: '*Abbruch*',

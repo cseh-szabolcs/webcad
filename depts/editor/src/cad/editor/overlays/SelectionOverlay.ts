@@ -1,13 +1,16 @@
 import paper from 'paper';
 import type { Id, Point } from '../../model/Point';
 import type { DisplayTheme } from '../../renderer/displayColor';
-import { ellipsePathSpec } from '../../renderer/PathSpec';
-import type { PreviewCurve } from '../tools/EditorTool';
+import { ellipsePathSpec, type PathSpec } from '../../renderer/PathSpec';
+import { DEFAULT_EDITOR_SETTINGS, type EditorSettings } from '../../../settings/editorSettings';
+import type { PreviewCurve, PreviewElement } from '../tools/EditorTool';
 import type { SelectionArea, SelectionSnapshot } from '../SelectionEditor';
 
 const HOVER_EXTRA_WIDTH = 2;
 const SELECTED_EXTRA_WIDTH = 1;
-const GRIP_SIZE_PX = 7;
+/** A bar grip (polyline segment midpoint) along and across its segment, in grip sizes. */
+const BAR_GRIP_LENGTH = 1.7;
+const BAR_GRIP_WIDTH = 0.6;
 /** Control frame lines in the grip colour, thin and dashed (screen px). */
 const CONTROL_FRAME_DASH = [4, 3];
 /** Crossing areas get a dashed edge (screen px), windows a solid one. */
@@ -23,14 +26,12 @@ const PALETTES = {
     light: {
         hovered: '#60a5fa',
         selected: '#2563eb',
-        grip: '#1e90ff',
         window: { fill: 'rgba(37, 99, 235, 0.15)', stroke: '#2563eb' },
         crossing: { fill: 'rgba(22, 163, 74, 0.15)', stroke: '#16a34a' },
     },
     dark: {
         hovered: '#93c5fd',
         selected: '#60a5fa',
-        grip: '#1e90ff',
         window: { fill: 'rgba(59, 130, 246, 0.25)', stroke: '#60a5fa' },
         crossing: { fill: 'rgba(34, 197, 94, 0.22)', stroke: '#4ade80' },
     },
@@ -64,7 +65,10 @@ export interface OverlayHost {
  * band to the preview point is SnapMarker's), while KREIS, ELLIPSE or RECHTECK ask for a point,
  * the circle, ellipse or rectangle a click there would give. The originals are then not
  * highlighted; the canvas dims them (PaperRenderer.setDimmed); the document stays
- * unchanged. Grips depend on the zoom, so render again after every viewport change (and
+ * unchanged. With `previewKeeps` (a grip's option Copy) the originals stay highlighted beside the preview. A grip's ROTATE, SCALE and MIRROR preview the same copies under a matrix.
+ * While a grip is stretched, it previews the elements the grip changes as they would
+ * become, in their own style; only these lose their highlight. Grips are warm, the one under
+ * the cursor and the hot ones in their own colours (EditorSettings.gripColor). Grips depend on the zoom, so render again after every viewport change (and
  * after setTheme()).
  *
  * Only what changed is rebuilt: the selection highlights, the move copies and the grips stay
@@ -73,7 +77,9 @@ export interface OverlayHost {
  */
 export class SelectionOverlay {
     private readonly host: OverlayHost;
+    private readonly settings: Pick<EditorSettings, 'gripSize' | 'gripColor'>;
     private palette: (typeof PALETTES)[DisplayTheme] = PALETTES.light;
+    private gripColor: EditorSettings['gripColor'][DisplayTheme];
     /** The parts of the overlay, bottom to top; made on the first render(). */
     private groups: OverlayGroups | null = null;
     /** What the selection highlights, the move copies and the grips were last built from. */
@@ -81,47 +87,67 @@ export class SelectionOverlay {
     private moveKey: readonly unknown[] | null = null;
     private gripsKey: readonly unknown[] | null = null;
 
-    constructor(host: OverlayHost) {
+    constructor(host: OverlayHost, settings: Pick<EditorSettings, 'gripSize' | 'gripColor'> = DEFAULT_EDITOR_SETTINGS) {
         this.host = host;
+        this.settings = settings;
+        this.gripColor = settings.gripColor.light;
     }
 
     /** Takes effect with the next render(). */
     setTheme(theme: DisplayTheme): void {
         this.palette = PALETTES[theme];
+        this.gripColor = this.settings.gripColor[theme];
     }
 
-    render({ hovered, highlighted, grips, controlFrames, area, from, preview, previewPoint }: SelectionSnapshot): void {
+    render(snapshot: SelectionSnapshot): void {
+        const { hovered, highlighted, grips, hoveredGrip, hotGrips, controlFrames, area, from, preview, previewKeeps, previewPoint } =
+            snapshot;
         const layer = this.host.activateOverlay();
         const groups = (this.groups ??= createGroups(layer));
         const { revision, scale } = this.host;
         const palette = this.palette;
         const basePoint = preview === 'move' ? from : null;
+        /** Elements a grip edit previews changed, so they are not highlighted at their old place. */
+        const edited = typeof preview === 'object' && preview?.kind === 'elements' && !previewKeeps ? preview.ids : null;
 
         groups.hover.removeChildren();
         for (const id of hovered) {
             this.highlight(groups.hover, id, palette.hovered, HOVER_EXTRA_WIDTH);
         }
 
+        /** A grip's ROTATE, SCALE or MIRROR: the copies under a matrix instead of an offset. */
+        const transform = typeof preview === 'object' && preview?.kind === 'transform' ? preview : null;
+        const copied = basePoint !== null || transform !== null;
+        /** The originals go where the copies show, unless the preview keeps them (a grip's Copy). */
+        const replaced = copied && !previewKeeps;
+
         // While moving, the originals are dimmed instead
-        groups.selection.visible = !basePoint;
-        if (!basePoint && changed(this.selectionKey, [highlighted, revision, palette])) {
-            this.selectionKey = [highlighted, revision, palette];
+        groups.selection.visible = !replaced;
+        if (!replaced && changed(this.selectionKey, [highlighted, revision, palette, edited])) {
+            this.selectionKey = [highlighted, revision, palette, edited];
             groups.selection.removeChildren();
             for (const id of highlighted) {
-                this.highlight(groups.selection, id, palette.selected, SELECTED_EXTRA_WIDTH);
+                if (!edited?.has(id)) {
+                    this.highlight(groups.selection, id, palette.selected, SELECTED_EXTRA_WIDTH);
+                }
             }
         }
 
-        // The copies are made once per move; each cursor position only shifts their group
-        const moving = basePoint !== null && previewPoint !== null;
-        groups.move.visible = moving;
-        if (moving) {
+        // The copies are made once per move; each cursor position only shifts (or transforms) their group
+        const matrix =
+            previewPoint === null
+                ? null
+                : basePoint !== null
+                  ? ([1, 0, 0, 1, previewPoint.x - basePoint.x, previewPoint.y - basePoint.y] as const)
+                  : (transform?.matrixAt(previewPoint) ?? null);
+        groups.move.visible = matrix !== null;
+        if (matrix !== null) {
             if (changed(this.moveKey, [highlighted, revision])) {
                 this.moveKey = [highlighted, revision];
                 groups.move.removeChildren();
                 this.moveCopies(groups.move, highlighted);
             }
-            groups.move.matrix = new paper.Matrix(1, 0, 0, 1, previewPoint.x - basePoint.x, previewPoint.y - basePoint.y);
+            groups.move.matrix = new paper.Matrix(...matrix);
         } else if (this.moveKey !== null) {
             this.moveKey = null;
             groups.move.removeChildren();
@@ -141,25 +167,42 @@ export class SelectionOverlay {
                 this.curvePreview(groups.preview, curve);
             }
         }
+        if (typeof preview === 'object' && preview?.kind === 'elements' && previewPoint) {
+            this.elementsPreview(groups.preview, preview.elementsAt(previewPoint));
+        }
 
         // Grips keep their screen size, so they also follow the zoom
-        if (changed(this.gripsKey, [grips, controlFrames, scale, palette])) {
-            this.gripsKey = [grips, controlFrames, scale, palette];
+        const gripColor = this.gripColor;
+        if (changed(this.gripsKey, [grips, hoveredGrip, hotGrips, controlFrames, scale, gripColor])) {
+            this.gripsKey = [grips, hoveredGrip, hotGrips, controlFrames, scale, gripColor];
             groups.grips.removeChildren();
             // The frames below the grips, so the grips stay whole at the line ends
             for (const [from, to] of controlFrames) {
                 const line = new paper.Path.Line({ from: [from.x, from.y], to: [to.x, to.y], insert: false });
-                line.strokeColor = new paper.Color(palette.grip);
+                line.strokeColor = new paper.Color(gripColor.warm);
                 line.strokeWidth = 1;
                 line.dashArray = CONTROL_FRAME_DASH;
                 line.strokeScaling = false;
                 groups.grips.addChild(line);
             }
-            const size = GRIP_SIZE_PX / scale;
-            for (const { x, y } of grips) {
-                const grip = new paper.Path.Rectangle({ center: [x, y], size: [size, size], insert: false });
-                grip.fillColor = new paper.Color(palette.grip);
-                groups.grips.addChild(grip);
+            const size = this.settings.gripSize / scale;
+            // By position: the grips are built anew when a copy changes the document
+            const at = ({ point }: (typeof grips)[number]) => `${point.x},${point.y}`;
+            const hot = new Set(hotGrips.map(at));
+            for (const grip of grips) {
+                const { x, y } = grip.point;
+                const bar = grip.shape === 'bar';
+                const item = new paper.Path.Rectangle({
+                    center: [x, y],
+                    size: bar ? [size * BAR_GRIP_LENGTH, size * BAR_GRIP_WIDTH] : [size, size],
+                    insert: false,
+                });
+                if (bar && grip.angle) {
+                    item.rotate((grip.angle * 180) / Math.PI, new paper.Point(x, y));
+                }
+                const color = hot.has(at(grip)) ? gripColor.hot : grip === hoveredGrip ? gripColor.hover : gripColor.warm;
+                item.fillColor = new paper.Color(color);
+                groups.grips.addChild(item);
             }
         }
 
@@ -228,21 +271,21 @@ export class SelectionOverlay {
             curve.kind === 'circle'
                 ? ellipsePathSpec(curve.center, curve.radius, curve.radius)
                 : ellipsePathSpec(curve.center, curve.radiusX, curve.radiusY, curve.rotation);
-        const path = new paper.Path({
-            segments: spec.segments.map(
-                ({ point, handleIn, handleOut }) =>
-                    new paper.Segment(
-                        new paper.Point(point.x, point.y),
-                        handleIn && new paper.Point(handleIn.x, handleIn.y),
-                        handleOut && new paper.Point(handleOut.x, handleOut.y),
-                    ),
-            ),
-            closed: true,
-            insert: false,
-        });
+        const path = pathOf(spec);
         path.strokeScaling = false;
         this.host.applyStyleById(path, null);
         parent.addChild(path);
+    }
+
+    /** The elements a grip edit would leave, in their own style, slightly see-through like the move copies. */
+    private elementsPreview(parent: paper.Group, elements: readonly PreviewElement[]): void {
+        for (const { id, path: spec } of elements) {
+            const path = pathOf(spec);
+            path.strokeScaling = false;
+            this.host.applyElementStyle(path, id);
+            path.opacity = PREVIEW_OPACITY;
+            parent.addChild(path);
+        }
     }
 
     private highlight(parent: paper.Group, id: Id, color: string, extraWidth: number): void {
@@ -279,6 +322,21 @@ function createGroups(layer: paper.Layer): OverlayGroups {
         return item;
     };
     return { hover: group(), selection: group(), move: group(), preview: group(), grips: group(), area: group() };
+}
+
+function pathOf(spec: PathSpec): paper.Path {
+    return new paper.Path({
+        segments: spec.segments.map(
+            ({ point, handleIn, handleOut }) =>
+                new paper.Segment(
+                    new paper.Point(point.x, point.y),
+                    handleIn && new paper.Point(handleIn.x, handleIn.y),
+                    handleOut && new paper.Point(handleOut.x, handleOut.y),
+                ),
+        ),
+        closed: spec.closed,
+        insert: false,
+    });
 }
 
 /** Whether `key` differs from the key something was last built from. */

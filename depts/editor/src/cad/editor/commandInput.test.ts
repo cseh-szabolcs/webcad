@@ -79,4 +79,14 @@ describe('matchesKeyword', () => {
         expect(matchesKeyword('s', 'sehnenLänge')).toBe(false);
         expect(matchesKeyword('sehnen', 'sehnenLänge')).toBe(false);
     });
+
+    it('wants all the capitals a shortcut starts with', () => {
+        expect(matchesKeyword('ba', 'BAsispunkt')).toBe(true);
+        expect(matchesKeyword('Basis', 'BAsispunkt')).toBe(true);
+        expect(matchesKeyword('b', 'BAsispunkt')).toBe(false);
+        expect(matchesKeyword('be', 'BAsispunkt')).toBe(false);
+        expect(matchesKeyword('x', 'eXit')).toBe(true);
+        expect(matchesKeyword('exit', 'eXit')).toBe(true);
+        expect(matchesKeyword('b', 'Base point')).toBe(true);
+    });
 });

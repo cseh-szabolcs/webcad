@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Point } from '../model/Point';
-import { arcSegments } from './arc';
+import { arcSegments, arcThrough } from './arc';
 
 const center = { x: 1000, y: 240 };
 const round3 = (n: number) => Math.round(n * 1000) / 1000 + 0;
@@ -47,5 +47,22 @@ describe('arcSegments', () => {
         const segments = arcSegments(center, { x: 1900, y: 240 }, { x: 2500, y: 240 }, false);
         expect(segments).toHaveLength(5);
         expect(points(segments).at(-1)).toEqual({ x: 1900, y: 240 });
+    });
+});
+
+describe('arcThrough', () => {
+    it('finds centre and direction of the arc through three points', () => {
+        const arc = arcThrough({ x: 1900, y: 240 }, { x: 1000, y: 1140 }, { x: 100, y: 240 });
+        expect(round(arc?.center)).toEqual(center);
+        expect(arc?.clockwise).toBe(false);
+    });
+
+    it('is clockwise when the points turn right', () => {
+        expect(arcThrough({ x: 100, y: 240 }, { x: 1000, y: 1140 }, { x: 1900, y: 240 })?.clockwise).toBe(true);
+    });
+
+    it('gives none for points on one line or coinciding', () => {
+        expect(arcThrough({ x: 0, y: 0 }, { x: 5, y: 5 }, { x: 10, y: 10 })).toBeNull();
+        expect(arcThrough({ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 10, y: 10 })).toBeNull();
     });
 });

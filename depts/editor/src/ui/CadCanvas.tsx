@@ -172,18 +172,18 @@ export function CadCanvas({
         snapMarkerRef.current = snapMarker;
         // Above the snap display, whose tooltips it must not hide
         const dynamicLayer = new DynamicInputLayer(container);
-        const overlay = new SelectionOverlay(renderer);
+        const overlay = new SelectionOverlay(renderer, settingsRef.current);
         overlay.setTheme(themeRef.current);
         overlayRef.current = overlay;
         editorRef.current = editor;
 
         /**
-         * Where the cursor shows: on the snap point, the object snap tracking point or the polar
-         * tracking point while the magnet holds it, else at the pointer.
+         * Where the cursor shows: on the snap point, the object snap tracking point, the polar
+         * tracking point or the grip under it while the magnet holds it, else at the pointer.
          */
         const cursorAt = (viewPoint: Point): Point => {
-            const { snap, objectTrack, polar } = editor.snapshot;
-            const held = snap?.point ?? objectTrack?.point ?? polar?.point;
+            const { snap, objectTrack, polar, hoveredGrip } = editor.snapshot;
+            const held = snap?.point ?? objectTrack?.point ?? polar?.point ?? hoveredGrip?.point;
             return held && settingsRef.current.snapMagnet ? viewportRef.current.modelToView(held) : viewPoint;
         };
         /** Pointer position while the crosshair shows, so it can follow snap and zoom changes. */
@@ -218,23 +218,38 @@ export function CadCanvas({
             });
         };
         const refreshOverlay = () => {
-            const { snap, snapCycle, snapPreview, polar, acquired, objectTrack, from, preview, previewPoint, cursor } =
+            const { snap, snapCycle, snapPreview, polar, acquired, objectTrack, from, preview, previewKeeps, previewPoint, cursor } =
                 editor.snapshot;
+            const { command, hotGrips } = editor.snapshot;
             const viewport = viewportRef.current;
             // While moving, the originals show dimmed under the preview, like AutoCAD
             const basePoint = preview === 'move' ? from : null;
-            // Also from the last point while PLINIE measures a length, and where KREIS, ELLIPSE or RECHTECK ask for one
+            // Likewise the elements a grip changes, under their preview
+            const edited = typeof preview === 'object' && preview?.kind === 'elements' ? preview.ids : null;
+            // Also from the last point while PLINIE measures a length, where KREIS, ELLIPSE or RECHTECK ask for one, and from a hot grip
             const rubberBand =
                 typeof preview === 'object' &&
-                (preview?.kind === 'polyline' ? preview.direction !== undefined : preview?.rubberBand === true);
+                preview !== null &&
+                (preview.kind === 'polyline'
+                    ? preview.direction !== undefined
+                    : preview.kind === 'curve'
+                      ? preview.rubberBand
+                      : true);
             const rubberBandFrom = basePoint ?? (rubberBand ? from : null);
-            renderer.setDimmed(basePoint ? editor.snapshot.highlighted : NOTHING);
+            // And the whole selection while a grip rotates, scales or mirrors it
+            const transformed = typeof preview === 'object' && preview?.kind === 'transform';
+            const dimmed = basePoint || transformed ? editor.snapshot.highlighted : (edited ?? NOTHING);
+            // Not with a grip's option Copy, where the originals stay
+            renderer.setDimmed(previewKeeps ? NOTHING : dimmed);
+            // A grip's base point shows as a cross once it is not the hot grip itself
+            const onGrip = from !== null && hotGrips.some(({ point }) => point.x === from.x && point.y === from.y);
+            const marked = command === 'GRIP_EDIT' ? (onGrip ? null : from) : basePoint;
             overlay.render(editor.snapshot);
             snapMarker.showPreview(
                 snapPreview.map(({ point, mode }) => ({ viewPoint: viewport.modelToView(point), mode })),
             );
             snapMarker.show(snap && { viewPoint: viewport.modelToView(snap.point), mode: snap.mode, cycle: snapCycle });
-            snapMarker.showBasePoint(basePoint && viewport.modelToView(basePoint));
+            snapMarker.showBasePoint(marked && viewport.modelToView(marked));
             snapMarker.showRubberBand(
                 rubberBandFrom &&
                     previewPoint && { from: viewport.modelToView(rubberBandFrom), to: viewport.modelToView(previewPoint) },

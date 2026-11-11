@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { commandName, type EditorCommand } from 'app/cad/editor/commandNames';
+import type { ToolId } from 'app/cad/editor/tools/EditorTool';
 import { ToolIcon } from './ToolIcon';
 
 /** The tool buttons, grouped like AutoCAD's Draw and Modify panels. */
@@ -21,8 +22,8 @@ const GROUPS = [
 }[];
 
 interface ToolPanelProps {
-    /** The running command, whose button shows pressed. */
-    command: EditorCommand | null;
+    /** The running command, whose button shows pressed; the editing of a grip has none. */
+    command: ToolId | null;
     onStart: (command: EditorCommand) => void;
 }
 

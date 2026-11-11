@@ -1,0 +1,160 @@
+{#
+ # The customers (App\Customer\Controller\CustomerListController): static, with two dummy rows,
+ # the first one selected and shown in the detail panel beside the list. Search, filter and
+ # sorting are plain form fields, the row button shows only the three dots: no JavaScript yet.
+ # Editing and creating plans do not exist yet, so their links have the href #.
+ #}
+
+{% set icons = {
+    search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
+    filter: '<path d="M3 5h18l-7 8v6l-4-2v-4z"/>',
+    sort: '<path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/>',
+    building: '<path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M3 21h18M8 8h3M8 12h3M8 16h3"/>',
+    mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+    phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
+    close: '<path d="M6 6l12 12M18 6L6 18"/>',
+} %}
+{% set dots %}
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+        <circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/>
+    </svg>
+{% endset %}
+
+
+<div class="split" style="border:4px solid blue; margin-top:40px;">
+<section class="data-card split__main" aria-label="{{ 'customer.list.title'|trans }}">
+    <div class="toolbar">
+
+        <label class="field-box">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">{{ icons.filter|raw }}</svg>
+            <span class="visually-hidden">{{ 'customer.list.filter_label'|trans }}</span>
+            <select>
+                <option value="">{{ 'customer.list.all_tags'|trans }}</option>
+                <option>Öffentlich</option>
+                <option>Stammkunde</option>
+            </select>
+        </label>
+        <label class="field-box">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">{{ icons.sort|raw }}</svg>
+            <span class="visually-hidden">{{ 'customer.list.sort_label'|trans }}</span>
+            <select>
+                <option value="updated:desc">{{ 'customer.list.sort.updated'|trans }}</option>
+                <option value="created:desc">{{ 'customer.list.sort.created'|trans }}</option>
+                <option value="name:asc">{{ 'customer.list.sort.name_asc'|trans }}</option>
+                <option value="name:desc">{{ 'customer.list.sort.name_desc'|trans }}</option>
+            </select>
+        </label>
+        <span class="toolbar__count">{{ 'customer.list.count_other'|trans({'%count%': 2}) }}</span>
+    </div>
+
+    <div class="data-card__scroll">
+        <table class="data-table data-table--wide">
+            <thead>
+                <tr>
+                    <th scope="col">{{ 'customer.field.name'|trans }}</th>
+                    <th scope="col">{{ 'customer.field.contact'|trans }}</th>
+                    <th scope="col">{{ 'customer.field.tags'|trans }}</th>
+                    <th scope="col">{{ 'customer.field.updated'|trans }}</th>
+                    <th scope="col" class="data-table__cell--action"><span class="visually-hidden">{{ 'customer.list.actions'|trans }}</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="data-table__row--interactive data-table__row--selected">
+                    <td>
+                        <div class="identity">
+                            <span class="avatar avatar--square tone--neutral" aria-hidden="true">
+                                <svg class="icon icon--lg" viewBox="0 0 24 24">{{ icons.building|raw }}</svg>
+                            </span>
+                            <div>
+                                <span class="identity__name">Stadtwerke Musterstadt</span>
+                                <span class="identity__sub">{{ 'customer.list.company_contact'|trans }}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="meta-list">
+                            <span class="meta-list__item meta-list__item--link">
+                                <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true">{{ icons.mail|raw }}</svg>
+                                info@stadtwerke.example.com
+                            </span>
+                        </div>
+                    </td>
+                    <td class="data-table__cell--wrap">
+                        <div class="pills">
+                            <span class="pill tone--orange">Öffentlich</span>
+                            <span class="pill tone--green">Stammkunde</span>
+                        </div>
+                    </td>
+                    <td class="text-muted" title="06.11.2026">Gestern</td>
+                    <td class="data-table__cell--action">
+                        <button type="button" class="icon-btn" aria-label="{{ 'customer.list.actions_for'|trans({'%name%': 'Stadtwerke Musterstadt'}) }}">{{ dots }}</button>
+                    </td>
+                </tr>
+                <tr class="data-table__row--interactive">
+                    <td>
+                        <div class="identity">
+                            <span class="avatar tone--blue" aria-hidden="true">MK</span>
+                            <div>
+                                <span class="identity__name">Mira Keller</span>
+                                <span class="identity__sub">{{ 'customer.list.private'|trans }}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="meta-list">
+                            <span class="meta-list__item meta-list__item--link">
+                                <svg class="icon icon--sm" viewBox="0 0 24 24" aria-hidden="true">{{ icons.mail|raw }}</svg>
+                                mira.keller@example.com
+                            </span>
+                        </div>
+                    </td>
+                    <td class="data-table__cell--wrap"><span class="text-muted">–</span></td>
+                    <td class="text-muted" title="06.11.2026">Gestern</td>
+                    <td class="data-table__cell--action">
+                        <button type="button" class="icon-btn" aria-label="{{ 'customer.list.actions_for'|trans({'%name%': 'Mira Keller'}) }}">{{ dots }}</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<aside class="detail-panel split__aside" aria-label="{{ 'customer.detail.label'|trans }}">
+    <div class="detail-panel__head">
+        <span class="avatar avatar--lg avatar--square tone--neutral" aria-hidden="true">SM</span>
+        <div class="detail-panel__title">
+            <h2>Stadtwerke Musterstadt</h2>
+            <p>{{ 'customer.list.company_contact'|trans }}</p>
+        </div>
+        <button type="button" class="icon-btn icon-btn--filled" aria-label="{{ 'customer.detail.close'|trans }}">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">{{ icons.close|raw }}</svg>
+        </button>
+    </div>
+
+    <div class="pills">
+        <span class="pill tone--orange">Öffentlich</span>
+        <span class="pill tone--green">Stammkunde</span>
+    </div>
+
+    <dl class="facts">
+        <dt>{{ 'customer.field.email'|trans }}</dt>
+        <dd><a href="mailto:info@stadtwerke.example.com">info@stadtwerke.example.com</a></dd>
+        <dt>{{ 'customer.field.phone'|trans }}</dt>
+        <dd>{{ 'customer.detail.not_set'|trans }}</dd>
+        <dt>{{ 'customer.field.created'|trans }}</dt>
+        <dd>06.11.2026</dd>
+        <dt>{{ 'customer.field.updated'|trans }}</dt>
+        <dd>06.11.2026</dd>
+    </dl>
+
+    <section class="detail-panel__section">
+        <h3>{{ 'customer.detail.plans'|trans }}</h3>
+        <p>{{ 'customer.detail.plans_empty'|trans }}</p>
+    </section>
+
+    <div class="detail-panel__actions">
+        <a class="btn btn--ghost" href="#">{{ 'customer.list.edit'|trans }}</a>
+        <a class="btn btn--primary" href="#">{{ 'customer.list.create_plan'|trans }}</a>
+    </div>
+</aside>
+</div>

@@ -6,7 +6,7 @@ Auf dem Mac entspricht **Option (⌥)** der Taste Alt.
 Tastenkürzel wirken, solange der Fokus nicht in einem Textfeld liegt.
 
 Der Editor zeigt Pläne an, wählt Objekte aus, zeichnet Linien mit dem Befehl LINIE,
-Polylinien mit PLINIE, Kreise mit KREIS, Ellipsen mit ELLIPSE und Rechtecke mit RECHTECK und verschiebt Objekte mit dem Befehl SCHIEBEN (mit Raster, Objektfang, Polarspur, Ortho, Objektfangspuren, Koordinateneingabe, dynamischer Eingabe und Rückgängig). Gespeichert wird noch nichts; was
+Polylinien mit PLINIE, Kreise mit KREIS, Ellipsen mit ELLIPSE und Rechtecke mit RECHTECK, verschiebt Objekte mit dem Befehl SCHIEBEN und streckt sie an ihren [Grips](#grips) (mit Raster, Objektfang, Polarspur, Ortho, Objektfangspuren, Koordinateneingabe, dynamischer Eingabe und Rückgängig). Gespeichert wird noch nichts; was
 sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgesetzt).
 
 ## Oberfläche
@@ -55,7 +55,8 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
 | Button **Zoom Grenzen**         | Zeigt den ganzen Plan                    |
 
 Zoomen und Pannen gehen jederzeit, auch während ein Auswahlrechteck offen ist oder ein
-Befehl nach einem Punkt fragt.
+Befehl nach einem Punkt fragt. Nur beim Bearbeiten eines [Grips](#grips) wechselt die
+Leertaste den Modus; die Ansicht verschiebt dort die mittlere Maustaste.
 
 ## Cursor
 
@@ -83,7 +84,7 @@ noch nicht.
 |-------------------------------------------|-----------------------------------------------------|
 | Kein Befehl (mit oder ohne Auswahl)       | Wiederholt den zuletzt gestarteten Befehl; ist ein Befehlsname getippt, führt er diesen aus. Ohne bisherigen Befehl passiert nichts |
 | `Objekte wählen:`                         | Beendet die Auswahl                                 |
-| Punkt-Aufforderung                        | Wie Enter: nimmt das Getippte, sonst die Vorgabe des Befehls (z. B. bei SCHIEBEN `Basispunkt` die Option Verschiebung, bei LINIE `Ersten Punkt` das Fortsetzen, beim nächsten Punkt das Beenden) |
+| Punkt-Aufforderung                        | Wie Enter: nimmt das Getippte, sonst die Vorgabe des Befehls (z. B. bei SCHIEBEN `Basispunkt` die Option Verschiebung, bei LINIE `Ersten Punkt` das Fortsetzen, beim nächsten Punkt das Beenden, bei einem hot [Grip](#grips) den nächsten Modus, mit dessen Option `Kopieren` das Beenden) |
 | Auswahlrechteck oder Lasso offen          | Wird ignoriert, startet also keinen Befehl          |
 
 So lässt sich z. B. LINIE mit einem Rechtsklick beenden und mit einem zweiten Rechtsklick
@@ -119,7 +120,8 @@ gewählte Objekte blau mit **Grips** (blaue Quadrate):
 
 Die Kontrollpunkte einer Bézier-Kurve liegen neben der Kurve; gestrichelte Linien
 (Kontrollrahmen) verbinden sie mit ihrem Endpunkt. Teilen sich gewählte Objekte einen
-Punkt, gibt es dort nur einen Grip. Die Grips haben noch keine Funktion.
+Punkt, gibt es dort nur einen Grip. Was ein Klick auf einen Grip tut, steht unter
+[Grips](#grips).
 
 ### Rechteck: Fenster und Kreuzen
 
@@ -158,6 +160,136 @@ Punkt, gibt es dort nur einen Grip. Die Grips haben noch keine Funktion.
 - Wird ein Element einer **Gruppe** getroffen (per Klick, Rechteck oder Lasso), wird
   immer die ganze Gruppe gewählt bzw. entfernt. Mitglieder auf gesperrten oder
   ausgeblendeten Layern bleiben außen vor.
+
+## Grips
+
+Die Grips einer Auswahl (ohne laufenden Befehl) sind Griffe zum Bearbeiten, wie in AutoCAD.
+Die Segmentmitten einer Polylinie erscheinen als kleiner Balken längs des Segments, alle
+anderen Grips als Quadrat. Größe: Einstellung `gripSize`; Farben: Einstellung `gripColor`.
+
+| Zustand | Bedeutung                                                    | Farbe (`gripColor`) |
+|---------|--------------------------------------------------------------|---------------------|
+| warm    | Grip eines gewählten Objekts                                 | `warm`              |
+| hover   | Grip unter dem Cursor; ein Klick würde ihn bearbeiten        | `hover`             |
+| hot     | Grip wird gerade bearbeitet und ist der Basispunkt           | `hot`               |
+
+Ein Grip ist getroffen, sobald die Pickbox ihn berührt. Er hat dann Vorrang vor dem Objekt
+darunter (kein Überfahren-Effekt), und das Fadenkreuz springt auf den Grip (Einstellung
+`snapMagnet`). **Shift + Klick** bearbeitet keinen Grip: Er wirkt wie ohne Grips und entfernt
+das Objekt unter dem Cursor aus der Auswahl.
+
+### Strecken
+
+1. **Klick auf einen Grip** macht ihn hot. Die Kommandozeile fragt
+   `** STRECKEN ** Streckpunkt angeben oder [BAsispunkt/Kopieren/Zurück/eXit]:` (zu den
+   Optionen siehe [Grip-Optionen](#grip-optionen)), die Auswahl und ihre Grips bleiben sichtbar.
+2. **Zielpunkt angeben.** Eine Vorschau zeigt die betroffenen Objekte so, wie sie nach einem
+   Klick aussähen; die Originale sind solange grau, ein gestricheltes Gummiband läuft vom Grip
+   zum Cursor. Der Punkt wird wie bei SCHIEBENs zweitem Punkt angegeben: Klick mit
+   [Objektfang](#objektfang-ofang), [Polarspur](#polarspur-polar), [Ortho](#ortho-ortho) und
+   [Objektfangspuren](#objektfangspuren-otrack), [dynamische Eingabe](#dynamische-eingabe-dyn)
+   (Abstand und Winkel ab dem Grip) oder getippt wie unter
+   [Eingabe in der Kommandozeile](#eingabe-in-der-kommandozeile) (`@dx,dy` und die direkte
+   Distanzeingabe messen ab dem Grip).
+3. Das Strecken ist ein Rückgängig-Schritt (`Rückgängig: STRECKEN`). Die Objekte **bleiben
+   gewählt**, ihre Grips stehen an der neuen Stelle.
+
+Statt zweimal zu klicken, lässt sich der Grip auch **ziehen**: Taste auf dem Grip drücken,
+ziehen, loslassen. Das Loslassen setzt den Zielpunkt, sobald die Maus weiter als
+`DRAG_THRESHOLD_PX` (`src/cad/editor/SelectionEditor.ts`) bewegt wurde; sonst bleibt der Grip
+hot und wartet auf den nächsten Klick.
+
+**Esc** bricht ab (`*Abbruch*`), die Auswahl bleibt; erst ein zweites Esc hebt sie auf.
+**Enter**, die **Leertaste** und der **Rechtsklick** wechseln den [Modus](#grip-modi). Bleibt
+der Grip, wo er war, oder kann er nicht dorthin (siehe Tabelle), ändert sich nichts und es
+entsteht kein Rückgängig-Schritt.
+
+| Grip                                               | Wirkung                                                         |
+|----------------------------------------------------|-----------------------------------------------------------------|
+| Linienende, Polylinien-Ecke, Bézier-Ende           | Verschiebt diesen Punkt, der Rest bleibt                         |
+| Linienmitte                                        | Verschiebt die ganze Linie                                       |
+| Segmentmitte einer Polylinie                       | Verschiebt das Segment parallel (seine beiden Ecken)             |
+| Zentrum von Kreis, Ellipse, Bogen                  | Verschiebt das Objekt                                            |
+| Quadrant eines Kreises                             | Ändert den Radius: Abstand vom Zentrum zum Zielpunkt; nicht aufs Zentrum |
+| Quadrant einer Ellipse                             | Ändert den Radius dieser Achse (Abstand zum Zentrum), die Drehung bleibt; nicht aufs Zentrum |
+| Anfang oder Ende eines Bogens                      | Neuer Bogen durch das andere Ende, die bisherige Bogenmitte und den Zielpunkt; nicht auf deren Gerade |
+| Bogenmitte                                         | Neuer Bogen durch beide Enden und den Zielpunkt; nicht auf deren Gerade |
+| Bézier-Kontrollpunkt                               | Verschiebt nur diesen Kontrollpunkt                              |
+
+Liegen Grips mehrerer **gewählter** Objekte an derselben Stelle, werden alle zusammen
+gestreckt (z. B. die gemeinsame Ecke zweier Linien). Wie in AutoCAD ändert sich sonst kein
+Objekt: Nutzt ein nicht bearbeitetes Objekt einen bewegten Punkt mit, behält es eine Kopie
+des Punkts an der alten Stelle, so wie bei [SCHIEBEN](#befehl-schieben). Zwei Positionen
+gelten als gleich, wenn sie sich um weniger als `SAME_POSITION`
+(`src/cad/editor/commands/elementEdits.ts`) unterscheiden.
+
+### Grip-Modi
+
+Solange ein Grip hot ist, wechseln **Enter**, die **Leertaste** oder ein **Rechtsklick** (ohne
+getippten Text) zum nächsten Modus, wie in AutoCAD, und nach dem letzten wieder zum ersten. Der
+hot Grip bleibt der Basispunkt. Anders als STRECKEN wirken die übrigen Modi auf die **ganze
+Auswahl**; ihre Vorschau zeigt alle gewählten Objekte, die Originale sind solange grau.
+
+| Modus     | Aufforderung                                | Eingabe und Wirkung                                             |
+|-----------|---------------------------------------------|-----------------------------------------------------------------|
+| STRECKEN  | `** STRECKEN ** Streckpunkt angeben oder […]:` | Siehe [Strecken](#strecken)                                  |
+| SCHIEBEN  | `** SCHIEBEN ** Verschiebepunkt angeben oder […]:` | Punkt: verschiebt die Auswahl um (Punkt − Grip), wie [SCHIEBEN](#befehl-schieben) |
+| DREHEN    | `** DREHEN ** Drehwinkel angeben oder […]:` | Getippte Zahl: Winkel in Grad, gegen den Uhrzeigersinn. Punkt: die Richtung vom Grip zum Punkt ist der Winkel. Dreht die Auswahl um den Grip |
+| SKALIEREN | `** SKALIEREN ** Skalierfaktor angeben oder […]:` | Getippte Zahl: Faktor (z. B. `0.5`, `2`). Punkt: sein Abstand vom Grip in mm ist der Faktor (wie in AutoCAD, daher meist getippt). Skaliert die Auswahl vom Grip aus |
+| SPIEGELN  | `** SPIEGELN ** Zweiten Punkt angeben oder […]:` | Punkt: spiegelt die Auswahl an der Linie vom Grip zum Punkt; das Original bleibt nicht erhalten |
+
+Punkte werden wie beim Strecken angegeben (Klick mit Objektfang, Polarspur, Ortho,
+Objektfangspuren, getippte Koordinaten). Beim Drehwinkel zeigt die
+[dynamische Eingabe](#dynamische-eingabe-dyn) noch keine Felder, die Zahl geht in die
+Kommandozeile; ein Text, der kein Winkel ist, meldet `Erfordert gültigen numerischen Winkel oder
+zweiten Punkt.`. Ein Faktor muss positiv sein (`Wert muss positiv und ungleich Null sein.`).
+Vielfache von 90° drehen exakt, ohne Rundungsreste in den Koordinaten.
+
+Jeder Modus ist ein Rückgängig-Schritt (`Rückgängig: SCHIEBEN`, `DREHEN`, `SKALIEREN`,
+`SPIEGELN`). Ein Drehwinkel von 0° (oder ein Vielfaches von 360°), der Faktor 1 und ein
+Verschieben um nichts ändern nichts und hinterlassen keinen Schritt. Nicht gewählte Objekte
+ändern sich auch hier nie: Sie behalten eine Kopie eines mitbenutzten Punkts an der alten
+Stelle.
+
+### Grip-Optionen
+
+Jede Aufforderung eines Modus nennt in eckigen Klammern ihre Optionen:
+`[BAsispunkt/Kopieren/Zurück/eXit]`, bei DREHEN und SKALIEREN
+`[BAsispunkt/Kopieren/Zurück/BEzug/eXit]`. Eine Option wird wie in AutoCAD getippt und mit
+Enter oder Leertaste abgeschlossen: mindestens die Großbuchstaben (`BA`, `K`, `Z`, `BE`, `X`),
+beliebig weiter ausgeschrieben, Groß-/Kleinschreibung egal. Ein einzelnes `B` reicht nicht,
+weil es `BAsispunkt` und `BEzug` meinen könnte. Im englischen Editor heißen sie
+`Base point`, `Copy`, `Undo`, `Reference`, `eXit`.
+
+| Option       | Wirkung                                                                              |
+|--------------|--------------------------------------------------------------------------------------|
+| `BAsispunkt` | Fragt `Basispunkt angeben:`. Der gegebene Punkt ersetzt den Grip als Basispunkt des Modus (Drehpunkt, Anfang des Verschiebevektors, …) und wird als kleines Kreuz markiert; der Grip bleibt hot |
+| `Kopieren`   | Die Originale bleiben, jede Eingabe (Punkt, Winkel, Faktor) erzeugt sofort eine Kopie; die Aufforderung zeigt `(mehrere)`, z. B. `** STRECKEN (mehrere) **`. Enter, Leertaste oder Rechtsklick **beenden** dann, statt den Modus zu wechseln |
+| `Zurück`     | Nimmt die letzte Kopie oder den zuletzt gewählten Basispunkt zurück; ist nichts mehr da, meldet die Kommandozeile `Nichts zum Zurücknehmen.` |
+| `BEzug`      | Nur DREHEN und SKALIEREN, siehe unten                                                |
+| `eXit`       | Beendet das Bearbeiten des Grips; schon erzeugte Kopien bleiben                      |
+
+Mit `Kopieren` zeigt die Vorschau die Kopie, die Originale bleiben dabei hervorgehoben und
+werden nicht grau. Bei STRECKEN wird nur kopiert, was der Grip streckt, in den anderen Modi die
+ganze Auswahl. Kopien bekommen eigene Punkte; teilen sich die Originale einen Punkt, teilen sich
+auch ihre Kopien einen. Kopien gruppierter Objekte bilden eine eigene Gruppe mit demselben
+Namen. Alle Kopien eines Durchgangs sind zusammen **ein** Rückgängig-Schritt, auch wenn **Esc**
+das Bearbeiten beendet (die Kopien bleiben).
+
+**`BEzug`** misst gegen einen Bezugswert, statt den Winkel oder Faktor direkt anzugeben:
+
+- **DREHEN:** `Bezugswinkel angeben <0>:` nimmt eine getippte Zahl, Enter für 0 oder zwei
+  geklickte Punkte (nach dem ersten fragt die Kommandozeile `Zweiten Punkt angeben:`; der
+  Winkel der Linie zwischen beiden zählt). Danach `Neuen Winkel angeben oder […]:`; gedreht wird
+  um (neuer Winkel − Bezugswinkel). So lässt sich eine schräge Kante auf einen bestimmten Winkel
+  drehen.
+- **SKALIEREN:** `Bezugslänge angeben <1.0000>:` nimmt eine getippte Länge, Enter für 1 oder
+  zwei geklickte Punkte (ihr Abstand zählt). Danach `Neue Länge angeben oder […]:`, getippt oder
+  als Abstand vom Basispunkt zu einem Punkt; der Faktor ist (neue Länge / Bezugslänge). So lässt
+  sich mit der Maus skalieren: Bezugslänge an einer Kante abgreifen, dann die neue Länge zeigen.
+
+Der Bezug gilt, bis der Modus wechselt, also auch für alle Kopien. Während nach einem
+Basispunkt oder Bezug gefragt wird, gibt es keine Optionen; Esc bricht das Bearbeiten ab.
 
 ## Befehl SCHIEBEN
 
@@ -771,9 +903,11 @@ und BKS-Symbol, gelesen beim Laden eines Plans:
 | `snapMarkerSize`   | Halbe Größe des Fangmarkers in px                              | AUTOSNAPSIZE |
 | `snapMarker`       | Fangmarker anzeigen                                            | AUTOSNAP     |
 | `snapTooltip`      | Tooltip mit dem Modusnamen anzeigen                            | AUTOSNAP     |
-| `snapMagnet`       | Fadenkreuz springt auf den Fangpunkt (und auf Polar- und Objektfangspuren) | AUTOSNAP |
+| `snapMagnet`       | Fadenkreuz springt auf den Fangpunkt (und auf Polar- und Objektfangspuren sowie auf Grips) | AUTOSNAP |
 | `snapPreview`      | Fangpunkt-Vorschau der Objekte unter dem Fangbereich           | (keine)      |
 | `previewColor`     | Farbe von Fangpunkt-Vorschau und Gummiband, bei Hell / Dunkel  |              |
+| `gripSize`         | Kantenlänge eines Grips in px; mit der Pickbox zusammen sein Trefferbereich | GRIPSIZE |
+| `gripColor`        | Farben der Grips (`warm`, `hover`, `hot`), bei Hell / Dunkel   | GRIPCOLOR, GRIPHOVER, GRIPHOT |
 | `polarTolerance`   | Größter Abstand des Cursors von einer Polar- oder Objektfangspur in px |      |
 | `trackingAcquireDelay` | Verweildauer in ms, bis ein Fangpunkt für die Objektfangspuren erfasst (bzw. wieder entfernt) wird | (keine) |
 | `gridMinSpacing`   | Kleinster Abstand der Rasterlinien in px; enger wird das Raster gröber |      |
@@ -824,8 +958,11 @@ Neuladen):
   Bemaßung beider Seiten in der dynamischen Eingabe, aktueller Layer und Stil; Details in
   `docs/todo/Rectangle_Draw_NotImplemented.md`.
 - Weitere Zeichenbefehle (BOGEN …).
-- **Grip-Funktionen** (Ziehen an Grips) und alle anderen Bearbeitungsbefehle wie Löschen,
-  Gruppieren oder Kopieren.
+- Bei den Grips: ein Feld der dynamischen Eingabe für den Drehwinkel, Kopieren mit
+  gedrückter Strg-Taste und Versatzfang mit Shift, mehrere hot Grips mit Shift, das Menü beim Verweilen auf einem Grip (Länge, Scheitelpunkt hinzufügen
+  oder entfernen, Radius), Grips als Fangpunkte bei ausgeschaltetem Objektfang, eine
+  Obergrenze für die Zahl der Grips; Details in `docs/todo/Grips_NotImplemented.md`.
+- Alle anderen Bearbeitungsbefehle wie Löschen, Gruppieren oder Kopieren.
 - Gruppenauswahl ausschalten (AutoCAD Ctrl+Shift+A), um einzelne Gruppenmitglieder zu
   wählen.
 - Zwischen überlappenden Objekten unter dem Cursor durchschalten.

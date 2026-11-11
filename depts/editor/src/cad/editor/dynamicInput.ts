@@ -57,10 +57,11 @@ const ORIGIN: Point = { x: 0, y: 0 };
 /**
  * Which fields the prompt shows: a `point` (and a `vector`) only with pointer input, a `next`
  * point or a `distance` on a dimension with dimension input, else at the crosshair; null for
- * none, in which case typing goes to the command line as usual.
+ * none (always at an `angle` prompt, which has no field yet), in which case typing goes to the
+ * command line as usual.
  */
 export function dynamicLayout(settings: DynamicInputSettings, prompt: PointPromptKind): DynamicLayout | null {
-    if (!settings.enabled) {
+    if (!settings.enabled || prompt === 'angle') {
         return null;
     }
     if ((prompt === 'next' || prompt === 'distance') && settings.dimensionInput) {

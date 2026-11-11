@@ -18,7 +18,7 @@ import { rectFromCorners } from '../geometry/selectionGeometry';
 import { parseNumber, parsePointInput, resolvePointInput } from './commandInput';
 import type { EditorKeyEvent, EditorPointerEvent } from './EditorPointerEvent';
 import { buildElementShapes } from './selection/ElementShapes';
-import { selectionControlFrames, selectionGrips } from './selection/grips';
+import { gripAt, selectionControlFrames, selectionGrips, type Grip } from './selection/grips';
 import { buildSelectionUnits, expandToUnits } from './selection/grouping';
 import { pickAt, pickCrossing, pickLasso, pickWindow } from './selection/picking';
 import { ShapeIndex } from './selection/ShapeIndex';
@@ -26,15 +26,16 @@ import { SnapEngine, SnapMemory, coincide, sameSnapPoint, type SnapResult } from
 import type { SnapPoint } from './snapping/SnapGeometry';
 import { orthoPoint } from './tracking/ortho';
 import { t } from '../../i18n/i18n';
-import { commandName, findCommand, type EditorCommand } from './commandNames';
+import { findCommand, labelName, type EditorCommand } from './commandNames';
 import type { DrawingMemory } from './tools/DrawingMemory';
 import { CircleTool } from './tools/CircleTool';
 import { EllipseTool } from './tools/EllipseTool';
+import { GripTool } from './tools/GripTool';
 import { LineTool } from './tools/LineTool';
 import { MoveTool } from './tools/MoveTool';
 import { PolylineTool } from './tools/PolylineTool';
 import { RectangleTool } from './tools/RectangleTool';
-import type { EditorTool, Message, PointPrompt, ToolPreview, ToolStep } from './tools/EditorTool';
+import type { EditorTool, Message, PointPrompt, ToolId, ToolPreview, ToolStep } from './tools/EditorTool';
 import {
     backspaceDynamic,
     dynamicFields,
@@ -71,6 +72,8 @@ const DRAG_THRESHOLD_PX = 3;
 const LASSO_STEP_PX = 4;
 const NO_POINTS: readonly SnapPoint[] = [];
 const NO_ACQUIRED: readonly AcquiredPoint[] = [];
+const NO_GRIPS: readonly Grip[] = [];
+const NO_FRAMES: SelectionSnapshot['controlFrames'] = [];
 
 export type { EditorCommand };
 
@@ -78,6 +81,8 @@ export type { EditorCommand };
 const INVALID_INPUT: Message = () => t('message.invalidInput');
 /** The same at a `distance` prompt. */
 const INVALID_DISTANCE: Message = () => t('message.invalidDistance');
+/** The same at an `angle` prompt. */
+const INVALID_ANGLE: Message = () => t('message.invalidAngle');
 const CANCEL: Message = () => t('message.cancel');
 
 /** A key that types a character on the command line (Space ends the text instead). */
@@ -101,8 +106,8 @@ export type SelectionArea =
 
 /** What the selection overlay and the UI show. Replaced, never mutated. */
 export interface SelectionSnapshot {
-    /** Running command, or null while the editor waits for one. */
-    command: EditorCommand | null;
+    /** Running command (or `GRIP_EDIT` while a grip is edited), or null while the editor waits for one. */
+    command: ToolId | null;
     /** Command line prompt. */
     prompt: string;
     /** Text typed at the prompt so far, not yet ended with Enter. */
@@ -119,8 +124,12 @@ export interface SelectionSnapshot {
     hovered: ReadonlySet<Id>;
     /** Elements drawn as selected: the pickfirst selection, or the command's selection. */
     highlighted: ReadonlySet<Id>;
-    /** Grips of the pickfirst selection; none while a command runs. No function yet. */
-    grips: readonly Point[];
+    /** Grips of the pickfirst selection; none while a command runs, except the editing of a grip. */
+    grips: readonly Grip[];
+    /** The grip under the cursor, which a click would edit; one of `grips`, or null. */
+    hoveredGrip: Grip | null;
+    /** The grips being edited (hot), among `grips`; none otherwise. */
+    hotGrips: readonly Grip[];
     /** Control frame lines shown with the grips (bezier end to its control point). */
     controlFrames: readonly (readonly [Point, Point])[];
     /** Selection rectangle or lasso in progress, or null. */
@@ -159,6 +168,8 @@ export interface SelectionSnapshot {
     from: Point | null;
     /** How the point a click would take is previewed from `from`; null without `from`. */
     preview: ToolPreview | null;
+    /** The preview shows copies and the originals stay (see EditorTool.keepsOriginals). */
+    previewKeeps: boolean;
     /**
      * At a `next` or `distance` point prompt, the point a click would take now (the snap point,
      * else the tracking point, else the Ortho point or the point on the polar path, else the
@@ -191,9 +202,15 @@ type State =
     | { kind: 'idle'; pickfirst: ReadonlySet<Id> }
     /**
      * A command runs (see EditorTool); while it selects objects, clicks build `selection`
-     * (verb-noun).
+     * (verb-noun). `gripEdit` while the tool edits grips: the pickfirst selection, which stays
+     * and comes back when the tool ends, and the hot grips.
      */
-    | { kind: 'command'; tool: EditorTool; selection: ReadonlySet<Id> };
+    | { kind: 'command'; tool: EditorTool; selection: ReadonlySet<Id>; gripEdit?: GripEdit };
+
+interface GripEdit {
+    pickfirst: ReadonlySet<Id>;
+    hot: readonly Grip[];
+}
 
 /**
  * The editor core like AutoCAD, independent of Paper.js and React: object selection, and for
@@ -256,6 +273,13 @@ type State =
  *
  * Picking a grouped element picks its whole group, also by window, crossing or lasso when
  * only one member qualifies. Never persisted.
+ *
+ * With no command, the pickfirst selection shows its grips (see grips). A click on one (the
+ * pick box touching it; it wins over the element below) makes it hot and edits it with a
+ * GripTool: the next point given stretches it, also the release after dragging it; Enter on
+ * its own, Space or a right click go on to its other modes instead (the only prompt where
+ * Space on its own acts like Enter, see PointPrompt.spaceEnters). The selection stays through
+ * the edit and after it, also after Esc.
  */
 export class SelectionEditor {
     private readonly history: DocumentHistory;
@@ -310,6 +334,17 @@ export class SelectionEditor {
     private previousSelection: ReadonlySet<Id> = new Set();
     /** Element under the cursor, whether selected or not. */
     private underCursor: Id | null = null;
+    /** Grips and control frames of the selection they were last built for (see selectionGrips). */
+    private gripCache: {
+        selection: ReadonlySet<Id>;
+        index: DocumentIndex;
+        grips: readonly Grip[];
+        controlFrames: SelectionSnapshot['controlFrames'];
+    } | null = null;
+    /** Grip of the pickfirst selection under the cursor; it wins over `underCursor`. */
+    private gripUnderCursor: Grip | null = null;
+    /** Where (view px) the press went down that made a grip hot, until its release. */
+    private gripPress: Point | null = null;
     private message: Message | null = null;
     private area: SelectionArea | null = null;
     /**
@@ -326,6 +361,8 @@ export class SelectionEditor {
 
     /** Half the pick box side in screen px (see EditorSettings.pickboxSize). */
     private readonly pickboxSize: number;
+    /** Side of a grip in screen px (see EditorSettings.gripSize). */
+    private readonly gripSize: number;
     /** Half the aperture box side in screen px (see EditorSettings.apertureSize). */
     private readonly apertureSize: number;
     /** See EditorSettings.polarTolerance. */
@@ -340,10 +377,11 @@ export class SelectionEditor {
         history: DocumentHistory | CadDocument,
         settings: Pick<
             EditorSettings,
-            'pickboxSize' | 'apertureSize' | 'polarTolerance' | 'snapPreview' | 'trackingAcquireDelay'
+            'pickboxSize' | 'apertureSize' | 'polarTolerance' | 'snapPreview' | 'trackingAcquireDelay' | 'gripSize'
         > = DEFAULT_EDITOR_SETTINGS,
     ) {
         this.pickboxSize = settings.pickboxSize;
+        this.gripSize = settings.gripSize;
         this.apertureSize = settings.apertureSize;
         this.polarTolerance = settings.polarTolerance;
         this.showSnapPreview = settings.snapPreview;
@@ -387,7 +425,7 @@ export class SelectionEditor {
         if (!command) {
             return false;
         }
-        this.endCommand(() => t('message.undone', { command: commandName(command.label) }));
+        this.endCommand(() => t('message.undone', { command: labelName(command.label) }));
         return true;
     }
 
@@ -400,7 +438,7 @@ export class SelectionEditor {
         if (!command) {
             return false;
         }
-        this.endCommand(() => t('message.redone', { command: commandName(command.label) }));
+        this.endCommand(() => t('message.redone', { command: labelName(command.label) }));
         return true;
     }
 
@@ -553,6 +591,13 @@ export class SelectionEditor {
         if (this.area !== null) {
             return;
         }
+        // A grip wins over the element below it; Shift keeps removing from the selection
+        const grip = state.kind === 'idle' && !event.shiftKey ? this.gripAt(event) : null;
+        if (grip !== null) {
+            this.gripPress = event.viewPoint;
+            this.startTool(new GripTool(this.history, this.index, [grip]), [grip]);
+            return;
+        }
         const id = this.pick(event);
         if (id === null) {
             // Becomes a rectangle or lasso only once dragged; a plain click does nothing
@@ -570,7 +615,7 @@ export class SelectionEditor {
             this.changed();
             return;
         }
-        this.underCursor = this.pick(event);
+        this.hoverAt(event);
         const press = this.press;
         const area = this.area;
         if (press !== null && area === null) {
@@ -603,6 +648,20 @@ export class SelectionEditor {
         if (event.button !== 0) {
             return;
         }
+        const gripPress = this.gripPress;
+        this.gripPress = null;
+        if (gripPress !== null && this.pointPrompt() !== null) {
+            // Dragged off the grip: the release gives the point, like the second click
+            const { x, y } = event.viewPoint;
+            if (Math.hypot(x - gripPress.x, y - gripPress.y) > DRAG_THRESHOLD_PX) {
+                this.updateSnap(event);
+                const point = this.pointAt(event.modelPoint);
+                this.input = '';
+                this.dynamic = EMPTY_DYNAMIC_INPUT;
+                this.pointGiven(point);
+            }
+            return;
+        }
         this.press = null;
         const area = this.area;
         if (area?.shape !== 'lasso') {
@@ -623,6 +682,7 @@ export class SelectionEditor {
      */
     pointerCancel(): void {
         this.press = null;
+        this.gripPress = null;
         if (this.area?.shape === 'lasso') {
             this.area = null;
             this.changed();
@@ -631,6 +691,7 @@ export class SelectionEditor {
 
     pointerLeave(): void {
         this.underCursor = null;
+        this.gripUnderCursor = null;
         this.lastPointer = null;
         this.updateSnap(null);
         this.changed();
@@ -699,19 +760,26 @@ export class SelectionEditor {
         return false;
     }
 
-    /** Starts a command; does nothing while one runs. */
-    private startTool(tool: EditorTool): void {
+    /**
+     * Starts a command; does nothing while one runs. With `hot` grips it is the editing of
+     * these: no command to repeat, and the pickfirst selection stays (see GripEdit).
+     */
+    private startTool(tool: EditorTool, hot?: readonly Grip[]): void {
         const state = this.state;
         if (state.kind !== 'idle') {
             return;
         }
         this.area = null;
         this.press = null;
-        this.lastCommand = tool.command;
-        this.state = { kind: 'command', tool, selection: new Set() };
+        this.gripUnderCursor = null;
+        if (tool.command !== 'GRIP_EDIT') {
+            this.lastCommand = tool.command;
+        }
+        const gripEdit = hot && { pickfirst: state.pickfirst, hot };
+        this.state = { kind: 'command', tool, selection: new Set(), gripEdit };
         this.prompt = null;
         const step = tool.start(state.pickfirst);
-        if (tool.highlighted.size > 0) {
+        if (tool.highlighted.size > 0 && !gripEdit) {
             this.previousSelection = tool.highlighted;
         }
         this.applyStep(step);
@@ -730,6 +798,11 @@ export class SelectionEditor {
             this.endCommand(step.message ?? null);
             if (step.command) {
                 this.history.execute(step.command);
+            }
+            if (state.gripEdit) {
+                // The cursor rests on the grip it just placed
+                this.hoverAt(this.lastPointer);
+                this.changed();
             }
             return;
         }
@@ -763,15 +836,16 @@ export class SelectionEditor {
         return this.ortho !== this.shiftHeld;
     }
 
-    /** The point the current `next` or `distance` prompt measures from, or null. */
+    /** The point the current `next`, `distance` or `angle` prompt measures from, or null. */
     private from(): Point | null {
         const prompt = this.pointPrompt();
-        return prompt?.input === 'next' || prompt?.input === 'distance' ? prompt.from : null;
+        return prompt?.input === 'next' || prompt?.input === 'distance' || prompt?.input === 'angle' ? prompt.from : null;
     }
 
     /** Typed text the prompt cannot take. */
     private invalidInput(): void {
-        this.message = this.pointPrompt()?.input === 'distance' ? INVALID_DISTANCE : INVALID_INPUT;
+        const input = this.pointPrompt()?.input;
+        this.message = input === 'distance' ? INVALID_DISTANCE : input === 'angle' ? INVALID_ANGLE : INVALID_INPUT;
         this.changed();
     }
 
@@ -815,7 +889,7 @@ export class SelectionEditor {
             }
             return true;
         }
-        if (key === 'Enter' || (key === ' ' && this.input !== '')) {
+        if (key === 'Enter' || (key === ' ' && (this.input !== '' || this.pointPrompt()?.spaceEnters))) {
             this.submitInput();
             return true;
         }
@@ -848,7 +922,7 @@ export class SelectionEditor {
             }
             return true;
         }
-        if (key === 'Enter' || (key === ' ' && !empty)) {
+        if (key === 'Enter' || (key === ' ' && (!empty || this.pointPrompt()?.spaceEnters))) {
             this.submitInput();
             return true;
         }
@@ -949,6 +1023,11 @@ export class SelectionEditor {
             this.distanceGiven(distance);
             return;
         }
+        const angle = prompt.input === 'angle' && text !== '' ? parseNumber(text) : null;
+        if (angle !== null) {
+            this.angleGiven(angle);
+            return;
+        }
         const parsed = text === '' ? null : parsePointInput(text);
         if (parsed === null) {
             const step = tool.text(text);
@@ -991,6 +1070,10 @@ export class SelectionEditor {
             this.distanceGiven(Math.hypot(point.x - prompt.from.x, point.y - prompt.from.y));
             return;
         }
+        if (prompt.input === 'angle' && prompt.from !== null) {
+            this.angleGiven((Math.atan2(point.y - prompt.from.y, point.x - prompt.from.x) * 180) / Math.PI);
+            return;
+        }
         if (prompt.input !== 'vector') {
             this.lastPoint = point;
         }
@@ -1005,8 +1088,16 @@ export class SelectionEditor {
         }
     }
 
+    /** An angle in degrees given at an `angle` prompt, typed or as the direction to a point. */
+    private angleGiven(degrees: number): void {
+        const state = this.state;
+        if (state.kind === 'command') {
+            this.applyStep(state.tool.angle?.(degrees) ?? {});
+        }
+    }
+
     /**
-     * At a `next` or `distance` point prompt, the point a click would take now (see pointAt); without a
+     * At a `next`, `distance` or `angle` point prompt, the point a click would take now (see pointAt); without a
      * pointer only a point fixed by typed Dynamic Input values.
      */
     private previewPoint(): Point | null {
@@ -1034,7 +1125,11 @@ export class SelectionEditor {
     /** Which Dynamic Input fields the current prompt shows, or null for none (typing goes to the command line). */
     private dynamicPromptLayout(): DynamicLayout | null {
         const prompt = this.pointPrompt();
-        return prompt !== null ? dynamicLayout(this.dynamicInputSettings, prompt.input) : null;
+        // A distance with nothing to measure from has no dimension to show (a number, or the first of two points)
+        if (prompt === null || (prompt.input === 'distance' && prompt.from === null)) {
+            return null;
+        }
+        return dynamicLayout(this.dynamicInputSettings, prompt.input);
     }
 
     private dynamicContext(): DynamicContext {
@@ -1102,8 +1197,11 @@ export class SelectionEditor {
         this.changed();
     }
 
+    /** Back to no command; the pickfirst selection only stays after the editing of a grip. */
     private endCommand(message: Message | null): void {
-        this.state = { kind: 'idle', pickfirst: new Set() };
+        const state = this.state;
+        this.state = { kind: 'idle', pickfirst: (state.kind === 'command' && state.gripEdit?.pickfirst) || new Set() };
+        this.gripPress = null;
         this.prompt = null;
         this.input = '';
         this.dynamic = EMPTY_DYNAMIC_INPUT;
@@ -1124,6 +1222,7 @@ export class SelectionEditor {
             shapes.map((shape) => shape.id),
         );
         this.underCursor = null;
+        this.gripUnderCursor = null;
         this.areaPreview = null;
         const exists = (ids: ReadonlySet<Id>) => new Set([...ids].filter((id) => this.units.has(id)));
         const state = this.state;
@@ -1294,6 +1393,8 @@ export class SelectionEditor {
         }
         if (state.kind === 'idle') {
             this.state = { kind: 'idle', pickfirst: after };
+            // A grip that just appeared under the cursor
+            this.hoverAt(this.lastPointer);
         } else {
             this.state = { ...state, selection: after };
             const duplicates = picked.filter((id) => before.has(id)).length;
@@ -1311,6 +1412,44 @@ export class SelectionEditor {
         return pickAt(this.shapes, event.modelPoint, this.pickboxSize * event.pixelSize);
     }
 
+    /** The grip of the pickfirst selection the pick box touches, or null. */
+    private gripAt(event: EditorPointerEvent): Grip | null {
+        const { grips } = this.selectionGrips();
+        return gripAt(grips, event.modelPoint, (this.gripSize / 2 + this.pickboxSize) * event.pixelSize);
+    }
+
+    /** What the cursor is over: with no command a grip of the selection first, else the element there. */
+    private hoverAt(event: EditorPointerEvent | null): void {
+        const free = this.state.kind === 'idle' && this.area === null && this.press === null;
+        this.gripUnderCursor = event !== null && free ? this.gripAt(event) : null;
+        this.underCursor = event !== null && this.gripUnderCursor === null ? this.pick(event) : null;
+    }
+
+    /**
+     * Grips and control frames of the pickfirst selection, also while one of its grips is
+     * edited; none while another command runs. Kept until the selection or the document change.
+     */
+    private selectionGrips(): { grips: readonly Grip[]; controlFrames: SelectionSnapshot['controlFrames'] } {
+        const state = this.state;
+        const selection = state.kind === 'idle' ? state.pickfirst : state.gripEdit?.pickfirst;
+        if (!selection || selection.size === 0) {
+            return { grips: NO_GRIPS, controlFrames: NO_FRAMES };
+        }
+        const cache = this.gripCache;
+        if (cache !== null && cache.index === this.index && sameIds(cache.selection, selection)) {
+            return cache;
+        }
+        const elements = [...selection].map((id) => this.index.elements.get(id)!);
+        this.gripUnderCursor = null;
+        this.gripCache = {
+            selection,
+            index: this.index,
+            grips: selectionGrips(elements, this.index),
+            controlFrames: selectionControlFrames(elements, this.index),
+        };
+        return this.gripCache;
+    }
+
     /** Rebuilds the snapshot and notifies if anything visible differs. */
     private changed(): void {
         const next = this.buildSnapshot(this.current);
@@ -1320,15 +1459,16 @@ export class SelectionEditor {
         }
     }
 
-    /** New snapshot, or `previous` itself when nothing changed; reuses its grips if possible. */
+    /** New snapshot, or `previous` itself when nothing changed. */
     private buildSnapshot(previous: SelectionSnapshot | null): SelectionSnapshot {
         const state = this.state;
-        const command: EditorCommand | null = state.kind === 'idle' ? null : state.tool.command;
+        const command: ToolId | null = state.kind === 'idle' ? null : state.tool.command;
         const selecting = this.selecting();
         const highlighted = state.kind === 'idle' ? state.pickfirst : selecting ? state.selection : state.tool.highlighted;
         const pointPrompt = this.pointPrompt() !== null;
         const from = this.from();
         const preview = from !== null && state.kind === 'command' ? state.tool.preview : null;
+        const previewKeeps = preview !== null && state.kind === 'command' && state.tool.keepsOriginals === true;
         const snap = pointPrompt ? this.snap : null;
         const snapCycle =
             pointPrompt && this.snapCycle !== null ? { index: this.snapCycle.index, count: this.snapCandidates.length } : null;
@@ -1368,13 +1508,20 @@ export class SelectionEditor {
             }
         }
         const hovered = new Set(previewed.filter((id) => !highlighted.has(id)));
-        // Grips follow the geometry, so a document change rebuilds them
+        // The overlay follows the geometry, so a document change gives a new snapshot
         const sameDocument = this.snapshotIndex === this.index;
         this.snapshotIndex = this.index;
-        const sameSelection =
-            previous !== null && sameDocument && command === previous.command && sameIds(highlighted, previous.highlighted);
+        const { grips, controlFrames } = this.selectionGrips();
+        const hoveredGrip = this.gripUnderCursor;
+        const hotGrips = (state.kind === 'command' && state.gripEdit?.hot) || NO_GRIPS;
         if (
-            sameSelection &&
+            previous !== null &&
+            sameDocument &&
+            command === previous.command &&
+            sameIds(highlighted, previous.highlighted) &&
+            grips === previous.grips &&
+            hoveredGrip === previous.hoveredGrip &&
+            hotGrips === previous.hotGrips &&
             prompt === previous.prompt &&
             message === previous.message &&
             input === previous.input &&
@@ -1388,22 +1535,13 @@ export class SelectionEditor {
             sameObjectTrack(objectTrack, previous.objectTrack) &&
             samePoint(from, previous.from) &&
             preview === previous.preview &&
+            previewKeeps === previous.previewKeeps &&
             samePoint(previewPoint, previous.previewPoint) &&
             sameDynamicInput(dynamicInput, previous.dynamicInput) &&
             canUndo === previous.canUndo &&
             canRedo === previous.canRedo
         ) {
             return previous;
-        }
-        let grips: readonly Point[] = [];
-        let controlFrames: SelectionSnapshot['controlFrames'] = [];
-        if (sameSelection) {
-            grips = previous.grips;
-            controlFrames = previous.controlFrames;
-        } else if (state.kind === 'idle') {
-            const elements = [...state.pickfirst].map((id) => this.index.elements.get(id)!);
-            grips = selectionGrips(elements, this.index);
-            controlFrames = selectionControlFrames(elements, this.index);
         }
         return {
             command,
@@ -1414,6 +1552,8 @@ export class SelectionEditor {
             hovered,
             highlighted,
             grips,
+            hoveredGrip,
+            hotGrips,
             controlFrames,
             area,
             cursor: pointPrompt ? 'point' : selecting ? 'select' : 'command',
@@ -1425,6 +1565,7 @@ export class SelectionEditor {
             objectTrack,
             from,
             preview,
+            previewKeeps,
             previewPoint,
             dynamicInput,
             canUndo,

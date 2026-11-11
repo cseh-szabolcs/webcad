@@ -1,4 +1,4 @@
-import { currentLanguage, type Language } from '../../i18n/i18n';
+import { currentLanguage, t, type Language } from '../../i18n/i18n';
 import aliases from './commandAliases.json';
 
 /**
@@ -26,4 +26,23 @@ export function findCommand(text: string): EditorCommand | null {
 /** Name shown on the command line: the English name, in German its first alias. */
 export function commandName(command: EditorCommand, language: Language = currentLanguage()): string {
     return language === 'de' ? (COMMAND_ALIASES[command][0] ?? command) : command;
+}
+
+/** Grip modes, which name an undo step like AutoCAD's GRIP_STRETCH but cannot be started by name. */
+const GRIP_LABELS = {
+    GRIP_STRETCH: 'gripMode.stretch',
+    GRIP_MOVE: 'gripMode.move',
+    GRIP_ROTATE: 'gripMode.rotate',
+    GRIP_SCALE: 'gripMode.scale',
+    GRIP_MIRROR: 'gripMode.mirror',
+} as const;
+
+export type GripLabel = keyof typeof GRIP_LABELS;
+
+/** What names an undo step: a command, or a grip mode. */
+export type CommandLabel = EditorCommand | GripLabel;
+
+/** Name of an undo step on the command line, in the current language. */
+export function labelName(label: CommandLabel): string {
+    return label in GRIP_LABELS ? t(GRIP_LABELS[label as GripLabel]) : commandName(label as EditorCommand);
 }

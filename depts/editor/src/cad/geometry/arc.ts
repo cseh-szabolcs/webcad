@@ -1,5 +1,6 @@
 import type { Point } from '../model/Point';
 import type { SegmentSpec } from '../renderer/PathSpec';
+import { circleThrough } from './circle';
 
 const TAU = 2 * Math.PI;
 
@@ -25,6 +26,20 @@ export function arcSweep(center: Point, start: Point, end: Point, clockwise: boo
         sweep = TAU;
     }
     return { radius, startAngle, sweep: clockwise ? -sweep : sweep };
+}
+
+/**
+ * The arc from `start` through `mid` to `end`: its centre and direction (Y up); null if two
+ * points coincide or all lie on one line.
+ */
+export function arcThrough(start: Point, mid: Point, end: Point): { center: Point; clockwise: boolean } | null {
+    const circle = circleThrough(start, mid, end);
+    if (circle === null) {
+        return null;
+    }
+    // Turning left on the way through `mid` is counter-clockwise
+    const cross = (mid.x - start.x) * (end.y - start.y) - (mid.y - start.y) * (end.x - start.x);
+    return { center: circle.center, clockwise: cross < 0 };
 }
 
 /** Whether `angle` lies on the arc from `startAngle` over the signed `sweep` (ends included). */

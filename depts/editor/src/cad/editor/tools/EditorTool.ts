@@ -1,6 +1,7 @@
 import type { Id, Point, Vector2 } from '../../model/Point';
 import type { EditorCommand } from '../commandNames';
 import type { DocumentCommand } from '../commands/DocumentCommand';
+import type { PathSpec } from '../../renderer/PathSpec';
 
 /**
  * Command line text, translated only when the editor builds a snapshot, so a language change
@@ -18,16 +19,25 @@ export type Message = () => string;
  * - `distance`: a distance from the prompt's `from` point (AutoCAD's getdist with a base point):
  *   a typed number is the distance, a point given (clicked or typed) gives its distance from
  *   `from`; otherwise it helps like `next` (polar tracking, Ortho, a dashed rubber band, the
- *   Dynamic Input distance field). The tool gets the distance with `distance()`.
+ *   Dynamic Input distance field). The tool gets the distance with `distance()`;
+ * - `angle`: an angle from the prompt's `from` point (AutoCAD's getangle with a base point): a
+ *   typed number is the angle in degrees, a point given gives the direction from `from` to it;
+ *   otherwise it helps like `next`, but shows no Dynamic Input fields yet. The tool gets the
+ *   angle with `angle()`.
  */
-export type PointPromptKind = 'point' | 'next' | 'vector' | 'distance';
+export type PointPromptKind = 'point' | 'next' | 'vector' | 'distance' | 'angle';
 
 export interface PointPrompt {
     kind: 'point';
     text: Message;
     input: PointPromptKind;
-    /** The point a `next` or `distance` prompt measures from; null for the other kinds. */
+    /** The point a `next`, `distance` or `angle` prompt measures from; null for the other kinds. */
     from: Point | null;
+    /**
+     * Space on its own acts like Enter here, as everywhere in AutoCAD (a grip's modes); at
+     * other prompts it keeps panning the view while nothing is typed.
+     */
+    spaceEnters?: boolean;
 }
 
 /**
@@ -47,6 +57,18 @@ export type PreviewCurve =
     /** Straight segments through `points` and back to the first. */
     | { kind: 'polygon'; points: readonly Point[] };
 
+/** An element as a click at the point would leave it, for the preview. */
+export interface PreviewElement {
+    id: Id;
+    path: PathSpec;
+}
+
+/** Paper.js order: `x' = a·x + c·y + tx`, `y' = b·x + d·y + ty`. */
+export type PreviewMatrix = readonly [a: number, b: number, c: number, d: number, tx: number, ty: number];
+
+/** What runs at the prompt: a command, or the editing of a grip (which no name starts). */
+export type ToolId = EditorCommand | 'GRIP_EDIT';
+
 /** How the editor shows the point a click would take at a `next` prompt. */
 export type ToolPreview =
     /** Copies of the highlighted elements offset from `from`, the originals dimmed, a dashed rubber band. */
@@ -65,7 +87,17 @@ export type ToolPreview =
      * with `rubberBand` also a dashed rubber band from `from` to the point. A tool gives a new
      * object when what it previews changes.
      */
-    | { kind: 'curve'; curveAt: (point: Point) => PreviewCurve | null; rubberBand: boolean };
+    | { kind: 'curve'; curveAt: (point: Point) => PreviewCurve | null; rubberBand: boolean }
+    /**
+     * The elements `ids` as a click at the point would leave them (`elementsAt`, none where it
+     * changes nothing), their originals dimmed, a dashed rubber band from `from`.
+     */
+    | { kind: 'elements'; ids: ReadonlySet<Id>; elementsAt: (point: Point) => readonly PreviewElement[] }
+    /**
+     * Copies of the highlighted elements under the matrix a click at the point would give
+     * (`matrixAt`, null where it gives none), the originals dimmed, a dashed rubber band from `from`.
+     */
+    | { kind: 'transform'; matrixAt: (point: Point) => PreviewMatrix | null };
 
 /** What a tool reports after handling an input. */
 export interface ToolStep {
@@ -84,12 +116,17 @@ export interface ToolStep {
  * counts as Enter).
  */
 export interface EditorTool {
-    readonly command: EditorCommand;
+    readonly command: ToolId;
     /** The current prompt; read by the editor after every call. */
     readonly prompt: ToolPrompt;
     /** Elements drawn as selected while the command asks for points. */
     readonly highlighted: ReadonlySet<Id>;
     readonly preview: ToolPreview | null;
+    /**
+     * The originals stay beside what the preview shows (a grip's option Copy), so they are
+     * neither dimmed nor lose their highlight.
+     */
+    readonly keepsOriginals?: boolean;
     /** Starts the command with the pickfirst selection (noun-verb), which it may take over. */
     start(pickfirst: ReadonlySet<Id>): ToolStep;
     /** The object selection ended with at least one object. */
@@ -101,6 +138,11 @@ export interface EditorTool {
      * or measured from `from` to a point given.
      */
     distance(distance: number): ToolStep;
+    /**
+     * An angle in degrees (counter-clockwise from +X) was given at an `angle` prompt: typed, or
+     * the direction from `from` to a point given. Only tools with such a prompt have it.
+     */
+    angle?(degrees: number): ToolStep;
     /**
      * Typed text at a point prompt that is no point: an option keyword, or `''` for Enter on its
      * own. Null if the text means nothing here (the editor reports an invalid entry).

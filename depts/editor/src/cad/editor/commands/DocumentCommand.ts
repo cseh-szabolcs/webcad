@@ -1,6 +1,6 @@
 import type { CadDocument } from '../../model/CadDocument';
 import type { Id } from '../../model/Point';
-import type { EditorCommand } from '../commandNames';
+import type { CommandLabel } from '../commandNames';
 
 /** A new document and the elements whose geometry or references changed on the way. */
 export interface DocumentChange {
@@ -14,8 +14,8 @@ export interface DocumentChange {
  * `execute` may run again after `undo` (redo) and then gives the same result.
  */
 export interface DocumentCommand {
-    /** The command, e.g. "MOVE"; the command line shows its name in the current language (commandName). */
-    readonly label: EditorCommand;
+    /** The command, e.g. "MOVE", or a grip mode; the command line shows its name in the current language (labelName). */
+    readonly label: CommandLabel;
     execute(doc: CadDocument): DocumentChange;
     undo(doc: CadDocument): DocumentChange;
 }

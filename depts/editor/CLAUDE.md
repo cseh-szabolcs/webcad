@@ -11,8 +11,9 @@ steps. So far it loads a plan through the API and displays it (wheel zoom, middl
 pan, status line, light/dark mode), has AutoCAD-like object selection, a grid, a UCS icon,
 object snap, polar tracking, Ortho, object snap tracking, Dynamic Input, the commands LINIE,
 PLINIE (straight segments only), KREIS, ELLIPSE, RECHTECK and SCHIEBEN with preview, typed
-coordinates and undo/redo. Changes are not saved to the backend yet; grips are drawn but have
-no function.
+coordinates and undo/redo, and grips that edit the selection (the grip modes STRETCH, MOVE,
+ROTATE, SCALE, MIRROR with their options Base point, Copy, Undo, Reference, eXit).
+Changes are not saved to the backend yet.
 
 **How it behaves for the user is in `docs/bedienung.md`** (German, every mouse and keyboard
 action, per command and mode). Read it before changing an interaction; it is the reference for
@@ -112,8 +113,9 @@ The behaviour itself is in `docs/bedienung.md`; these are the decisions code mus
 - **Typed input** (`cad/editor/commandInput.ts`: `parsePointInput`, `resolvePointInput`,
   `matchesKeyword`): `x,y`, `#x,y`, `d<a`, `@dx,dy`, `@d<a`, `@`, direct distance entry; degrees
   counter-clockwise from +X; LASTPOINT starts at 0,0. A keyword matches from its first capital
-  on or whole (`sehnenLänge` → `L`); options that would clash (KREIS `3P`/`2P`) are compared
-  whole.
+  on or whole (`sehnenLänge` → `L`), with at least all the capitals it starts with there
+  (`BAsispunkt` → `BA`, apart from `BEzug`); options that would clash otherwise (KREIS
+  `3P`/`2P`) are compared whole.
 - **Cursor per prompt** like AutoCAD: crosshair + pick box without a command, only the pick box
   at "Objekte wählen:", only the crosshair at point prompts (aperture box only with
   `showApertureBox`).
@@ -140,6 +142,27 @@ The behaviour itself is in `docs/bedienung.md`; these are the decisions code mus
   prompt with fields the keys go into `DynamicInputState` instead of `input`; typed numbers bind
   the tracked point at once (`dynamicPoint`, applied in `pointAt`, so preview, rubber band,
   click and Enter agree); non-numeric text goes to `submitText` as if typed at the command line.
+- **Grips** (`selection/grips.ts`, `grips/stretch.ts`, `tools/GripTool.ts`): a click on a grip
+  of the pickfirst selection (the pick box touching it; it wins over the element below, Shift
+  still removes) makes it hot and runs a `GripTool`, an `EditorTool` with a `next` prompt from
+  the grip, so snap, tracking, typed input and Dynamic Input work as in any command. It is no
+  command: its id is `GRIP_EDIT`, Enter never repeats it, and the pickfirst selection comes
+  back when it ends (also after Esc). A release after dragging the grip gives the point too.
+  Enter on its own goes to the next mode (`GRIP_MODES`), and so does Space, which only this
+  prompt takes while nothing is typed (`PointPrompt.spaceEnters`; elsewhere it pans). STRETCH
+  changes the elements of the hot grip, the other modes the whole selection, about the grip:
+  ROTATE at an `angle` prompt, SCALE at a `distance` prompt (the distance is the factor, like
+  AutoCAD), MIRROR across the line to the point (the original does not stay). Options are typed
+  keywords: another base point; Copy (`keepsOriginals`: every input runs a `CopyCommand` at once,
+  Enter then ends, the run becomes one undo step by `combineLast`, also after Esc, like LINIE);
+  Undo (last copy or base point); Reference for ROTATE and SCALE (a number or two points, at an
+  `angle`/`distance` prompt without `from`); eXit. The tool keeps the index it started with:
+  the originals never change while it runs.
+  **Elements share no points for editing, like AutoCAD:** a grip has a target per selected
+  element at its position and all of them stretch together; any other element that uses a
+  moved vertex keeps a copy at the old position (`commands/elementEdits.ts`, also behind
+  `MoveCommand`). An arc end or middle redefines the arc through three points. What is left
+  (several hot grips, hover menu, grips as snap points) is in `docs/todo/Grips_NotImplemented.md`.
 - **Grid** (`cad/renderer/grid.ts`, `ui/GridLayer.ts`) and **UCS icon**
   (`cad/renderer/ucsIcon.ts`, `ui/UcsIcon.ts`) are display only, on layers of their own, never
   in the document, the bounds, picking or snapping. There is only the WCS (no custom UCS).
@@ -173,18 +196,23 @@ All pure TS and unit-tested unless noted.
   selection, a command's object selection and all point prompt machinery (snap, Tab, polar,
   Ortho, OTRACK, Dynamic Input, typed input, LASTPOINT). It gets `EditorPointerEvent`s and key
   events and publishes an immutable `SelectionSnapshot` (prompt, typed input, message, hovered,
-  highlighted, grips, area, cursor mode, snap, Tab position, snap preview, polar track,
+  highlighted, grips with the hovered and hot ones, area, cursor mode, snap, Tab position, snap preview, polar track,
   acquired points, object snap track, `from`, `preview`, preview point, Dynamic Input fields,
   can undo/redo) via `subscribe()`. It holds the Tab cycle state and the acquire timer; the
   engines stay stateless. It runs on a `DocumentHistory`; `newTool` creates the tools.
 - `cad/editor/tools/`: `EditorTool` (`EditorTool.ts`): the tool sets its `prompt` (`select`, or
   `point` with `input` `point` | `next` (measured from `from`: polar, Ortho, direct distance,
   `@`, DYN dimension) | `vector` | `distance` (from `from` like `next`, but the tool gets
-  `distance()`: a typed number as is, or the distance to a point given)), gets the selected
+  `distance()`: a typed number as is, or the distance to a point given) | `angle` (likewise
+  with the optional `angle()`: typed degrees, or the direction from `from` to a point given;
+  no DYN fields yet; with `from` null a `distance` or `angle` prompt takes a number or hands
+  the point itself to `point()`)), gets the selected
   objects, points, distances and option text (`''` = Enter or right click), and returns a
   `ToolStep` (`done`, `message`, a `DocumentCommand` to run after the end). A new prompt object
   starts a new point prompt. Previews are `ToolPreview`s (`polyline`, `curve` with a
-  `PreviewCurve` and optional `rubberBand`, `direction` for PLINIE's length option).
+  `PreviewCurve` and optional `rubberBand`, `direction` for PLINIE's length option, `elements`
+  with the `PathSpec`s of changed elements for a grip stretch, `transform` with a matrix for
+  the copies of the highlighted elements).
 - `cad/editor/commands/`: `DocumentCommand` (`execute`/`undo` on immutable documents, returning
   the new document and the changed element ids), `DocumentHistory` (current document, undo/redo
   stacks, listeners, `revertLast`, `combineLast`), `MoveCommand`, `AddLineCommand`,
@@ -193,7 +221,16 @@ All pure TS and unit-tested unless noted.
   renderer follow it (`PaperRenderer.updateElements` replaces, adds and removes only the
   changed items as planned by the pure `cad/renderer/sceneUpdate.ts`, subscribed before the
   editor so its overlay sees the new paths). The editor's derived
-  structures are rebuilt as a whole on every change for now.
+  structures are rebuilt as a whole on every change for now. `elementEdits.ts`
+  (`applyElementEdits`/`revertElementEdits`) applies per-element edits (`ElementEdit`: the element
+  afterwards and where its vertices go) and splits shared vertices where elements disagree; new
+  edit commands build on it, as `MoveCommand`, `StretchCommand` (grips, label `GRIP_STRETCH`)
+  and `TransformCommand` (rotation, scaling or reflection as a `Similarity`, named by its
+  `label`: the grip modes now, the commands DREHEN, VARIA, SPIEGELN later) do. `CopyCommand`
+  adds copies of elements as such edits would leave them (own vertices, shared where the
+  originals share and agree; grouped elements in a copy of their group). A label is an `EditorCommand` or a `GripLabel` (`commandNames.ts`, `labelName`).
+- `cad/editor/grips/stretch.ts`: `stretchTargets` (pure): what each `GripPart` changes when its
+  grip goes by a delta, as `ElementEdit`s; null where a grip cannot go.
 - `cad/editor/tracking/`: `PolarTracking.ts` (`polarAngles`, `nearestRay`, `findPolarTrack`,
   `parseAngleList`/`formatAngleList`), `ObjectSnapTracking.ts` (`toggleAcquired`,
   `trackingAngles`, `findObjectTrack`, `polarWins`), `ortho.ts` (`orthoPoint`); pure and
@@ -203,19 +240,23 @@ All pure TS and unit-tested unless noted.
   `ElementSnapPoint`), `intersections`, `SnapEngine` (`candidates(query, SnapMemory, previous)`:
   all points in the aperture best first; `find` takes the first). Uses the generic `ShapeIndex`.
 - `cad/editor/selection/`: `ElementShapes` (flattened outlines), `ShapeIndex` (`rbush` R-tree
-  over their bounds), `picking` (point/window/crossing/lasso), `grips`, `grouping`. Like the
+  over their bounds), `picking` (point/window/crossing/lasso), `grips` (`Grip` with its
+  `GripTarget`s per element and `GripPart`, `selectionGrips`, `gripAt`), `grouping`. Like the
   snap structures, derived from the document and rebuilt after every change.
 - `cad/editor/dynamicInput.ts`: `dynamicLayout` (which fields where), `DynamicInputState`,
   `trackedPointAt` (live values), `dynamicPoint`, `dynamicText` (echo on the command line).
 - `cad/renderer/grid.ts` (`gridStep`: adaptive step `spacing × majorEvery^k`, `gridLines`: only
   the visible lines; `parseGridSpacing`, `parseMajorEvery`), `cad/renderer/ucsIcon.ts`
   (`ucsIconExtent`, `ucsIconPosition`).
-- `cad/geometry/`: `bezier`, `intersect`, `arc.angleOnArc`, `polygon.polygonCentroid`,
-  `ellipse` (rotated ellipses), `circle`. `cad/model/drawOrder.ts` gives the renderer's element
+- `cad/geometry/`: `bezier`, `intersect`, `arc.angleOnArc`, `arc.arcThrough`, `polygon.polygonCentroid`,
+  `ellipse` (rotated ellipses), `circle`, `similarity` (`rotationAbout`, `scalingAbout`,
+  `reflectionAcross`; quarter turns exact). `cad/model/drawOrder.ts` gives the renderer's element
   order for selection and snapping.
 - `cad/editor/overlays/SelectionOverlay.ts` (Paper.js): hover/selection highlights as restyled
-  copies of the rendered paths, grips (beziers also get a dashed control frame), rectangle/
-  lasso, the move preview (offset copies, originals dimmed by `PaperRenderer.setDimmed`), the
+  copies of the rendered paths, grips coloured by state (beziers also get a dashed control frame), rectangle/
+  lasso, the move preview (offset copies, originals dimmed by `PaperRenderer.setDimmed`; the
+  same copies under a matrix for a `transform` preview), the
+  preview of a grip stretch (the changed elements built from their `PathSpec`), the
   tool previews (`PathSpec.ellipsePathSpec`, closed path for a polygon), one palette per theme.
   Its parts are groups: selection highlights, move copies and grips are rebuilt only when the
   selection, the rendered paths (`OverlayHost.revision`), the theme or the zoom change; a move
@@ -240,6 +281,7 @@ AutoCAD-like system variables (`crosshairSize` ~ CURSORSIZE, `pickboxSize` ~ PIC
 hover/click tolerance, `apertureSize` ~ APERTURE, `showApertureBox` ~ APBOX, `snapMarkerSize`
 ~ AUTOSNAPSIZE, `snapMarker`/`snapTooltip`/`snapMagnet` ~ AUTOSNAP, `polarTolerance` (also for
 OTRACK), `trackingAcquireDelay`, `snapPreview`, `previewColor` and `gridColor` per theme,
+`gripSize` ~ GRIPSIZE, `gripColor` ~ GRIPCOLOR/GRIPHOVER/GRIPHOT,
 `gridMinSpacing`, `ucsIcon…` ~ UCSICON). Code receives the object (App → `CadCanvas` → editor
 and crosshair) rather than importing the defaults, so the user can change them later; for now
 they are read when a document is loaded. The switches live in App state and may change at any

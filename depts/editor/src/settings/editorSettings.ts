@@ -42,6 +42,13 @@ export interface EditorSettings {
      * the two always match: orange on light, as yellow is hard to see on white.
      */
     previewColor: Readonly<Record<DisplayTheme, string>>;
+    /** Side of a grip square in screen px, like AutoCAD's GRIPSIZE; the pick box touching it grabs it. */
+    gripSize: number;
+    /**
+     * Grip colours per background, like GRIPCOLOR, GRIPHOVER and GRIPHOT: `warm` for a grip of
+     * the selection, `hover` under the cursor, `hot` while it is being edited.
+     */
+    gripColor: Readonly<Record<DisplayTheme, { warm: string; hover: string; hot: string }>>;
     /**
      * Tracking tolerance in screen px: a polar path or an object snap tracking path is taken
      * while the cursor is at most this far from it, so the behaviour does not depend on the zoom.
@@ -86,6 +93,11 @@ export const DEFAULT_EDITOR_SETTINGS: Readonly<EditorSettings> = {
     snapMagnet: true,
     snapPreview: true,
     previewColor: { light: '#ea580c', dark: '#facc15' },
+    gripSize: 7,
+    gripColor: {
+        light: { warm: '#1e90ff', hover: '#f472b6', hot: '#dc2626' },
+        dark: { warm: '#1e90ff', hover: '#f9a8d4', hot: '#ef4444' },
+    },
     polarTolerance: 10,
     trackingAcquireDelay: 400,
     gridMinSpacing: 10,
