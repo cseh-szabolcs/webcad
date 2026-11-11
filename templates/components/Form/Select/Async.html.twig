@@ -1,0 +1,20 @@
+{% set selector = selectData ? "'" ~ selectData ~ "'" : 'null' %}
+{% set loop = 'option in selectRequestProviderData(%s, true)'|format(selector) %}
+{% set bindValue = 'option.%s'|format(optionValue) %}
+{% set bindLabel = 'option.%s'|format(optionLabel) %}
+{% set bindSelected = value ? ("%s === %s"|format(bindValue, parsedValue)) : null %}
+
+<twig:RequestProvider fetchDataPath="{{ path('customer_tag_list_data') }}">
+    <twig:Form:Select icon="filter" label="{{ 'customer.list.filter_label'|trans }}" x-bind:data-loading="requestProvider.loading" bindHandler="{{ bindHandler }}">
+        {% if placeholder %}
+            <option value="">{{ placeholder }}</option>
+        {% endif %}
+        <template x-for="{{ loop }}" x-bind:key="{{ bindValue }}">
+            <option
+                x-bind:value="{{ bindValue }}"
+                x-text="{{ bindLabel }}"
+                {% if bindSelected %} x-bind:selected="{{ bindSelected }}"{% endif %}>
+            </option>
+        </template>
+    </twig:Form:Select>
+</twig:RequestProvider>

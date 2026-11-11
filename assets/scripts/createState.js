@@ -17,6 +17,9 @@ export function createState(controller, factory) {
     // An element inserted after the page load was already walked by Alpine's MutationObserver
     // (without x-data) and is marked as done, so initTree() would skip it: undo that first.
     Alpine.destroyTree(element);
+    // destroyTree() leaves an empty _x_dataStack on nested x-data elements, which would hide
+    // the parent scopes from them (a nested state created before this one).
+    deleteEmptyDataStack(element);
     Alpine.initTree(element);
 }
 
@@ -57,4 +60,13 @@ function dataName(identifier) {
 export function destroyState(controller) {
     Alpine.destroyTree(controller.element);
     Alpine.mutateDom(() => controller.element.removeAttribute('x-data'));
+}
+
+/** Removes an empty _x_dataStack on nested x-data elements */
+function deleteEmptyDataStack(element) {
+    for (const el of [element, ...element.querySelectorAll('*')]) {
+        if (el._x_dataStack?.length === 0) {
+            delete el._x_dataStack;
+        }
+    }
 }

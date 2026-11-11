@@ -1,24 +1,37 @@
 import { withStateController } from '../../scripts/withStateController.js';
 
 const state = (controller, { $nextTick }) => ({
-    providerData: null,
-    providerLoading: null,
-    parent: null,
-    init() {
-        this.providerLoading = true;
-        void this.fetchData(controller.pathValue, controller.propValue);
+    requestProvider: {
+        result: null,
+        loading: false,
     },
-    async fetchData(path, prop) {
-        const result = await (await fetch(path)).json();
+    async init() {
+        this.requestProvider.loading = true;
+        const result = await (await fetch(controller.pathValue)).json();
 
         $nextTick(() => {
-            this.providerLoading = false;
-            this.providerData = prop ? result[prop] : result;
+            this.requestProvider.loading = false;
+            this.requestProvider.result = result;
         });
     },
+    selectRequestProviderData(selector, expectArray = false) {
+        if (this.requestProvider.loading) {
+            return expectArray ? [] : null
+        }
+
+        if (typeof this.requestProvider.result !== 'object') {
+            throw new Error('Call selectRequestProviderData on none object.');
+        }
+
+        const data = selector.split(".").reduce((obj, key) => obj?.[key], this.requestProvider.result);
+        if (expectArray && !Array.isArray(data)) {
+            throw new Error('Call selectRequestProviderData is not an array as expected.');
+        }
+
+        return data;
+    }
 });
 
 export default withStateController(state, {
     path: String,
-    prop: String,
 });

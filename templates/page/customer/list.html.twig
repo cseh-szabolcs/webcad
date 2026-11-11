@@ -23,15 +23,14 @@
                     placeholder="{{ 'customer.list.search_placeholder'|trans }}"
                     bindHandler="applyFilterSearch"
                 />
-                <twig:RequestProvider path="{{ path('customer_tag_list_data') }}" prop="items">
-                    <twig:Form:Select icon="filter" label="{{ 'customer.list.filter_label'|trans }}" bindHandler="$parent.applyFilterTag">
-                        <twig:Form:Select:BindOptions
-                            data="providerData"
-                            identifier="id"
-                            label="name"
-                        />
-                    </twig:Form:Select>
-                </twig:RequestProvider>
+                <twig:Form:Select:Async
+                    fetchDataPath="{{ path('customer_tag_list_data') }}"
+                    selectData="items"
+                    optionValue="id"
+                    optionLabel="name"
+                    placeholder="{{ 'Nach Tag filtern' }}"
+                    bindHandler="applyFilterTag"
+                />
                 <twig:Form:Select
                     icon="sort"
                     label="{{ 'customer.list.sort_label'|trans }}"
@@ -71,14 +70,15 @@
                         <twig:TableList:Col>
                             <div class="meta-list">
                                 <span class="meta-list__item meta-list__item--link">
-                                    {{ svg_icon('mail', {size:'sm'}) }} info@stadtwerke.example.com
+                                    {{ svg_icon('mail', {size:'sm'}) }} <span x-text="item.email"></span>
                                 </span>
                             </div>
                         </twig:TableList:Col>
                         <twig:TableList:Col>
                             <div class="pills">
-                                <span class="pill tone--orange">Öffentlich</span>
-                                <span class="pill tone--green">Stammkunde</span>
+                                <template x-for="tag in item.tags" x-bind:key="tag.id">
+                                    <span class="pill tone--orange" x-text="tag.name"></span>
+                                </template>
                             </div>
                         </twig:TableList:Col>
                         <twig:TableList:Col label="Gestern" />
