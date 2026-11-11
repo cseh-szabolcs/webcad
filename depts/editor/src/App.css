@@ -408,11 +408,21 @@
     margin-left: auto;
 }
 
-/* Menu of a grip (GripMenu): the only canvas layer that takes the pointer */
+/* Menu of a grip (GripMenu): the only canvas layer that takes the pointer, also in its
+   invisible padding (MENU_REACH_PX in GripMenu.ts), so it is easy to reach from the grip */
 .grip-menu {
     position: absolute;
     top: 0;
     left: 0;
+    padding: 16px;
+    cursor: default;
+}
+
+.grip-menu[hidden] {
+    display: none;
+}
+
+.grip-menu-panel {
     display: flex;
     flex-direction: column;
     padding: 2px;
@@ -421,11 +431,6 @@
     background: var(--bg);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
     white-space: nowrap;
-    cursor: default;
-}
-
-.grip-menu[hidden] {
-    display: none;
 }
 
 .grip-menu-item {
