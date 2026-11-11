@@ -57,6 +57,11 @@ export interface EditorSettings {
     /** How long (ms) the cursor must rest on a grip before its menu opens. */
     gripMenuDelay: number;
     /**
+     * A selection of more elements than this shows no grips, like AutoCAD's GRIPOBJLIMIT; 0 for
+     * no limit.
+     */
+    gripObjectLimit: number;
+    /**
      * Tracking tolerance in screen px: a polar path or an object snap tracking path is taken
      * while the cursor is at most this far from it, so the behaviour does not depend on the zoom.
      */
@@ -107,6 +112,7 @@ export const DEFAULT_EDITOR_SETTINGS: Readonly<EditorSettings> = {
     },
     gripMenu: true,
     gripMenuDelay: 500,
+    gripObjectLimit: 100,
     polarTolerance: 10,
     trackingAcquireDelay: 400,
     gridMinSpacing: 10,

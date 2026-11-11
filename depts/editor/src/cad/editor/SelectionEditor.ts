@@ -128,7 +128,10 @@ export interface SelectionSnapshot {
     highlighted: ReadonlySet<Id>;
     /** Grips of the pickfirst selection; none while a command runs, except the editing of a grip. */
     grips: readonly Grip[];
-    /** The grip under the cursor, which a click would edit; one of `grips`, or null. */
+    /**
+     * The grip under the cursor, which a click would edit; while a grip is edited, the grip the
+     * point snaps to. One of `grips`, or null.
+     */
     hoveredGrip: Grip | null;
     /** The hot grips: those being edited, or made hot with Shift + click to be edited together; none otherwise. */
     hotGrips: readonly Grip[];
@@ -363,6 +366,11 @@ export class SelectionEditor {
     private gripMenu: GripMenuView | null = null;
     /** The grip the cursor rests on and the timer that opens its menu; the timer is null once it fired. */
     private gripDwell: { grip: Grip; timer: ReturnType<typeof setTimeout> | null } | null = null;
+    /**
+     * While a grip is edited: the grip of the selection the point snaps to, with the object snap
+     * off as well (see updateSnap); a snap point wins over it.
+     */
+    private gripSnap: Grip | null = null;
     /** Where (view px) the press went down that made a grip hot, until its release. */
     private gripPress: Point | null = null;
     private message: Message | null = null;
@@ -386,6 +394,8 @@ export class SelectionEditor {
     /** See EditorSettings.gripMenu and gripMenuDelay. */
     private readonly gripMenuEnabled: boolean;
     private readonly gripMenuDelay: number;
+    /** See EditorSettings.gripObjectLimit. */
+    private readonly gripObjectLimit: number;
     /** Half the aperture box side in screen px (see EditorSettings.apertureSize). */
     private readonly apertureSize: number;
     /** See EditorSettings.polarTolerance. */
@@ -408,12 +418,14 @@ export class SelectionEditor {
             | 'gripSize'
             | 'gripMenu'
             | 'gripMenuDelay'
+            | 'gripObjectLimit'
         > = DEFAULT_EDITOR_SETTINGS,
     ) {
         this.pickboxSize = settings.pickboxSize;
         this.gripSize = settings.gripSize;
         this.gripMenuEnabled = settings.gripMenu;
         this.gripMenuDelay = settings.gripMenuDelay;
+        this.gripObjectLimit = settings.gripObjectLimit;
         this.apertureSize = settings.apertureSize;
         this.polarTolerance = settings.polarTolerance;
         this.showSnapPreview = settings.snapPreview;
@@ -1244,6 +1256,9 @@ export class SelectionEditor {
         if (this.snap !== null) {
             return this.snap.point;
         }
+        if (this.gripSnap !== null) {
+            return this.gripSnap.point;
+        }
         if (this.objectTrack !== null) {
             return this.objectTrack.point;
         }
@@ -1330,7 +1345,8 @@ export class SelectionEditor {
      * nothing snaps, looks for object snap tracking and, at a `next` prompt with Ortho off, for
      * a polar path from its `from` point; the nearer of a single tracking path and the
      * polar path wins. Also finds the snap point preview at point prompts and keeps the timer
-     * that acquires the snap point the cursor dwells on.
+     * that acquires the snap point the cursor dwells on. While a grip is edited and nothing
+     * snaps, a grip of the selection under the cursor holds the point (see gripSnapAt).
      */
     private updateSnap(event: EditorPointerEvent | null): void {
         const cycle = this.snapCycle;
@@ -1359,9 +1375,11 @@ export class SelectionEditor {
         this.snapCandidates = candidates;
         this.snapCycle = index >= 0 ? { ...cycle!, index } : null;
         this.snap = candidates[Math.max(index, 0)] ?? null;
+        this.gripSnap = event !== null && this.snap === null ? this.gripSnapAt(event) : null;
+        const free = this.snap === null && this.gripSnap === null;
         const from = this.from();
         const polar =
-            event !== null && this.snap === null && from !== null && !this.orthoActive()
+            event !== null && free && from !== null && !this.orthoActive()
                 ? findPolarTrack(
                       {
                           reference: from,
@@ -1373,7 +1391,7 @@ export class SelectionEditor {
                       this.polar,
                   )
                 : null;
-        let objectTrack = event !== null && this.snap === null ? this.findObjectTrack(event) : null;
+        let objectTrack = event !== null && free ? this.findObjectTrack(event) : null;
         if (
             event !== null &&
             objectTrack?.paths.length === 1 &&
@@ -1511,6 +1529,20 @@ export class SelectionEditor {
         return gripAt(grips, event.modelPoint, (this.gripSize / 2 + this.pickboxSize) * event.pixelSize);
     }
 
+    /**
+     * While a grip is edited: the grip of the selection that holds the point like a snap point,
+     * whether the object snap is on or not. Not a hot grip, where nothing would move.
+     */
+    private gripSnapAt(event: EditorPointerEvent): Grip | null {
+        const state = this.state;
+        const hot = state.kind === 'command' ? state.gripEdit?.hot : undefined;
+        if (!hot) {
+            return null;
+        }
+        const others = this.selectionGrips().grips.filter((grip) => !hot.some((other) => coincide(other.point, grip.point)));
+        return gripAt(others, event.modelPoint, (this.gripSize / 2 + this.pickboxSize) * event.pixelSize);
+    }
+
     /** What the cursor is over: with no command a grip of the selection first, else the element there. */
     private hoverAt(event: EditorPointerEvent | null): void {
         const free = this.state.kind === 'idle' && this.area === null && this.press === null;
@@ -1563,7 +1595,8 @@ export class SelectionEditor {
     private selectionGrips(): { grips: readonly Grip[]; controlFrames: SelectionSnapshot['controlFrames'] } {
         const state = this.state;
         const selection = state.kind === 'idle' ? state.pickfirst : state.gripEdit?.pickfirst;
-        if (!selection || selection.size === 0) {
+        const tooMany = this.gripObjectLimit > 0 && selection !== undefined && selection.size > this.gripObjectLimit;
+        if (!selection || selection.size === 0 || tooMany) {
             this.hotPicked = NO_GRIPS;
             return { grips: NO_GRIPS, controlFrames: NO_FRAMES };
         }
@@ -1647,8 +1680,8 @@ export class SelectionEditor {
         this.snapshotIndex = this.index;
         const { grips, controlFrames } = this.selectionGrips();
         const gripMenu = this.gripMenu;
-        // Still shown as under the cursor while the pointer is on its menu
-        const hoveredGrip = this.gripUnderCursor ?? gripMenu?.grip ?? null;
+        // Still shown as under the cursor while the pointer is on its menu; while a grip is edited, the grip the point snaps to
+        const hoveredGrip = this.gripUnderCursor ?? gripMenu?.grip ?? (pointPrompt ? this.gripSnap : null);
         const hotGrips = state.kind === 'command' ? (state.gripEdit?.hot ?? NO_GRIPS) : this.hotPicked;
         if (
             previous !== null &&

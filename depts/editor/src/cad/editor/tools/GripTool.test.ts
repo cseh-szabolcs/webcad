@@ -993,3 +993,79 @@ describe('grips: menu and actions', () => {
         expect(editor.snapshot.command).toBeNull();
     });
 });
+
+describe('grips: as snap points, and their limit', () => {
+    /** The top quadrant grip of the table. */
+    const TABLE_TOP = { x: 4000, y: 2400 };
+    /** The window and the table selected, the window's right end hot. */
+    const hotOfWindowAndTable = () => {
+        const context = setup();
+        click(context.editor, WINDOW);
+        click(context.editor, QUADRANT);
+        click(context.editor, WINDOW_END);
+        return context;
+    };
+
+    it('holds the point on a grip of the selection with the object snap off', () => {
+        const { editor, vertex } = hotOfWindowAndTable();
+        editor.setSnapSettings({ ...DEFAULT_SNAP_SETTINGS, enabled: false });
+        editor.pointerMove(at({ x: 4012, y: 2390 }));
+        expect(editor.snapshot).toMatchObject({ snap: null, polar: null, previewPoint: TABLE_TOP });
+        expect(editor.snapshot.hoveredGrip?.point).toEqual(TABLE_TOP);
+        click(editor, { x: 4012, y: 2390 });
+        expect(vertex(V['win-2'])).toEqual(TABLE_TOP);
+    });
+
+    it('lets go of the grip as far away as a click would miss it', () => {
+        const { editor } = hotOfWindowAndTable();
+        editor.setSnapSettings({ ...DEFAULT_SNAP_SETTINGS, enabled: false });
+        const off = { x: 4018, y: 2430 };
+        editor.pointerMove(at(off));
+        expect(editor.snapshot).toMatchObject({ hoveredGrip: null, previewPoint: off });
+    });
+
+    it('holds it on a grip no object snap finds, with the object snap on', () => {
+        const context = setup();
+        // The curtain bezier: its control point lies off the curve
+        click(context.editor, { x: 4250, y: 3550 });
+        click(context.editor, WINDOW);
+        click(context.editor, WINDOW_END);
+        context.editor.pointerMove(at({ x: 4506, y: 3494 }));
+        expect(context.editor.snapshot).toMatchObject({ snap: null, previewPoint: { x: 4500, y: 3500 } });
+    });
+
+    it('gives a snap point the say where both are', () => {
+        const { editor } = hotOfWindowAndTable();
+        editor.pointerMove(at({ x: 4004, y: 2396 }));
+        expect(editor.snapshot.snap).toMatchObject({ mode: 'QUA', point: TABLE_TOP });
+        expect(editor.snapshot.hoveredGrip).toBeNull();
+    });
+
+    it('does not hold the point on the hot grip itself', () => {
+        const { editor } = hotOfWindowAndTable();
+        editor.setSnapSettings({ ...DEFAULT_SNAP_SETTINGS, enabled: false });
+        const near = { x: 5004, y: 3876 };
+        editor.pointerMove(at(near));
+        expect(editor.snapshot).toMatchObject({ hoveredGrip: null, previewPoint: near });
+    });
+
+    it('shows no grips for a selection over the limit', () => {
+        const limited = (gripObjectLimit: number) =>
+            new SelectionEditor(parseDocument(samplePlan), { ...DEFAULT_EDITOR_SETTINGS, gripObjectLimit });
+        const editor = limited(1);
+        click(editor, WINDOW);
+        expect(editor.snapshot.grips).toHaveLength(3);
+        click(editor, QUADRANT);
+        expect(editor.snapshot.grips).toEqual([]);
+        expect([...editor.snapshot.highlighted]).toEqual([E.window, E.table]);
+        // Nothing to grab where a grip would be
+        editor.pointerMove(at(WINDOW_END));
+        expect(editor.snapshot.hoveredGrip).toBeNull();
+        click(editor, WINDOW_END);
+        expect(editor.snapshot.command).toBeNull();
+        const unlimited = limited(0);
+        click(unlimited, WINDOW);
+        click(unlimited, QUADRANT);
+        expect(unlimited.snapshot.grips).toHaveLength(3 + 5);
+    });
+});
