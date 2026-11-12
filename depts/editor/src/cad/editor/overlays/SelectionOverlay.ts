@@ -1,4 +1,5 @@
 import paper from 'paper';
+import { arcSegments } from '../../geometry/arc';
 import type { Id, Point } from '../../model/Point';
 import type { DisplayTheme } from '../../renderer/displayColor';
 import { ellipsePathSpec, type PathSpec } from '../../renderer/PathSpec';
@@ -261,7 +262,7 @@ export class SelectionOverlay {
         parent.addChild(path);
     }
 
-    /** The circle, ellipse or rectangle KREIS, ELLIPSE or RECHTECK would add, in the style of new elements. */
+    /** The circle, arc, ellipse or rectangle KREIS, BOGEN, ELLIPSE or RECHTECK would add, in the style of new elements. */
     private curvePreview(parent: paper.Group, curve: PreviewCurve): void {
         if (curve.kind === 'polygon') {
             this.polylinePreview(parent, curve.points, true);
@@ -270,7 +271,9 @@ export class SelectionOverlay {
         const spec =
             curve.kind === 'circle'
                 ? ellipsePathSpec(curve.center, curve.radius, curve.radius)
-                : ellipsePathSpec(curve.center, curve.radiusX, curve.radiusY, curve.rotation);
+                : curve.kind === 'arc'
+                  ? { segments: arcSegments(curve.center, curve.start, curve.end, curve.clockwise), closed: false }
+                  : ellipsePathSpec(curve.center, curve.radiusX, curve.radiusY, curve.rotation);
         const path = pathOf(spec);
         path.strokeScaling = false;
         this.host.applyStyleById(path, null);

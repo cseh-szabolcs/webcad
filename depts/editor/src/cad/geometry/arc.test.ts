@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Point } from '../model/Point';
-import { arcSegments, arcThrough } from './arc';
+import { arcEndToward, arcSegments, arcThrough } from './arc';
 
 const center = { x: 1000, y: 240 };
 const round3 = (n: number) => Math.round(n * 1000) / 1000 + 0;
@@ -64,5 +64,24 @@ describe('arcThrough', () => {
     it('gives none for points on one line or coinciding', () => {
         expect(arcThrough({ x: 0, y: 0 }, { x: 5, y: 5 }, { x: 10, y: 10 })).toBeNull();
         expect(arcThrough({ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 10, y: 10 })).toBeNull();
+    });
+});
+
+describe('arcEndToward', () => {
+    const start = { x: 1900, y: 240 };
+
+    it('ends on the circle, on the ray from the centre through the point', () => {
+        expect(arcEndToward(center, start, { x: 1000, y: 500 })).toEqual({ x: 1000, y: 1140 });
+        expect(arcEndToward(center, start, { x: 1000, y: 1140 })).toEqual({ x: 1000, y: 1140 });
+        expect(round(arcEndToward(center, start, { x: 3000, y: -1760 }) ?? undefined)).toEqual({ x: 1636.396, y: -396.396 });
+        // Opposite the start is half a circle
+        expect(arcEndToward(center, start, { x: 0, y: 240 })).toEqual({ x: 100, y: 240 });
+    });
+
+    it('gives none without a radius, in the centre or on the ray through the start', () => {
+        expect(arcEndToward(center, center, { x: 1000, y: 500 })).toBeNull();
+        expect(arcEndToward(center, start, center)).toBeNull();
+        expect(arcEndToward(center, start, start)).toBeNull();
+        expect(arcEndToward(center, start, { x: 1200, y: 240 })).toBeNull();
     });
 });

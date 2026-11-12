@@ -10,7 +10,7 @@ installed (unused). **It is being rebuilt from scratch, closer to AutoCAD behavi
 steps. So far it loads a plan through the API and displays it (wheel zoom, middle/Space+drag
 pan, status line, light/dark mode), has AutoCAD-like object selection, a grid, a UCS icon,
 object snap, polar tracking, Ortho, object snap tracking, Dynamic Input, the commands LINIE,
-PLINIE (straight segments only), KREIS, ELLIPSE, RECHTECK and SCHIEBEN with preview, typed
+PLINIE (straight segments only), KREIS, BOGEN (three points; start, centre, end; start, centre, angle), ELLIPSE, RECHTECK and SCHIEBEN with preview, typed
 coordinates and undo/redo, and grips that edit the selection (the grip modes STRETCH, MOVE,
 ROTATE, SCALE, MIRROR with their options Base point, Copy, Undo, Reference, eXit; several hot
 grips; a menu of further actions per grip).
@@ -102,8 +102,12 @@ The behaviour itself is in `docs/bedienung.md`; these are the decisions code mus
   needs Alt (⌥) on the press. Noun-verb (pickfirst) and verb-noun ("Objekte wählen:", kept as
   `previous`) both work. Only outlines are hit, never fills; hidden or locked layers are not
   selectable; picking a grouped element picks its group (`selection/grouping.ts`, `expandToUnits`).
-- **Commands** start from `ui/ToolPanel.tsx` (icons from `ui/ToolIcon.tsx`; another tool
-  cancels the running command, the same one does nothing) or by name/alias at "Befehl:"
+- **Commands** start from `ui/ToolPanel.tsx`, a horizontal bar above the drawing (icons from
+  `ui/ToolIcon.tsx`; another tool cancels the running command, the same one does nothing; a
+  `ToolFlyout` is one button for several methods of a command: it shows the one used last, the
+  button beside it opens the menu of all; BOGEN has one, its methods are `ArcMethod`, passed on
+  as `startCommand(command, method)`, and another method than the running tool's `method`
+  restarts the command) or by name/alias at "Befehl:"
   (`SelectionEditor.startCommand`); Enter with nothing typed repeats the last command.
   **Right click acts like Enter** everywhere (no context menus yet; tools have no right-click
   hook of their own); ignored while a rectangle or lasso is open or dragged.
@@ -133,7 +137,7 @@ The behaviour itself is in `docs/bedienung.md`; these are the decisions code mus
   element the cursor came in over (`SnapEngine.previewPoints`, cached per element).
 - **Polar tracking** (`cad/editor/tracking/PolarTracking.ts`), **Ortho** (`tracking/ortho.ts`)
   and **object snap tracking** (`tracking/ObjectSnapTracking.ts`) apply where no snap point is
-  found. Precedence: snap > OTRACK crossing > nearer of single tracking path and polar path
+  found. Precedence: snap > grip of the selection (only while a grip is edited) > OTRACK crossing > nearer of single tracking path and polar path
   (`polarWins`) > Ortho; typed coordinates win over all. Ortho and POLAR exclude each other
   (`TrackingModes`, `withOrtho`/`withPolar`); Shift switches Ortho over for the moment
   (`SelectionEditor.orthoActive()` = `ortho !== shiftHeld`, settings unchanged). Polar applies
@@ -165,14 +169,18 @@ The behaviour itself is in `docs/bedienung.md`; these are the decisions code mus
   element at its position and all of them stretch together; any other element that uses a
   moved vertex keeps a copy at the old position (`commands/elementEdits.ts`, also behind
   `MoveCommand`). An arc end or middle redefines the arc through three points. What is left
-  (grips as snap points, a grip limit) is in `docs/todo/Grips_NotImplemented.md`.
+  is in `docs/todo/Grips_NotImplemented.md`. While a grip is edited, the other grips of the
+  selection hold the point like snap points, also with the object snap off (`gripSnap`: after a
+  real snap point, before tracking; shown as the hovered grip, no marker). A selection over
+  `gripObjectLimit` shows no grips.
   **Grip menu** (`grips/actions.ts`, `ui/GripMenu.ts`): a grip of one element may do more than
   stretch (`GripAction`: `lengthen`, `radius`, `addVertex`, `removeVertex`). The editor opens
   its menu after the cursor rested on it (`gripMenuDelay`, the timer is the editor's like the
   acquire timer) and publishes it in the snapshot; the menu is the one canvas layer that takes
   the pointer, so `pointerLeave` keeps it open and only a move on the canvas off the grip
   closes it. `chooseGripAction` runs the `GripTool` with that action in place of STRETCH, or
-  removes the vertex at once. Ctrl on its own goes through the actions (`EditorTool.cycle`).
+  removes the vertex at once. Ctrl on its own goes through the actions (`EditorTool.cycle`,
+  which BOGEN uses for the direction of an arc).
 - **Grid** (`cad/renderer/grid.ts`, `ui/GridLayer.ts`) and **UCS icon**
   (`cad/renderer/ucsIcon.ts`, `ui/UcsIcon.ts`) are display only, on layers of their own, never
   in the document, the bounds, picking or snapping. There is only the WCS (no custom UCS).
@@ -189,6 +197,7 @@ are in the guide and the translation files.
 | LINIE (`LINE`) | `LineTool` | an `AddLineCommand` per point at once (drawn and snappable); "Zurück" = `DocumentHistory.revertLast`; the run becomes one undo step (`combineLast` → `CompositeCommand`) |
 | PLINIE (`PLINE`) | `PolylineTool` | points stay in the tool (not snappable, like AutoCAD); one `AddPolylineCommand` when the command ends in any way, Esc and another tool included |
 | KREIS (`CIRCLE`) | `CircleTool` | `AddCircleCommand` as the step's command (`geometry/circle.ts`: `circleThrough`, `circleOnDiameter`) |
+| BOGEN (`ARC`) | `ArcTool` | `AddArcCommand`: through three points (`geometry/arc.ts`: `arcThrough` gives centre and direction; the second point is not stored), or with the option "Zentrum" resp. the method `startCenterEnd` start, centre and a point the arc ends towards (`arcEndToward`: the end on the circle is stored), counter-clockwise until Ctrl (`cycle`) switches the direction: **a press, not a hold as in AutoCAD**, as Ctrl + click is a right click on macOS; with the option "Winkel" there resp. the method `startCenterAngle` the included angle at an `angle` prompt from the centre: typed (negative = clockwise, full turns dropped), or the direction from the centre to a point **measured from +X, not from the start**, like AutoCAD |
 | ELLIPSE (`ELLIPSE`) | `EllipseTool` | `AddEllipseCommand`; the first axis stays `radiusX` at its angle even when it is the minor one; `rotation` 0 when axis-aligned |
 | RECHTECK (`RECTANG`) | `RectangleTool` | `AddPolylineCommand` (closed, label `RECTANG`), corners by `rectangleCorners` |
 
@@ -214,7 +223,7 @@ All pure TS and unit-tested unless noted.
   `point` with `input` `point` | `next` (measured from `from`: polar, Ortho, direct distance,
   `@`, DYN dimension) | `vector` | `distance` (from `from` like `next`, but the tool gets
   `distance()`: a typed number as is, or the distance to a point given) | `angle` (likewise
-  with the optional `angle()`: typed degrees, or the direction from `from` to a point given;
+  with the optional `angle()`: typed degrees as they are, or the direction from `from` to a point given, from 0 up to 360;
   no DYN fields yet; with `from` null a `distance` or `angle` prompt takes a number or hands
   the point itself to `point()`)), gets the selected
   objects, points, distances and option text (`''` = Enter or right click), and returns a
@@ -226,7 +235,7 @@ All pure TS and unit-tested unless noted.
 - `cad/editor/commands/`: `DocumentCommand` (`execute`/`undo` on immutable documents, returning
   the new document and the changed element ids), `DocumentHistory` (current document, undo/redo
   stacks, listeners, `revertLast`, `combineLast`), `MoveCommand`, `AddLineCommand`,
-  `AddPolylineCommand` (its `label` names the command), `AddCircleCommand`, `AddEllipseCommand`,
+  `AddPolylineCommand` (its `label` names the command), `AddCircleCommand`, `AddArcCommand`, `AddEllipseCommand`,
   `CompositeCommand`. `CadCanvas` keeps the history of the loaded document; the editor and the
   renderer follow it (`PaperRenderer.updateElements` replaces, adds and removes only the
   changed items as planned by the pure `cad/renderer/sceneUpdate.ts`, subscribed before the
@@ -264,7 +273,7 @@ All pure TS and unit-tested unless noted.
 - `cad/renderer/grid.ts` (`gridStep`: adaptive step `spacing × majorEvery^k`, `gridLines`: only
   the visible lines; `parseGridSpacing`, `parseMajorEvery`), `cad/renderer/ucsIcon.ts`
   (`ucsIconExtent`, `ucsIconPosition`).
-- `cad/geometry/`: `bezier`, `intersect`, `arc.angleOnArc`, `arc.arcThrough`, `polygon.polygonCentroid`,
+- `cad/geometry/`: `bezier`, `intersect`, `arc.angleOnArc`, `arc.arcThrough`, `arc.arcEndToward`, `polygon.polygonCentroid`,
   `ellipse` (rotated ellipses), `circle`, `similarity` (`rotationAbout`, `scalingAbout`,
   `reflectionAcross`; quarter turns exact). `cad/model/drawOrder.ts` gives the renderer's element
   order for selection and snapping.
@@ -300,7 +309,7 @@ hover/click tolerance, `apertureSize` ~ APERTURE, `showApertureBox` ~ APBOX, `sn
 ~ AUTOSNAPSIZE, `snapMarker`/`snapTooltip`/`snapMagnet` ~ AUTOSNAP, `polarTolerance` (also for
 OTRACK), `trackingAcquireDelay`, `snapPreview`, `previewColor` and `gridColor` per theme,
 `gripSize` ~ GRIPSIZE, `gripColor` ~ GRIPCOLOR/GRIPHOVER/GRIPHOT, `gripMenu` ~
-GRIPMULTIFUNCTIONAL, `gripMenuDelay`,
+GRIPMULTIFUNCTIONAL, `gripMenuDelay`, `gripObjectLimit` ~ GRIPOBJLIMIT,
 `gridMinSpacing`, `ucsIcon…` ~ UCSICON). Code receives the object (App → `CadCanvas` → editor
 and crosshair) rather than importing the defaults, so the user can change them later; for now
 they are read when a document is loaded. The switches live in App state and may change at any

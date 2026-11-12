@@ -28,6 +28,7 @@ import { orthoPoint } from './tracking/ortho';
 import { t } from '../../i18n/i18n';
 import { findCommand, labelName, type EditorCommand } from './commandNames';
 import type { DrawingMemory } from './tools/DrawingMemory';
+import { ArcTool, type ArcMethod } from './tools/ArcTool';
 import { CircleTool } from './tools/CircleTool';
 import { EllipseTool } from './tools/EllipseTool';
 import { GripTool } from './tools/GripTool';
@@ -489,18 +490,20 @@ export class SelectionEditor {
 
     /**
      * Starts a command, e.g. SCHIEBEN (with a pickfirst selection straight at the base point,
-     * otherwise by selecting objects), LINIE, PLINIE, KREIS, ELLIPSE or RECHTECK. Another running command is cancelled
-     * first, like a toolbar click in AutoCAD; the same command keeps running.
+     * otherwise by selecting objects), LINIE, PLINIE, KREIS, BOGEN, ELLIPSE or RECHTECK. Another running command is cancelled
+     * first, like a toolbar click in AutoCAD; the same command keeps running. `method` starts
+     * BOGEN with one of its methods, as its tool buttons do; another method than the running one
+     * starts it anew.
      */
-    startCommand(command: EditorCommand): void {
+    startCommand(command: EditorCommand, method?: ArcMethod): void {
         const state = this.state;
         if (state.kind === 'command') {
-            if (state.tool.command === command) {
+            if (state.tool.command === command && (method === undefined || state.tool.method === method)) {
                 return;
             }
             this.cancelCommand();
         }
-        this.startTool(this.newTool(command));
+        this.startTool(this.newTool(command, method));
     }
 
     /**
@@ -528,7 +531,7 @@ export class SelectionEditor {
         this.startTool(new GripTool(this.history, this.index, hot, action), hot);
     }
 
-    private newTool(command: EditorCommand): EditorTool {
+    private newTool(command: EditorCommand, method?: ArcMethod): EditorTool {
         switch (command) {
             case 'MOVE':
                 return new MoveTool();
@@ -538,6 +541,8 @@ export class SelectionEditor {
                 return new PolylineTool(this.history, this.drawingMemory);
             case 'CIRCLE':
                 return new CircleTool();
+            case 'ARC':
+                return new ArcTool(method);
             case 'ELLIPSE':
                 return new EllipseTool();
             case 'RECTANG':
@@ -1176,7 +1181,9 @@ export class SelectionEditor {
             return;
         }
         if (prompt.input === 'angle' && prompt.from !== null) {
-            this.angleGiven((Math.atan2(point.y - prompt.from.y, point.x - prompt.from.x) * 180) / Math.PI);
+            // From 0 up to 360, like AutoCAD: only a typed angle is negative
+            const degrees = (Math.atan2(point.y - prompt.from.y, point.x - prompt.from.x) * 180) / Math.PI;
+            this.angleGiven(degrees < 0 ? degrees + 360 : degrees);
             return;
         }
         if (prompt.input !== 'vector') {

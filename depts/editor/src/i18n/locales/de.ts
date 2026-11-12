@@ -19,6 +19,14 @@ export const de = {
         polylineTitle: 'Polylinie ({{command}})',
         circle: 'Kreis',
         circleTitle: 'Kreis ({{command}})',
+        arc: 'Bogen',
+        arcMore: 'Weitere Bogen-Werkzeuge',
+        arcThreePoints: '3 Punkte',
+        arcThreePointsTitle: 'Bogen: 3 Punkte ({{command}})',
+        arcStartCenterEnd: 'Start, Zentrum, Ende',
+        arcStartCenterEndTitle: 'Bogen: Start, Zentrum, Ende ({{command}})',
+        arcStartCenterAngle: 'Start, Zentrum, Winkel',
+        arcStartCenterAngleTitle: 'Bogen: Start, Zentrum, Winkel ({{command}})',
         ellipse: 'Ellipse',
         ellipseTitle: 'Ellipse ({{command}})',
         rectangle: 'Rechteck',
@@ -68,6 +76,14 @@ export const de = {
         circleFirstPoint: 'Ersten Punkt auf Kreis angeben:',
         circleSecondPoint: 'Zweiten Punkt auf Kreis angeben:',
         circleThirdPoint: 'Dritten Punkt auf Kreis angeben:',
+        arcStart: 'Startpunkt für Bogen angeben:',
+        arcSecond: 'Zweiten Punkt für Bogen angeben oder [Zentrum]:',
+        arcEnd: 'Endpunkt für Bogen angeben:',
+        arcCenter: 'Mittelpunkt für Bogen angeben:',
+        /** Start, centre, end: the point only gives the direction the arc ends in. */
+        arcEndDirection: 'Endpunkt für Bogen angeben (Strg wechselt die Richtung) oder [Winkel]:',
+        /** Start, centre, angle: a negative angle runs clockwise. */
+        arcAngle: 'Eingeschlossenen Winkel angeben (Strg wechselt die Richtung):',
         ellipseAxisStart: 'Achsenendpunkt der Ellipse angeben oder [Mittelpunkt]:',
         ellipseAxisOtherEnd: 'Anderen Endpunkt der Achse angeben:',
         ellipseCenter: 'Mittelpunkt der Ellipse angeben:',
@@ -138,6 +154,11 @@ export const de = {
         lengthKeyword: 'sehnenLänge',
         /** KREIS: the diameter instead of the radius. */
         diameterKeyword: 'Durchmesser',
+        /** BOGEN: the centre instead of a second point on the arc. */
+        arcCenterKeyword: 'Zentrum',
+        /** BOGEN: the included angle instead of the point the arc ends towards. */
+        angleKeyword: 'Winkel',
+        arcAngleInvalid: 'Winkel darf nicht 0 oder ein Vielfaches von 360 sein.',
         /** ELLIPSE: the centre first, then one end of the first axis. */
         centerKeyword: 'Mittelpunkt',
         /** RECHTECK: length and width, then a point chooses the quadrant. */

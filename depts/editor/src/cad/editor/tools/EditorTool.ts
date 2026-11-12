@@ -49,9 +49,11 @@ export type ToolPrompt =
     | { kind: 'select'; text: Message }
     | PointPrompt;
 
-/** A closed shape a tool previews, in model coordinates. */
+/** A shape a tool previews, in model coordinates. */
 export type PreviewCurve =
     | { kind: 'circle'; center: Point; radius: number }
+    /** Around `center` from `start` to the angle of `end`, like an arc element. */
+    | { kind: 'arc'; center: Point; start: Point; end: Point; clockwise: boolean }
     /** `radiusX` along the axis at `rotation` (radians, counter-clockwise from +X). */
     | { kind: 'ellipse'; center: Point; radiusX: number; radiusY: number; rotation: number }
     /** Straight segments through `points` and back to the first. */
@@ -83,7 +85,7 @@ export type ToolPreview =
      */
     | { kind: 'polyline'; points: readonly Point[]; direction?: Vector2 }
     /**
-     * The circle, ellipse or polygon a click at the point would give (`curveAt`, null where it gives none),
+     * The circle, arc, ellipse or polygon a click at the point would give (`curveAt`, null where it gives none),
      * with `rubberBand` also a dashed rubber band from `from` to the point. A tool gives a new
      * object when what it previews changes.
      */
@@ -117,6 +119,11 @@ export interface ToolStep {
  */
 export interface EditorTool {
     readonly command: ToolId;
+    /**
+     * Which of the command's methods the prompts follow, where the tool bar offers several
+     * (BOGEN): starting the command again with another one restarts it.
+     */
+    readonly method?: string;
     /** The current prompt; read by the editor after every call. */
     readonly prompt: ToolPrompt;
     /** Elements drawn as selected while the command asks for points. */
@@ -139,8 +146,9 @@ export interface EditorTool {
      */
     distance(distance: number): ToolStep;
     /**
-     * An angle in degrees (counter-clockwise from +X) was given at an `angle` prompt: typed, or
-     * the direction from `from` to a point given. Only tools with such a prompt have it.
+     * An angle in degrees (counter-clockwise from +X) was given at an `angle` prompt: typed (as
+     * is, so it may be negative), or the direction from `from` to a point given, from 0 up to
+     * 360. Only tools with such a prompt have it.
      */
     angle?(degrees: number): ToolStep;
     /**
@@ -150,7 +158,8 @@ export interface EditorTool {
     text(text: string): ToolStep | null;
     /**
      * Ctrl on its own was pressed: the next variant of what the tool does at this prompt (the
-     * actions of a hot grip). Null if there is none.
+     * actions of a hot grip, the direction of an arc). Null if there is none. A tool that keeps
+     * its prompt object keeps the point prompt as it is.
      */
     cycle?(): ToolStep | null;
     /** Esc ends the command; the editor reports the cancel. */

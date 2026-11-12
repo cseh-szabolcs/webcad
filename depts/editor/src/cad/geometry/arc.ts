@@ -42,6 +42,30 @@ export function arcThrough(start: Point, mid: Point, end: Point): { center: Poin
     return { center: circle.center, clockwise: cross < 0 };
 }
 
+/**
+ * Where the arc around `center` from `start` ends in the direction of `toward`: on its circle,
+ * on the ray from the centre through `toward`. Null if that gives no arc: no radius, `toward`
+ * in the centre, or on the ray through `start` (which would be a full circle).
+ */
+export function arcEndToward(center: Point, start: Point, toward: Point): Point | null {
+    const sx = start.x - center.x;
+    const sy = start.y - center.y;
+    const tx = toward.x - center.x;
+    const ty = toward.y - center.y;
+    const radius = Math.hypot(sx, sy);
+    const distance = Math.hypot(tx, ty);
+    if (!(radius > 0) || !(distance > 0)) {
+        return null;
+    }
+    // The sine of the angle between the rays, as `arcSweep` takes angles that close for a full circle
+    const sameRay = sx * tx + sy * ty > 0 && Math.abs(sx * ty - sy * tx) <= 1e-9 * radius * distance;
+    if (sameRay) {
+        return null;
+    }
+    const scale = radius / distance;
+    return { x: center.x + tx * scale, y: center.y + ty * scale };
+}
+
 /** Whether `angle` lies on the arc from `startAngle` over the signed `sweep` (ends included). */
 export function angleOnArc(angle: number, startAngle: number, sweep: number): boolean {
     if (Math.abs(sweep) >= TAU - 1e-9) {

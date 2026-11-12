@@ -1471,8 +1471,8 @@ describe('SelectionEditor typed commands', () => {
 
     it('reports an unknown command and stays at the command prompt', () => {
         const editor = create();
-        type(editor, 'bogen');
-        expect(editor.snapshot).toMatchObject({ command: null, prompt: 'Befehl:', input: '', message: 'Unbekannter Befehl "BOGEN".' });
+        type(editor, 'xyz');
+        expect(editor.snapshot).toMatchObject({ command: null, prompt: 'Befehl:', input: '', message: 'Unbekannter Befehl "XYZ".' });
     });
 
     it('leaves Space, Enter, Backspace and Esc alone without text; Esc drops the text first', () => {

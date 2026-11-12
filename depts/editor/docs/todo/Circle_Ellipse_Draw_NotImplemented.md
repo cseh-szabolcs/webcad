@@ -38,9 +38,9 @@ Offen, mit dem, was dafür fehlt:
 ## Gemeinsam
 
 - Aktueller Layer und Stil für neue Objekte.
-- Werkzeug-Dropdowns in der Werkzeugleiste.
+- Werkzeug-Dropdowns in der Werkzeugleiste für KREIS und ELLIPSE (wie am Button **Bogen**, `ToolFlyout` in `src/ui/ToolPanel.tsx`).
 
 ## Noch zu prüfen
 
-- Der Test für „Unbekannter Befehl“ hat bisher kreis verwendet; der ist jetzt bogen.
+- Der Test für „Unbekannter Befehl“ hat bisher kreis verwendet, dann bogen; seit es BOGEN gibt, ist er `xyz`.
 - Die erste Achse bleibt radiusX, auch wenn sie die kürzere ist. AutoCAD speichert dagegen immer die längere Achse als Hauptachse.

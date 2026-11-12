@@ -15,6 +15,9 @@ describe('commandNames', () => {
         expect(findCommand('PLinie')).toBe('PLINE');
         expect(findCommand('k')).toBe('CIRCLE');
         expect(findCommand('c')).toBe('CIRCLE');
+        expect(findCommand('b')).toBe('ARC');
+        expect(findCommand('a')).toBe('ARC');
+        expect(findCommand('Bogen')).toBe('ARC');
         expect(findCommand('el')).toBe('ELLIPSE');
         expect(findCommand('rec')).toBe('RECTANG');
         expect(findCommand('Rechteck')).toBe('RECTANG');
@@ -27,6 +30,7 @@ describe('commandNames', () => {
         expect(commandName('PLINE', 'de')).toBe('PLINIE');
         expect(commandName('PLINE', 'en')).toBe('PLINE');
         expect(commandName('CIRCLE', 'de')).toBe('KREIS');
+        expect(commandName('ARC', 'de')).toBe('BOGEN');
         expect(commandName('ELLIPSE', 'de')).toBe('ELLIPSE');
         expect(commandName('RECTANG', 'de')).toBe('RECHTECK');
     });

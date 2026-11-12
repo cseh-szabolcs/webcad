@@ -249,27 +249,25 @@ function App() {
                     )}
                 </div>
             </header>
-            <div className="app-main">
-                <ToolPanel
-                    command={selection?.command ?? null}
-                    onStart={(command) => canvasRef.current?.startCommand(command)}
-                />
-                <CadCanvas
-                    ref={canvasRef}
-                    document={state.document}
-                    theme={theme}
-                    settings={DEFAULT_EDITOR_SETTINGS}
-                    snapSettings={snapSettings}
-                    polarSettings={tracking.polar}
-                    ortho={tracking.ortho}
-                    objectTrackingSettings={objectTracking}
-                    gridSettings={gridSettings}
-                    dynamicInputSettings={dynamicInput}
-                    onViewportChange={setViewport}
-                    onPointerChange={setPointer}
-                    onSelectionChange={setSelection}
-                />
-            </div>
+            <ToolPanel
+                command={selection?.command ?? null}
+                onStart={(command, method) => canvasRef.current?.startCommand(command, method)}
+            />
+            <CadCanvas
+                ref={canvasRef}
+                document={state.document}
+                theme={theme}
+                settings={DEFAULT_EDITOR_SETTINGS}
+                snapSettings={snapSettings}
+                polarSettings={tracking.polar}
+                ortho={tracking.ortho}
+                objectTrackingSettings={objectTracking}
+                gridSettings={gridSettings}
+                dynamicInputSettings={dynamicInput}
+                onViewportChange={setViewport}
+                onPointerChange={setPointer}
+                onSelectionChange={setSelection}
+            />
             {selection && (
                 <CommandLine
                     prompt={selection.prompt}

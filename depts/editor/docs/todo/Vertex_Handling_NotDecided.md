@@ -1,3 +1,3 @@
-- Griffe ziehen: Die Griffe haben noch keine Funktion. Erst dort würde ein geteilter Punkt beide Linien mitziehen.
+- Griffe ziehen: entschieden wie AutoCAD. Gewählte Objekte mit einem Grip an derselben Stelle werden zusammen gestreckt; nicht bearbeitete Nachbarn lösen sich vom geteilten Punkt (Kopie an der alten Stelle, `commands/elementEdits.ts`). Ein Modus, in dem verbundene Nachbarn mitgezogen werden, ist nicht geplant.
 - SCHIEBEN löst geteilte Punkte bewusst auf, wie in AutoCAD. Eine verschobene Linie reißt sich also ohnehin von ihren Nachbarn los.
 - Löschen, Stutzen, Dehnen und Ähnliches gibt es noch nicht. Dafür bräuchte es Regeln, was mit einem Punkt passiert, den noch ein anderes Objekt nutzt.

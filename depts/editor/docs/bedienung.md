@@ -6,7 +6,7 @@ Auf dem Mac entspricht **Option (⌥)** der Taste Alt.
 Tastenkürzel wirken, solange der Fokus nicht in einem Textfeld liegt.
 
 Der Editor zeigt Pläne an, wählt Objekte aus, zeichnet Linien mit dem Befehl LINIE,
-Polylinien mit PLINIE, Kreise mit KREIS, Ellipsen mit ELLIPSE und Rechtecke mit RECHTECK, verschiebt Objekte mit dem Befehl SCHIEBEN und streckt sie an ihren [Grips](#grips) (mit Raster, Objektfang, Polarspur, Ortho, Objektfangspuren, Koordinateneingabe, dynamischer Eingabe und Rückgängig). Gespeichert wird noch nichts; was
+Polylinien mit PLINIE, Kreise mit KREIS, Bögen mit BOGEN, Ellipsen mit ELLIPSE und Rechtecke mit RECHTECK, verschiebt Objekte mit dem Befehl SCHIEBEN und streckt sie an ihren [Grips](#grips) (mit Raster, Objektfang, Polarspur, Ortho, Objektfangspuren, Koordinateneingabe, dynamischer Eingabe und Rückgängig). Gespeichert wird noch nichts; was
 sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgesetzt).
 
 ## Oberfläche
@@ -24,14 +24,22 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   Lock, das gibt es nur in Chrome, Edge und anderen Chromium-Browsern, nicht in Safari und
   Firefox), ist der Button ausgegraut und ohne Funktion; sein Tooltip nennt den Grund. Kann
   die Seite gar nicht ins Vollbild (z. B. in einem iframe ohne Erlaubnis), fehlt der Button.
-- **Werkzeugleiste** (links, senkrecht): ein Symbol-Button je Befehl, gruppiert wie in
+- **Werkzeugleiste** (unter der Toolbar, waagrecht): ein Symbol-Button je Befehl, gruppiert wie in
   AutoCAD: **Zeichnen** mit **Linie** (Befehl [LINIE](#befehl-linie)), **Polylinie**
-  (Befehl [PLINIE](#befehl-plinie)), **Kreis** (Befehl [KREIS](#befehl-kreis)), **Ellipse**
-  (Befehl [ELLIPSE](#befehl-ellipse)) und **Rechteck** (Befehl [RECHTECK](#befehl-rechteck)), darunter nach einer
+  (Befehl [PLINIE](#befehl-plinie)), **Kreis** (Befehl [KREIS](#befehl-kreis)), **Bogen**
+  (Befehl [BOGEN](#befehl-bogen)), **Ellipse** (Befehl [ELLIPSE](#befehl-ellipse)) und
+  **Rechteck** (Befehl [RECHTECK](#befehl-rechteck)), daneben nach einer
   Trennlinie **Ändern** mit **Verschieben** (Befehl [SCHIEBEN](#befehl-schieben)). Der Name
   steht im Tooltip, z. B. `Linie (LINIE)`. Der Button des laufenden Befehls bleibt gedrückt; ein
   weiterer Klick darauf bewirkt nichts. Ein Klick auf einen anderen bricht den laufenden Befehl
   ab (`*Abbruch*`) und startet den neuen.
+  Der Button **Bogen** steht für mehrere Arten, einen Bogen zu zeichnen: Er zeigt die zuletzt
+  verwendete (anfangs **3 Punkte**, Tooltip `Bogen: 3 Punkte (BOGEN)`) und startet sie. Der
+  schmale Button **▾** daneben (**Weitere Bogen-Werkzeuge**) öffnet ein Menü mit allen Arten,
+  die gewählte ist fett; ein Klick auf eine startet sie und legt sie auf den Button. Das Menü
+  schließt auch mit **Esc** oder einem Klick daneben. Es gibt **3 Punkte**, **Start, Zentrum,
+  Ende** und **Start, Zentrum, Winkel**; welche Art zuletzt verwendet wurde, gilt bis zum
+  Neuladen der Seite.
 - **Zeichenfläche** in der Mitte, mit dem [BKS-Symbol](#bks-symbol) am Nullpunkt bzw.
   unten links.
 - **Kommandozeile** unter der Zeichenfläche: oben in Grau die letzte Meldung (z. B.
@@ -103,7 +111,7 @@ nicht zusätzlich hervorgehoben.
 | Eingabe                 | Wirkung                                             |
 |-------------------------|-----------------------------------------------------|
 | Klick auf ein Objekt    | Fügt es zur Auswahl hinzu                            |
-| Shift + Klick           | Entfernt es aus der Auswahl                         |
+| Shift + Klick           | Entfernt es aus der Auswahl (auf einem [Grip](#grips) macht er stattdessen den Grip hot) |
 | Klick ins Leere         | Bewirkt nichts, die Auswahl bleibt bestehen         |
 | Esc (ohne Befehl)       | Hebt die ganze Auswahl auf                          |
 
@@ -164,6 +172,8 @@ Punkt, gibt es dort nur einen Grip. Was ein Klick auf einen Grip tut, steht unte
 ## Grips
 
 Die Grips einer Auswahl (ohne laufenden Befehl) sind Griffe zum Bearbeiten, wie in AutoCAD.
+Sind mehr Objekte gewählt, als die Einstellung `gripObjectLimit` erlaubt, zeigt die Auswahl
+keine Grips (sie bleibt gewählt und lässt sich mit den Befehlen bearbeiten).
 Die Segmentmitten einer Polylinie erscheinen als kleiner Balken längs des Segments, alle
 anderen Grips als Quadrat. Größe: Einstellung `gripSize`; Farben: Einstellung `gripColor`.
 
@@ -171,12 +181,13 @@ anderen Grips als Quadrat. Größe: Einstellung `gripSize`; Farben: Einstellung 
 |---------|--------------------------------------------------------------|---------------------|
 | warm    | Grip eines gewählten Objekts                                 | `warm`              |
 | hover   | Grip unter dem Cursor; ein Klick würde ihn bearbeiten        | `hover`             |
-| hot     | Grip wird gerade bearbeitet und ist der Basispunkt           | `hot`               |
+| hot     | Grip wird gerade bearbeitet, oder ist mit Shift + Klick dafür vorgemerkt | `hot`    |
 
 Ein Grip ist getroffen, sobald die Pickbox ihn berührt. Er hat dann Vorrang vor dem Objekt
 darunter (kein Überfahren-Effekt), und das Fadenkreuz springt auf den Grip (Einstellung
-`snapMagnet`). **Shift + Klick** bearbeitet keinen Grip: Er wirkt wie ohne Grips und entfernt
-das Objekt unter dem Cursor aus der Auswahl.
+`snapMagnet`). **Shift + Klick** auf einen Grip merkt ihn vor (siehe
+[Mehrere Grips zusammen](#mehrere-grips-zusammen)); um ein Objekt aus der Auswahl zu entfernen,
+klickt man mit Shift auf seine Kontur abseits der Grips.
 
 ### Strecken
 
@@ -193,6 +204,13 @@ das Objekt unter dem Cursor aus der Auswahl.
    Distanzeingabe messen ab dem Grip).
 3. Das Strecken ist ein Rückgängig-Schritt (`Rückgängig: STRECKEN`). Die Objekte **bleiben
    gewählt**, ihre Grips stehen an der neuen Stelle.
+
+**Grips als Fangpunkte:** Solange ein Grip bearbeitet wird (in jedem Modus), hält ein anderer
+Grip der Auswahl unter dem Cursor den Punkt fest, auch bei **ausgeschaltetem** Objektfang. Er
+erscheint dann in der Farbe `hover`, das Fadenkreuz springt darauf (Einstellung `snapMagnet`);
+einen eigenen Fangmarker gibt es dafür nicht. Der Trefferbereich ist derselbe wie beim Anklicken
+eines Grips. Findet der Objektfang dort einen Punkt, gilt dieser (mit Marker); der hot Grip
+selbst fängt nicht.
 
 Statt zweimal zu klicken, lässt sich der Grip auch **ziehen**: Taste auf dem Grip drücken,
 ziehen, loslassen. Das Loslassen setzt den Zielpunkt, sobald die Maus weiter als
@@ -222,6 +240,73 @@ Objekt: Nutzt ein nicht bearbeitetes Objekt einen bewegten Punkt mit, behält es
 des Punkts an der alten Stelle, so wie bei [SCHIEBEN](#befehl-schieben). Zwei Positionen
 gelten als gleich, wenn sie sich um weniger als `SAME_POSITION`
 (`src/cad/editor/commands/elementEdits.ts`) unterscheiden.
+
+### Mehrere Grips zusammen
+
+Mehrere Grips lassen sich gemeinsam strecken, wie in AutoCAD; was zwischen ihnen liegt, behält
+dabei seine Form (z. B. zwei Ecken einer Polylinie samt der Kante dazwischen).
+
+1. **Shift + Klick** auf einen Grip macht ihn hot, ohne das Bearbeiten zu starten; ein weiterer
+   Shift + Klick macht ihn wieder warm. So nacheinander alle gewünschten Grips wählen, auch von
+   verschiedenen Objekten.
+2. **Klick ohne Shift** auf einen Grip startet das Strecken. Dieser Grip ist der Basispunkt,
+   alle hot Grips gehen um dieselbe Strecke mit. Auch ein bisher warmer Grip darf der Basispunkt
+   sein, er wird dann mitgestreckt.
+
+**Esc** macht zuerst die vorgemerkten Grips wieder warm, erst das nächste Esc hebt die Auswahl
+auf. Die Vormerkung bleibt, wenn weitere Objekte gewählt werden; sie endet, wenn das Bearbeiten
+endet oder abgebrochen wird oder ein Befehl startet.
+
+Sind von einem Objekt mehrere Grips hot, gilt:
+
+- Der Grip, der das ganze Objekt verschiebt (Linienmitte, Zentrum), nimmt es als Ganzes mit;
+  seine übrigen hot Grips ändern dann nichts mehr an der Form.
+- Bei einem Bogen läuft der neue Bogen durch Anfang, Mitte und Ende, jeweils an der neuen Stelle,
+  wenn der Grip hot ist, sonst an der alten. Sind alle drei hot, wird der Bogen verschoben.
+- Ein Bézier-Kontrollpunkt, dessen Endpunkt ebenfalls hot ist, wandert mit dem Endpunkt mit.
+
+Die anderen Modi (SCHIEBEN, DREHEN, …) wirken ohnehin auf die ganze Auswahl; dort zählt nur,
+welcher Grip der Basispunkt ist.
+
+### Grip-Menü
+
+Manche Grips können mehr als strecken (in AutoCAD „multifunktionale Grips“). Bleibt der Cursor
+auf einem solchen Grip stehen, ohne zu klicken, öffnet sich nach kurzer Zeit (Einstellung
+`gripMenuDelay`) ein kleines Menü direkt am Grip; die Einstellung `gripMenu` schaltet es ab.
+Ein Klick auf einen Eintrag führt ihn aus. Um das Menü liegt ein unsichtbarer Rand
+(`MENU_REACH_PX` in `src/ui/GripMenu.ts`), in dem es offen bleibt, damit der Weg vom Grip zum
+Menü nicht genau getroffen werden muss. Das Menü schließt sich, wenn der Cursor auf der
+Zeichenfläche vom Grip weg bewegt wird, bei **Esc** (die Auswahl bleibt), bei jeder anderen
+Taste und bei einem Klick in die Zeichenfläche; ein Klick auf den Grip selbst streckt wie immer.
+
+| Grip                                   | Einträge                                                        |
+|----------------------------------------|-----------------------------------------------------------------|
+| Ende einer Linie                       | **Strecken**, **Länge**                                         |
+| Anfang oder Ende eines Bogens          | **Strecken**, **Länge**                                         |
+| Mitte eines Bogens                     | **Strecken**, **Radius**                                        |
+| Ecke einer Polylinie                   | **Strecken**, **Scheitelpunkt hinzufügen**, **Scheitelpunkt entfernen** |
+| Segmentmitte einer Polylinie           | **Strecken**, **Scheitelpunkt hinzufügen**                      |
+
+Alle anderen Grips (Linienmitte, Zentren, Quadranten, Bézier-Punkte) haben kein Menü, ebenso
+ein Grip, den sich mehrere gewählte Objekte teilen.
+
+| Eintrag | Aufforderung | Wirkung |
+|---------|--------------|---------|
+| Strecken | wie [Strecken](#strecken) | Wie ein Klick auf den Grip |
+| Länge | `** LÄNGE ** Endpunkt angeben:` | Linie: das Ende wandert entlang der Linie zum Lotfußpunkt des angegebenen Punkts, die Richtung bleibt; hinter dem anderen Ende gibt es keine Linie. Bogen: das Ende wandert auf seinem Kreis zum Winkel des Punkts, Zentrum und Radius bleiben |
+| Radius | `** RADIUS ** Radius angeben:` | Getippte Zahl oder Abstand vom Zentrum zu einem Punkt: neuer Radius des Bogens, Zentrum und Winkel bleiben |
+| Scheitelpunkt hinzufügen | `** SCHEITELPUNKT HINZUFÜGEN ** Neuen Scheitelpunkt angeben:` | Neue Ecke am angegebenen Punkt: bei einer Segmentmitte in diesem Segment, bei einer Ecke im Segment danach; an der ersten Ecke einer offenen Polylinie davor, an der letzten dahinter, so wächst sie an beiden Enden |
+| Scheitelpunkt entfernen | (keine) | Entfernt die Ecke sofort; nur angeboten, solange danach noch 2 Ecken (geschlossen: 3) bleiben |
+
+Die Aktionen zeigen eine Vorschau wie das Strecken, nehmen ihren Punkt mit Objektfang,
+Polarspur und getippten Koordinaten und sind je ein Rückgängig-Schritt (`Rückgängig: LÄNGE`,
+`RADIUS`, `SCHEITELPUNKT HINZUFÜGEN`, `SCHEITELPUNKT ENTFERNEN`); die Auswahl bleibt. Sie haben
+keine Optionen. Enter, Leertaste oder Rechtsklick wechseln von dort zu den
+[Grip-Modi](#grip-modi) weiter.
+
+Ohne Menü geht es auch: Ist ein Grip hot und fragt STRECKEN nach dem Streckpunkt, schaltet die
+**Strg**-Taste (allein gedrückt) durch seine Aktionen, wie in AutoCAD, z. B. STRECKEN → LÄNGE →
+STRECKEN. „Scheitelpunkt entfernen“ ist nicht dabei, das gibt es nur im Menü.
 
 ### Grip-Modi
 
@@ -293,7 +378,7 @@ Basispunkt oder Bezug gefragt wird, gibt es keine Optionen; Esc bricht das Bearb
 
 ## Befehl SCHIEBEN
 
-Button **Verschieben** (Pfeilkreuz) in der Werkzeugleiste links.
+Button **Verschieben** (Pfeilkreuz) in der Werkzeugleiste.
 
 Oder bei `Befehl:` den Namen tippen, `SCHIEBEN` oder `MOVE` (Groß-/Kleinschreibung egal,
 in jeder Sprache), und mit **Enter** oder **Leertaste** ausführen. Der Text erscheint in
@@ -364,7 +449,7 @@ Tastenkürzel aus; Strg/⌘-Kürzel, F3, F7, F8, F10, F11 und F12 wirken weiter.
 ## Befehl LINIE
 
 Zeichnet eine Folge zusammenhängender, aber **einzeln bearbeitbarer** Linien, wie AutoCAD
-LINIE. Start mit dem Button **Linie** in der Werkzeugleiste links oder durch Tippen von
+LINIE. Start mit dem Button **Linie** in der Werkzeugleiste oder durch Tippen von
 `LINIE`, `LINE` oder `L` bei `Befehl:` (Enter oder Leertaste). Eine bestehende Auswahl wird
 dabei aufgehoben.
 
@@ -411,7 +496,7 @@ gilt es auch.
 
 Zeichnet eine **Polylinie**: ein einziges Objekt aus zusammenhängenden Segmenten, wie AutoCAD
 PLINIE. Bisher gibt es nur gerade Segmente (siehe [Noch nicht umgesetzt](#noch-nicht-umgesetzt)).
-Start mit dem Button **Polylinie** in der Werkzeugleiste links oder durch Tippen von `PLINIE`,
+Start mit dem Button **Polylinie** in der Werkzeugleiste oder durch Tippen von `PLINIE`,
 `PLINE` oder `PL` bei `Befehl:` (Enter oder Leertaste). Eine bestehende Auswahl wird dabei
 aufgehoben.
 
@@ -472,7 +557,7 @@ vorigen Segments** an (wie AutoCAD: die Abfrage eines Abstands ab dem letzten Pu
 ## Befehl KREIS
 
 Zeichnet einen **Kreis**, wie AutoCAD KREIS; danach endet der Befehl. Start mit dem Button
-**Kreis** in der Werkzeugleiste links oder durch Tippen von `KREIS`, `K`, `CIRCLE` oder `C` bei
+**Kreis** in der Werkzeugleiste oder durch Tippen von `KREIS`, `K`, `CIRCLE` oder `C` bei
 `Befehl:`. Eine bestehende Auswahl wird dabei aufgehoben.
 
 1. **`Zentrum für Kreis angeben oder [3P/2P]:`** – der Mittelpunkt, mit Objektfang,
@@ -508,10 +593,113 @@ Im Englischen heißen die Aufforderungen `Specify center point for circle or [3P
 `Specify radius of circle or [Diameter]:` und `Specify diameter of circle:`, die Option
 `Diameter` (`D`).
 
+## Befehl BOGEN
+
+Zeichnet einen **Kreisbogen**, wie AutoCAD BOGEN; danach endet der Befehl. Start mit dem Button
+**Bogen** in der Werkzeugleiste (bzw. einer Methode in seinem Menü **▾**) oder durch Tippen von
+`BOGEN`, `B`, `ARC` oder `A` bei `Befehl:`. Eine bestehende Auswahl wird dabei aufgehoben. Es
+gibt drei Methoden: **3 Punkte** (die Vorgabe), **Start, Zentrum, Ende** und **Start, Zentrum,
+Winkel**.
+
+### 3 Punkte
+
+1. **`Startpunkt für Bogen angeben:`** – der Anfang des Bogens, mit Objektfang,
+   Objektfangspuren und Koordinateneingabe wie der erste Punkt von [LINIE](#befehl-linie).
+2. **`Zweiten Punkt für Bogen angeben oder [Zentrum]:`** – ein beliebiger Punkt, durch den der
+   Bogen läuft (nicht sein Mittelpunkt). Gemessen ab dem Startpunkt (Polarspur, Ortho, Direkte
+   Distanzeingabe, `@`); ein gestricheltes **Gummiband** läuft vom Startpunkt zum Cursor.
+   `Z` (Zentrum) + Enter wechselt zu [Start, Zentrum, Ende](#start-zentrum-ende).
+3. **`Endpunkt für Bogen angeben:`** – das Ende des Bogens, gemessen ab dem zweiten Punkt. Eine
+   **Vorschau** zeigt den Bogen, den ein Klick ergäbe.
+
+- Der Bogen läuft vom Startpunkt **über den zweiten Punkt** zum Endpunkt. Die Reihenfolge der
+  Punkte bestimmt damit die Richtung (im oder gegen den Uhrzeigersinn) und, ob es der kurze
+  oder der lange Teil des Kreises ist.
+- Punkte, die keinen Bogen ergeben (der zweite auf dem Startpunkt, der dritte auf einem der
+  beiden ersten oder alle drei auf einer Geraden), werden ignoriert; die Abfrage bleibt. Die
+  Vorschau zeigt dort nichts.
+
+### Start, Zentrum, Ende
+
+Start mit **Start, Zentrum, Ende** im Menü **▾** des Buttons **Bogen** (der Befehl fragt dann
+nach dem Startpunkt gleich nach dem Mittelpunkt) oder mit `Z` beim zweiten Punkt.
+
+1. **`Startpunkt für Bogen angeben:`** – wie oben.
+2. **`Mittelpunkt für Bogen angeben:`** – das Zentrum des Kreises, gemessen ab dem Startpunkt,
+   mit Gummiband. Sein Abstand zum Startpunkt ist der **Radius**.
+3. **`Endpunkt für Bogen angeben (Strg wechselt die Richtung) oder [Winkel]:`** – der Punkt gibt nur die
+   **Richtung** an, in der der Bogen endet: Er endet auf seinem Kreis, auf dem Strahl vom
+   Mittelpunkt durch den Punkt; der Punkt selbst muss nicht auf dem Kreis liegen. Gemessen ab
+   dem Mittelpunkt (eine Eingabe wie `@100<90` oder die Polarspur geben also den Endwinkel; der
+   Abstand spielt keine Rolle).
+   Eine **Vorschau** zeigt den Bogen, dazu ein Gummiband vom Mittelpunkt zum Cursor.
+   `W` (Winkel) + Enter wechselt zu [Start, Zentrum, Winkel](#start-zentrum-winkel).
+
+- Der Bogen läuft vom Startpunkt **gegen den Uhrzeigersinn**. Die **Strg**-Taste (allein
+  gedrückt) kehrt die Richtung um, ein weiterer Druck wieder zurück; die Vorschau folgt sofort,
+  schon Getipptes bleibt. Der nächste Bogen läuft wieder gegen den Uhrzeigersinn.
+  **Abweichung von AutoCAD:** dort gilt die andere Richtung nur, solange Strg gehalten wird;
+  hier schaltet ein Druck um, weil Strg + Klick auf dem Mac ein Rechtsklick ist (und der wirkt
+  wie Enter).
+- Punkte, die keinen Bogen ergeben, werden ignoriert, die Abfrage bleibt: der Mittelpunkt auf
+  dem Startpunkt, das Ende im Mittelpunkt oder auf dem Strahl durch den Startpunkt (das wäre
+  ein voller Kreis).
+
+### Start, Zentrum, Winkel
+
+Start mit **Start, Zentrum, Winkel** im Menü **▾** des Buttons **Bogen** (der Befehl fragt dann
+nach dem Mittelpunkt gleich nach dem Winkel) oder mit `W` beim Endpunkt von
+[Start, Zentrum, Ende](#start-zentrum-ende).
+
+1. **`Startpunkt für Bogen angeben:`** und 2. **`Mittelpunkt für Bogen angeben:`** – wie bei
+   Start, Zentrum, Ende; der Abstand ist der Radius.
+3. **`Eingeschlossenen Winkel angeben (Strg wechselt die Richtung):`** – der Winkel des Bogens
+   am Mittelpunkt, in Grad:
+   - eine getippte **Zahl**: positiv läuft der Bogen vom Startpunkt gegen den Uhrzeigersinn,
+     **negativ im Uhrzeigersinn** (`90`, `-180`); Winkel über 360 zählen ohne die vollen
+     Drehungen (`450` wie `90`);
+   - ein **Klick** oder getippter **Punkt**: der Winkel ist die **Richtung vom Mittelpunkt zum
+     Punkt, gemessen ab der X-Achse** wie jeder Winkel (nach oben 90°, nach links 180°, nach
+     unten 270°), **nicht** ab dem Startpunkt, wie in AutoCAD. Er ist nie negativ, der Bogen
+     läuft also gegen den Uhrzeigersinn. Objektfang, Polarspur, Ortho und Objektfangspuren
+     wirken ab dem Mittelpunkt.
+
+   Eine **Vorschau** zeigt den Bogen für die Richtung zum Cursor, dazu ein Gummiband vom
+   Mittelpunkt. Die dynamische Eingabe zeigt hier noch kein Feld; Getipptes steht in der
+   Kommandozeile.
+
+- Die **Strg**-Taste (allein gedrückt) kehrt die Richtung um, auch die eines negativen Winkels;
+  ein weiterer Druck wieder zurück (dieselbe Abweichung von AutoCAD wie oben). Wer mit `W` vom
+  Endpunkt kommt, behält die dort gewählte Richtung.
+- `0`, `360` und andere volle Drehungen ergeben keinen Bogen: `Winkel darf nicht 0 oder ein
+  Vielfaches von 360 sein.`, ebenso ein Punkt genau rechts vom Mittelpunkt (0°). Enter ohne
+  Eingabe oder anderer Text meldet `Erfordert gültigen numerischen Winkel oder zweiten Punkt.`
+  Die Abfrage bleibt jeweils stehen.
+
+### Für alle Methoden
+
+- Ein Klick auf eine andere Methode im Menü, während BOGEN läuft, bricht ab und startet den
+  Befehl mit ihr neu; dieselbe Methode bewirkt nichts (auch wenn eine Option zu ihr gewechselt
+  hat).
+- Außer `Zentrum` und `Winkel` gibt es noch keine Optionen; Enter ohne Eingabe meldet bei den
+  Punkt-Abfragen `Punkt oder Option-Schlüsselwort erforderlich.`
+- **Esc** bricht bei jeder Abfrage ab (`*Abbruch*`), ohne Bogen.
+- **Enter** bei `Befehl:` wiederholt BOGEN, wie getippt (also mit 3 Punkten als Vorgabe), auch
+  nach einem Start über das Menü.
+- Der Bogen hat eigene Punkte (Zentrum, Start, Ende), noch keinen Layer und den Standardstil,
+  und ist **ein** Schritt für Rückgängig (`Rückgängig: BOGEN`). Er lässt sich danach wie jeder
+  Bogen wählen, fangen und an seinen [Grips](#grips) bearbeiten.
+
+Im Englischen heißen die Aufforderungen `Specify start point of arc:`, `Specify second point
+of arc or [Center]:`, `Specify end point of arc:`, `Specify center point of arc:`, `Specify
+end point of arc (Ctrl switches direction) or [Angle]:` und `Specify included angle (Ctrl
+switches direction):`, die Optionen `Center` (`C`) und `Angle` (`A`), der Button **Arc** mit
+**3-Point**, **Start, Center, End** und **Start, Center, Angle**.
+
 ## Befehl ELLIPSE
 
 Zeichnet eine **Ellipse**, wie AutoCAD ELLIPSE; danach endet der Befehl. Start mit dem Button
-**Ellipse** in der Werkzeugleiste links oder durch Tippen von `ELLIPSE` oder `EL` bei `Befehl:`.
+**Ellipse** in der Werkzeugleiste oder durch Tippen von `ELLIPSE` oder `EL` bei `Befehl:`.
 Eine bestehende Auswahl wird dabei aufgehoben.
 
 1. **`Achsenendpunkt der Ellipse angeben oder [Mittelpunkt]:`** – ein Ende der ersten Achse.
@@ -542,7 +730,7 @@ und `Specify distance to other axis:`.
 ## Befehl RECHTECK
 
 Zeichnet ein **Rechteck** als geschlossene Polylinie mit vier Eckpunkten, wie AutoCAD RECHTECK;
-danach endet der Befehl. Start mit dem Button **Rechteck** in der Werkzeugleiste links oder durch
+danach endet der Befehl. Start mit dem Button **Rechteck** in der Werkzeugleiste oder durch
 Tippen von `RECHTECK`, `REC` oder `RECTANG` bei `Befehl:`. Eine bestehende Auswahl wird dabei
 aufgehoben.
 
@@ -908,6 +1096,9 @@ und BKS-Symbol, gelesen beim Laden eines Plans:
 | `previewColor`     | Farbe von Fangpunkt-Vorschau und Gummiband, bei Hell / Dunkel  |              |
 | `gripSize`         | Kantenlänge eines Grips in px; mit der Pickbox zusammen sein Trefferbereich | GRIPSIZE |
 | `gripColor`        | Farben der Grips (`warm`, `hover`, `hot`), bei Hell / Dunkel   | GRIPCOLOR, GRIPHOVER, GRIPHOT |
+| `gripMenu`         | Menü mit den Aktionen eines Grips beim Verweilen anzeigen       | GRIPMULTIFUNCTIONAL |
+| `gripMenuDelay`    | Verweildauer in ms, bis das Grip-Menü erscheint                 | (keine)      |
+| `gripObjectLimit`  | Größte Zahl gewählter Objekte, für die Grips gezeigt werden; 0 = unbegrenzt | GRIPOBJLIMIT |
 | `polarTolerance`   | Größter Abstand des Cursors von einer Polar- oder Objektfangspur in px |      |
 | `trackingAcquireDelay` | Verweildauer in ms, bis ein Fangpunkt für die Objektfangspuren erfasst (bzw. wieder entfernt) wird | (keine) |
 | `gridMinSpacing`   | Kleinster Abstand der Rasterlinien in px; enger wird das Raster gröber |      |
@@ -940,7 +1131,7 @@ Neuladen):
 - Kontextmenüs mit der rechten Maustaste und eine Einstellung dafür wie AutoCADs
   Rechtsklick-Anpassung (wie Enter, Kontextmenü, zeitabhängiger Rechtsklick: kurz = Enter,
   lang = Menü).
-- Bei LINIE: Fortsetzen tangential an einen Bogen (es gibt noch keinen Befehl BOGEN),
+- Bei LINIE: Fortsetzen tangential an einen Bogen,
   aktueller Layer und Stil für neue Objekte, gemeinsame Punkte (echte Verbindungen) zwischen
   den Segmenten, englische Optionen mit `_` im deutschen Editor.
 - Bei PLINIE: Bogensegmente (Option `Kreisbogen` mit ihren Unteroptionen, danach `sehnenLänge`
@@ -957,11 +1148,14 @@ Neuladen):
   ersten Eckpunkt, `Fläche` und `Drehung` beim anderen, Vorgabewerte für Länge und Breite, die
   Bemaßung beider Seiten in der dynamischen Eingabe, aktueller Layer und Stil; Details in
   `docs/todo/Rectangle_Draw_NotImplemented.md`.
-- Weitere Zeichenbefehle (BOGEN …).
+- Bei BOGEN: alle Methoden außer „3 Punkte“, „Start, Zentrum, Ende“ und „Start, Zentrum,
+  Winkel“ (Zentrum/Start/…, Start/Ende/Radius …) samt ihren Optionen (`Zentrum` beim
+  Startpunkt, `Endpunkt`, `Sehnenlänge`), ein Winkelfeld der dynamischen Eingabe, das tangentiale Fortsetzen mit
+  Enter beim Startpunkt, aktueller Layer und Stil; Details in
+  `docs/todo/Arc_Draw_NotImplemented.md`.
 - Bei den Grips: ein Feld der dynamischen Eingabe für den Drehwinkel, Kopieren mit
-  gedrückter Strg-Taste und Versatzfang mit Shift, mehrere hot Grips mit Shift, das Menü beim Verweilen auf einem Grip (Länge, Scheitelpunkt hinzufügen
-  oder entfernen, Radius), Grips als Fangpunkte bei ausgeschaltetem Objektfang, eine
-  Obergrenze für die Zahl der Grips; Details in `docs/todo/Grips_NotImplemented.md`.
+  gedrückter Strg-Taste und Versatzfang mit Shift, im Grip-Menü „In Bogen umwandeln“ und die
+  Längenangaben der dynamischen Eingabe; Details in `docs/todo/Grips_NotImplemented.md`.
 - Alle anderen Bearbeitungsbefehle wie Löschen, Gruppieren oder Kopieren.
 - Gruppenauswahl ausschalten (AutoCAD Ctrl+Shift+A), um einzelne Gruppenmitglieder zu
   wählen.
