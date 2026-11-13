@@ -33,8 +33,8 @@ import type { CommandMethod } from './tools/CommandMethod';
 import { CIRCLE_METHODS, CircleTool } from './tools/CircleTool';
 import { ELLIPSE_METHODS, EllipseTool } from './tools/EllipseTool';
 import { GripTool } from './tools/GripTool';
-import { gripActions, vertexRemoval, type GripAction } from './grips/actions';
-import { RemovePolylineVertexCommand } from './commands/PolylineVertexCommands';
+import { gripActions, segmentOfGrip, vertexRemoval, type GripAction } from './grips/actions';
+import { RemovePolylineVertexCommand, SetPolylineBulgeCommand } from './commands/PolylineVertexCommands';
 import { LineTool } from './tools/LineTool';
 import { MoveTool } from './tools/MoveTool';
 import { PolylineTool } from './tools/PolylineTool';
@@ -515,7 +515,8 @@ export class SelectionEditor {
 
     /**
      * Does what was chosen from the open grip menu: edits the grip that way (see GripTool), or
-     * for `removeVertex` takes the vertex out of its polyline at once. The selection stays.
+     * for `removeVertex` takes the vertex out of its polyline at once, for `convertToLine` makes
+     * its arc segment straight at once. The selection stays.
      */
     chooseGripAction(action: GripAction): void {
         const menu = this.gripMenu;
@@ -529,6 +530,14 @@ export class SelectionEditor {
             const removal = vertexRemoval(this.index, grip);
             if (removal !== null) {
                 this.history.execute(new RemovePolylineVertexCommand(removal.polyline.id, removal.at));
+            }
+            this.changed();
+            return;
+        }
+        if (action === 'convertToLine') {
+            const found = segmentOfGrip(this.index, grip);
+            if (found !== null) {
+                this.history.execute(new SetPolylineBulgeCommand(found.polyline.id, found.segment, 0));
             }
             this.changed();
             return;

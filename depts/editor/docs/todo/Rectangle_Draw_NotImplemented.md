@@ -17,7 +17,7 @@ bis sie geändert werden; AutoCAD nennt sie am Befehlsanfang (z. B. die aktuelle
   Abständen wie ein Windrad) und wann genau AutoCAD die Fase weglässt. Fasen und Abrunden
   schließen sich später aus.
 - **Abrunden** (`Fillet`): `Rundungsradius für Rechtecke angeben <0.0000>:`, Ecken als
-  Bogensegmente. Braucht Bögen in Polylinien (Vorschlag `bulges` an `PolylineElement`, siehe
+  Bogensegmente. Bögen in Polylinien gibt es inzwischen (`bulges` an `PolylineElement`, siehe
   `Polyline_Draw_NotImplemented.md`); die Abstandsabfrage ohne Basispunkt gibt es (wie bei Fasen).
 - **Breite** (`Width`): Polylinienbreite. Braucht Breite/Halbbreite im Polylinienmodell und im
   Renderer (wie PLINIE Breite).

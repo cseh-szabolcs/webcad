@@ -157,7 +157,11 @@ function parseElement(value: unknown, path: string): CadElement {
             if (vertexIds.length < 2) {
                 throw new CadDocumentError(`${path}.vertexIds`, 'needs at least 2 vertices');
             }
-            return { ...base, type, vertexIds, closed: boolean(r.closed, `${path}.closed`) };
+            const bulges = list(r.bulges, `${path}.bulges`, number);
+            if (bulges.length !== vertexIds.length) {
+                throw new CadDocumentError(`${path}.bulges`, 'needs one bulge per vertex');
+            }
+            return { ...base, type, vertexIds, closed: boolean(r.closed, `${path}.closed`), bulges };
         }
         default:
             throw new CadDocumentError(`${path}.type`, `unknown element type "${type}"`);

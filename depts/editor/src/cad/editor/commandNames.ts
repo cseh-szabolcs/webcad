@@ -39,6 +39,8 @@ const GRIP_LABELS = {
     GRIP_RADIUS: 'gripMode.radius',
     GRIP_ADD_VERTEX: 'gripMode.addVertex',
     GRIP_REMOVE_VERTEX: 'gripMode.removeVertex',
+    GRIP_CONVERT_ARC: 'gripMode.convertToArc',
+    GRIP_CONVERT_LINE: 'gripMode.convertToLine',
 } as const;
 
 export type GripLabel = keyof typeof GRIP_LABELS;

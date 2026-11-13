@@ -182,8 +182,8 @@ Punkt, gibt es dort nur einen Grip. Was ein Klick auf einen Grip tut, steht unte
 Die Grips einer Auswahl (ohne laufenden Befehl) sind Griffe zum Bearbeiten, wie in AutoCAD.
 Sind mehr Objekte gewählt, als die Einstellung `gripObjectLimit` erlaubt, zeigt die Auswahl
 keine Grips (sie bleibt gewählt und lässt sich mit den Befehlen bearbeiten).
-Die Segmentmitten einer Polylinie erscheinen als kleiner Balken längs des Segments, alle
-anderen Grips als Quadrat. Größe: Einstellung `gripSize`; Farben: Einstellung `gripColor`.
+Die Segmentmitten einer Polylinie erscheinen als kleiner Balken längs des Segments (bei einem
+Bogensegment auf der Mitte des Bogens), alle anderen Grips als Quadrat. Größe: Einstellung `gripSize`; Farben: Einstellung `gripColor`.
 
 | Zustand | Bedeutung                                                    | Farbe (`gripColor`) |
 |---------|--------------------------------------------------------------|---------------------|
@@ -293,7 +293,8 @@ Taste und bei einem Klick in die Zeichenfläche; ein Klick auf den Grip selbst s
 | Anfang oder Ende eines Bogens          | **Strecken**, **Länge**                                         |
 | Mitte eines Bogens                     | **Strecken**, **Radius**                                        |
 | Ecke einer Polylinie                   | **Strecken**, **Scheitelpunkt hinzufügen**, **Scheitelpunkt entfernen** |
-| Segmentmitte einer Polylinie           | **Strecken**, **Scheitelpunkt hinzufügen**                      |
+| Segmentmitte einer Polylinie (gerade)  | **Strecken**, **Scheitelpunkt hinzufügen**, **In Bogen umwandeln** |
+| Segmentmitte einer Polylinie (Bogen)   | **Strecken**, **Scheitelpunkt hinzufügen**, **In Linie umwandeln** |
 
 Alle anderen Grips (Linienmitte, Zentren, Quadranten, Bézier-Punkte) haben kein Menü, ebenso
 ein Grip, den sich mehrere gewählte Objekte teilen.
@@ -305,16 +306,32 @@ ein Grip, den sich mehrere gewählte Objekte teilen.
 | Radius | `** RADIUS ** Radius angeben:` | Getippte Zahl oder Abstand vom Zentrum zu einem Punkt: neuer Radius des Bogens, Zentrum und Winkel bleiben |
 | Scheitelpunkt hinzufügen | `** SCHEITELPUNKT HINZUFÜGEN ** Neuen Scheitelpunkt angeben:` | Neue Ecke am angegebenen Punkt: bei einer Segmentmitte in diesem Segment, bei einer Ecke im Segment danach; an der ersten Ecke einer offenen Polylinie davor, an der letzten dahinter, so wächst sie an beiden Enden |
 | Scheitelpunkt entfernen | (keine) | Entfernt die Ecke sofort; nur angeboten, solange danach noch 2 Ecken (geschlossen: 3) bleiben |
+| In Bogen umwandeln | `** IN BOGEN UMWANDELN ** Mittelpunkt des Bogensegments angeben:` | Das gerade Segment wird ein Kreisbogen zwischen seinen beiden Ecken, der durch den angegebenen Punkt läuft; die Ecken bleiben, die Polylinie bleibt ein Objekt. Ein Punkt auf der Geraden durch die Ecken ergibt keinen Bogen und ändert nichts |
+| In Linie umwandeln | (keine) | Macht das Bogensegment sofort wieder gerade |
+
+**Bogensegmente** einer Polylinie verhalten sich wie Bögen: Sie werden an ihrer Kontur gewählt,
+fangen an Endpunkt, Mittelpunkt, Zentrum, Quadrant und Schnittpunkt, und das geometrische
+Zentrum einer geschlossenen Polylinie rechnet mit der gebogenen Kontur. Beim
+[Strecken](#strecken) einer Ecke behält das Segment seine Wölbung im Verhältnis zur Sehne
+(der Radius ändert sich); der mittlere Grip eines Bogensegments biegt den Bogen durch den
+neuen Punkt, die Ecken bleiben (auf der Geraden durch die Ecken wird er gerade). Der mittlere
+Grip eines geraden Segments verschiebt wie bisher beide Ecken. Drehen, Skalieren, Schieben und
+Kopieren erhalten die Bögen, Spiegeln kehrt ihre Richtung um. **Scheitelpunkt hinzufügen** in
+einem Bogensegment und **Scheitelpunkt entfernen** an einem Bogensegment machen die
+betroffenen Segmente gerade (AutoCAD erhält dort die Bögen). LINIE und BOGEN setzen an einer
+Polylinie, die mit einem Bogensegment endet, tangential an.
 
 Die Aktionen zeigen eine Vorschau wie das Strecken, nehmen ihren Punkt mit Objektfang,
 Polarspur und getippten Koordinaten und sind je ein Rückgängig-Schritt (`Rückgängig: LÄNGE`,
-`RADIUS`, `SCHEITELPUNKT HINZUFÜGEN`, `SCHEITELPUNKT ENTFERNEN`); die Auswahl bleibt. Sie haben
+`RADIUS`, `SCHEITELPUNKT HINZUFÜGEN`, `SCHEITELPUNKT ENTFERNEN`, `IN BOGEN UMWANDELN`, `IN LINIE
+UMWANDELN`); die Auswahl bleibt. Sie haben
 keine Optionen. Enter, Leertaste oder Rechtsklick wechseln von dort zu den
 [Grip-Modi](#grip-modi) weiter.
 
 Ohne Menü geht es auch: Ist ein Grip hot und fragt STRECKEN nach dem Streckpunkt, schaltet die
 **Strg**-Taste (allein gedrückt) durch seine Aktionen, wie in AutoCAD, z. B. STRECKEN → LÄNGE →
-STRECKEN. „Scheitelpunkt entfernen“ ist nicht dabei, das gibt es nur im Menü.
+STRECKEN. „Scheitelpunkt entfernen“ und „In Linie umwandeln“ sind nicht dabei, die gibt es nur
+im Menü.
 
 ### Grip-Modi
 
@@ -1350,7 +1367,7 @@ seinen Startwert zurück). Die Startwerte, solange nichts gespeichert ist:
 - Bei BOGEN: aktueller Layer und Stil; Details in
   `docs/todo/Arc_Draw_NotImplemented.md`.
 - Bei den Grips: Kopieren mit
-  gedrückter Strg-Taste und Versatzfang mit Shift, im Grip-Menü „In Bogen umwandeln“ und die
+  gedrückter Strg-Taste und Versatzfang mit Shift, die
   Längenangaben der dynamischen Eingabe; Details in `docs/todo/Grips_NotImplemented.md`.
 - Alle anderen Bearbeitungsbefehle wie Löschen, Gruppieren oder Kopieren.
 - Gruppenauswahl ausschalten (AutoCAD Ctrl+Shift+A), um einzelne Gruppenmitglieder zu

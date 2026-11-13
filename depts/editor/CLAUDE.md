@@ -180,7 +180,8 @@ The behaviour itself is in `docs/bedienung.md`; these are the decisions code mus
   real snap point, before tracking; shown as the hovered grip, no marker). A selection over
   `gripObjectLimit` shows no grips.
   **Grip menu** (`grips/actions.ts`, `ui/GripMenu.ts`): a grip of one element may do more than
-  stretch (`GripAction`: `lengthen`, `radius`, `addVertex`, `removeVertex`). The editor opens
+  stretch (`GripAction`: `lengthen`, `radius`, `addVertex`, `removeVertex`, `convertToArc`,
+  `convertToLine`; the last two of `IMMEDIATE_GRIP_ACTIONS` need no point). The editor opens
   its menu after the cursor rested on it (`gripMenuDelay`, the timer is the editor's like the
   acquire timer) and publishes it in the snapshot; the menu is the one canvas layer that takes
   the pointer, so `pointerLeave` keeps it open and only a move on the canvas off the grip
@@ -260,7 +261,8 @@ All pure TS and unit-tested unless noted.
   adds copies of elements as such edits would leave them (own vertices, shared where the
   originals share and agree; grouped elements in a copy of their group). `EditCommand` applies
   edits given as a function of the document (a grip's Lengthen and Radius);
-  `PolylineVertexCommands.ts` adds or removes a polyline vertex. A label is an `EditorCommand` or a `GripLabel` (`commandNames.ts`, `labelName`).
+  `PolylineVertexCommands.ts` adds or removes a polyline vertex (its `bulges` go along; the
+  segments at that vertex become straight) and sets the bulge of a segment (`SetPolylineBulgeCommand`). A label is an `EditorCommand` or a `GripLabel` (`commandNames.ts`, `labelName`).
 - `cad/editor/grips/actions.ts` (pure): `gripActions` and what they do (`lengthenEdits`,
   `radiusEdits`, `vertexInsertion`, `vertexRemoval`).
 - `cad/editor/grips/stretch.ts`: `stretchTargets` (pure): what each `GripPart` changes when its
@@ -284,6 +286,13 @@ All pure TS and unit-tested unless noted.
 - `cad/renderer/grid.ts` (`gridStep`: adaptive step `spacing × majorEvery^k`, `gridLines`: only
   the visible lines; `parseGridSpacing`, `parseMajorEvery`), `cad/renderer/ucsIcon.ts`
   (`ucsIconExtent`, `ucsIconPosition`).
+- **Polyline arcs:** a polyline has a `bulges` entry per vertex for the segment that starts
+  there (DXF bulge: tan of a quarter of the arc's angle, 0 straight, positive counter-clockwise).
+  `cad/geometry/polyline.ts` is the one place that reads them (`polylineSegments`, `bulgeArc`,
+  `bulgeThrough`, `segmentMidpoint`, `segmentEndDirection`); `PathSpec.polylinePathSpec` draws
+  them, `SnapGeometry` gives a bulged segment as its `arc` primitive, so picking and snapping
+  need nothing of their own. Code that builds or changes a polyline must keep `bulges` as long
+  as `vertexIds`.
 - `cad/geometry/`: `bezier`, `intersect`, `arc.angleOnArc`, `arc.arcThrough`, `arc.arcEndToward`, `arc.arcCenterOverChord`, `polygon.polygonCentroid`,
   `ellipse` (rotated ellipses), `circle`, `similarity` (`rotationAbout`, `scalingAbout`,
   `reflectionAcross`; quarter turns exact). `cad/model/drawOrder.ts` gives the renderer's element

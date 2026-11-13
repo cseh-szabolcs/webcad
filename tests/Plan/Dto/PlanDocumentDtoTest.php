@@ -60,6 +60,18 @@ final class PlanDocumentDtoTest extends KernelTestCase
         self::assertSame('elements[5].radius', $violations[0]->getPropertyPath());
     }
 
+    public function testPolylineNeedsOneBulgePerVertex(): void
+    {
+        $json = json_decode(file_get_contents(self::SAMPLE_PLAN), true, flags: \JSON_THROW_ON_ERROR);
+        $json['elements'][0]['bulges'] = [0, 0.5]; // the outer wall, four vertices
+
+        $document = $this->serializer()->deserialize(json_encode($json), PlanDocumentDto::class, 'json');
+        $violations = static::getContainer()->get(ValidatorInterface::class)->validate($document);
+
+        self::assertCount(1, $violations);
+        self::assertSame('elements[0].bulges', $violations[0]->getPropertyPath());
+    }
+
     private function serializer(): SerializerInterface
     {
         return static::getContainer()->get(SerializerInterface::class);

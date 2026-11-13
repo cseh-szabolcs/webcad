@@ -56,7 +56,11 @@ sind die Abweichungen und Lücken unten.
 
 ## Nicht umsetzbar mit dem heutigen Modell
 
-- `In Bogen umwandeln` / `In Linie umwandeln` an Polylinien: Polylinien haben keine
-  Bogensegmente (Schema-Vorschlag `bulges` in `Polyline_Draw_NotImplemented.md`).
+- `In Bogen umwandeln` / `In Linie umwandeln` an Polylinien sind umgesetzt (`bulges` an
+  `PolylineElement`). Offen dazu: `Scheitelpunkt hinzufügen` in einem Bogensegment teilt den
+  Bogen nicht, sondern macht beide Hälften gerade, und `Scheitelpunkt entfernen` macht das
+  verbleibende Segment gerade; AutoCAD erhält die Bögen. Zu prüfen gegen AutoCAD: der Wortlaut
+  der Aufforderung und was `Strecken` am mittleren Grip eines Bogensegments genau tut (hier:
+  den Bogen durch den Punkt biegen, die Ecken bleiben).
 - Grips für Schraffuren, Bemaßungen, Multi-Führungslinien, Splines, Blöcke und Texte: diese
   Elementtypen gibt es noch nicht.

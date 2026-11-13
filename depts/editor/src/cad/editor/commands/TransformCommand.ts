@@ -57,8 +57,10 @@ export function transformElement(element: CadElement, index: DocumentIndex, s: S
 function transformShape(element: CadElement, s: Similarity): CadElement {
     switch (element.type) {
         case 'line':
-        case 'polyline':
             return element;
+        case 'polyline':
+            // A reflection turns its arcs the other way
+            return s.mirrored ? { ...element, bulges: element.bulges.map((bulge) => -bulge + 0) } : element;
         case 'circle':
             return s.scale === 1 ? element : { ...element, radius: element.radius * s.scale };
         case 'ellipse':

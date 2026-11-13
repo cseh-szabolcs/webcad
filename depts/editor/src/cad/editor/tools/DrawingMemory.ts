@@ -1,4 +1,5 @@
 import { arcSweep } from '../../geometry/arc';
+import { polylineSegments, segmentEndDirection } from '../../geometry/polyline';
 import type { CadDocument } from '../../model/CadDocument';
 import type { Id, Point } from '../../model/Point';
 
@@ -70,8 +71,13 @@ export function continueFrom(doc: CadDocument, id: Id | null): ContinueFrom | nu
         case 'line':
             return straight(position(element.startVertexId), position(element.endVertexId));
         case 'polyline': {
-            const ids = element.vertexIds;
-            return element.closed ? straight(position(ids.at(-1)), position(ids[0])) : straight(position(ids.at(-2)), position(ids.at(-1)));
+            const points = element.vertexIds.map((vertexId) => position(vertexId));
+            if (points.some((point) => point === null)) {
+                return null;
+            }
+            // The last segment, of a closed one the closing one; along its arc if it has a bulge
+            const last = polylineSegments(points as Point[], element.bulges, element.closed).at(-1);
+            return last ? { point: last.to, direction: segmentEndDirection(last), curved: last.bulge !== 0 } : null;
         }
         case 'arc': {
             const center = position(element.centerVertexId);

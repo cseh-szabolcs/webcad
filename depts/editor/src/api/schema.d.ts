@@ -73,7 +73,7 @@ export interface components {
         };
         /**
          * PolylineElement
-         * @description Straight segments through its vertices in order; a closed one also joins the last to the first.
+         * @description Segments through its vertices in order, straight or arcs (see bulges); a closed one also joins the last to the first.
          */
         PolylineElement: {
             /**
@@ -83,6 +83,16 @@ export interface components {
             type: "polyline";
             vertexIds: string[];
             closed: boolean;
+            /**
+             * @description One per vertex, for the segment from it to the next (the last one of an open polyline is unused): 0 for a straight segment, else the tangent of a quarter of the angle its arc spans, like a DXF bulge; positive counter-clockwise (Y up), 1 is half a circle.
+             * @example [
+             *       0,
+             *       0.4142,
+             *       0,
+             *       0
+             *     ]
+             */
+            bulges: number[];
             /** Format: uuid */
             id: string;
             /**

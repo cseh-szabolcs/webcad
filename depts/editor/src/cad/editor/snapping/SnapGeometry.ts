@@ -11,6 +11,12 @@ import { elementsInDrawOrder } from '../../model/drawOrder';
 import type { Id, Point } from '../../model/Point';
 import type { Rect } from '../../renderer/Viewport';
 import type { SnapMode } from './SnapMode';
+import { flattenPathSpec } from '../../geometry/flatten';
+import { bulgeArc, polylineSegments } from '../../geometry/polyline';
+import { polylinePathSpec } from '../../renderer/PathSpec';
+
+/** How closely (mm) the outline of a polyline with arcs is followed for its geometric centre. */
+const GCE_FLATTEN_TOLERANCE_MM = 0.1;
 
 const TAU = 2 * Math.PI;
 /** Maximum deviation of the sampled polyline from the exact curve, in mm. */
@@ -107,7 +113,11 @@ export function elementSnapPoints(element: CadElement, index: DocumentIndex): Sn
         const { x, y } = requireVertex(index, id);
         return { x, y };
     });
-    return [{ point: polygonCentroid(points), mode: 'GCE' }];
+    // With arcs the area is that of the outline, taken along the arcs closely enough
+    const outline = element.bulges.some((bulge) => bulge !== 0)
+        ? flattenPathSpec(polylinePathSpec(points, element.bulges, true), GCE_FLATTEN_TOLERANCE_MM).slice(0, -1)
+        : points;
+    return [{ point: polygonCentroid(outline), mode: 'GCE' }];
 }
 
 export function elementPrimitives(element: CadElement, index: DocumentIndex): SnapPrimitive[] {
@@ -118,15 +128,14 @@ export function elementPrimitives(element: CadElement, index: DocumentIndex): Sn
     switch (element.type) {
         case 'line':
             return [{ kind: 'segment', a: vertex(element.startVertexId), b: vertex(element.endVertexId) }];
-        case 'polyline': {
-            const points = element.vertexIds.map(vertex);
-            const count = element.closed && points.length > 2 ? points.length : points.length - 1;
-            const segments: SnapPrimitive[] = [];
-            for (let i = 0; i < count; i++) {
-                segments.push({ kind: 'segment', a: points[i], b: points[(i + 1) % points.length] });
-            }
-            return segments;
-        }
+        case 'polyline':
+            // A segment with a bulge snaps like an arc
+            return polylineSegments(element.vertexIds.map(vertex), element.bulges, element.closed).map((segment): SnapPrimitive => {
+                const arc = bulgeArc(segment);
+                return arc
+                    ? { kind: 'arc', center: arc.center, radius: arc.radius, startAngle: arc.startAngle, sweep: arc.sweep }
+                    : { kind: 'segment', a: segment.from, b: segment.to };
+            });
         case 'circle':
             return [{ kind: 'arc', center: vertex(element.centerVertexId), radius: element.radius, startAngle: 0, sweep: TAU }];
         case 'ellipse':

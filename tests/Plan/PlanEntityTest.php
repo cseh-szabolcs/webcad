@@ -47,7 +47,7 @@ final class PlanEntityTest extends KernelTestCase
         $c = new Vertex(Uuid::v7(), $draft, 6000.0, 4000.5);
 
         $elements = [
-            $polyline = new PolylineElement(Uuid::v7(), $draft, 0, [$a, $b, $c, $a], false, $walls, name: 'Wall'),
+            $polyline = new PolylineElement(Uuid::v7(), $draft, 0, [$a, $b, $c, $a], false, $walls, name: 'Wall', bulges: [0.0, 0.5, -1.0, 0.0]),
             $line = new LineElement(Uuid::v7(), $draft, 1, $a, $c, style: $dashed),
             $arc = new ArcElement(Uuid::v7(), $draft, 2, $a, $b, $c, true, $hidden, $door),
             $circle = new CircleElement(Uuid::v7(), $draft, 3, $b, 600.0),
@@ -84,6 +84,7 @@ final class PlanEntityTest extends KernelTestCase
         self::assertSame('Wall', $polyline->getName());
         self::assertSame('Walls', $polyline->getLayer()->getName());
         self::assertFalse($polyline->isClosed());
+        self::assertSame([0.0, 0.5, -1.0, 0.0], $polyline->getBulges());
 
         self::assertNull($line->getLayer());
         self::assertSame([8.0, 4.0], $line->getStyle()->getDashPattern());
@@ -118,6 +119,19 @@ final class PlanEntityTest extends KernelTestCase
         $this->expectException(\InvalidArgumentException::class);
 
         new PolylineElement(Uuid::v7(), $draft, 0, [new Vertex(Uuid::v7(), $draft, 0.0, 0.0)], false);
+    }
+
+    public function testPolylineNeedsABulgePerVertexOrNone(): void
+    {
+        $draft = $this->newPlan()->getDraft();
+        $a = new Vertex(Uuid::v7(), $draft, 0.0, 0.0);
+        $b = new Vertex(Uuid::v7(), $draft, 100.0, 0.0);
+
+        self::assertSame([0.0, 0.0], new PolylineElement(Uuid::v7(), $draft, 0, [$a, $b], false)->getBulges());
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        new PolylineElement(Uuid::v7(), $draft, 1, [$a, $b], false, bulges: [0.5]);
     }
 
     public function testPublishMakesTheCopyTheNumberedHead(): void

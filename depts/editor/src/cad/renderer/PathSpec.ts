@@ -1,5 +1,6 @@
 import { arcSegments } from '../geometry/arc';
 import { rotate } from '../geometry/ellipse';
+import { bulgeArc, polylineSegments } from '../geometry/polyline';
 import type { CadElement } from '../model/CadElement';
 import { requireVertex, type DocumentIndex } from '../model/DocumentIndex';
 import type { Point, Vector2 } from '../model/Point';
@@ -57,11 +58,31 @@ export function buildPathSpec(element: CadElement, index: DocumentIndex): PathSp
                 closed: false,
             };
         case 'polyline':
-            return {
-                segments: element.vertexIds.map((id) => ({ point: requireVertex(index, id) })),
-                closed: element.closed,
-            };
+            return polylinePathSpec(
+                element.vertexIds.map((id) => requireVertex(index, id)),
+                element.bulges,
+                element.closed,
+            );
     }
+}
+
+/** The path through the points of a polyline: straight, or along the arc of a segment with a bulge. */
+export function polylinePathSpec(points: readonly Point[], bulges: readonly number[], closed: boolean): PathSpec {
+    const segments: SegmentSpec[] = points.map((point) => ({ point }));
+    const extra: SegmentSpec[][] = points.map(() => []);
+    polylineSegments(points, bulges, closed).forEach((segment, i) => {
+        const arc = bulgeArc(segment);
+        if (arc === null) {
+            return;
+        }
+        // The ends stay the vertices themselves; what lies between them comes after the first
+        const pieces = arcSegments(arc.center, segment.from, segment.to, arc.clockwise);
+        const next = (i + 1) % points.length;
+        segments[i] = { ...segments[i], handleOut: pieces[0].handleOut };
+        segments[next] = { ...segments[next], handleIn: pieces.at(-1)!.handleIn };
+        extra[i] = pieces.slice(1, -1);
+    });
+    return { segments: segments.flatMap((segment, i) => [segment, ...extra[i]]), closed };
 }
 
 /**

@@ -35,7 +35,7 @@ export function stressPlan(count: number): CadDocument {
             elements.push({ ...base, type: 'circle', centerVertexId: vertex(x, y), radius: 50 + Math.abs(width) / 2 });
         } else {
             const vertexIds = [vertex(x, y), vertex(x + width, y), vertex(x + width, y + height), vertex(x, y + height)];
-            elements.push({ ...base, type: 'polyline', vertexIds, closed: true });
+            elements.push({ ...base, type: 'polyline', vertexIds, closed: true, bulges: [0, 0, 0, 0] });
         }
     }
     return {

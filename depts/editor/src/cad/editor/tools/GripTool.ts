@@ -12,10 +12,19 @@ import type { DocumentCommand } from '../commands/DocumentCommand';
 import type { DocumentHistory } from '../commands/DocumentHistory';
 import { samePosition, type ElementEdit } from '../commands/elementEdits';
 import { MoveCommand, translateElement } from '../commands/MoveCommand';
-import { AddPolylineVertexCommand } from '../commands/PolylineVertexCommands';
+import { AddPolylineVertexCommand, SetPolylineBulgeCommand, withVertexAt } from '../commands/PolylineVertexCommands';
 import { StretchCommand } from '../commands/StretchCommand';
 import { TransformCommand, transformElement } from '../commands/TransformCommand';
-import { gripActions, lengthenEdits, radiusCenter, radiusEdits, vertexInsertion, type GripAction } from '../grips/actions';
+import {
+    arcConversion,
+    gripActions,
+    IMMEDIATE_GRIP_ACTIONS,
+    lengthenEdits,
+    radiusCenter,
+    radiusEdits,
+    vertexInsertion,
+    type GripAction,
+} from '../grips/actions';
 import { stretchTargets } from '../grips/stretch';
 import type { Grip } from '../selection/grips';
 import type { EditorTool, PreviewElement, PreviewMatrix, ToolPreview, ToolPrompt, ToolStep } from './EditorTool';
@@ -94,7 +103,7 @@ export class GripTool implements EditorTool {
         this.grips = grips;
         this.base = grips[0].point;
         const actions = grips.length === 1 ? gripActions(grips[0], index) : ['stretch' as const];
-        this.actions = actions.filter((candidate) => candidate !== 'removeVertex');
+        this.actions = actions.filter((candidate) => !IMMEDIATE_GRIP_ACTIONS.includes(candidate));
         this.action = this.actions.includes(action) ? action : 'stretch';
         this.ask('mode');
     }
@@ -287,6 +296,10 @@ export class GripTool implements EditorTool {
                 ? new EditCommand('GRIP_LENGTHEN', (index) => lengthenEdits(index, grip, point) ?? [])
                 : undefined;
         }
+        if (this.action === 'convertToArc') {
+            const arc = arcConversion(this.index, grip, point);
+            return arc ? new SetPolylineBulgeCommand(arc.polyline.id, arc.segment, arc.bulge) : undefined;
+        }
         const insertion = this.action === 'addVertex' ? vertexInsertion(this.index, grip) : null;
         return insertion ? new AddPolylineVertexCommand(insertion.polyline.id, insertion.at, point) : undefined;
     }
@@ -373,6 +386,9 @@ export class GripTool implements EditorTool {
                 } else if (this.action === 'addVertex') {
                     prompt('next', grip.point, 'gripAddVertex');
                     this.preview = { kind: 'elements', ids, elementsAt: (point) => this.withVertex(grip, point) };
+                } else if (this.action === 'convertToArc') {
+                    prompt('next', grip.point, 'gripConvertToArc');
+                    this.preview = { kind: 'elements', ids, elementsAt: (point) => this.asArc(grip, point) };
                 } else {
                     prompt('next', from, 'gripStretch');
                     this.preview = { kind: 'elements', ids, elementsAt: (point) => this.stretched(point) };
@@ -416,8 +432,18 @@ export class GripTool implements EditorTool {
         const { polyline, at } = insertion;
         const added = { id: '', ...point };
         const vertices = new Map([...polyline.vertexIds.map((id) => [id, this.index.vertices.get(id)!] as const), ['', added]]);
-        const element = { ...polyline, vertexIds: polyline.vertexIds.toSpliced(at, 0, '') };
+        const element = withVertexAt(polyline, at, '');
         return [{ id: polyline.id, path: buildPathSpec(element, { ...this.index, vertices }) }];
+    }
+
+    /** The polyline of the grip with its segment as an arc through `point`. */
+    private asArc(grip: Grip, point: Point): PreviewElement[] {
+        const arc = arcConversion(this.index, grip, point);
+        if (arc === null) {
+            return [];
+        }
+        const element = { ...arc.polyline, bulges: arc.polyline.bulges.with(arc.segment, arc.bulge) };
+        return [{ id: element.id, path: buildPathSpec(element, this.index) }];
     }
 
     /** The paths of edited elements, each on its own vertices; none for edits that go nowhere. */
@@ -445,7 +471,8 @@ type PromptKey =
     | 'gripSecondPoint'
     | 'gripLengthen'
     | 'gripRadius'
-    | 'gripAddVertex';
+    | 'gripAddVertex'
+    | 'gripConvertToArc';
 
 /** Direction from `from` to `to` in degrees, counter-clockwise from +X. */
 function degreesTo(from: Point, to: Point): number {

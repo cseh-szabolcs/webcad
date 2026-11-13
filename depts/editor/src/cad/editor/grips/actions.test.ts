@@ -35,7 +35,7 @@ describe('gripActions', () => {
     });
 
     it('lets a polyline add a vertex, and remove one while enough are left', () => {
-        expect(gripActions(grip(E.sofa, { x: 1600, y: 2600 }), index)).toEqual(['stretch', 'addVertex']);
+        expect(gripActions(grip(E.sofa, { x: 1600, y: 2600 }), index)).toEqual(['stretch', 'addVertex', 'convertToArc']);
         expect(gripActions(grip(E.sofa, { x: 600, y: 2600 }), index)).toEqual(['stretch', 'addVertex', 'removeVertex']);
         const triangle = { ...element(E.sofa), vertexIds: [V['s-1'], V['s-2'], V['s-3']] } as PolylineElement;
         const small = indexDocument({ ...doc, elements: doc.elements.map((e) => (e.id === E.sofa ? triangle : e)) });

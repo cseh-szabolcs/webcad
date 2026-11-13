@@ -1,4 +1,5 @@
 import { arcSweep } from '../../geometry/arc';
+import { bulgeThrough } from '../../geometry/polyline';
 import type { PolylineElement } from '../../model/CadElement';
 import { requireVertex, type DocumentIndex } from '../../model/DocumentIndex';
 import type { Id, Point } from '../../model/Point';
@@ -8,9 +9,14 @@ import type { Grip, GripPart } from '../selection/grips';
 /**
  * What a grip can do besides being stretched (AutoCAD's multifunctional grips): `lengthen` moves
  * a line's or arc's end along it, `radius` changes an arc's radius about its centre, `addVertex`
- * and `removeVertex` change a polyline. `removeVertex` needs no point.
+ * and `removeVertex` change a polyline, `convertToArc` makes a straight segment of it an arc
+ * through a point and `convertToLine` an arc segment straight. `removeVertex` and `convertToLine`
+ * need no point.
  */
-export type GripAction = 'stretch' | 'lengthen' | 'radius' | 'addVertex' | 'removeVertex';
+export type GripAction = 'stretch' | 'lengthen' | 'radius' | 'addVertex' | 'removeVertex' | 'convertToArc' | 'convertToLine';
+
+/** The actions that take effect at once, without a point. */
+export const IMMEDIATE_GRIP_ACTIONS: readonly GripAction[] = ['removeVertex', 'convertToLine'];
 
 /** The actions of a grip, `stretch` first; only a grip of one element has more than that. */
 export function gripActions(grip: Grip, index: DocumentIndex): GripAction[] {
@@ -23,8 +29,9 @@ export function gripActions(grip: Grip, index: DocumentIndex): GripAction[] {
         case 'arc':
             return kind === 'arcEnd' ? ['stretch', 'lengthen'] : kind === 'arcMid' ? ['stretch', 'radius'] : ['stretch'];
         case 'polyline':
-            if (kind === 'segment') {
-                return ['stretch', 'addVertex'];
+            if (target?.part.kind === 'segment') {
+                const straight = (element.bulges[target.part.index] ?? 0) === 0;
+                return ['stretch', 'addVertex', straight ? 'convertToArc' : 'convertToLine'];
             }
             if (kind === 'vertex') {
                 // What stays must still be a line, closed still an area
@@ -131,6 +138,26 @@ export function vertexRemoval(index: DocumentIndex, grip: Grip): { polyline: Pol
     const found = polylinePart(index, grip);
     const at = found?.part.kind === 'vertex' ? found.polyline.vertexIds.indexOf(found.part.vertexId) : -1;
     return found && at >= 0 ? { polyline: found.polyline, at } : null;
+}
+
+/** `convertToArc`, `convertToLine`: the polyline of the grip and which of its segments the grip sits on. */
+export function segmentOfGrip(index: DocumentIndex, grip: Grip): { polyline: PolylineElement; segment: number } | null {
+    const found = polylinePart(index, grip);
+    return found?.part.kind === 'segment' ? { polyline: found.polyline, segment: found.part.index } : null;
+}
+
+/**
+ * `convertToArc`: the bulge that takes the segment of the grip through `through`; null where
+ * that is no arc (on the line of its ends).
+ */
+export function arcConversion(index: DocumentIndex, grip: Grip, through: Point): { polyline: PolylineElement; segment: number; bulge: number } | null {
+    const found = segmentOfGrip(index, grip);
+    if (found === null) {
+        return null;
+    }
+    const ids = found.polyline.vertexIds;
+    const bulge = bulgeThrough(requireVertex(index, ids[found.segment]), through, requireVertex(index, ids[(found.segment + 1) % ids.length]));
+    return bulge === null ? null : { ...found, bulge };
 }
 
 function polylinePart(index: DocumentIndex, grip: Grip): { polyline: PolylineElement; part: GripPart } | null {

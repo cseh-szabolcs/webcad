@@ -159,7 +159,7 @@ describe('SnapEngine: geometric centre', () => {
     const polyline = (points: Point[], closed = true) => {
         const vertices = Object.fromEntries(points.map((p, i) => [`v${i}`, p]));
         const engine = new SnapEngine(
-            drawing(vertices, [{ type: 'polyline', vertexIds: Object.keys(vertices), closed }]),
+            drawing(vertices, [{ type: 'polyline', vertexIds: Object.keys(vertices), closed, bulges: Object.keys(vertices).map(() => 0) }]),
         );
         const memory = new SnapMemory();
         memory.touch('e0');
@@ -224,7 +224,7 @@ describe('SnapEngine: geometric centre', () => {
             drawing(
                 { a: { x: -50, y: -50 }, b: { x: 50, y: -50 }, c: { x: 50, y: 50 }, d: { x: -50, y: 50 }, m: { x: 0, y: 0 } },
                 [
-                    { type: 'polyline', vertexIds: ['a', 'b', 'c', 'd'], closed: true },
+                    { type: 'polyline', vertexIds: ['a', 'b', 'c', 'd'], closed: true, bulges: [0, 0, 0, 0] },
                     { type: 'circle', centerVertexId: 'm', radius: 30 },
                 ],
             ),

@@ -1,4 +1,5 @@
 import { arcSweep } from '../../geometry/arc';
+import { segmentMidpoint } from '../../geometry/polyline';
 import { ellipseQuadrants } from '../../geometry/ellipse';
 import type { CadElement } from '../../model/CadElement';
 import { requireVertex, type DocumentIndex } from '../../model/DocumentIndex';
@@ -70,7 +71,8 @@ export function elementGrips(element: CadElement, index: DocumentIndex): Grip[] 
                 const from = corners[i].point;
                 const to = corners[(i + 1) % corners.length].point;
                 midpoints.push({
-                    ...grip(midpoint(from, to), { kind: 'segment', index: i }),
+                    // On the arc of a segment with a bulge
+                    ...grip(segmentMidpoint({ from, to, bulge: element.bulges[i] ?? 0 }), { kind: 'segment', index: i }),
                     shape: 'bar',
                     angle: Math.atan2(to.y - from.y, to.x - from.x),
                 });

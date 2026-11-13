@@ -959,7 +959,7 @@ describe('grips: menu and actions', () => {
 
     it('adds a vertex to a polyline at the point given', () => {
         const { editor, history, vertex } = menuAt(SOFA_EDGE, SOFA_MIDPOINT);
-        expect(actions(editor)).toEqual(['stretch', 'addVertex']);
+        expect(actions(editor)).toEqual(['stretch', 'addVertex', 'convertToArc']);
         editor.chooseGripAction('addVertex');
         expect(editor.snapshot.prompt).toBe('** SCHEITELPUNKT HINZUFÜGEN ** Neuen Scheitelpunkt angeben:');
         const point = { x: 1600, y: 2300 };
@@ -976,6 +976,63 @@ describe('grips: menu and actions', () => {
         editor.undo();
         expect(editor.snapshot.message).toBe('Rückgängig: SCHEITELPUNKT HINZUFÜGEN');
         expect(sofa(history).vertexIds).toHaveLength(4);
+    });
+
+    it('converts a segment of a polyline to an arc through the point given, and back to a line at once', () => {
+        const { editor, history } = menuAt(SOFA_EDGE, SOFA_MIDPOINT);
+        editor.chooseGripAction('convertToArc');
+        expect(editor.snapshot).toMatchObject({
+            prompt: '** IN BOGEN UMWANDELN ** Mittelpunkt des Bogensegments angeben:',
+            from: SOFA_MIDPOINT,
+        });
+        // Below the edge by half of half its length: a bulge of 0.5, counter-clockwise
+        const through = { x: 1600, y: 2100 };
+        editor.pointerMove(at(through));
+        const { preview } = editor.snapshot;
+        if (typeof preview !== 'object' || preview?.kind !== 'elements') {
+            throw new Error('no element preview');
+        }
+        expect(preview.elementsAt(through)[0].path.segments[0].handleOut).toBeDefined();
+        click(editor, through);
+        expect(sofa(history).bulges[0]).toBeCloseTo(0.5);
+        expect(sofa(history).bulges.slice(1)).toEqual([0, 0, 0]);
+        expect(sofa(history).vertexIds).toHaveLength(4);
+        expect(history.undoCommand?.label).toBe('GRIP_CONVERT_ARC');
+        // The selection stays, with the grip of the segment on the arc
+        expect([...editor.snapshot.highlighted]).toEqual([E.sofa]);
+        expect(editor.snapshot.grips.some((grip) => Math.hypot(grip.point.x - 1600, grip.point.y - 2100) < 1e-6)).toBe(true);
+        // The arc is what is picked now, not the chord
+        editor.keyDown({ key: 'Escape' });
+        editor.keyDown({ key: 'Escape' });
+        click(editor, SOFA_EDGE);
+        expect(editor.snapshot.highlighted.size).toBe(0);
+        click(editor, through);
+        expect([...editor.snapshot.highlighted]).toEqual([E.sofa]);
+        // On the arc the menu offers the way back, which needs no point
+        editor.pointerMove(at(through));
+        vi.advanceTimersByTime(DELAY);
+        expect(actions(editor)).toEqual(['stretch', 'addVertex', 'convertToLine']);
+        editor.chooseGripAction('convertToLine');
+        expect(editor.snapshot).toMatchObject({ gripMenu: null, command: null });
+        expect(sofa(history).bulges).toEqual([0, 0, 0, 0]);
+        expect([...editor.snapshot.highlighted]).toEqual([E.sofa]);
+        editor.undo();
+        expect(editor.snapshot.message).toBe('Rückgängig: IN LINIE UMWANDELN');
+        expect(sofa(history).bulges[0]).toBeCloseTo(0.5);
+        editor.undo();
+        expect(editor.snapshot.message).toBe('Rückgängig: IN BOGEN UMWANDELN');
+        expect(sofa(history).bulges).toEqual([0, 0, 0, 0]);
+    });
+
+    it('goes through convert to arc with Ctrl, and gives no arc for a point on the segment', () => {
+        const { editor, history } = menuAt(SOFA_EDGE, SOFA_MIDPOINT);
+        editor.chooseGripAction('stretch');
+        editor.keyDown({ key: 'Control' });
+        editor.keyDown({ key: 'Control' });
+        expect(editor.snapshot.prompt).toBe('** IN BOGEN UMWANDELN ** Mittelpunkt des Bogensegments angeben:');
+        type(editor, '2000,2600');
+        expect(sofa(history).bulges).toEqual([0, 0, 0, 0]);
+        expect(editor.snapshot.canUndo).toBe(false);
     });
 
     it('removes a vertex from a polyline at once and keeps the selection', () => {

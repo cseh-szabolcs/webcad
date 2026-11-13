@@ -95,6 +95,7 @@ final readonly class PlanDocumentReader
                 $id, $layerId, $groupId, $styleId,
                 vertexIds: array_map($vertex, $element->getVertices()),
                 closed: $element->isClosed(),
+                bulges: $element->getBulges(),
                 name: $element->getName(),
             ),
             $element instanceof Entity\ArcElement => new ArcElementDto(

@@ -1,4 +1,5 @@
 import { arcSweep, arcThrough } from '../../geometry/arc';
+import { bulgeThrough } from '../../geometry/polyline';
 import { vertexRefs, type ArcElement, type CadElement } from '../../model/CadElement';
 import { requireVertex, type DocumentIndex } from '../../model/DocumentIndex';
 import type { Id, Point, Vector2 } from '../../model/Point';
@@ -102,13 +103,22 @@ function stretchPart(
         case 'move':
             vertexRefs(element).forEach(shift);
             return element;
-        case 'segment':
-            if (element.type === 'polyline') {
-                const ids = element.vertexIds;
-                shift(ids[part.index]);
-                shift(ids[(part.index + 1) % ids.length]);
+        case 'segment': {
+            if (element.type !== 'polyline') {
+                return element;
             }
-            return element;
+            const ids = element.vertexIds;
+            const from = ids[part.index];
+            const next = ids[(part.index + 1) % ids.length];
+            if ((element.bulges[part.index] ?? 0) === 0) {
+                shift(from);
+                shift(next);
+                return element;
+            }
+            // An arc keeps its ends and goes through the point; on their line it is straight
+            const bulge = bulgeThrough(position(from), to, position(next)) ?? 0;
+            return { ...element, bulges: element.bulges.with(part.index, bulge) };
+        }
         case 'radius': {
             if (element.type !== 'circle') {
                 return element;

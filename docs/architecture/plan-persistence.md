@@ -37,6 +37,9 @@ Pitfalls
   entity (or embeddable, like `Vector2`).
 - A read must stay at one query per kind of content (`ElementRepository` fetch-joins the polyline
   vertices); `PlanDocumentReaderTest` counts them.
+- A polyline's arcs are a `bulge` per row of `plan_polyline_vertex` (the segment that starts at
+  that position; DXF bulge, 0 = straight). The document always carries `bulges`, as long as
+  `vertexIds`; `PolylineElementDto` validates the length.
 - The sample plan exists twice, `fixtures/plans/sample-plan.json` (backend: source of
   `app:fixture:create`, expected document of the API tests) and
   `depts/editor/src/cad/__fixtures__/sample-plan.json` (editor tests), because the `php`

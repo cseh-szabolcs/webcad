@@ -150,6 +150,7 @@ export const en: Translations = {
         gripLengthen: '** LENGTHEN ** Specify end point:',
         gripRadius: '** RADIUS ** Specify radius:',
         gripAddVertex: '** ADD VERTEX ** Specify new vertex point:',
+        gripConvertToArc: '** CONVERT TO ARC ** Specify midpoint of arc segment:',
         corner: 'Specify opposite corner:',
         lasso: 'Lasso – press Spacebar to cycle window/crossing',
     },
@@ -163,6 +164,8 @@ export const en: Translations = {
         radius: 'RADIUS',
         addVertex: 'ADD VERTEX',
         removeVertex: 'REMOVE VERTEX',
+        convertToArc: 'CONVERT TO ARC',
+        convertToLine: 'CONVERT TO LINE',
     },
     gripAction: {
         menu: 'Grip actions',
@@ -171,6 +174,8 @@ export const en: Translations = {
         radius: 'Radius',
         addVertex: 'Add Vertex',
         removeVertex: 'Remove Vertex',
+        convertToArc: 'Convert to Arc',
+        convertToLine: 'Convert to Line',
     },
     message: {
         displacementKeyword: 'Displacement',

@@ -40,6 +40,8 @@ export class AddPolylineCommand implements DocumentCommand {
             styleId: null,
             vertexIds: [...this.vertexIds],
             closed: this.closed,
+            // Straight segments
+            bulges: this.vertexIds.map(() => 0),
         };
         return {
             document: {

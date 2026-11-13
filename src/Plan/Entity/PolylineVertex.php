@@ -5,8 +5,8 @@ namespace App\Plan\Entity;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * The vertex at one position of a polyline. A row of its own because the order matters and the
- * same vertex may appear more than once.
+ * The vertex at one position of a polyline, and how the segment that starts there runs. A row of
+ * its own because the order matters and the same vertex may appear more than once.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'plan_polyline_vertex')]
@@ -23,6 +23,12 @@ class PolylineVertex
         #[ORM\ManyToOne]
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
         private Vertex $vertex,
+        /**
+         * Bulge of the segment from this vertex to the next, like DXF: the tangent of a quarter
+         * of the angle its arc spans, 0 for a straight one, positive counter-clockwise (Y up).
+         */
+        #[ORM\Column(options: ['default' => 0])]
+        private float $bulge = 0.0,
     ) {
     }
 
@@ -39,5 +45,10 @@ class PolylineVertex
     public function getVertex(): Vertex
     {
         return $this->vertex;
+    }
+
+    public function getBulge(): float
+    {
+        return $this->bulge;
     }
 }

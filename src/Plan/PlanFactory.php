@@ -93,7 +93,7 @@ final readonly class PlanFactory
 
             $this->persist(match (true) {
                 $element instanceof LineElementDto => new Entity\LineElement($id, $version, $position, $vertex($element->startVertexId), $vertex($element->endVertexId), $layer, $group, $style, $element->name),
-                $element instanceof PolylineElementDto => new Entity\PolylineElement($id, $version, $position, array_map($vertex, $element->vertexIds), $element->closed, $layer, $group, $style, $element->name),
+                $element instanceof PolylineElementDto => new Entity\PolylineElement($id, $version, $position, array_map($vertex, $element->vertexIds), $element->closed, $layer, $group, $style, $element->name, array_map(floatval(...), $element->bulges)),
                 $element instanceof ArcElementDto => new Entity\ArcElement($id, $version, $position, $vertex($element->centerVertexId), $vertex($element->startVertexId), $vertex($element->endVertexId), $element->clockwise, $layer, $group, $style, $element->name),
                 $element instanceof CircleElementDto => new Entity\CircleElement($id, $version, $position, $vertex($element->centerVertexId), $element->radius, $layer, $group, $style, $element->name),
                 $element instanceof EllipseElementDto => new Entity\EllipseElement($id, $version, $position, $vertex($element->centerVertexId), $element->radiusX, $element->radiusY, $element->rotation, $layer, $group, $style, $element->name),

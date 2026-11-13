@@ -164,6 +164,7 @@ export const de = {
         gripLengthen: '** LÄNGE ** Endpunkt angeben:',
         gripRadius: '** RADIUS ** Radius angeben:',
         gripAddVertex: '** SCHEITELPUNKT HINZUFÜGEN ** Neuen Scheitelpunkt angeben:',
+        gripConvertToArc: '** IN BOGEN UMWANDELN ** Mittelpunkt des Bogensegments angeben:',
         corner: 'Entgegengesetzte Ecke angeben:',
         lasso: 'Lasso – Leertaste wechselt Fenster/Kreuzen',
     },
@@ -178,6 +179,8 @@ export const de = {
         radius: 'RADIUS',
         addVertex: 'SCHEITELPUNKT HINZUFÜGEN',
         removeVertex: 'SCHEITELPUNKT ENTFERNEN',
+        convertToArc: 'IN BOGEN UMWANDELN',
+        convertToLine: 'IN LINIE UMWANDELN',
     },
     /** What a grip can do, in the menu that opens over it. */
     gripAction: {
@@ -187,6 +190,8 @@ export const de = {
         radius: 'Radius',
         addVertex: 'Scheitelpunkt hinzufügen',
         removeVertex: 'Scheitelpunkt entfernen',
+        convertToArc: 'In Bogen umwandeln',
+        convertToLine: 'In Linie umwandeln',
     },
     message: {
         /** The option of the base point prompt that takes a displacement vector instead. */
