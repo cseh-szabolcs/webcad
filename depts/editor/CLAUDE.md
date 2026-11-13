@@ -10,7 +10,7 @@ installed (unused). **It is being rebuilt from scratch, closer to AutoCAD behavi
 steps. So far it loads a plan through the API and displays it (wheel zoom, middle/Space+drag
 pan, status line, light/dark mode), has AutoCAD-like object selection, a grid, a UCS icon,
 object snap, polar tracking, Ortho, object snap tracking, Dynamic Input, the commands LINIE,
-PLINIE (straight segments only), KREIS, BOGEN (three points; start, centre, end; start, centre, angle), ELLIPSE, RECHTECK and SCHIEBEN with preview, typed
+PLINIE (straight segments only), KREIS, BOGEN (three points; around a centre given before or after the start, ending by a point, an angle or a chord length; or over start and end by an angle, a start direction or a radius), ELLIPSE, RECHTECK and SCHIEBEN with preview, typed
 coordinates and undo/redo, and grips that edit the selection (the grip modes STRETCH, MOVE,
 ROTATE, SCALE, MIRROR with their options Base point, Copy, Undo, Reference, eXit; several hot
 grips; a menu of further actions per grip).
@@ -147,6 +147,11 @@ The behaviour itself is in `docs/bedienung.md`; these are the decisions code mus
   prompt with fields the keys go into `DynamicInputState` instead of `input`; typed numbers bind
   the tracked point at once (`dynamicPoint`, applied in `pointAt`, so preview, rubber band,
   click and Enter agree); non-numeric text goes to `submitText` as if typed at the command line.
+  A `distance` or an `angle` prompt with a `from` shows that field alone (`DynamicFormat`
+  `distance`/`angle`); its typed number goes to the tool as it is, by Enter and by a click
+  (`typedPromptValue`), and the snapshot has it as `previewValue`, which a `curve` preview with
+  `curveFor` takes instead of the bound point, as a point cannot tell a negative value (BOGEN:
+  a clockwise angle, the major arc).
 - **Grips** (`selection/grips.ts`, `grips/stretch.ts`, `tools/GripTool.ts`): a click on a grip
   of the pickfirst selection (the pick box touching it; it wins over the element below) makes
   it hot and runs a `GripTool` on it and on the grips made hot before with Shift + click
@@ -197,12 +202,14 @@ are in the guide and the translation files.
 | LINIE (`LINE`) | `LineTool` | an `AddLineCommand` per point at once (drawn and snappable); "Zurück" = `DocumentHistory.revertLast`; the run becomes one undo step (`combineLast` → `CompositeCommand`) |
 | PLINIE (`PLINE`) | `PolylineTool` | points stay in the tool (not snappable, like AutoCAD); one `AddPolylineCommand` when the command ends in any way, Esc and another tool included |
 | KREIS (`CIRCLE`) | `CircleTool` | `AddCircleCommand` as the step's command (`geometry/circle.ts`: `circleThrough`, `circleOnDiameter`) |
-| BOGEN (`ARC`) | `ArcTool` | `AddArcCommand`: through three points (`geometry/arc.ts`: `arcThrough` gives centre and direction; the second point is not stored), or with the option "Zentrum" resp. the method `startCenterEnd` start, centre and a point the arc ends towards (`arcEndToward`: the end on the circle is stored), counter-clockwise until Ctrl (`cycle`) switches the direction: **a press, not a hold as in AutoCAD**, as Ctrl + click is a right click on macOS; with the option "Winkel" there resp. the method `startCenterAngle` the included angle at an `angle` prompt from the centre: typed (negative = clockwise, full turns dropped), or the direction from the centre to a point **measured from +X, not from the start**, like AutoCAD |
+| BOGEN (`ARC`) | `ArcTool` | `AddArcCommand`: through three points (`geometry/arc.ts`: `arcThrough` gives centre and direction; the second point is not stored), or around a centre (option "Zentrum" at the start or the second point, resp. an `ArcMethod` `startCenter…`/`centerStart…`): counter-clockwise from the start, ending by a point it ends towards (`arcEndToward`), by the included angle (option "Winkel", an `angle` prompt from the centre: typed, negative = clockwise, full turns dropped, or the direction to a point **measured from +X, not from the start**, like AutoCAD) or by the chord length (option "sehnenLänge", a `distance` prompt from the start, negative = the major arc); the end on the circle is stored. Or over its start and end, which stay as given (option "Endpunkt" at the second point, resp. an `ArcMethod` `startEnd…`): by its centre (only by the option; the arc then ends towards the end), its included angle, the direction it leaves the start in (both `angle` prompts from the start) or its radius (a `distance` prompt from the end, negative = the major arc); `arcCenterOverChord` gives the centre. Enter at the start, resp. the method `continue`, goes on tangentially from what was drawn last, to an end point. Ctrl (`cycle`) switches the direction: **a press, not a hold as in AutoCAD**, as Ctrl + click is a right click on macOS |
 | ELLIPSE (`ELLIPSE`) | `EllipseTool` | `AddEllipseCommand`; the first axis stays `radiusX` at its angle even when it is the minor one; `rotation` 0 when axis-aligned |
 | RECHTECK (`RECTANG`) | `RectangleTool` | `AddPolylineCommand` (closed, label `RECTANG`), corners by `rectangleCorners` |
 
-LINIE and PLINIE remember their last vertex in the core's `DrawingMemory`
-(`tools/DrawingMemory.ts`, `continuePoint`), so Enter at the first point continues from it.
+LINIE, PLINIE and BOGEN remember what they drew last in the core's `DrawingMemory`
+(`tools/DrawingMemory.ts`; `continueFrom` gives its end and the direction it arrives there in),
+so Enter at the first point continues from it: PLINIE from the point, LINIE tangentially after
+an arc (only a length is asked for), BOGEN always tangentially (`ArcMethod` `continue`).
 New elements get their own vertices and no layer/group/style yet. What each command still
 lacks is in `docs/todo/*_NotImplemented.md` (PLINE arcs with a proposed `bulges` schema in
 `Polyline_Draw_NotImplemented.md`), further shortcuts in `docs/todo/Zeichnen_Tastenkuerzel.md`.
@@ -224,12 +231,12 @@ All pure TS and unit-tested unless noted.
   `@`, DYN dimension) | `vector` | `distance` (from `from` like `next`, but the tool gets
   `distance()`: a typed number as is, or the distance to a point given) | `angle` (likewise
   with the optional `angle()`: typed degrees as they are, or the direction from `from` to a point given, from 0 up to 360;
-  no DYN fields yet; with `from` null a `distance` or `angle` prompt takes a number or hands
-  the point itself to `point()`)), gets the selected
+  with `from` null a `distance` or `angle` prompt takes a number or hands
+  the point itself to `point()`, and shows no DYN field)), gets the selected
   objects, points, distances and option text (`''` = Enter or right click), and returns a
   `ToolStep` (`done`, `message`, a `DocumentCommand` to run after the end). A new prompt object
   starts a new point prompt. Previews are `ToolPreview`s (`polyline`, `curve` with a
-  `PreviewCurve` and optional `rubberBand`, `direction` for PLINIE's length option, `elements`
+  `PreviewCurve`, optional `rubberBand` and `curveFor` (what a typed number gives, see Dynamic Input), `direction` for PLINIE's length option, `elements`
   with the `PathSpec`s of changed elements for a grip stretch, `transform` with a matrix for
   the copies of the highlighted elements).
 - `cad/editor/commands/`: `DocumentCommand` (`execute`/`undo` on immutable documents, returning
@@ -273,7 +280,7 @@ All pure TS and unit-tested unless noted.
 - `cad/renderer/grid.ts` (`gridStep`: adaptive step `spacing × majorEvery^k`, `gridLines`: only
   the visible lines; `parseGridSpacing`, `parseMajorEvery`), `cad/renderer/ucsIcon.ts`
   (`ucsIconExtent`, `ucsIconPosition`).
-- `cad/geometry/`: `bezier`, `intersect`, `arc.angleOnArc`, `arc.arcThrough`, `arc.arcEndToward`, `polygon.polygonCentroid`,
+- `cad/geometry/`: `bezier`, `intersect`, `arc.angleOnArc`, `arc.arcThrough`, `arc.arcEndToward`, `arc.arcCenterOverChord`, `polygon.polygonCentroid`,
   `ellipse` (rotated ellipses), `circle`, `similarity` (`rotationAbout`, `scalingAbout`,
   `reflectionAcross`; quarter turns exact). `cad/model/drawOrder.ts` gives the renderer's element
   order for selection and snapping.

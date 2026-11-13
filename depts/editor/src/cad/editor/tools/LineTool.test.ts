@@ -323,6 +323,54 @@ describe('LineTool (LINIE)', () => {
         expect(lines()).toEqual([[B, C]]);
     });
 
+    it('continues tangentially from the arc drawn last: the first line only takes its length', () => {
+        const { editor, lines, history } = setup();
+        // Over the top from A to B, arriving at B heading south
+        editor.startCommand('ARC');
+        click(editor, A);
+        click(editor, { x: 2000, y: 2000 });
+        click(editor, B);
+        const before = history.document;
+        editor.startCommand('LINE');
+        editor.keyDown({ key: 'Enter' });
+        const { preview } = editor.snapshot;
+        expect(editor.snapshot).toMatchObject({ command: 'LINE', prompt: 'Länge der Linie angeben:', from: B });
+        expect(preview).toMatchObject({ kind: 'polyline', points: [B] });
+        if (typeof preview !== 'object' || preview?.kind !== 'polyline') {
+            throw new Error('no polyline preview');
+        }
+        expect(preview.direction?.x).toBeCloseTo(0);
+        expect(preview.direction?.y).toBeCloseTo(-1);
+        // Only a positive length, and no option
+        type(editor, '0');
+        expect(editor.snapshot).toMatchObject({ prompt: 'Länge der Linie angeben:', message: 'Wert muss positiv und ungleich Null sein.' });
+        type(editor, 's');
+        expect(editor.snapshot).toMatchObject({ prompt: 'Länge der Linie angeben:', message: 'Erfordert numerischen Abstand oder zweiten Punkt.' });
+        expect(history.document).toBe(before);
+        type(editor, '300');
+        const below = { x: 2500, y: 1200 };
+        expect(editor.snapshot).toMatchObject({ prompt: NEXT_PROMPT, from: below, preview: 'line' });
+        click(editor, A);
+        editor.keyDown({ key: 'Enter' });
+        expect(lines()).toEqual([
+            [B, below],
+            [below, A],
+        ]);
+        // Both lines are one undo step
+        editor.undo();
+        expect(lines()).toEqual([]);
+        // From another arc: a point gives the length as its distance from the end
+        editor.startCommand('ARC');
+        click(editor, A);
+        click(editor, { x: 2000, y: 2000 });
+        click(editor, B);
+        editor.startCommand('LINE');
+        editor.keyDown({ key: 'Enter' });
+        click(editor, { x: 2900, y: 1200 });
+        editor.keyDown({ key: 'Escape' });
+        expect(lines()).toEqual([[B, { x: 2500, y: 1000 }]]);
+    });
+
     it('reports when there is no line to continue', () => {
         const { editor } = setup();
         editor.startCommand('LINE');

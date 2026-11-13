@@ -1,15 +1,17 @@
 import { t } from '../../../i18n/i18n';
-import type { Id, Point } from '../../model/Point';
+import type { Id, Point, Vector2 } from '../../model/Point';
 import { matchesKeyword } from '../commandInput';
 import { AddLineCommand } from '../commands/AddLineCommand';
 import type { DocumentHistory } from '../commands/DocumentHistory';
-import { continuePoint, type DrawingMemory } from './DrawingMemory';
-import type { EditorTool, ToolPrompt, ToolStep } from './EditorTool';
+import { continueFrom, type DrawingMemory } from './DrawingMemory';
+import type { EditorTool, ToolPreview, ToolPrompt, ToolStep } from './EditorTool';
 
 const NOTHING: ReadonlySet<Id> = new Set();
 
 type State =
     | { kind: 'first' }
+    /** Continuing from an arc: the length of the first line, which leaves `start` in `direction` (a unit vector). */
+    | { kind: 'length'; start: Point; direction: Vector2 }
     /** A series from `start` (the target of "Schließen"); `segments` were drawn in this run, in order. */
     | { kind: 'next'; start: Point; last: Point; segments: AddLineCommand[] };
 
@@ -19,11 +21,12 @@ type State =
  * away; the option "Zurück" takes the last one back, "Schließen" (from two segments on) adds
  * one back to the first point and ends. Enter ends, Esc too; the lines drawn
  * stay and are one undo step together. Enter on its own at the first point continues from the
- * end of the line or polyline drawn last.
+ * end of the line, polyline or arc drawn last; from an arc tangentially, so the first line only
+ * takes its length (a `distance` prompt from that end).
  */
 export class LineTool implements EditorTool {
     readonly command = 'LINE';
-    readonly preview = 'line';
+    preview: ToolPreview = 'line';
     readonly highlighted = NOTHING;
     private readonly history: DocumentHistory;
     private readonly memory: DrawingMemory;
@@ -52,6 +55,10 @@ export class LineTool implements EditorTool {
             this.askNext({ kind: 'next', start: point, last: point, segments: [] });
             return {};
         }
+        if (state.kind === 'length') {
+            // The editor gives a point as its distance
+            return {};
+        }
         // A segment of no length draws nothing
         if (point.x !== state.last.x || point.y !== state.last.y) {
             this.addSegment(state, point);
@@ -60,7 +67,19 @@ export class LineTool implements EditorTool {
         return {};
     }
 
-    distance(): ToolStep {
+    /** The length of the line that continues an arc: only a positive one, else the prompt stays. */
+    distance(distance: number): ToolStep {
+        const state = this.state;
+        if (state.kind !== 'length') {
+            return {};
+        }
+        if (!(distance > 0)) {
+            return { message: () => t('message.positiveValue') };
+        }
+        const { start, direction } = state;
+        const series: Extract<State, { kind: 'next' }> = { kind: 'next', start, last: start, segments: [] };
+        this.addSegment(series, { x: start.x + direction.x * distance, y: start.y + direction.y * distance });
+        this.askNext(series);
         return {};
     }
 
@@ -68,6 +87,10 @@ export class LineTool implements EditorTool {
         const state = this.state;
         if (state.kind === 'first') {
             return text === '' ? this.continueLast() : null;
+        }
+        // The length prompt has no options
+        if (state.kind === 'length') {
+            return null;
         }
         if (text === '') {
             return this.finish(state);
@@ -110,13 +133,24 @@ export class LineTool implements EditorTool {
         return {};
     }
 
-    /** Enter at the first point: on from the end point of the line or polyline drawn last, where it is now. */
+    /**
+     * Enter at the first point: on from the end point of the line, polyline or arc drawn last,
+     * where it is now; from an arc in the direction it ends in, with only the length to give.
+     */
     private continueLast(): ToolStep {
-        const point = continuePoint(this.history.document, this.memory.lastDrawn);
-        if (!point) {
+        const last = continueFrom(this.history.document, this.memory.lastDrawn);
+        if (!last) {
             return { message: () => t('message.noLineToContinue') };
         }
-        this.askNext({ kind: 'next', start: point, last: point, segments: [] });
+        const { point, direction } = last;
+        if (!last.curved) {
+            this.askNext({ kind: 'next', start: point, last: point, segments: [] });
+            return {};
+        }
+        const unit = { x: Math.cos(direction), y: Math.sin(direction) };
+        this.state = { kind: 'length', start: point, direction: unit };
+        this.preview = { kind: 'polyline', points: [point], direction: unit };
+        this.prompt = { kind: 'point', input: 'distance', from: point, text: () => t('prompt.lineLength') };
         return {};
     }
 
@@ -129,6 +163,7 @@ export class LineTool implements EditorTool {
 
     private askNext(state: Extract<State, { kind: 'next' }>): void {
         this.state = state;
+        this.preview = 'line';
         const close = state.segments.length >= 2;
         this.prompt = {
             kind: 'point',

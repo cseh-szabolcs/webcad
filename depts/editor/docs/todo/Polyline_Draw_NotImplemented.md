@@ -3,7 +3,7 @@ PLINIE (AutoCAD PLINE) nach `docs/specs/PLINE_Werkzeug_Spezifikation.md`: was de
 Umgesetzt (erster Schritt, so in bedienung.md beschrieben):
 
 - Start über Button, `PLINIE`, `PLINE`, `PL`; Wiederholen mit Enter/Rechtsklick bei `Befehl:`.
-- `Startpunkt angeben:` mit Fang, Spuren, Koordinaten; Enter setzt am Endpunkt der zuletzt mit LINIE oder PLINIE gezeichneten Linie oder Polylinie fort.
+- `Startpunkt angeben:` mit Fang, Spuren, Koordinaten; Enter setzt am Endpunkt der zuletzt mit LINIE, PLINIE oder BOGEN gezeichneten Linie, Polylinie oder des Bogens fort (in freier Richtung).
 - Gerade Segmente mit Polarspur, Ortho, OTRACK, Direkter Distanzeingabe und DYN wie bei LINIE.
 - Optionen `Zurück`, `Schließen` und `sehnenLänge` (die beiden letzten ab einem Segment).
 - Enter, Rechtsklick und Esc beenden und behalten die Polylinie; sie ist ein Element und ein Rückgängig-Schritt.

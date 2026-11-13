@@ -198,7 +198,7 @@ export function CadCanvas({
          * `from` point, on a dimension.
          */
         const refreshDynamicInput = () => {
-            const { command, prompt, input, dynamicInput, from } = editor.snapshot;
+            const { command, prompt, input, dynamicInput, from, previewValue } = editor.snapshot;
             const dynamic = dynamicInputSettingsRef.current;
             const view = (point: Point) => viewportRef.current.modelToView(point);
             let promptText: string | null = null;
@@ -217,7 +217,11 @@ export function CadCanvas({
                 cursor: crosshairAt && cursorAt(crosshairAt),
                 prompt: promptText,
                 fields: dynamicInput?.fields ?? null,
-                dimension: onDimension && from && point ? { from: view(from), to: view(point) } : null,
+                dimension:
+                    onDimension && from && point
+                        ? // A typed negative angle turns clockwise
+                          { from: view(from), to: view(point), clockwise: dynamicInput.format === 'angle' && (previewValue ?? 0) < 0 }
+                        : null,
                 bound: dynamicInput?.bound && point ? view(point) : null,
             });
         };

@@ -187,6 +187,12 @@ export interface SelectionSnapshot {
      * cursor), for the preview; null at other prompts and while the pointer is outside.
      */
     previewPoint: Point | null;
+    /**
+     * The number typed into the Dynamic Input field of a `distance` or an `angle` prompt, as it
+     * is (it may be negative, which no point tells): a preview that tells takes it instead of the
+     * point (`curveFor`). Null otherwise.
+     */
+    previewValue: number | null;
     /** Dynamic Input fields at the current point prompt, or null where none show. */
     dynamicInput: DynamicInputView | null;
     /** Undo and redo are possible now (not while a command runs). */
@@ -206,7 +212,7 @@ export interface DynamicInputView {
     format: DynamicFormat;
     /** Measured from `from` (or the last point), not from the origin. */
     relative: boolean;
-    /** Two, or the distance alone at a `distance` prompt. */
+    /** Two, or the distance or the angle alone at such a prompt. */
     fields: readonly DynamicField[];
     /** The point a click or Enter takes now (also without a pointer once typed values fix it), or null. */
     point: Point | null;
@@ -542,7 +548,7 @@ export class SelectionEditor {
             case 'CIRCLE':
                 return new CircleTool();
             case 'ARC':
-                return new ArcTool(method);
+                return new ArcTool(this.history, this.drawingMemory, method);
             case 'ELLIPSE':
                 return new EllipseTool();
             case 'RECTANG':
@@ -629,12 +635,7 @@ export class SelectionEditor {
         const state = this.state;
         if (this.pointPrompt() !== null) {
             if (event.button === 0) {
-                // A click gives the point, bound by typed Dynamic Input values; other typed text is dropped
-                this.updateSnap(event);
-                const point = this.pointAt(event.modelPoint);
-                this.input = '';
-                this.dynamic = EMPTY_DYNAMIC_INPUT;
-                this.pointGiven(point);
+                this.givePointAt(event);
             } else if (event.button === 2) {
                 // Like Enter, as with AutoCAD's right-click customization "ENTER"
                 this.submitInput();
@@ -739,11 +740,7 @@ export class SelectionEditor {
             // Dragged off the grip: the release gives the point, like the second click
             const { x, y } = event.viewPoint;
             if (Math.hypot(x - gripPress.x, y - gripPress.y) > DRAG_THRESHOLD_PX) {
-                this.updateSnap(event);
-                const point = this.pointAt(event.modelPoint);
-                this.input = '';
-                this.dynamic = EMPTY_DYNAMIC_INPUT;
-                this.pointGiven(point);
+                this.givePointAt(event);
             }
             return;
         }
@@ -1039,7 +1036,8 @@ export class SelectionEditor {
         if (key === 'Backspace') {
             this.dynamic = backspaceDynamic(this.dynamic);
         } else if (isTypedCharacter(event)) {
-            this.dynamic = typeDynamic(this.dynamic, key, this.pointPrompt()?.input === 'distance');
+            const input = this.pointPrompt()?.input;
+            this.dynamic = typeDynamic(this.dynamic, key, input === 'distance' || input === 'angle');
         } else {
             return false;
         }
@@ -1098,11 +1096,12 @@ export class SelectionEditor {
     private submitInput(): void {
         if (this.dynamicPromptLayout() !== null) {
             const dynamic = this.dynamic;
+            const value = this.typedPromptValue();
             this.dynamic = EMPTY_DYNAMIC_INPUT;
             const values = typedValues(dynamic);
             if (values !== 'text' && (values[0] !== null || values[1] !== null)) {
-                if (this.pointPrompt()!.input === 'distance' && values[0] !== null) {
-                    this.distanceGiven(values[0]);
+                if (value !== null) {
+                    this.valueGiven(value);
                     return;
                 }
                 const point = this.dynamicBoundPoint(dynamic);
@@ -1192,6 +1191,43 @@ export class SelectionEditor {
         this.applyStep(state.tool.point(point));
     }
 
+    /**
+     * A click (or the release of a dragged grip) gives the point there, bound by typed Dynamic
+     * Input values; at a `distance` or an `angle` prompt a number typed into its field as it is.
+     * Other typed text is dropped.
+     */
+    private givePointAt(event: EditorPointerEvent): void {
+        this.updateSnap(event);
+        const point = this.pointAt(event.modelPoint);
+        const value = this.typedPromptValue();
+        this.input = '';
+        this.dynamic = EMPTY_DYNAMIC_INPUT;
+        if (value !== null) {
+            this.valueGiven(value);
+        } else {
+            this.pointGiven(point);
+        }
+    }
+
+    /** The number typed into the Dynamic Input field of a `distance` or an `angle` prompt; null without one. */
+    private typedPromptValue(): number | null {
+        const input = this.pointPrompt()?.input;
+        if ((input !== 'distance' && input !== 'angle') || this.dynamicPromptLayout() === null) {
+            return null;
+        }
+        const values = typedValues(this.dynamic);
+        return values === 'text' ? null : values[0];
+    }
+
+    /** A number given at a `distance` or an `angle` prompt. */
+    private valueGiven(value: number): void {
+        if (this.pointPrompt()?.input === 'angle') {
+            this.angleGiven(value);
+        } else {
+            this.distanceGiven(value);
+        }
+    }
+
     /** A distance given at a `distance` prompt, typed or measured. */
     private distanceGiven(distance: number): void {
         const state = this.state;
@@ -1237,8 +1273,8 @@ export class SelectionEditor {
     /** Which Dynamic Input fields the current prompt shows, or null for none (typing goes to the command line). */
     private dynamicPromptLayout(): DynamicLayout | null {
         const prompt = this.pointPrompt();
-        // A distance with nothing to measure from has no dimension to show (a number, or the first of two points)
-        if (prompt === null || (prompt.input === 'distance' && prompt.from === null)) {
+        // A distance or an angle with nothing to measure from has no dimension to show (a number, or the first of two points)
+        if (prompt === null || ((prompt.input === 'distance' || prompt.input === 'angle') && prompt.from === null)) {
             return null;
         }
         return dynamicLayout(this.dynamicInputSettings, prompt.input);
@@ -1654,6 +1690,7 @@ export class SelectionEditor {
             ? this.snapPreview.filter(({ point }) => snap === null || !coincide(point, snap.point))
             : NO_POINTS;
         const previewPoint = this.previewPoint();
+        const previewValue = pointPrompt ? this.typedPromptValue() : null;
         const dynamicInput = this.dynamicInputView();
         const input = dynamicInput !== null ? dynamicText(this.dynamic, this.dynamicContext()) : this.input;
         const idle = state.kind === 'idle' && this.area === null;
@@ -1714,6 +1751,7 @@ export class SelectionEditor {
             preview === previous.preview &&
             previewKeeps === previous.previewKeeps &&
             samePoint(previewPoint, previous.previewPoint) &&
+            previewValue === previous.previewValue &&
             sameDynamicInput(dynamicInput, previous.dynamicInput) &&
             canUndo === previous.canUndo &&
             canRedo === previous.canRedo
@@ -1745,6 +1783,7 @@ export class SelectionEditor {
             preview,
             previewKeeps,
             previewPoint,
+            previewValue,
             dynamicInput,
             canUndo,
             canRedo,

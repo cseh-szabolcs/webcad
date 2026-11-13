@@ -28,19 +28,22 @@ const B = { x: 2000, y: 2000 };
 const C = { x: 2500, y: 1500 };
 const CENTER = { x: 2000, y: 1500 };
 
-const START_PROMPT = 'Startpunkt für Bogen angeben:';
-const SECOND_PROMPT = 'Zweiten Punkt für Bogen angeben oder [Zentrum]:';
+const START_PROMPT = 'Startpunkt für Bogen angeben oder [Zentrum]:';
+const START_AFTER_CENTER_PROMPT = 'Startpunkt für Bogen angeben:';
+const SECOND_PROMPT = 'Zweiten Punkt für Bogen angeben oder [Zentrum/Endpunkt]:';
 const END_PROMPT = 'Endpunkt für Bogen angeben:';
 const CENTER_PROMPT = 'Mittelpunkt für Bogen angeben:';
-const DIRECTION_PROMPT = 'Endpunkt für Bogen angeben (Strg wechselt die Richtung) oder [Winkel]:';
+const DIRECTION_PROMPT = 'Endpunkt für Bogen angeben (Strg wechselt die Richtung) oder [Winkel/sehnenLänge]:';
+const CHORD_PROMPT = 'Sehnenlänge angeben (Strg wechselt die Richtung):';
+const CHORD_INVALID = 'Sehnenlänge darf nicht 0 und nicht länger als der Durchmesser sein.';
 const ANGLE_PROMPT = 'Eingeschlossenen Winkel angeben (Strg wechselt die Richtung):';
 const ANGLE_INVALID = 'Winkel darf nicht 0 oder ein Vielfaches von 360 sein.';
 
 /** Without Dynamic Input, so typed coordinates are absolute. */
-const setup = () => {
+const setup = (dynamicInput = false) => {
     const history = new DocumentHistory(parseDocument(samplePlan));
     const editor = new SelectionEditor(history);
-    editor.setDynamicInputSettings({ ...DEFAULT_DYNAMIC_INPUT_SETTINGS, enabled: false });
+    editor.setDynamicInputSettings({ ...DEFAULT_DYNAMIC_INPUT_SETTINGS, enabled: dynamicInput });
     return { editor, history, arcs: () => newArcs(history.document) };
 };
 const click = (editor: SelectionEditor, point: Point) => {
@@ -175,15 +178,15 @@ describe('ArcTool (BOGEN)', () => {
         expect(arcs()).toHaveLength(1);
     });
 
-    it('knows the option "Zentrum" only at the second point, and Enter alone gives no point', () => {
+    it('knows no other options at its points, and Enter alone gives no point after the start', () => {
         const { editor } = setup();
         editor.startCommand('ARC');
-        for (const text of ['', 'Z', 'x']) {
+        for (const text of ['W', 'x']) {
             type(editor, text);
             expect(editor.snapshot).toMatchObject({ prompt: START_PROMPT, message: 'Punkt oder Option-Schlüsselwort erforderlich.' });
         }
         type(editor, '1500,1500');
-        for (const text of ['', 'E', 'x']) {
+        for (const text of ['', 'W', 'x']) {
             type(editor, text);
             expect(editor.snapshot).toMatchObject({ prompt: SECOND_PROMPT, message: 'Punkt oder Option-Schlüsselwort erforderlich.' });
         }
@@ -505,6 +508,569 @@ describe('ArcTool (BOGEN)', () => {
             editor.keyDown({ key: 'Escape' });
             expect(editor.snapshot).toMatchObject({ command: null, message: '*Abbruch*' });
             expect(arcs()).toEqual([]);
+        });
+    });
+
+    describe('start, centre, length', () => {
+        const BELOW = { x: 2000, y: 1000 };
+        /** BOGEN at the chord prompt, from C around CENTER (radius 500). */
+        const atChord = () => {
+            const context = setup();
+            context.editor.startCommand('ARC', 'startCenterLength');
+            type(context.editor, '2500,1500');
+            type(context.editor, '2000,1500');
+            return context;
+        };
+        const QUARTER_CHORD = 500 * Math.SQRT2;
+
+        it('takes the length of the chord with the option "sehnenLänge": the minor arc, negative the major one', () => {
+            const { editor, arcs } = setup();
+            for (const length of ['500', '-500', '1000', '-1000']) {
+                editor.startCommand('ARC');
+                type(editor, '2500,1500');
+                type(editor, 'z');
+                type(editor, '2000,1500');
+                type(editor, 'L');
+                expect(editor.snapshot).toMatchObject({ prompt: CHORD_PROMPT, from: C, preview: { kind: 'curve', rubberBand: true } });
+                type(editor, length);
+                expect(editor.snapshot).toMatchObject({ command: null, prompt: 'Befehl:' });
+            }
+            // A chord as long as the radius spans 60°, the major arc 300°; the diameter half the circle either way
+            const at60 = { x: 2250, y: round(1500 + 250 * Math.sqrt(3)) };
+            const at300 = { x: 2250, y: round(1500 - 250 * Math.sqrt(3)) };
+            expect(arcs()).toEqual([
+                { center: CENTER, start: C, end: at60, clockwise: false },
+                { center: CENTER, start: C, end: at300, clockwise: false },
+                { center: CENTER, start: C, end: A, clockwise: false },
+                { center: CENTER, start: C, end: A, clockwise: false },
+            ]);
+        });
+
+        it('asks for the chord straight after the centre when started with the method, and measures it from the start', () => {
+            const { editor, arcs } = atChord();
+            expect(editor.snapshot).toMatchObject({ prompt: CHORD_PROMPT, from: C });
+            // Only the distance of the point counts, not where it lies
+            const far = { x: 2500 - QUARTER_CHORD, y: 1500 };
+            const preview = previewAt(editor, far);
+            expect(preview).toMatchObject({ kind: 'arc', center: CENTER, start: C, clockwise: false });
+            expect(round((preview as { end: Point }).end.y)).toBe(2000);
+            type(editor, `${far.x},${far.y}`);
+            expect(arcs()).toEqual([{ center: CENTER, start: C, end: B, clockwise: false }]);
+        });
+
+        it('turns the other way with Ctrl', () => {
+            const { editor, arcs } = atChord();
+            expect(editor.keyDown({ key: 'Control' })).toBe(true);
+            expect(editor.snapshot.prompt).toBe(CHORD_PROMPT);
+            type(editor, String(QUARTER_CHORD));
+            // The option takes the direction along
+            editor.startCommand('ARC', 'startCenterEnd');
+            type(editor, '2500,1500');
+            type(editor, '2000,1500');
+            editor.keyDown({ key: 'Control' });
+            type(editor, 'Länge');
+            type(editor, String(-QUARTER_CHORD));
+            expect(arcs()).toEqual([
+                { center: CENTER, start: C, end: BELOW, clockwise: true },
+                { center: CENTER, start: C, end: B, clockwise: true },
+            ]);
+        });
+
+        it('takes no chord of length 0 or beyond the diameter, and needs a number or a point', () => {
+            const { editor, arcs } = atChord();
+            for (const length of ['0', '1000.5', '-2000']) {
+                type(editor, length);
+                expect(editor.snapshot).toMatchObject({ command: 'ARC', prompt: CHORD_PROMPT, message: CHORD_INVALID });
+            }
+            expect(previewAt(editor, C)).toBeNull();
+            expect(previewAt(editor, { x: 1000, y: 1500 })).toBeNull();
+            type(editor, '1000,1500');
+            expect(editor.snapshot).toMatchObject({ prompt: CHORD_PROMPT, message: CHORD_INVALID });
+            for (const text of ['', 'x']) {
+                type(editor, text);
+                expect(editor.snapshot).toMatchObject({ prompt: CHORD_PROMPT, message: 'Erfordert numerischen Abstand oder zweiten Punkt.' });
+            }
+            expect(arcs()).toEqual([]);
+        });
+    });
+
+    describe('centre first', () => {
+        const BELOW = { x: 2000, y: 1000 };
+
+        it('takes the centre before the start with the option "Zentrum" at the start', () => {
+            const { editor, arcs } = setup();
+            editor.startCommand('ARC');
+            type(editor, 'Zentrum');
+            expect(editor.snapshot).toMatchObject({ command: 'ARC', prompt: CENTER_PROMPT, from: null, preview: null });
+            type(editor, '2000,1500');
+            // Only the rubber band from the centre
+            expect(editor.snapshot).toMatchObject({ prompt: START_AFTER_CENTER_PROMPT, from: CENTER, preview: { kind: 'curve', rubberBand: true } });
+            expect(previewAt(editor, C)).toBeNull();
+            // The centre again has no radius, and there is no option here
+            type(editor, '2000,1500');
+            type(editor, 'z');
+            expect(editor.snapshot).toMatchObject({ prompt: START_AFTER_CENTER_PROMPT, message: 'Punkt oder Option-Schlüsselwort erforderlich.' });
+            type(editor, '@500,0');
+            expect(editor.snapshot).toMatchObject({ prompt: DIRECTION_PROMPT, from: CENTER });
+            expect(previewAt(editor, { x: 2000, y: 2300 })).toEqual({ kind: 'arc', center: CENTER, start: C, end: B, clockwise: false });
+            type(editor, '2000,2300');
+            expect(arcs()).toEqual([{ center: CENTER, start: C, end: B, clockwise: false }]);
+        });
+
+        it('starts at the centre with its methods, which end by a point, an angle or a chord', () => {
+            const { editor, arcs } = setup();
+            const last = { centerStartEnd: '2000,1200', centerStartAngle: '-90', centerStartLength: '1000' } as const;
+            const prompts = { centerStartEnd: DIRECTION_PROMPT, centerStartAngle: ANGLE_PROMPT, centerStartLength: CHORD_PROMPT };
+            for (const method of ['centerStartEnd', 'centerStartAngle', 'centerStartLength'] as const) {
+                editor.startCommand('ARC', method);
+                expect(editor.snapshot).toMatchObject({ command: 'ARC', prompt: CENTER_PROMPT, from: null });
+                click(editor, CENTER);
+                click(editor, C);
+                expect(editor.snapshot.prompt).toBe(prompts[method]);
+                type(editor, last[method]);
+            }
+            expect(arcs()).toEqual([
+                { center: CENTER, start: C, end: BELOW, clockwise: false },
+                { center: CENTER, start: C, end: BELOW, clockwise: true },
+                { center: CENTER, start: C, end: A, clockwise: false },
+            ]);
+        });
+
+        it('keeps what ends the arc when the option moves the centre first, and the options at the end still work', () => {
+            const { editor, arcs } = setup();
+            editor.startCommand('ARC', 'startCenterAngle');
+            type(editor, 'z');
+            type(editor, '2000,1500');
+            type(editor, '2500,1500');
+            expect(editor.snapshot).toMatchObject({ prompt: ANGLE_PROMPT, from: CENTER });
+            // It is that method now
+            editor.startCommand('ARC', 'centerStartAngle');
+            expect(editor.snapshot.prompt).toBe(ANGLE_PROMPT);
+            type(editor, '90');
+            editor.startCommand('ARC', 'centerStartEnd');
+            type(editor, '2000,1500');
+            type(editor, '2500,1500');
+            editor.keyDown({ key: 'Control' });
+            type(editor, 'L');
+            editor.startCommand('ARC', 'centerStartLength');
+            expect(editor.snapshot).toMatchObject({ prompt: CHORD_PROMPT, from: C });
+            type(editor, '1000');
+            expect(arcs()).toEqual([
+                { center: CENTER, start: C, end: B, clockwise: false },
+                { center: CENTER, start: C, end: A, clockwise: true },
+            ]);
+        });
+
+        it('starts anew from the other order, and ends with Esc at the centre and at the start', () => {
+            const { editor, arcs } = setup();
+            editor.startCommand('ARC', 'startCenterEnd');
+            type(editor, '2500,1500');
+            editor.startCommand('ARC', 'centerStartEnd');
+            expect(editor.snapshot).toMatchObject({ prompt: CENTER_PROMPT, from: null });
+            editor.keyDown({ key: 'Escape' });
+            expect(editor.snapshot).toMatchObject({ command: null, message: '*Abbruch*' });
+            editor.startCommand('ARC', 'centerStartEnd');
+            type(editor, '2000,1500');
+            editor.keyDown({ key: 'Escape' });
+            expect(editor.snapshot).toMatchObject({ command: null, message: '*Abbruch*' });
+            // Enter repeats BOGEN as such, from the start
+            editor.keyDown({ key: 'Enter' });
+            expect(editor.snapshot).toMatchObject({ command: 'ARC', prompt: START_PROMPT });
+            expect(arcs()).toEqual([]);
+        });
+    });
+
+    describe('start, end', () => {
+        const ABOVE = B;
+        const BELOW = { x: 2000, y: 1000 };
+        const CENTER_OPTIONS_PROMPT = 'Mittelpunkt für Bogen angeben (Strg wechselt die Richtung) oder [Winkel/RIchtung/RAdius]:';
+        const DIRECTION_OF_START_PROMPT = 'Tangentenrichtung für Startpunkt des Bogens angeben (Strg wechselt die Richtung):';
+        const RADIUS_PROMPT = 'Radius für Bogen angeben (Strg wechselt die Richtung):';
+        const QUARTER_RADIUS = 500 * Math.SQRT2;
+        /** BOGEN with that method after the start A and the end C, a chord of 1000. */
+        const overChord = (method: 'startEndAngle' | 'startEndDirection' | 'startEndRadius') => {
+            const context = setup();
+            const again = () => {
+                context.editor.startCommand('ARC', method);
+                type(context.editor, '1500,1500');
+                type(context.editor, '2500,1500');
+            };
+            again();
+            return { ...context, again };
+        };
+
+        it('takes the end after the start with the option "Endpunkt", then the centre, which the arc only ends towards the end from', () => {
+            const { editor, arcs, history } = setup();
+            const before = history.document;
+            editor.startCommand('ARC');
+            type(editor, '1500,1500');
+            type(editor, 'e');
+            // Only the rubber band from the start
+            expect(editor.snapshot).toMatchObject({ prompt: END_PROMPT, from: A, preview: { kind: 'curve', rubberBand: true } });
+            expect(previewAt(editor, C)).toBeNull();
+            // The start again is no end, and there is no option here
+            type(editor, '1500,1500');
+            type(editor, 'z');
+            expect(editor.snapshot).toMatchObject({ prompt: END_PROMPT, message: 'Punkt oder Option-Schlüsselwort erforderlich.' });
+            type(editor, '2500,1500');
+            expect(editor.snapshot).toMatchObject({ prompt: CENTER_OPTIONS_PROMPT, from: C, preview: { kind: 'curve', rubberBand: true } });
+            expect(previewAt(editor, CENTER)).toEqual({ kind: 'arc', center: CENTER, start: A, end: C, clockwise: false });
+            // Ctrl turns it clockwise
+            expect(editor.keyDown({ key: 'Control' })).toBe(true);
+            expect(previewAt(editor, CENTER)).toMatchObject({ clockwise: true });
+            editor.keyDown({ key: 'Control' });
+            // The start as the centre has no radius
+            type(editor, '1500,1500');
+            expect(editor.snapshot.prompt).toBe(CENTER_OPTIONS_PROMPT);
+            expect(history.document).toBe(before);
+            // A centre the end is not on the circle of: the arc ends on the ray to the end
+            type(editor, '1500,2000');
+            expect(arcs()).toEqual([
+                { center: { x: 1500, y: 2000 }, start: A, end: { x: round(1500 + 1000 / Math.sqrt(5)), y: round(2000 - 500 / Math.sqrt(5)) }, clockwise: false },
+            ]);
+            editor.undo();
+            expect(editor.snapshot.message).toBe('Rückgängig: BOGEN');
+            expect(history.document.vertices).toEqual(before.vertices);
+        });
+
+        it('takes the included angle: the ends stay, the centre follows; negative runs clockwise', () => {
+            const { editor, arcs, again } = overChord('startEndAngle');
+            expect(editor.snapshot).toMatchObject({ prompt: ANGLE_PROMPT, from: A, preview: { kind: 'curve', rubberBand: true } });
+            // Pointed from the start, from +X: straight up is 90°
+            expect(previewAt(editor, { x: 1500, y: 1800 })).toEqual({ kind: 'arc', center: ABOVE, start: A, end: C, clockwise: false });
+            for (const angle of ['180', '-180', '90', '-90', '270']) {
+                type(editor, angle);
+                again();
+            }
+            click(editor, { x: 1500, y: 1800 });
+            expect(arcs()).toEqual([
+                { center: CENTER, start: A, end: C, clockwise: false },
+                { center: CENTER, start: A, end: C, clockwise: true },
+                { center: ABOVE, start: A, end: C, clockwise: false },
+                { center: BELOW, start: A, end: C, clockwise: true },
+                { center: BELOW, start: A, end: C, clockwise: false },
+                { center: ABOVE, start: A, end: C, clockwise: false },
+            ]);
+            again();
+            for (const angle of ['0', '360']) {
+                type(editor, angle);
+                expect(editor.snapshot).toMatchObject({ prompt: ANGLE_PROMPT, message: ANGLE_INVALID });
+            }
+            // Ctrl turns it the other way
+            editor.keyDown({ key: 'Control' });
+            type(editor, '90');
+            expect(arcs().at(-1)).toEqual({ center: BELOW, start: A, end: C, clockwise: true });
+        });
+
+        it('takes the direction the arc leaves the start in, typed or towards a point', () => {
+            const { editor, arcs, again } = overChord('startEndDirection');
+            expect(editor.snapshot).toMatchObject({ prompt: DIRECTION_OF_START_PROMPT, from: A });
+            // Leaving upwards, it comes over the top
+            expect(previewAt(editor, { x: 1500, y: 1800 })).toEqual({ kind: 'arc', center: CENTER, start: A, end: C, clockwise: true });
+            for (const direction of ['90', '-90', '270', '45', '135']) {
+                type(editor, direction);
+                again();
+            }
+            click(editor, { x: 1500, y: 1800 });
+            expect(arcs()).toEqual([
+                { center: CENTER, start: A, end: C, clockwise: true },
+                { center: CENTER, start: A, end: C, clockwise: false },
+                { center: CENTER, start: A, end: C, clockwise: false },
+                // A quarter over the chord, and three quarters when it leaves away from the end
+                { center: BELOW, start: A, end: C, clockwise: true },
+                { center: ABOVE, start: A, end: C, clockwise: true },
+                { center: CENTER, start: A, end: C, clockwise: true },
+            ]);
+            again();
+            // Along the chord there is no arc, either way
+            for (const direction of ['0', '180']) {
+                type(editor, direction);
+                expect(editor.snapshot).toMatchObject({
+                    prompt: DIRECTION_OF_START_PROMPT,
+                    message: 'Richtung darf nicht auf der Geraden durch Start- und Endpunkt liegen.',
+                });
+            }
+            // Ctrl leaves the other way: the rest of the same circle
+            editor.keyDown({ key: 'Control' });
+            expect(previewAt(editor, { x: 1800, y: 1800 })).toEqual({ kind: 'arc', center: BELOW, start: A, end: C, clockwise: false });
+            type(editor, '45');
+            expect(arcs().at(-1)).toEqual({ center: BELOW, start: A, end: C, clockwise: false });
+        });
+
+        it('takes the radius, typed or as the distance from the end: the minor arc, negative the major one', () => {
+            const { editor, arcs, again } = overChord('startEndRadius');
+            expect(editor.snapshot).toMatchObject({ prompt: RADIUS_PROMPT, from: C });
+            expect(previewAt(editor, { x: 2500, y: 2000 })).toEqual({ kind: 'arc', center: CENTER, start: A, end: C, clockwise: false });
+            for (const radius of ['500', String(QUARTER_RADIUS), String(-QUARTER_RADIUS)]) {
+                type(editor, radius);
+                again();
+            }
+            // As far from the end as the chord is long: 60° over the chord
+            type(editor, '@1000<90');
+            expect(arcs()).toEqual([
+                { center: CENTER, start: A, end: C, clockwise: false },
+                { center: ABOVE, start: A, end: C, clockwise: false },
+                { center: BELOW, start: A, end: C, clockwise: false },
+                { center: { x: 2000, y: round(1500 + 500 * Math.sqrt(3)) }, start: A, end: C, clockwise: false },
+            ]);
+            again();
+            for (const radius of ['0', '499', '-499']) {
+                type(editor, radius);
+                expect(editor.snapshot).toMatchObject({
+                    prompt: RADIUS_PROMPT,
+                    message: 'Radius darf nicht 0 und nicht kleiner als der halbe Abstand der Endpunkte sein.',
+                });
+            }
+            expect(previewAt(editor, { x: 2500, y: 1800 })).toBeNull();
+            editor.keyDown({ key: 'Control' });
+            type(editor, String(QUARTER_RADIUS));
+            expect(arcs().at(-1)).toEqual({ center: BELOW, start: A, end: C, clockwise: true });
+        });
+
+        it('reaches angle, direction and radius by the options of the centre prompt, which keep the direction', () => {
+            const { editor, arcs } = setup();
+            const options = { W: ANGLE_PROMPT, RI: DIRECTION_OF_START_PROMPT, RA: RADIUS_PROMPT, Winkel: ANGLE_PROMPT, Richtung: DIRECTION_OF_START_PROMPT };
+            for (const [option, prompt] of Object.entries(options)) {
+                editor.startCommand('ARC');
+                type(editor, '1500,1500');
+                type(editor, 'Endpunkt');
+                type(editor, '2500,1500');
+                // `R` alone could be either
+                type(editor, 'R');
+                expect(editor.snapshot).toMatchObject({ prompt: CENTER_OPTIONS_PROMPT, message: 'Punkt oder Option-Schlüsselwort erforderlich.' });
+                type(editor, option);
+                expect(editor.snapshot.prompt).toBe(prompt);
+                editor.keyDown({ key: 'Escape' });
+            }
+            editor.startCommand('ARC');
+            type(editor, '1500,1500');
+            type(editor, 'E');
+            type(editor, '2500,1500');
+            editor.keyDown({ key: 'Control' });
+            type(editor, 'RA');
+            // It is that method now
+            editor.startCommand('ARC', 'startEndRadius');
+            expect(editor.snapshot.prompt).toBe(RADIUS_PROMPT);
+            type(editor, '500');
+            expect(arcs()).toEqual([{ center: CENTER, start: A, end: C, clockwise: true }]);
+        });
+
+        it('starts anew from another method, and ends with Esc at the end and at what defines the arc', () => {
+            const { editor, arcs } = setup();
+            editor.startCommand('ARC', 'startEndAngle');
+            expect(editor.snapshot).toMatchObject({ command: 'ARC', prompt: START_PROMPT });
+            click(editor, A);
+            expect(editor.snapshot).toMatchObject({ prompt: END_PROMPT, from: A });
+            editor.startCommand('ARC', 'startEndRadius');
+            expect(editor.snapshot).toMatchObject({ prompt: START_PROMPT, from: null });
+            // The centre first makes it centre, start, end
+            type(editor, 'Z');
+            editor.startCommand('ARC', 'centerStartEnd');
+            expect(editor.snapshot.prompt).toBe(CENTER_PROMPT);
+            for (const points of [['1500,1500'], ['1500,1500', '2500,1500']]) {
+                editor.startCommand('ARC', 'startEndDirection');
+                points.forEach((point) => type(editor, point));
+                editor.keyDown({ key: 'Escape' });
+                expect(editor.snapshot).toMatchObject({ command: null, message: '*Abbruch*' });
+            }
+            expect(arcs()).toEqual([]);
+        });
+    });
+
+    describe('continue', () => {
+        const TANGENT_PROMPT = 'Endpunkt für Bogen angeben (Strg wechselt die Richtung):';
+        const NOTHING_TO_CONTINUE = 'Keine Linie oder kein Bogen zum Fortsetzen.';
+        /** A line to A that arrives there heading east. */
+        const afterLine = () => {
+            const context = setup();
+            context.editor.startCommand('LINE');
+            type(context.editor, '1000,1500');
+            type(context.editor, '1500,1500');
+            context.editor.keyDown({ key: 'Enter' });
+            return context;
+        };
+
+        it('goes on from the line drawn last with Enter at the start, leaving its end in its direction', () => {
+            const { editor, arcs, history } = afterLine();
+            const before = history.document;
+            editor.startCommand('ARC');
+            editor.keyDown({ key: 'Enter' });
+            expect(editor.snapshot).toMatchObject({ command: 'ARC', prompt: TANGENT_PROMPT, from: A, preview: { kind: 'curve', rubberBand: true } });
+            expect(previewAt(editor, B)).toEqual({ kind: 'arc', center: { x: 1500, y: 2000 }, start: A, end: B, clockwise: false });
+            // Straight on or straight back there is no arc
+            for (const point of ['2000,1500', '1000,1500', '1500,1500']) {
+                type(editor, point);
+                expect(editor.snapshot).toMatchObject({ command: 'ARC', prompt: TANGENT_PROMPT, from: A });
+            }
+            expect(history.document).toBe(before);
+            type(editor, '2000,2000');
+            expect(arcs()).toEqual([{ center: { x: 1500, y: 2000 }, start: A, end: B, clockwise: false }]);
+            editor.undo();
+            expect(editor.snapshot.message).toBe('Rückgängig: BOGEN');
+        });
+
+        it('goes on from its own arc, so Enter twice at "Befehl:" chains tangent arcs', () => {
+            const { editor, arcs } = afterLine();
+            editor.startCommand('ARC', 'continue');
+            expect(editor.snapshot).toMatchObject({ prompt: TANGENT_PROMPT, from: A });
+            type(editor, '2000,2000');
+            // The arc arrives heading north: on to the upper right it turns clockwise
+            editor.keyDown({ key: 'Enter' });
+            editor.keyDown({ key: 'Enter' });
+            expect(editor.snapshot).toMatchObject({ command: 'ARC', prompt: TANGENT_PROMPT, from: B });
+            type(editor, '2500,2500');
+            expect(arcs()).toEqual([
+                { center: { x: 1500, y: 2000 }, start: A, end: B, clockwise: false },
+                { center: { x: 2500, y: 2000 }, start: B, end: { x: 2500, y: 2500 }, clockwise: true },
+            ]);
+        });
+
+        it('goes on from an arc whose end vertex lies off it, and from a polyline', () => {
+            const { editor, arcs } = setup();
+            // Start, centre, end towards a far point: the arc ends on its circle
+            editor.startCommand('ARC', 'startCenterEnd');
+            for (const point of ['2500,1500', '2000,1500', '2000,2300']) {
+                type(editor, point);
+            }
+            editor.startCommand('ARC', 'continue');
+            // Arriving at B heading west
+            expect(editor.snapshot).toMatchObject({ prompt: TANGENT_PROMPT, from: B });
+            expect(previewAt(editor, { x: 1500, y: 2500 })).toMatchObject({ center: { x: 2000, y: 2500 }, clockwise: true });
+            editor.keyDown({ key: 'Escape' });
+            editor.startCommand('PLINE');
+            for (const point of ['1000,1000', '1500,1000', '1500,1500']) {
+                type(editor, point);
+            }
+            editor.keyDown({ key: 'Enter' });
+            // The last segment arrives at A heading north
+            editor.startCommand('ARC', 'continue');
+            expect(editor.snapshot).toMatchObject({ prompt: TANGENT_PROMPT, from: A });
+            type(editor, '2000,2000');
+            expect(arcs().at(-1)).toEqual({ center: { x: 2000, y: 1500 }, start: A, end: B, clockwise: true });
+        });
+
+        it('leaves the other way with Ctrl: the rest of the same circle', () => {
+            const { editor, arcs } = afterLine();
+            editor.startCommand('ARC', 'continue');
+            expect(editor.keyDown({ key: 'Control' })).toBe(true);
+            expect(previewAt(editor, B)).toEqual({ kind: 'arc', center: { x: 1500, y: 2000 }, start: A, end: B, clockwise: true });
+            type(editor, '2000,2000');
+            expect(arcs()).toEqual([{ center: { x: 1500, y: 2000 }, start: A, end: B, clockwise: true }]);
+        });
+
+        it('reports when there is nothing to continue, and asks for the start as usual', () => {
+            const { editor, arcs } = setup();
+            editor.startCommand('ARC');
+            editor.keyDown({ key: 'Enter' });
+            expect(editor.snapshot).toMatchObject({ command: 'ARC', prompt: START_PROMPT, message: NOTHING_TO_CONTINUE });
+            editor.keyDown({ key: 'Escape' });
+            editor.startCommand('ARC', 'continue');
+            expect(editor.snapshot).toMatchObject({ command: 'ARC', prompt: START_PROMPT, message: NOTHING_TO_CONTINUE });
+            for (const point of ['1500,1500', '2000,2000', '2500,1500']) {
+                type(editor, point);
+            }
+            expect(arcs()).toHaveLength(1);
+            // Not once the arc is undone, nor from a circle
+            editor.undo();
+            editor.startCommand('ARC', 'continue');
+            expect(editor.snapshot).toMatchObject({ prompt: START_PROMPT, message: NOTHING_TO_CONTINUE });
+        });
+
+        it('starts anew from another method, and Enter means nothing once the start is given', () => {
+            const { editor } = afterLine();
+            editor.startCommand('ARC', 'continue');
+            editor.startCommand('ARC', 'continue');
+            expect(editor.snapshot.prompt).toBe(TANGENT_PROMPT);
+            editor.keyDown({ key: 'Enter' });
+            expect(editor.snapshot).toMatchObject({ prompt: TANGENT_PROMPT, message: 'Punkt oder Option-Schlüsselwort erforderlich.' });
+            editor.startCommand('ARC', 'threePoints');
+            expect(editor.snapshot).toMatchObject({ prompt: START_PROMPT, from: null });
+            // Enter at the start of any method continues
+            editor.startCommand('ARC', 'startCenterAngle');
+            editor.keyDown({ key: 'Enter' });
+            expect(editor.snapshot).toMatchObject({ prompt: TANGENT_PROMPT, from: A });
+        });
+    });
+
+    describe('with Dynamic Input', () => {
+        const BELOW = { x: 2000, y: 1000 };
+        /** BOGEN with that method after clicks at C and CENTER, the pointer straight above the centre. */
+        const afterTwoClicks = (method: 'startCenterAngle' | 'startCenterLength') => {
+            const context = setup(true);
+            context.editor.startCommand('ARC', method);
+            click(context.editor, C);
+            click(context.editor, CENTER);
+            context.editor.pointerMove(at({ x: 2000, y: 1800 }));
+            return context;
+        };
+        const keys = (editor: SelectionEditor, text: string) => [...text].forEach((key) => editor.keyDown({ key }));
+        /** What the overlay draws: for a typed number what the tool gives for it, else for the point. */
+        const shown = (editor: SelectionEditor) => {
+            const { preview, previewPoint, previewValue } = editor.snapshot;
+            if (typeof preview !== 'object' || preview?.kind !== 'curve' || previewPoint === null) {
+                throw new Error('no curve preview');
+            }
+            return previewValue !== null && preview.curveFor ? preview.curveFor(previewValue) : preview.curveAt(previewPoint);
+        };
+
+        it('shows the angle field alone, with the live direction from the centre', () => {
+            const { editor } = afterTwoClicks('startCenterAngle');
+            expect(editor.snapshot).toMatchObject({ previewValue: null, from: CENTER });
+            expect(editor.snapshot.dynamicInput).toMatchObject({
+                layout: 'dimension',
+                format: 'angle',
+                relative: true,
+                fields: [{ kind: 'angle', text: '90', typed: false, focused: true }],
+                bound: false,
+            });
+            expect(shown(editor)).toMatchObject({ end: B, clockwise: false });
+        });
+
+        it('previews and takes a typed angle with its sign, by Enter or by a click', () => {
+            for (const give of ['Enter', 'click'] as const) {
+                const { editor, arcs } = afterTwoClicks('startCenterAngle');
+                keys(editor, '-90');
+                expect(editor.snapshot).toMatchObject({ input: '-90', previewValue: -90 });
+                expect(editor.snapshot.dynamicInput).toMatchObject({ fields: [{ kind: 'angle', text: '-90', typed: true }], bound: true });
+                // The bound point lies straight below the centre, which alone would mean 270° counter-clockwise
+                expect(editor.snapshot.previewPoint?.y).toBeCloseTo(1200);
+                expect(shown(editor)).toMatchObject({ end: BELOW, clockwise: true });
+                if (give === 'Enter') {
+                    editor.keyDown({ key: 'Enter' });
+                } else {
+                    click(editor, { x: 2600, y: 1900 });
+                }
+                expect(arcs()).toEqual([{ center: CENTER, start: C, end: BELOW, clockwise: true }]);
+            }
+        });
+
+        it('previews and takes a typed chord length with its sign too', () => {
+            const { editor, arcs } = afterTwoClicks('startCenterLength');
+            expect(editor.snapshot.dynamicInput).toMatchObject({ format: 'distance', fields: [{ kind: 'distance' }] });
+            keys(editor, '-500');
+            expect(editor.snapshot.previewValue).toBe(-500);
+            // The major arc: 300° round to below the start
+            const at300 = { x: 2250, y: round(1500 - 250 * Math.sqrt(3)) };
+            const preview = shown(editor);
+            expect(preview).toMatchObject({ kind: 'arc', clockwise: false });
+            expect(round((preview as { end: Point }).end.y)).toBe(at300.y);
+            click(editor, { x: 2600, y: 1900 });
+            expect(arcs()).toEqual([{ center: CENTER, start: C, end: at300, clockwise: false }]);
+        });
+
+        it('takes other text in the field as typed on the command line, and Esc drops it first', () => {
+            const { editor, arcs } = afterTwoClicks('startCenterAngle');
+            keys(editor, '9');
+            editor.keyDown({ key: 'Escape' });
+            expect(editor.snapshot).toMatchObject({ command: 'ARC', input: '', previewValue: null });
+            keys(editor, 'x');
+            expect(editor.snapshot.previewValue).toBeNull();
+            editor.keyDown({ key: 'Enter' });
+            expect(editor.snapshot.message).toBe('Erfordert gültigen numerischen Winkel oder zweiten Punkt.');
+            // A point: its direction from the centre
+            keys(editor, '@100<180');
+            editor.keyDown({ key: 'Enter' });
+            expect(arcs()).toEqual([{ center: CENTER, start: C, end: A, clockwise: false }]);
         });
     });
 });

@@ -331,6 +331,20 @@ describe('PolylineTool (PLINIE)', () => {
         ]);
     });
 
+    it('continues from the end of the arc drawn last', () => {
+        const { editor, polylines } = setup();
+        editor.startCommand('ARC');
+        click(editor, A);
+        click(editor, { x: 2000, y: 2000 });
+        click(editor, B);
+        editor.startCommand('PLINE');
+        editor.keyDown({ key: 'Enter' });
+        expect(editor.snapshot).toMatchObject({ prompt: NEXT_PROMPT, from: B });
+        click(editor, C);
+        editor.keyDown({ key: 'Enter' });
+        expect(polylines()).toEqual([{ points: [B, C], closed: false }]);
+    });
+
     it('continues a closed polyline at its start point, and reports when there is nothing to continue', () => {
         const { editor } = setup();
         editor.startCommand('PLINE');

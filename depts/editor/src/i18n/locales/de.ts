@@ -27,6 +27,22 @@ export const de = {
         arcStartCenterEndTitle: 'Bogen: Start, Zentrum, Ende ({{command}})',
         arcStartCenterAngle: 'Start, Zentrum, Winkel',
         arcStartCenterAngleTitle: 'Bogen: Start, Zentrum, Winkel ({{command}})',
+        arcStartCenterLength: 'Start, Zentrum, Länge',
+        arcStartCenterLengthTitle: 'Bogen: Start, Zentrum, Länge ({{command}})',
+        arcStartEndAngle: 'Start, Ende, Winkel',
+        arcStartEndAngleTitle: 'Bogen: Start, Ende, Winkel ({{command}})',
+        arcStartEndDirection: 'Start, Ende, Richtung',
+        arcStartEndDirectionTitle: 'Bogen: Start, Ende, Richtung ({{command}})',
+        arcStartEndRadius: 'Start, Ende, Radius',
+        arcStartEndRadiusTitle: 'Bogen: Start, Ende, Radius ({{command}})',
+        arcContinue: 'Weiter',
+        arcContinueTitle: 'Bogen: Weiter, tangential am zuletzt Gezeichneten ({{command}})',
+        arcCenterStartEnd: 'Zentrum, Start, Ende',
+        arcCenterStartEndTitle: 'Bogen: Zentrum, Start, Ende ({{command}})',
+        arcCenterStartAngle: 'Zentrum, Start, Winkel',
+        arcCenterStartAngleTitle: 'Bogen: Zentrum, Start, Winkel ({{command}})',
+        arcCenterStartLength: 'Zentrum, Start, Länge',
+        arcCenterStartLengthTitle: 'Bogen: Zentrum, Start, Länge ({{command}})',
         ellipse: 'Ellipse',
         ellipseTitle: 'Ellipse ({{command}})',
         rectangle: 'Rechteck',
@@ -68,6 +84,8 @@ export const de = {
         polylineNext: 'Nächsten Punkt angeben oder [Zurück]:',
         polylineNextClose: 'Nächsten Punkt angeben oder [Schließen/sehnenLänge/Zurück]:',
         polylineLength: 'Länge der Linie angeben:',
+        /** LINIE continuing from an arc: only the length, tangentially. */
+        lineLength: 'Länge der Linie angeben:',
         circleCenter: 'Zentrum für Kreis angeben oder [3P/2P]:',
         circleRadius: 'Radius für Kreis angeben oder [Durchmesser]:',
         circleDiameter: 'Durchmesser für Kreis angeben:',
@@ -76,14 +94,24 @@ export const de = {
         circleFirstPoint: 'Ersten Punkt auf Kreis angeben:',
         circleSecondPoint: 'Zweiten Punkt auf Kreis angeben:',
         circleThirdPoint: 'Dritten Punkt auf Kreis angeben:',
-        arcStart: 'Startpunkt für Bogen angeben:',
-        arcSecond: 'Zweiten Punkt für Bogen angeben oder [Zentrum]:',
+        arcStart: 'Startpunkt für Bogen angeben oder [Zentrum]:',
+        arcStartAfterCenter: 'Startpunkt für Bogen angeben:',
+        arcSecond: 'Zweiten Punkt für Bogen angeben oder [Zentrum/Endpunkt]:',
         arcEnd: 'Endpunkt für Bogen angeben:',
+        /** Continuing from what was drawn last: the arc leaves its end tangentially. */
+        arcEndTangent: 'Endpunkt für Bogen angeben (Strg wechselt die Richtung):',
         arcCenter: 'Mittelpunkt für Bogen angeben:',
         /** Start, centre, end: the point only gives the direction the arc ends in. */
-        arcEndDirection: 'Endpunkt für Bogen angeben (Strg wechselt die Richtung) oder [Winkel]:',
+        arcEndDirection: 'Endpunkt für Bogen angeben (Strg wechselt die Richtung) oder [Winkel/sehnenLänge]:',
         /** Start, centre, angle: a negative angle runs clockwise. */
         arcAngle: 'Eingeschlossenen Winkel angeben (Strg wechselt die Richtung):',
+        /** A negative length gives the major arc. */
+        arcChord: 'Sehnenlänge angeben (Strg wechselt die Richtung):',
+        /** Start, end: the centre by default, which the arc then only ends towards the end from. */
+        arcCenterOptions: 'Mittelpunkt für Bogen angeben (Strg wechselt die Richtung) oder [Winkel/RIchtung/RAdius]:',
+        arcDirection: 'Tangentenrichtung für Startpunkt des Bogens angeben (Strg wechselt die Richtung):',
+        /** A negative radius gives the major arc. */
+        arcRadius: 'Radius für Bogen angeben (Strg wechselt die Richtung):',
         ellipseAxisStart: 'Achsenendpunkt der Ellipse angeben oder [Mittelpunkt]:',
         ellipseAxisOtherEnd: 'Anderen Endpunkt der Achse angeben:',
         ellipseCenter: 'Mittelpunkt der Ellipse angeben:',
@@ -159,6 +187,14 @@ export const de = {
         /** BOGEN: the included angle instead of the point the arc ends towards. */
         angleKeyword: 'Winkel',
         arcAngleInvalid: 'Winkel darf nicht 0 oder ein Vielfaches von 360 sein.',
+        arcChordInvalid: 'Sehnenlänge darf nicht 0 und nicht länger als der Durchmesser sein.',
+        /** BOGEN: the end straight after the start, instead of a second point on the arc. */
+        arcEndKeyword: 'Endpunkt',
+        /** BOGEN over start and end: the direction it leaves the start in, or its radius. */
+        arcDirectionKeyword: 'RIchtung',
+        arcRadiusKeyword: 'RAdius',
+        arcDirectionInvalid: 'Richtung darf nicht auf der Geraden durch Start- und Endpunkt liegen.',
+        arcRadiusInvalid: 'Radius darf nicht 0 und nicht kleiner als der halbe Abstand der Endpunkte sein.',
         /** ELLIPSE: the centre first, then one end of the first axis. */
         centerKeyword: 'Mittelpunkt',
         /** RECHTECK: length and width, then a point chooses the quadrant. */

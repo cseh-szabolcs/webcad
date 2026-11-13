@@ -38,8 +38,9 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   schmale Button **▾** daneben (**Weitere Bogen-Werkzeuge**) öffnet ein Menü mit allen Arten,
   die gewählte ist fett; ein Klick auf eine startet sie und legt sie auf den Button. Das Menü
   schließt auch mit **Esc** oder einem Klick daneben. Es gibt **3 Punkte**, **Start, Zentrum,
-  Ende** und **Start, Zentrum, Winkel**; welche Art zuletzt verwendet wurde, gilt bis zum
-  Neuladen der Seite.
+  Ende / Winkel / Länge**, **Start, Ende, Winkel / Richtung / Radius**, **Zentrum, Start,
+  Ende / Winkel / Länge** und **Weiter** (siehe
+  [BOGEN](#befehl-bogen)); welche Art zuletzt verwendet wurde, gilt bis zum Neuladen der Seite.
 - **Zeichenfläche** in der Mitte, mit dem [BKS-Symbol](#bks-symbol) am Nullpunkt bzw.
   unten links.
 - **Kommandozeile** unter der Zeichenfläche: oben in Grau die letzte Meldung (z. B.
@@ -325,8 +326,9 @@ Auswahl**; ihre Vorschau zeigt alle gewählten Objekte, die Originale sind solan
 
 Punkte werden wie beim Strecken angegeben (Klick mit Objektfang, Polarspur, Ortho,
 Objektfangspuren, getippte Koordinaten). Beim Drehwinkel zeigt die
-[dynamische Eingabe](#dynamische-eingabe-dyn) noch keine Felder, die Zahl geht in die
-Kommandozeile; ein Text, der kein Winkel ist, meldet `Erfordert gültigen numerischen Winkel oder
+[dynamische Eingabe](#dynamische-eingabe-dyn) das Winkelfeld allein (beim Bezugswinkel ohne
+Basispunkt keines, die Zahl geht dort in die Kommandozeile); ein Text, der kein Winkel ist,
+meldet `Erfordert gültigen numerischen Winkel oder
 zweiten Punkt.`. Ein Faktor muss positiv sein (`Wert muss positiv und ungleich Null sein.`).
 Vielfache von 90° drehen exakt, ohne Rundungsreste in den Koordinaten.
 
@@ -455,11 +457,15 @@ dabei aufgehoben.
 
 1. **`Ersten Punkt angeben:`** Klick (mit [Objektfang](#objektfang-ofang) und
    [Objektfangspuren](#objektfangspuren-otrack)) oder Koordinaten eintippen, wie beim
-   Basispunkt von SCHIEBEN. **Enter** ohne Eingabe setzt am Endpunkt der zuletzt mit LINIE
-   oder [PLINIE](#befehl-plinie) gezeichneten Linie oder Polylinie fort (dort, wo er jetzt
-   liegt; bei einer geschlossenen Polylinie an ihrem Startpunkt). Gibt es keine mehr (z. B. nach
-   Rückgängig), meldet die Kommandozeile `Keine Linie oder kein Bogen zum Fortsetzen.`, die
-   Aufforderung bleibt.
+   Basispunkt von SCHIEBEN. **Enter** ohne Eingabe setzt am Endpunkt der zuletzt mit LINIE,
+   [PLINIE](#befehl-plinie) oder [BOGEN](#befehl-bogen) gezeichneten Linie, Polylinie oder des
+   Bogens fort (dort, wo er jetzt liegt; bei einer geschlossenen Polylinie an ihrem
+   Startpunkt). Nach einem **Bogen** setzt die Linie **tangential** an: Die Richtung steht
+   fest, **`Länge der Linie angeben:`** fragt nur noch nach der Länge (eine positive Zahl, oder
+   der Abstand vom Endpunkt zu einem Punkt; die dynamische Eingabe zeigt das Abstandsfeld, die
+   Vorschau die Linie in dieser Richtung). Danach geht es mit dem nächsten Punkt weiter wie
+   sonst. Gibt es nichts zum Fortsetzen (z. B. nach Rückgängig), meldet die Kommandozeile
+   `Keine Linie oder kein Bogen zum Fortsetzen.`, die Aufforderung bleibt.
 2. **`Nächsten Punkt angeben oder [Zurück]:`**, ab zwei Segmenten
    **`Nächsten Punkt angeben oder [Schließen/Zurück]:`**. Jeder Punkt erzeugt **sofort** eine
    neue Linie vom letzten Punkt aus; sie ist gleich zu sehen und fangbar (z. B. der
@@ -501,8 +507,9 @@ Start mit dem Button **Polylinie** in der Werkzeugleiste oder durch Tippen von `
 aufgehoben.
 
 1. **`Startpunkt angeben:`** wie der erste Punkt von [LINIE](#befehl-linie), auch das
-   Fortsetzen mit **Enter** am Endpunkt der zuletzt mit LINIE oder PLINIE gezeichneten Linie
-   oder Polylinie (es setzt nur dort an, die neue Polylinie ist ein eigenes Objekt).
+   Fortsetzen mit **Enter** am Endpunkt der zuletzt mit LINIE, PLINIE oder BOGEN gezeichneten
+   Linie, Polylinie oder des Bogens (es setzt nur dort an, auch an einem Bogen in freier
+   Richtung; die neue Polylinie ist ein eigenes Objekt).
 2. **`Nächsten Punkt angeben oder [Zurück]:`**, ab einem Segment
    **`Nächsten Punkt angeben oder [Schließen/sehnenLänge/Zurück]:`**. Jeder Punkt fügt ein
    Segment vom letzten Punkt aus hinzu; Polarspur, Ortho, Objektfangspuren, `@`-Eingaben,
@@ -598,17 +605,23 @@ Im Englischen heißen die Aufforderungen `Specify center point for circle or [3P
 Zeichnet einen **Kreisbogen**, wie AutoCAD BOGEN; danach endet der Befehl. Start mit dem Button
 **Bogen** in der Werkzeugleiste (bzw. einer Methode in seinem Menü **▾**) oder durch Tippen von
 `BOGEN`, `B`, `ARC` oder `A` bei `Befehl:`. Eine bestehende Auswahl wird dabei aufgehoben. Es
-gibt drei Methoden: **3 Punkte** (die Vorgabe), **Start, Zentrum, Ende** und **Start, Zentrum,
-Winkel**.
+gibt elf Methoden: **3 Punkte** (die Vorgabe); um einen Mittelpunkt **Start, Zentrum,
+Ende**, **Start, Zentrum, Winkel** und **Start, Zentrum, Länge**, jeweils auch mit dem
+Mittelpunkt zuerst (**Zentrum, Start, …**); und über Start- und Endpunkt **Start, Ende,
+Winkel**, **Start, Ende, Richtung** und **Start, Ende, Radius**; und **Weiter**, tangential
+am zuletzt Gezeichneten.
 
 ### 3 Punkte
 
-1. **`Startpunkt für Bogen angeben:`** – der Anfang des Bogens, mit Objektfang,
+1. **`Startpunkt für Bogen angeben oder [Zentrum]:`** – der Anfang des Bogens, mit Objektfang,
    Objektfangspuren und Koordinateneingabe wie der erste Punkt von [LINIE](#befehl-linie).
-2. **`Zweiten Punkt für Bogen angeben oder [Zentrum]:`** – ein beliebiger Punkt, durch den der
+   `Z` (Zentrum) + Enter fragt [zuerst nach dem Mittelpunkt](#zentrum-zuerst), **Enter** ohne
+   Eingabe [setzt am zuletzt Gezeichneten fort](#weiter).
+2. **`Zweiten Punkt für Bogen angeben oder [Zentrum/Endpunkt]:`** – ein beliebiger Punkt, durch den der
    Bogen läuft (nicht sein Mittelpunkt). Gemessen ab dem Startpunkt (Polarspur, Ortho, Direkte
    Distanzeingabe, `@`); ein gestricheltes **Gummiband** läuft vom Startpunkt zum Cursor.
-   `Z` (Zentrum) + Enter wechselt zu [Start, Zentrum, Ende](#start-zentrum-ende).
+   `Z` (Zentrum) + Enter wechselt zu [Start, Zentrum, Ende](#start-zentrum-ende), `E`
+   (Endpunkt) + Enter zu [Start, Ende](#start-ende).
 3. **`Endpunkt für Bogen angeben:`** – das Ende des Bogens, gemessen ab dem zweiten Punkt. Eine
    **Vorschau** zeigt den Bogen, den ein Klick ergäbe.
 
@@ -624,16 +637,17 @@ Winkel**.
 Start mit **Start, Zentrum, Ende** im Menü **▾** des Buttons **Bogen** (der Befehl fragt dann
 nach dem Startpunkt gleich nach dem Mittelpunkt) oder mit `Z` beim zweiten Punkt.
 
-1. **`Startpunkt für Bogen angeben:`** – wie oben.
+1. **`Startpunkt für Bogen angeben oder [Zentrum]:`** – wie oben.
 2. **`Mittelpunkt für Bogen angeben:`** – das Zentrum des Kreises, gemessen ab dem Startpunkt,
    mit Gummiband. Sein Abstand zum Startpunkt ist der **Radius**.
-3. **`Endpunkt für Bogen angeben (Strg wechselt die Richtung) oder [Winkel]:`** – der Punkt gibt nur die
+3. **`Endpunkt für Bogen angeben (Strg wechselt die Richtung) oder [Winkel/sehnenLänge]:`** – der Punkt gibt nur die
    **Richtung** an, in der der Bogen endet: Er endet auf seinem Kreis, auf dem Strahl vom
    Mittelpunkt durch den Punkt; der Punkt selbst muss nicht auf dem Kreis liegen. Gemessen ab
    dem Mittelpunkt (eine Eingabe wie `@100<90` oder die Polarspur geben also den Endwinkel; der
    Abstand spielt keine Rolle).
    Eine **Vorschau** zeigt den Bogen, dazu ein Gummiband vom Mittelpunkt zum Cursor.
-   `W` (Winkel) + Enter wechselt zu [Start, Zentrum, Winkel](#start-zentrum-winkel).
+   `W` (Winkel) + Enter wechselt zu [Start, Zentrum, Winkel](#start-zentrum-winkel), `L`
+   (sehnenLänge) + Enter zu [Start, Zentrum, Länge](#start-zentrum-länge).
 
 - Der Bogen läuft vom Startpunkt **gegen den Uhrzeigersinn**. Die **Strg**-Taste (allein
   gedrückt) kehrt die Richtung um, ein weiterer Druck wieder zurück; die Vorschau folgt sofort,
@@ -651,8 +665,8 @@ Start mit **Start, Zentrum, Winkel** im Menü **▾** des Buttons **Bogen** (der
 nach dem Mittelpunkt gleich nach dem Winkel) oder mit `W` beim Endpunkt von
 [Start, Zentrum, Ende](#start-zentrum-ende).
 
-1. **`Startpunkt für Bogen angeben:`** und 2. **`Mittelpunkt für Bogen angeben:`** – wie bei
-   Start, Zentrum, Ende; der Abstand ist der Radius.
+1. **`Startpunkt für Bogen angeben oder [Zentrum]:`** und 2. **`Mittelpunkt für Bogen
+   angeben:`** – wie bei Start, Zentrum, Ende; der Abstand ist der Radius.
 3. **`Eingeschlossenen Winkel angeben (Strg wechselt die Richtung):`** – der Winkel des Bogens
    am Mittelpunkt, in Grad:
    - eine getippte **Zahl**: positiv läuft der Bogen vom Startpunkt gegen den Uhrzeigersinn,
@@ -665,8 +679,8 @@ nach dem Mittelpunkt gleich nach dem Winkel) oder mit `W` beim Endpunkt von
      wirken ab dem Mittelpunkt.
 
    Eine **Vorschau** zeigt den Bogen für die Richtung zum Cursor, dazu ein Gummiband vom
-   Mittelpunkt. Die dynamische Eingabe zeigt hier noch kein Feld; Getipptes steht in der
-   Kommandozeile.
+   Mittelpunkt. Die [dynamische Eingabe](#dynamische-eingabe-dyn) zeigt das Winkelfeld allein;
+   ein getippter Winkel zeigt sich sofort in der Vorschau, auch ein negativer.
 
 - Die **Strg**-Taste (allein gedrückt) kehrt die Richtung um, auch die eines negativen Winkels;
   ein weiterer Druck wieder zurück (dieselbe Abweichung von AutoCAD wie oben). Wer mit `W` vom
@@ -676,13 +690,113 @@ nach dem Mittelpunkt gleich nach dem Winkel) oder mit `W` beim Endpunkt von
   Eingabe oder anderer Text meldet `Erfordert gültigen numerischen Winkel oder zweiten Punkt.`
   Die Abfrage bleibt jeweils stehen.
 
+### Start, Zentrum, Länge
+
+Start mit **Start, Zentrum, Länge** im Menü **▾** des Buttons **Bogen** (der Befehl fragt dann
+nach dem Mittelpunkt gleich nach der Sehnenlänge) oder mit `L` beim Endpunkt von
+[Start, Zentrum, Ende](#start-zentrum-ende).
+
+1. Startpunkt und 2. Mittelpunkt wie bei Start, Zentrum, Ende.
+3. **`Sehnenlänge angeben (Strg wechselt die Richtung):`** – die Länge der **Sehne**, der
+   geraden Strecke vom Startpunkt zum Ende des Bogens: eine getippte **Zahl**, oder der
+   **Abstand vom Startpunkt** zu einem geklickten oder getippten Punkt (nur der Abstand zählt,
+   nicht wo der Punkt liegt; das Ende des Bogens liegt also meist nicht am Cursor). Gemessen
+   wie der Radius bei [KREIS](#befehl-kreis), die dynamische Eingabe zeigt das Abstandsfeld.
+   Eine **Vorschau** zeigt den Bogen, dazu ein Gummiband vom Startpunkt.
+
+- Der Bogen läuft vom Startpunkt gegen den Uhrzeigersinn und ist der **kürzere** der beiden
+  möglichen; eine **negative** Länge gibt den **längeren** (`-500` statt `500`). Eine Sehne so
+  lang wie der Durchmesser gibt den Halbkreis.
+- **Strg** kehrt die Richtung um, wie oben; wer mit `L` vom Endpunkt kommt, behält die dort
+  gewählte Richtung.
+- Eine Länge von `0` oder über dem Durchmesser gibt keinen Bogen: `Sehnenlänge darf nicht 0 und
+  nicht länger als der Durchmesser sein.` Enter ohne Eingabe oder anderer Text meldet
+  `Erfordert numerischen Abstand oder zweiten Punkt.` Die Abfrage bleibt jeweils stehen.
+
+### Zentrum zuerst
+
+Jede der drei Methoden um einen Mittelpunkt gibt es auch mit dem Mittelpunkt vor dem
+Startpunkt: **Zentrum, Start, Ende**, **Zentrum, Start, Winkel** und **Zentrum, Start, Länge**
+im Menü **▾**, oder `Z` beim Startpunkt.
+
+1. **`Mittelpunkt für Bogen angeben:`** – ein Punkt für sich, wie der Startpunkt sonst.
+2. **`Startpunkt für Bogen angeben:`** – gemessen ab dem Mittelpunkt, mit Gummiband; der
+   Abstand ist der Radius. Hier gibt es keine Option; ein Punkt auf dem Mittelpunkt wird
+   ignoriert.
+3. Danach wie bei der Methode mit dem Startpunkt zuerst: der Endpunkt mit seinen Optionen
+   `Winkel` und `sehnenLänge`, der Winkel oder die Sehnenlänge.
+
+`Z` beim Startpunkt behält, was die gewählte Methode zuletzt abfragt: aus Start, Zentrum,
+Winkel wird Zentrum, Start, Winkel; aus 3 Punkte wird Zentrum, Start, Ende.
+
+### Start, Ende
+
+Start- und Endpunkt stehen fest, der Bogen liegt genau zwischen ihnen; ein dritter Wert
+bestimmt, wie stark er sich wölbt. Start mit **Start, Ende, Winkel**, **Start, Ende,
+Richtung** oder **Start, Ende, Radius** im Menü **▾** (der Befehl fragt dann nach dem Endpunkt
+gleich nach diesem Wert) oder mit `E` beim zweiten Punkt.
+
+1. **`Startpunkt für Bogen angeben oder [Zentrum]:`** – wie oben.
+2. **`Endpunkt für Bogen angeben:`** – das Ende des Bogens, gemessen ab dem Startpunkt, mit
+   Gummiband. Hier gibt es keine Option; ein Punkt auf dem Startpunkt wird ignoriert.
+3. Nach `E` beim zweiten Punkt: **`Mittelpunkt für Bogen angeben (Strg wechselt die Richtung)
+   oder [Winkel/RIchtung/RAdius]:`** – ein Punkt ist der **Mittelpunkt**: Der Bogen läuft dann
+   wie bei [Start, Zentrum, Ende](#start-zentrum-ende) vom Startpunkt um ihn herum und endet
+   auf dem Strahl zum Endpunkt (der Endpunkt gibt hier also nur die Richtung, wenn er nicht
+   auf dem Kreis liegt). `W`, `RI` oder `RA` + Enter fragen stattdessen nach einem der drei
+   Werte unten; `R` allein reicht nicht.
+
+| Wert | Aufforderung | Eingabe |
+|------|--------------|---------|
+| **Winkel** | `Eingeschlossenen Winkel angeben (Strg wechselt die Richtung):` | Der Winkel des Bogens an seinem Mittelpunkt, wie bei [Start, Zentrum, Winkel](#start-zentrum-winkel): positiv gegen den Uhrzeigersinn vom Start zum Ende, negativ im Uhrzeigersinn; über 180° ist es der große Bogen. Gezeigt wird er als Richtung **vom Startpunkt** zum Punkt, ab der X-Achse. |
+| **Richtung** | `Tangentenrichtung für Startpunkt des Bogens angeben (Strg wechselt die Richtung):` | Die Richtung, in der der Bogen den Startpunkt verlässt: getippt in Grad ab der X-Achse, oder die Richtung vom Startpunkt zu einem Punkt. Das Gummiband liegt also tangential am Bogen. |
+| **Radius** | `Radius für Bogen angeben (Strg wechselt die Richtung):` | Getippt, oder der Abstand **vom Endpunkt** zu einem Punkt. Positiv gibt den kürzeren Bogen gegen den Uhrzeigersinn, **negativ** den längeren. |
+
+- Jede Abfrage zeigt eine **Vorschau** des Bogens; die dynamische Eingabe zeigt beim Radius das
+  Abstandsfeld, bei Winkel und Richtung das Winkelfeld. Ein getippter Wert zeigt sich sofort
+  in der Vorschau, mit seinem Vorzeichen.
+- **Strg** (allein gedrückt) kehrt um: beim Mittelpunkt, beim Winkel und beim Radius die
+  Richtung des Bogens (im Uhrzeigersinn), bei der Richtung die Seite, auf der er den Startpunkt
+  verlässt (der Rest desselben Kreises). Wer mit einer Option vom Mittelpunkt kommt, behält die
+  dort gewählte Richtung.
+- Kein Bogen, die Abfrage bleibt: ein Winkel von `0` oder vollen Drehungen (`Winkel darf nicht
+  0 oder ein Vielfaches von 360 sein.`), eine Richtung genau zum Endpunkt hin oder von ihm weg
+  (`Richtung darf nicht auf der Geraden durch Start- und Endpunkt liegen.`), ein Radius von `0`
+  oder unter dem halben Abstand der beiden Punkte (`Radius darf nicht 0 und nicht kleiner als
+  der halbe Abstand der Endpunkte sein.`). Ein Mittelpunkt, der keinen Bogen ergibt (auf dem
+  Startpunkt, oder mit dem Endpunkt auf dem Strahl durch den Startpunkt), wird ignoriert.
+
+### Weiter
+
+Setzt **tangential** an dem an, was zuletzt mit [LINIE](#befehl-linie),
+[PLINIE](#befehl-plinie) oder BOGEN gezeichnet wurde: Der Bogen beginnt an dessen Endpunkt
+(dort, wo er jetzt liegt) und verlässt ihn in der Richtung, in der die Linie, das letzte
+Segment der Polylinie oder der Bogen dort ankommt. Start mit **Enter** ohne Eingabe beim
+Startpunkt (bei jeder Methode) oder mit **Weiter** im Menü **▾**.
+
+1. **`Endpunkt für Bogen angeben (Strg wechselt die Richtung):`** – das Ende des Bogens,
+   gemessen ab dem Startpunkt; mehr braucht es nicht. Eine **Vorschau** zeigt den Bogen, dazu
+   ein Gummiband vom Startpunkt.
+
+- **Strg** (allein gedrückt) lässt den Bogen den Startpunkt in der Gegenrichtung verlassen
+  (der Rest desselben Kreises).
+- Ein Punkt genau in der Richtung oder Gegenrichtung (das wäre eine Gerade) oder auf dem
+  Startpunkt wird ignoriert.
+- Gibt es nichts zum Fortsetzen (noch keine Linie, Polylinie und kein Bogen gezeichnet, oder
+  das zuletzt Gezeichnete wurde per Rückgängig entfernt), meldet die Kommandozeile `Keine Linie
+  oder kein Bogen zum Fortsetzen.` und die Abfrage des Startpunkts bleibt. Kreise, Ellipsen und
+  Rechtecke zählen nicht: Nach ihnen setzt Weiter an der Linie, der Polylinie oder dem Bogen
+  davor an.
+- Jeder gezeichnete Bogen ist danach selbst das „zuletzt Gezeichnete“: **Enter, Enter** bei
+  `Befehl:` (BOGEN wiederholen, dann fortsetzen) hängt Bogen an Bogen.
+
 ### Für alle Methoden
 
 - Ein Klick auf eine andere Methode im Menü, während BOGEN läuft, bricht ab und startet den
   Befehl mit ihr neu; dieselbe Methode bewirkt nichts (auch wenn eine Option zu ihr gewechselt
   hat).
-- Außer `Zentrum` und `Winkel` gibt es noch keine Optionen; Enter ohne Eingabe meldet bei den
-  Punkt-Abfragen `Punkt oder Option-Schlüsselwort erforderlich.`
+- Enter ohne Eingabe meldet nach dem Startpunkt bei den Punkt-Abfragen `Punkt oder
+  Option-Schlüsselwort erforderlich.`
 - **Esc** bricht bei jeder Abfrage ab (`*Abbruch*`), ohne Bogen.
 - **Enter** bei `Befehl:` wiederholt BOGEN, wie getippt (also mit 3 Punkten als Vorgabe), auch
   nach einem Start über das Menü.
@@ -690,11 +804,17 @@ nach dem Mittelpunkt gleich nach dem Winkel) oder mit `W` beim Endpunkt von
   und ist **ein** Schritt für Rückgängig (`Rückgängig: BOGEN`). Er lässt sich danach wie jeder
   Bogen wählen, fangen und an seinen [Grips](#grips) bearbeiten.
 
-Im Englischen heißen die Aufforderungen `Specify start point of arc:`, `Specify second point
-of arc or [Center]:`, `Specify end point of arc:`, `Specify center point of arc:`, `Specify
-end point of arc (Ctrl switches direction) or [Angle]:` und `Specify included angle (Ctrl
-switches direction):`, die Optionen `Center` (`C`) und `Angle` (`A`), der Button **Arc** mit
-**3-Point**, **Start, Center, End** und **Start, Center, Angle**.
+Im Englischen heißen die Aufforderungen `Specify start point of arc or [Center]:` (nach dem
+Mittelpunkt ohne Option), `Specify second point of arc or [Center/End]:`, `Specify end point of
+arc:`, `Specify center point of arc:`, `Specify end point of arc (Ctrl switches direction) or
+[Angle/chord Length]:`, `Specify included angle (Ctrl switches direction):`, `Specify length
+of chord (Ctrl switches direction):`, `Specify center point of arc (Ctrl switches direction) or
+[Angle/Direction/Radius]:`, `Specify tangent direction for the start point of arc (Ctrl
+switches direction):` und `Specify radius of arc (Ctrl switches direction):`, die Optionen
+`Center` (`C`), `End` (`E`), `Angle` (`A`), `chord Length` (`L`), `Direction` (`D`) und
+`Radius` (`R`), der Button **Arc** mit **3-Point**, **Start, Center, End / Angle / Length**,
+**Start, End, Angle / Direction / Radius**, **Center, Start, End / Angle / Length** und
+**Continue** (`Specify end point of arc (Ctrl switches direction):`).
 
 ## Befehl ELLIPSE
 
@@ -972,6 +1092,17 @@ Ob F12 im Browser stattdessen die Entwicklertools öffnet, hängt vom Browser ab
   Winkel kleiner als `ANGLE_LABEL_MIN_DEGREES` (`src/ui/DynamicInputLayer.ts`), passt das Feld
   nicht zwischen Waagrechte und Linie und steht unter der Waagrechten.
   Winkel in Grad gegen den Uhrzeigersinn ab der positiven X-Achse (0–360°).
+- **Ein Feld allein**: Fragt ein Befehl nur nach einem **Abstand** (z. B. der Radius bei
+  [KREIS](#befehl-kreis)) oder nur nach einem **Winkel** (der Drehwinkel der [Grips](#grips),
+  der eingeschlossene Winkel und die Richtung bei [BOGEN](#befehl-bogen)), zeigt die
+  Bemaßungseingabe nur dieses Feld: die Maßlinie mit dem Abstand bzw. den Bogen ab der
+  Waagrechten mit dem Winkel, jeweils ab dem Punkt, von dem der Befehl misst. Ohne
+  Bemaßungseingabe steht das Feld neben dem Fadenkreuz. `,` und `<` wechseln dort nicht das
+  Feld, sondern bleiben im Text; so lässt sich weiter ein Punkt tippen (`@100<90`). Die
+  getippte Zahl gilt, wie sie ist, auch **negativ** (ein Winkel im Uhrzeigersinn, die längere
+  Sehne …): Vorschau, Enter und Klick nehmen sie mit ihrem Vorzeichen, und der Bogen des
+  Winkelfelds läuft dann im Uhrzeigersinn. Hat die Abfrage keinen Punkt, von dem sie misst
+  (Bezugswinkel und Bezugslänge der Grips), gibt es kein Feld.
 - **Dynamische Eingabeaufforderungen**: Die aktuelle Aufforderung steht über den Feldern
   neben dem Fadenkreuz, auch bei `Objekte wählen:`; bei `Befehl:` der getippte Befehlsname.
   Ohne Befehl und ohne Getipptes erscheint nichts.
@@ -1131,8 +1262,7 @@ Neuladen):
 - Kontextmenüs mit der rechten Maustaste und eine Einstellung dafür wie AutoCADs
   Rechtsklick-Anpassung (wie Enter, Kontextmenü, zeitabhängiger Rechtsklick: kurz = Enter,
   lang = Menü).
-- Bei LINIE: Fortsetzen tangential an einen Bogen,
-  aktueller Layer und Stil für neue Objekte, gemeinsame Punkte (echte Verbindungen) zwischen
+- Bei LINIE: aktueller Layer und Stil für neue Objekte, gemeinsame Punkte (echte Verbindungen) zwischen
   den Segmenten, englische Optionen mit `_` im deutschen Editor.
 - Bei PLINIE: Bogensegmente (Option `Kreisbogen` mit ihren Unteroptionen, danach `sehnenLänge`
   tangential zum Bogen), Breite und Halbbreite, die Meldung zur aktuellen Linienbreite, Fangen an den
@@ -1148,12 +1278,9 @@ Neuladen):
   ersten Eckpunkt, `Fläche` und `Drehung` beim anderen, Vorgabewerte für Länge und Breite, die
   Bemaßung beider Seiten in der dynamischen Eingabe, aktueller Layer und Stil; Details in
   `docs/todo/Rectangle_Draw_NotImplemented.md`.
-- Bei BOGEN: alle Methoden außer „3 Punkte“, „Start, Zentrum, Ende“ und „Start, Zentrum,
-  Winkel“ (Zentrum/Start/…, Start/Ende/Radius …) samt ihren Optionen (`Zentrum` beim
-  Startpunkt, `Endpunkt`, `Sehnenlänge`), ein Winkelfeld der dynamischen Eingabe, das tangentiale Fortsetzen mit
-  Enter beim Startpunkt, aktueller Layer und Stil; Details in
+- Bei BOGEN: aktueller Layer und Stil; Details in
   `docs/todo/Arc_Draw_NotImplemented.md`.
-- Bei den Grips: ein Feld der dynamischen Eingabe für den Drehwinkel, Kopieren mit
+- Bei den Grips: Kopieren mit
   gedrückter Strg-Taste und Versatzfang mit Shift, im Grip-Menü „In Bogen umwandeln“ und die
   Längenangaben der dynamischen Eingabe; Details in `docs/todo/Grips_NotImplemented.md`.
 - Alle anderen Bearbeitungsbefehle wie Löschen, Gruppieren oder Kopieren.

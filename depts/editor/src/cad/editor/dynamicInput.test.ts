@@ -25,6 +25,7 @@ const SECOND_POINT: DynamicContext = {
     trackOrigin: null,
 };
 const LENGTH: DynamicContext = { ...SECOND_POINT, prompt: 'distance' };
+const ANGLE: DynamicContext = { ...SECOND_POINT, prompt: 'angle' };
 
 /** Types each character of `text` (Tab as `\t`). */
 const typed = (text: string, state: DynamicInputState = EMPTY_DYNAMIC_INPUT) =>
@@ -45,6 +46,9 @@ describe('dynamicLayout', () => {
         expect(dynamicLayout({ ...settings, dimensionInput: false }, 'next')).toBe('pointer');
         expect(dynamicLayout(settings, 'distance')).toBe('dimension');
         expect(dynamicLayout({ ...settings, dimensionInput: false }, 'distance')).toBe('pointer');
+        expect(dynamicLayout(settings, 'angle')).toBe('dimension');
+        expect(dynamicLayout({ ...settings, dimensionInput: false }, 'angle')).toBe('pointer');
+        expect(dynamicLayout({ ...settings, pointerInput: false, dimensionInput: false }, 'angle')).toBeNull();
     });
 
     it('shows nothing while off, and the first point only with pointer input', () => {
@@ -162,6 +166,34 @@ describe('the distance alone at a distance prompt', () => {
         expect(dynamicFields(typed('12'), LENGTH, { x: 130, y: 140 })).toEqual([
             { kind: 'distance', text: '12', typed: true, focused: true },
         ]);
+    });
+});
+
+describe('an angle prompt', () => {
+    it('keeps , and < in its one field, as text for the command line', () => {
+        const state = [...'@30<45'].reduce((next, char) => typeDynamic(next, char, true), EMPTY_DYNAMIC_INPUT);
+        expect(state.fields).toEqual(['@30<45', '']);
+        expect(typedValues(state)).toBe('text');
+        expect(dynamicText(state, ANGLE)).toBe('@30<45');
+        expect(dynamicText(typed('-90'), ANGLE)).toBe('-90');
+    });
+
+    it('goes along the typed direction from the base point, as far as the point is from it', () => {
+        closeTo(dynamicPoint(typed('90'), ANGLE, { x: 400, y: 100 }), 100, 400);
+        // A negative angle turns clockwise: the point alone does not tell it from 270
+        closeTo(dynamicPoint(typed('-90'), ANGLE, { x: 400, y: 100 }), 100, -200);
+        expect(dynamicPoint(typed('90'), ANGLE, null)).toBeNull();
+        expect(dynamicPoint(EMPTY_DYNAMIC_INPUT, ANGLE, { x: 400, y: 100 })).toBeNull();
+    });
+
+    it('shows one field with the live direction from the base point, from 0 up to 360', () => {
+        expect(dynamicFields(EMPTY_DYNAMIC_INPUT, ANGLE, { x: 100, y: 0 })).toEqual([
+            { kind: 'angle', text: '270', typed: false, focused: true },
+        ]);
+        expect(dynamicFields(typed('-45'), ANGLE, { x: 130, y: 140 })).toEqual([
+            { kind: 'angle', text: '-45', typed: true, focused: true },
+        ]);
+        expect(dynamicFields(EMPTY_DYNAMIC_INPUT, ANGLE, null)).toEqual([{ kind: 'angle', text: '', typed: false, focused: true }]);
     });
 });
 

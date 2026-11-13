@@ -353,13 +353,19 @@ describe('grips: modes', () => {
         expect(vertex(V['win-1'])).toEqual({ x: 5000, y: 5380 });
     });
 
-    it('takes typed digits as the angle with Dynamic Input on, which shows no field for it', () => {
+    it('takes typed digits as the angle in the Dynamic Input angle field', () => {
         const { editor, vertex } = hotWindowEnd(true);
         enter(editor, 2);
         editor.pointerMove(at({ x: 5000, y: 3000 }));
-        expect(editor.snapshot.dynamicInput).toBeNull();
+        expect(editor.snapshot.dynamicInput).toMatchObject({
+            layout: 'dimension',
+            format: 'angle',
+            fields: [{ kind: 'angle', typed: false, focused: true }],
+            bound: false,
+        });
         editor.keyDown({ key: '1' });
-        expect(editor.snapshot.input).toBe('1');
+        expect(editor.snapshot).toMatchObject({ input: '1', previewValue: 1 });
+        expect(editor.snapshot.dynamicInput).toMatchObject({ fields: [{ kind: 'angle', text: '1', typed: true }], bound: true });
         type(editor, '80');
         expect(vertex(V['win-1'])).toEqual({ x: 6500, y: 3880 });
     });

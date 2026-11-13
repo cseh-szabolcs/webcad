@@ -24,7 +24,7 @@ type State =
  * "sehnenLänge" (from one segment on) asks for a length and adds a segment that long in the
  * direction of the last one (a `distance` prompt from the last point). Enter
  * and Esc end too, keeping what was drawn. Enter on its own at the start point continues from
- * the end of the line or polyline drawn last.
+ * the end of the line, polyline or arc drawn last.
  */
 export class PolylineTool implements EditorTool {
     readonly command = 'PLINE';
@@ -117,7 +117,7 @@ export class PolylineTool implements EditorTool {
         }
     }
 
-    /** Enter at the start point: on from the end point of the line or polyline drawn last, where it is now. */
+    /** Enter at the start point: on from the end point of the line, polyline or arc drawn last, where it is now. */
     private continueLast(): ToolStep {
         const point = continuePoint(this.history.document, this.memory.lastDrawn);
         if (!point) {

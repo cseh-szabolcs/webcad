@@ -22,8 +22,8 @@ export type Message = () => string;
  *   Dynamic Input distance field). The tool gets the distance with `distance()`;
  * - `angle`: an angle from the prompt's `from` point (AutoCAD's getangle with a base point): a
  *   typed number is the angle in degrees, a point given gives the direction from `from` to it;
- *   otherwise it helps like `next`, but shows no Dynamic Input fields yet. The tool gets the
- *   angle with `angle()`.
+ *   otherwise it helps like `next` (the Dynamic Input angle field). The tool gets the angle
+ *   with `angle()`.
  */
 export type PointPromptKind = 'point' | 'next' | 'vector' | 'distance' | 'angle';
 
@@ -87,9 +87,16 @@ export type ToolPreview =
     /**
      * The circle, arc, ellipse or polygon a click at the point would give (`curveAt`, null where it gives none),
      * with `rubberBand` also a dashed rubber band from `from` to the point. A tool gives a new
-     * object when what it previews changes.
+     * object when what it previews changes. `curveFor` is what a number typed at a `distance` or
+     * an `angle` prompt would give, where that differs from a point that far or that way (a
+     * negative one).
      */
-    | { kind: 'curve'; curveAt: (point: Point) => PreviewCurve | null; rubberBand: boolean }
+    | {
+          kind: 'curve';
+          curveAt: (point: Point) => PreviewCurve | null;
+          curveFor?: (value: number) => PreviewCurve | null;
+          rubberBand: boolean;
+      }
     /**
      * The elements `ids` as a click at the point would leave them (`elementsAt`, none where it
      * changes nothing), their originals dimmed, a dashed rubber band from `from`.

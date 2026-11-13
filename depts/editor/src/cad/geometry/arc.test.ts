@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Point } from '../model/Point';
-import { arcEndToward, arcSegments, arcThrough } from './arc';
+import { arcCenterOverChord, arcEndToward, arcSegments, arcThrough } from './arc';
 
 const center = { x: 1000, y: 240 };
 const round3 = (n: number) => Math.round(n * 1000) / 1000 + 0;
@@ -83,5 +83,34 @@ describe('arcEndToward', () => {
         expect(arcEndToward(center, start, center)).toBeNull();
         expect(arcEndToward(center, start, start)).toBeNull();
         expect(arcEndToward(center, start, { x: 1200, y: 240 })).toBeNull();
+    });
+});
+
+describe('arcCenterOverChord', () => {
+    const start = { x: 0, y: 0 };
+    const end = { x: 200, y: 0 };
+    const deg = (degrees: number) => (degrees * Math.PI) / 180;
+
+    it('lies left of the chord for a counter-clockwise minor arc, right of it for a clockwise one', () => {
+        expect(round(arcCenterOverChord(start, end, deg(90)) ?? undefined)).toEqual({ x: 100, y: 100 });
+        expect(round(arcCenterOverChord(start, end, deg(-90)) ?? undefined)).toEqual({ x: 100, y: -100 });
+    });
+
+    it('crosses the chord for a major arc, and lies on it for half a circle', () => {
+        expect(round(arcCenterOverChord(start, end, deg(270)) ?? undefined)).toEqual({ x: 100, y: -100 });
+        expect(arcCenterOverChord(start, end, deg(180))).toEqual({ x: 100, y: 0 });
+        expect(arcCenterOverChord(start, end, deg(-180))).toEqual({ x: 100, y: 0 });
+    });
+
+    it('agrees with the arc through three points', () => {
+        const through = arcThrough({ x: 1900, y: 240 }, { x: 1000, y: 1140 }, { x: 100, y: 240 });
+        expect(round(arcCenterOverChord({ x: 1900, y: 240 }, { x: 100, y: 240 }, deg(180)) ?? undefined)).toEqual(round(through?.center));
+        expect(round(arcCenterOverChord({ x: 1900, y: 240 }, { x: 1000, y: 1140 }, deg(90)) ?? undefined)).toEqual(center);
+    });
+
+    it('gives none for coinciding ends, no sweep or a full turn', () => {
+        expect(arcCenterOverChord(start, start, deg(90))).toBeNull();
+        expect(arcCenterOverChord(start, end, 0)).toBeNull();
+        expect(arcCenterOverChord(start, end, 2 * Math.PI)).toBeNull();
     });
 });

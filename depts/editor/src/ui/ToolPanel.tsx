@@ -25,6 +25,8 @@ interface ToolFlyoutSpec {
     methods: readonly [ToolMethod, ...ToolMethod[]];
 }
 
+const arcMethod = (method: ArcMethod, label: ParseKeys, title: ParseKeys): ToolMethod => ({ command: 'ARC', method, label, title });
+
 /** The tool buttons, grouped like AutoCAD's Draw and Modify panels. */
 const GROUPS = [
     {
@@ -37,24 +39,17 @@ const GROUPS = [
                 label: 'toolbar.arc',
                 more: 'toolbar.arcMore',
                 methods: [
-                    {
-                        command: 'ARC',
-                        method: 'threePoints',
-                        label: 'toolbar.arcThreePoints',
-                        title: 'toolbar.arcThreePointsTitle',
-                    },
-                    {
-                        command: 'ARC',
-                        method: 'startCenterEnd',
-                        label: 'toolbar.arcStartCenterEnd',
-                        title: 'toolbar.arcStartCenterEndTitle',
-                    },
-                    {
-                        command: 'ARC',
-                        method: 'startCenterAngle',
-                        label: 'toolbar.arcStartCenterAngle',
-                        title: 'toolbar.arcStartCenterAngleTitle',
-                    },
+                    arcMethod('threePoints', 'toolbar.arcThreePoints', 'toolbar.arcThreePointsTitle'),
+                    arcMethod('startCenterEnd', 'toolbar.arcStartCenterEnd', 'toolbar.arcStartCenterEndTitle'),
+                    arcMethod('startCenterAngle', 'toolbar.arcStartCenterAngle', 'toolbar.arcStartCenterAngleTitle'),
+                    arcMethod('startCenterLength', 'toolbar.arcStartCenterLength', 'toolbar.arcStartCenterLengthTitle'),
+                    arcMethod('startEndAngle', 'toolbar.arcStartEndAngle', 'toolbar.arcStartEndAngleTitle'),
+                    arcMethod('startEndDirection', 'toolbar.arcStartEndDirection', 'toolbar.arcStartEndDirectionTitle'),
+                    arcMethod('startEndRadius', 'toolbar.arcStartEndRadius', 'toolbar.arcStartEndRadiusTitle'),
+                    arcMethod('centerStartEnd', 'toolbar.arcCenterStartEnd', 'toolbar.arcCenterStartEndTitle'),
+                    arcMethod('centerStartAngle', 'toolbar.arcCenterStartAngle', 'toolbar.arcCenterStartAngleTitle'),
+                    arcMethod('centerStartLength', 'toolbar.arcCenterStartLength', 'toolbar.arcCenterStartLengthTitle'),
+                    arcMethod('continue', 'toolbar.arcContinue', 'toolbar.arcContinueTitle'),
                 ],
             },
             { command: 'ELLIPSE', label: 'toolbar.ellipse', title: 'toolbar.ellipseTitle' },

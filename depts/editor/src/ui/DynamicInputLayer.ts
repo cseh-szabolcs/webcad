@@ -29,10 +29,13 @@ export interface DynamicInputDisplay {
     cursor: Point | null;
     /** Prompt (or typed command) at the crosshair, or null. */
     prompt: string | null;
-    /** Input fields (two, or the distance alone), or null. */
+    /** Input fields (two, or the distance or the angle alone), or null. */
     fields: readonly DynamicField[] | null;
-    /** Fields on a dimension from the base point to the point, else at the crosshair. */
-    dimension: { from: Point; to: Point } | null;
+    /**
+     * Fields on a dimension from the base point to the point, else at the crosshair; with
+     * `clockwise` the angle arc runs clockwise (a typed negative angle).
+     */
+    dimension: { from: Point; to: Point; clockwise?: boolean } | null;
     /** The point bound by typed values, marked with an x, or null. */
     bound: Point | null;
 }
@@ -86,12 +89,12 @@ export interface LabelPlace {
 
 /**
  * Angle of `from`→`to` in view px: a horizontal reference line to the right of `from` and an arc
- * counter-clockwise (in the model, Y up) from it to the line, at the line's length but at most
- * ANGLE_ARC_MAX_RADIUS_PX, and the place for the angle field just outside the middle of the arc;
- * below ANGLE_LABEL_MIN_DEGREES it goes below the reference line, where there is room. Null for
- * a line shorter than a pixel.
+ * counter-clockwise (in the model, Y up; with `clockwise` the other way round) from it to the
+ * line, at the line's length but at most ANGLE_ARC_MAX_RADIUS_PX, and the place for the angle
+ * field just outside the middle of the arc; below ANGLE_LABEL_MIN_DEGREES it goes on the other
+ * side of the reference line, where there is room. Null for a line shorter than a pixel.
  */
-export function angleArcGeometry(from: Point, to: Point): ({ path: string } & Required<LabelPlace>) | null {
+export function angleArcGeometry(from: Point, to: Point, clockwise = false): ({ path: string } & Required<LabelPlace>) | null {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const length = Math.hypot(dx, dy);
@@ -99,19 +102,22 @@ export function angleArcGeometry(from: Point, to: Point): ({ path: string } & Re
         return null;
     }
     const r = Math.min(length, ANGLE_ARC_MAX_RADIUS_PX);
+    // In [0, 2π), or for a clockwise arc in (-2π, 0]
     let angle = Math.atan2(-dy, dx);
-    if (angle < 0) {
+    if (angle < 0 && !clockwise) {
         angle += 2 * Math.PI;
+    } else if (angle > 0 && clockwise) {
+        angle -= 2 * Math.PI;
     }
     const at = (radius: number, a: number) => ({ x: from.x + radius * Math.cos(a), y: from.y - radius * Math.sin(a) });
     const start = at(r, 0);
     const end = at(r, angle);
     const reference = `M${n(from.x)} ${n(from.y)}H${n(from.x + r + EXTENSION_OVERSHOOT_PX)}`;
     // Counter-clockwise on screen is sweep flag 0 with Y down
-    const arc = `M${n(start.x)} ${n(start.y)}A${n(r)} ${n(r)} 0 ${angle > Math.PI ? 1 : 0} 0 ${n(end.x)} ${n(end.y)}`;
+    const arc = `M${n(start.x)} ${n(start.y)}A${n(r)} ${n(r)} 0 ${Math.abs(angle) > Math.PI ? 1 : 0} ${clockwise ? 1 : 0} ${n(end.x)} ${n(end.y)}`;
     const minimum = (ANGLE_LABEL_MIN_DEGREES * Math.PI) / 180;
-    // Mirrored below the reference line while the wedge is too narrow
-    const middle = angle < minimum ? -minimum / 2 : angle / 2;
+    // Mirrored to the other side of the reference line while the wedge is too narrow
+    const middle = Math.abs(angle) < minimum ? (clockwise ? minimum / 2 : -minimum / 2) : angle / 2;
     const label = at(r + ANGLE_LABEL_GAP_PX, middle);
     return { path: reference + arc, label, outward: { x: Math.cos(middle), y: -Math.sin(middle) } };
 }
@@ -125,8 +131,8 @@ export function boundMarkerPath({ x, y }: Point): string {
 /**
  * Dynamic Input as a DOM layer over the canvas, like the snap marker, so it never redraws the
  * drawing: a panel above right of the crosshair with the prompt and (with pointer input) the two
- * fields (or the distance alone), or the fields on a temporary dimension from the base point (an
- * aligned dimension for the distance, an arc for the angle). The focused field is highlighted and shows a caret, a
+ * fields (or the distance or the angle alone), or the fields on a temporary dimension from the base point (an
+ * aligned dimension for the distance, an arc for the angle; only the one of a lone field). The focused field is highlighted and shows a caret, a
  * typed one a lock, live values are muted. Colours from the `--dyn-*` tokens.
  */
 export class DynamicInputLayer {
@@ -189,11 +195,13 @@ export class DynamicInputLayer {
         if (!this.panel.hidden) {
             this.placePanel(cursor);
         }
-        const length = dimensionShown ? dimensionGeometry(dimension.from, dimension.to) : null;
-        // No angle arc for the distance alone
-        const angle = dimensionShown && fields.length > 1 ? angleArcGeometry(dimension.from, dimension.to) : null;
-        this.showDimension(this.dimension, this.dimensionFields[0], length, fields?.[0]);
-        this.showDimension(this.angle, this.dimensionFields[1], angle, fields?.[1]);
+        // A lone field shows only its own dimension: the line for a distance, the arc for an angle
+        const lengthField = fields?.find((field) => field.kind === 'distance');
+        const angleField = fields?.find((field) => field.kind === 'angle');
+        const length = dimensionShown && lengthField ? dimensionGeometry(dimension.from, dimension.to) : null;
+        const angle = dimensionShown && angleField ? angleArcGeometry(dimension.from, dimension.to, dimension.clockwise) : null;
+        this.showDimension(this.dimension, this.dimensionFields[0], length, lengthField);
+        this.showDimension(this.angle, this.dimensionFields[1], angle, angleField);
         this.boundMarker.style.display = bound ? '' : 'none';
         if (bound) {
             this.boundMarker.setAttribute('d', boundMarkerPath(bound));

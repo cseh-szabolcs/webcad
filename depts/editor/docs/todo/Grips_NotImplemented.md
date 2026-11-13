@@ -14,8 +14,8 @@ sind die Abweichungen und Lücken unten.
 
 - Bei der dynamischen Eingabe zeigt das Strecken nur Abstand und Winkel ab dem Grip, nicht die
   objektbezogenen Bemaßungen (neue Länge, Längenänderung, Radius).
-- Beim Drehwinkel (Aufforderung der Art `angle`) zeigt die dynamische Eingabe kein Feld; dafür
-  fehlt in `dynamicInput.ts` und `ui/DynamicInputLayer.ts` ein einzelnes Winkelfeld mit Bogen.
+- Beim Drehwinkel zeigt die dynamische Eingabe das Winkelfeld allein; mit einem Bezugswinkel
+  zeigt es weiter die Richtung zum Punkt (den „neuen Winkel“), nicht die Drehung.
 - Grips fangen nur, während ein Grip bearbeitet wird, nicht bei den Punkt-Aufforderungen
   anderer Befehle (dort zeigt die Auswahl keine Grips). Sie werden nicht für die
   Objektfangspuren erfasst und haben keinen eigenen Marker und kein Tab-Durchschalten.

@@ -66,6 +66,24 @@ export function arcEndToward(center: Point, start: Point, toward: Point): Point 
     return { x: center.x + tx * scale, y: center.y + ty * scale };
 }
 
+/**
+ * Centre of the arc from `start` to `end` over the signed `sweep` (radians, positive counter-
+ * clockwise, less than a full turn); null if the ends coincide or the sweep spans no arc.
+ */
+export function arcCenterOverChord(start: Point, end: Point, sweep: number): Point | null {
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const sin = Math.sin(sweep / 2);
+    if ((dx === 0 && dy === 0) || !(Math.abs(sin) > 1e-12)) {
+        return null;
+    }
+    // Half a circle has its centre on the chord itself
+    const cos = Math.abs(Math.cos(sweep / 2)) < 1e-12 ? 0 : Math.cos(sweep / 2);
+    // From the middle of the chord, to the left of it for a counter-clockwise minor arc
+    const offset = cos / (2 * sin);
+    return { x: (start.x + end.x) / 2 - dy * offset, y: (start.y + end.y) / 2 + dx * offset };
+}
+
 /** Whether `angle` lies on the arc from `startAngle` over the signed `sweep` (ends included). */
 export function angleOnArc(angle: number, startAngle: number, sweep: number): boolean {
     if (Math.abs(sweep) >= TAU - 1e-9) {

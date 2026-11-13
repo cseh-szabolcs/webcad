@@ -51,6 +51,15 @@ describe('angleArcGeometry', () => {
         expect(angleArcGeometry({ x: 0, y: 0 }, { x: 0, y: 30 })!.path).toBe('M0 0H34M30 0A30 30 0 1 0 0 30');
         expect(angleArcGeometry({ x: 0, y: 0 }, { x: 0.2, y: 0 })).toBeNull();
     });
+
+    it('runs clockwise for a negative angle, with the field on that side', () => {
+        // Straight down on screen is -90°: the short way round, clockwise
+        const down = angleArcGeometry({ x: 0, y: 0 }, { x: 0, y: 30 }, true)!;
+        expect(down.path).toBe('M0 0H34M30 0A30 30 0 0 1 0 30');
+        expect(down.outward.y).toBeGreaterThan(0);
+        // Straight up is -270° that way: the long way round
+        expect(angleArcGeometry({ x: 0, y: 0 }, { x: 0, y: -30 }, true)!.path).toBe('M0 0H34M30 0A30 30 0 1 1 0 -30');
+    });
 });
 
 describe('boundMarkerPath', () => {

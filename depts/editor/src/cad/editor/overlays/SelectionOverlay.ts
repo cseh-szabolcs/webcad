@@ -101,7 +101,7 @@ export class SelectionOverlay {
     }
 
     render(snapshot: SelectionSnapshot): void {
-        const { hovered, highlighted, grips, hoveredGrip, hotGrips, controlFrames, area, from, preview, previewKeeps, previewPoint } =
+        const { hovered, highlighted, grips, hoveredGrip, hotGrips, controlFrames, area, from, preview, previewKeeps, previewPoint, previewValue } =
             snapshot;
         const layer = this.host.activateOverlay();
         const groups = (this.groups ??= createGroups(layer));
@@ -163,7 +163,9 @@ export class SelectionOverlay {
             this.polylinePreview(groups.preview, points);
         }
         if (typeof preview === 'object' && preview?.kind === 'curve' && previewPoint) {
-            const curve = preview.curveAt(previewPoint);
+            // A typed number where the tool tells it from the point it binds (its sign)
+            const curve =
+                previewValue !== null && preview.curveFor ? preview.curveFor(previewValue) : preview.curveAt(previewPoint);
             if (curve) {
                 this.curvePreview(groups.preview, curve);
             }
