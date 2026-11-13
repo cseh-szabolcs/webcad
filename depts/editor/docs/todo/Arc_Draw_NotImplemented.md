@@ -32,13 +32,15 @@ AutoCAD bietet sie im Dropdown des Buttons und als Optionen in den Aufforderunge
   Zentrum, … / Start, Ende, … / Zentrum, Start, … / Weiter).
 - Die Symbole der Methoden „Zentrum zuerst“ unterscheiden sich nur durch den gefüllten
   Mittelpunkt.
-- Die zuletzt verwendete Methode gilt nur bis zum Neuladen der Seite, und nur für Starts über
+- Die zuletzt verwendete Methode merkt sich der Browser, aber nur für Starts über
   den Button, nicht für getippte Optionen. Der Button zeigt gedrückt, sobald BOGEN läuft, auch
   wenn gerade die andere Methode läuft (getippt).
 
 ## Sonstiges
 
-- Meldung bei Punkten, die keinen Bogen ergeben: sie werden bisher still ignoriert (wie bei KREIS 3P).
+- Punkte, die keinen Bogen ergeben, melden einen eigenen Text (`Mit diesem Punkt ergibt sich
+  kein Bogen.`); der Wortlaut von AutoCAD ist zu prüfen. ELLIPSE, RECHTECK und LINIE ignorieren
+  solche Punkte weiter still.
 - Am Endpunkt zeigt die dynamische Eingabe Abstand und Winkel ab dem zweiten Punkt (3 Punkte,
   wie bei KREIS 3P) bzw. ab dem Mittelpunkt (Start, Zentrum, Ende; AutoCAD zeigt dort nur den Winkel).
 - Die Methoden um einen Mittelpunkt zeigen den Radius nicht an, sobald Start und Mittelpunkt

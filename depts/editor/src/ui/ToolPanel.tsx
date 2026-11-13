@@ -3,6 +3,9 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { commandName, type EditorCommand } from 'app/cad/editor/commandNames';
 import type { ArcMethod } from 'app/cad/editor/tools/ArcTool';
+import type { CircleMethod } from 'app/cad/editor/tools/CircleTool';
+import type { CommandMethod } from 'app/cad/editor/tools/CommandMethod';
+import type { EllipseMethod } from 'app/cad/editor/tools/EllipseTool';
 import type { ToolId } from 'app/cad/editor/tools/EditorTool';
 import { ToolIcon } from './ToolIcon';
 import { useMenu } from './useMenu';
@@ -10,14 +13,14 @@ import { useMenu } from './useMenu';
 interface Tool {
     command: EditorCommand;
     /** The method of the command the button starts, where it has several. */
-    method?: ArcMethod;
+    method?: CommandMethod;
     label: ParseKeys;
     title: ParseKeys;
 }
 
-type ToolMethod = Tool & { method: ArcMethod };
+type ToolMethod = Tool & { method: CommandMethod };
 
-/** Several ways to draw one kind of object behind one button, like AutoCAD's arc dropdown. */
+/** Several ways to draw one kind of object behind one button, like AutoCAD's circle and arc dropdowns. */
 interface ToolFlyoutSpec {
     label: ParseKeys;
     /** Names the button that opens the menu. */
@@ -26,6 +29,8 @@ interface ToolFlyoutSpec {
 }
 
 const arcMethod = (method: ArcMethod, label: ParseKeys, title: ParseKeys): ToolMethod => ({ command: 'ARC', method, label, title });
+const circleMethod = (method: CircleMethod, label: ParseKeys, title: ParseKeys): ToolMethod => ({ command: 'CIRCLE', method, label, title });
+const ellipseMethod = (method: EllipseMethod, label: ParseKeys, title: ParseKeys): ToolMethod => ({ command: 'ELLIPSE', method, label, title });
 
 /** The tool buttons, grouped like AutoCAD's Draw and Modify panels. */
 const GROUPS = [
@@ -34,7 +39,16 @@ const GROUPS = [
         tools: [
             { command: 'LINE', label: 'toolbar.line', title: 'toolbar.lineTitle' },
             { command: 'PLINE', label: 'toolbar.polyline', title: 'toolbar.polylineTitle' },
-            { command: 'CIRCLE', label: 'toolbar.circle', title: 'toolbar.circleTitle' },
+            {
+                label: 'toolbar.circle',
+                more: 'toolbar.circleMore',
+                methods: [
+                    circleMethod('centerRadius', 'toolbar.circleCenterRadius', 'toolbar.circleCenterRadiusTitle'),
+                    circleMethod('centerDiameter', 'toolbar.circleCenterDiameter', 'toolbar.circleCenterDiameterTitle'),
+                    circleMethod('twoPoints', 'toolbar.circleTwoPoints', 'toolbar.circleTwoPointsTitle'),
+                    circleMethod('threePoints', 'toolbar.circleThreePoints', 'toolbar.circleThreePointsTitle'),
+                ],
+            },
             {
                 label: 'toolbar.arc',
                 more: 'toolbar.arcMore',
@@ -52,7 +66,14 @@ const GROUPS = [
                     arcMethod('continue', 'toolbar.arcContinue', 'toolbar.arcContinueTitle'),
                 ],
             },
-            { command: 'ELLIPSE', label: 'toolbar.ellipse', title: 'toolbar.ellipseTitle' },
+            {
+                label: 'toolbar.ellipse',
+                more: 'toolbar.ellipseMore',
+                methods: [
+                    ellipseMethod('center', 'toolbar.ellipseCenter', 'toolbar.ellipseCenterTitle'),
+                    ellipseMethod('axisEnd', 'toolbar.ellipseAxisEnd', 'toolbar.ellipseAxisEndTitle'),
+                ],
+            },
             { command: 'RECTANG', label: 'toolbar.rectangle', title: 'toolbar.rectangleTitle' },
         ],
     },
@@ -62,7 +83,7 @@ const GROUPS = [
 interface ToolPanelProps {
     /** The running command, whose button shows pressed; the editing of a grip has none. */
     command: ToolId | null;
-    onStart: (command: EditorCommand, method?: ArcMethod) => void;
+    onStart: (command: EditorCommand, method?: CommandMethod) => void;
 }
 
 /** Horizontal tool bar above the drawing: one icon button per command, its name in the tooltip. */
@@ -109,7 +130,9 @@ function ToolButton({ tool, command, onStart }: ToolPanelProps & { tool: Tool })
 function ToolFlyout({ flyout, command, onStart }: ToolPanelProps & { flyout: ToolFlyoutSpec }) {
     const { t } = useTranslation();
     const { open, setOpen, rootRef } = useMenu();
-    const [usedMethod, setUsedMethod] = useState(flyout.methods[0].method);
+    // The method used last, remembered per browser; one that is gone falls back to the first
+    const storageKey = `webcad.tool.${flyout.methods[0].command}`;
+    const [usedMethod, setUsedMethod] = useState<string>(() => readStored(storageKey) ?? flyout.methods[0].method);
     const used = flyout.methods.find((tool) => tool.method === usedMethod) ?? flyout.methods[0];
 
     return (
@@ -137,6 +160,7 @@ function ToolFlyout({ flyout, command, onStart }: ToolPanelProps & { flyout: Too
                             title={t(tool.title, { command: commandName(tool.command) })}
                             onClick={() => {
                                 setUsedMethod(tool.method);
+                                writeStored(storageKey, tool.method);
                                 setOpen(false);
                                 onStart(tool.command, tool.method);
                             }}
@@ -149,4 +173,21 @@ function ToolFlyout({ flyout, command, onStart }: ToolPanelProps & { flyout: Too
             )}
         </div>
     );
+}
+
+function readStored(key: string): string | null {
+    try {
+        return localStorage.getItem(key);
+    } catch {
+        // Storage blocked (private mode)
+        return null;
+    }
+}
+
+function writeStored(key: string, value: string): void {
+    try {
+        localStorage.setItem(key, value);
+    } catch {
+        // Storage blocked: the choice just is not remembered
+    }
 }

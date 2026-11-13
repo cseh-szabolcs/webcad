@@ -3,11 +3,41 @@ import type { CadDocument } from '../../model/CadDocument';
 import type { Id, Point } from '../../model/Point';
 
 /**
- * What LINIE, PLINIE and BOGEN remember between runs: the line, polyline or arc drawn last, for
- * "continue" (Enter at the first point).
+ * What the drawing commands remember between runs: the line, polyline or arc that LINIE, PLINIE
+ * or BOGEN drew last, for "continue" (Enter at the first point); and the values given last that
+ * Enter takes again as the default of their prompt, shown as `<25.0000>` (null until given once).
  */
 export interface DrawingMemory {
     lastDrawn: Id | null;
+    /** KREIS: the radius of the circle drawn last (AutoCAD's CIRCLERAD). */
+    circleRadius: number | null;
+    /** RECHTECK, option "Abmessungen": the length and the width given last. */
+    rectangleLength: number | null;
+    rectangleWidth: number | null;
+    /**
+     * RECHTECK: the modes that stay for the following rectangles, like AutoCAD: the angle of
+     * their sides in degrees, and the chamfer distances along the two sides of each corner (0
+     * for none).
+     */
+    rectangleRotation: number;
+    rectangleChamfer: readonly [number, number];
+}
+
+export const emptyDrawingMemory = (): DrawingMemory => ({
+    lastDrawn: null,
+    circleRadius: null,
+    rectangleLength: null,
+    rectangleWidth: null,
+    rectangleRotation: 0,
+    rectangleChamfer: [0, 0],
+});
+
+/** Decimals of a default value in a prompt, like AutoCAD's `<25.0000>`. */
+export const DEFAULT_VALUE_DECIMALS = 4;
+
+/** A default value as its prompt shows it. */
+export function formatDefault(value: number): string {
+    return value.toFixed(DEFAULT_VALUE_DECIMALS);
 }
 
 /** Relative to the radius, within which an arc's end vertex counts as on the arc. */

@@ -164,14 +164,17 @@ describe('ArcTool (BOGEN)', () => {
     it('ignores points that give no arc', () => {
         const { editor, arcs } = setup();
         editor.startCommand('ARC');
+        const NO_ARC = 'Mit diesem Punkt ergibt sich kein Bogen.';
         type(editor, '1500,1500');
+        expect(editor.snapshot.message).toBeNull();
         type(editor, '1500,1500');
-        expect(editor.snapshot).toMatchObject({ prompt: SECOND_PROMPT, from: A });
+        expect(editor.snapshot).toMatchObject({ prompt: SECOND_PROMPT, from: A, message: NO_ARC });
         type(editor, '2000,2000');
+        expect(editor.snapshot.message).toBeNull();
         // The start, the second point and a point on their line
         for (const point of ['1500,1500', '2000,2000', '2500,2500']) {
             type(editor, point);
-            expect(editor.snapshot).toMatchObject({ command: 'ARC', prompt: END_PROMPT, from: B });
+            expect(editor.snapshot).toMatchObject({ command: 'ARC', prompt: END_PROMPT, from: B, message: NO_ARC });
         }
         expect(arcs()).toEqual([]);
         type(editor, '2500,1500');
@@ -314,7 +317,12 @@ describe('ArcTool (BOGEN)', () => {
             for (const point of ['2000,1500', '2500,1500', '2200,1500']) {
                 expect(previewAt(editor, { x: Number(point.slice(0, 4)), y: 1500 })).toBeNull();
                 type(editor, point);
-                expect(editor.snapshot).toMatchObject({ command: 'ARC', prompt: DIRECTION_PROMPT, from: CENTER });
+                expect(editor.snapshot).toMatchObject({
+                    command: 'ARC',
+                    prompt: DIRECTION_PROMPT,
+                    from: CENTER,
+                    message: 'Mit diesem Punkt ergibt sich kein Bogen.',
+                });
             }
             expect(arcs()).toEqual([]);
             // Opposite the start is half a circle

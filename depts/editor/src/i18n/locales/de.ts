@@ -18,7 +18,15 @@ export const de = {
         polyline: 'Polylinie',
         polylineTitle: 'Polylinie ({{command}})',
         circle: 'Kreis',
-        circleTitle: 'Kreis ({{command}})',
+        circleMore: 'Weitere Kreis-Werkzeuge',
+        circleCenterRadius: 'Mittelpunkt, Radius',
+        circleCenterRadiusTitle: 'Kreis: Mittelpunkt, Radius ({{command}})',
+        circleCenterDiameter: 'Mittelpunkt, Durchmesser',
+        circleCenterDiameterTitle: 'Kreis: Mittelpunkt, Durchmesser ({{command}})',
+        circleTwoPoints: '2 Punkte',
+        circleTwoPointsTitle: 'Kreis: 2 Punkte ({{command}})',
+        circleThreePoints: '3 Punkte',
+        circleThreePointsTitle: 'Kreis: 3 Punkte ({{command}})',
         arc: 'Bogen',
         arcMore: 'Weitere Bogen-Werkzeuge',
         arcThreePoints: '3 Punkte',
@@ -44,7 +52,11 @@ export const de = {
         arcCenterStartLength: 'Zentrum, Start, Länge',
         arcCenterStartLengthTitle: 'Bogen: Zentrum, Start, Länge ({{command}})',
         ellipse: 'Ellipse',
-        ellipseTitle: 'Ellipse ({{command}})',
+        ellipseMore: 'Weitere Ellipsen-Werkzeuge',
+        ellipseCenter: 'Mittelpunkt',
+        ellipseCenterTitle: 'Ellipse: Mittelpunkt ({{command}})',
+        ellipseAxisEnd: 'Achse, Ende',
+        ellipseAxisEndTitle: 'Ellipse: Achse, Ende ({{command}})',
         rectangle: 'Rechteck',
         rectangleTitle: 'Rechteck ({{command}})',
         move: 'Verschieben',
@@ -89,6 +101,9 @@ export const de = {
         circleCenter: 'Zentrum für Kreis angeben oder [3P/2P]:',
         circleRadius: 'Radius für Kreis angeben oder [Durchmesser]:',
         circleDiameter: 'Durchmesser für Kreis angeben:',
+        /** With the radius of the circle drawn last as the default, which Enter takes. */
+        circleRadiusDefault: 'Radius für Kreis angeben oder [Durchmesser] <{{value}}>:',
+        circleDiameterDefault: 'Durchmesser für Kreis angeben <{{value}}>:',
         circleDiameterFirst: 'Ersten Endpunkt für Kreisdurchmesser angeben:',
         circleDiameterSecond: 'Zweiten Endpunkt für Kreisdurchmesser angeben:',
         circleFirstPoint: 'Ersten Punkt auf Kreis angeben:',
@@ -116,11 +131,22 @@ export const de = {
         ellipseAxisOtherEnd: 'Anderen Endpunkt der Achse angeben:',
         ellipseCenter: 'Mittelpunkt der Ellipse angeben:',
         ellipseAxisEnd: 'Endpunkt der Achse angeben:',
-        ellipseOtherAxis: 'Abstand zur anderen Achse angeben:',
-        rectangleFirstCorner: 'Ersten Eckpunkt angeben:',
-        rectangleOtherCorner: 'Anderen Eckpunkt angeben oder [Abmessungen]:',
+        ellipseOtherAxis: 'Abstand zur anderen Achse angeben oder [Drehung]:',
+        /** A circle on the first axis turned about it by this angle. */
+        ellipseTurn: 'Drehung um Hauptachse angeben:',
+        rectangleFirstCorner: 'Ersten Eckpunkt angeben oder [Fasen]:',
+        rectangleOtherCorner: 'Anderen Eckpunkt angeben oder [Abmessungen/Drehung]:',
+        /** The values stay for the following rectangles; Enter takes the one shown. */
+        rectangleChamferFirst: 'Ersten Fasenabstand für Rechtecke angeben <{{value}}>:',
+        rectangleChamferSecond: 'Zweiten Fasenabstand für Rechtecke angeben <{{value}}>:',
+        rectangleRotation: 'Drehwinkel angeben <{{value}}>:',
+        /** A distance given by two points: the second one. */
+        distanceSecondPoint: 'Zweiten Punkt angeben:',
         rectangleLength: 'Länge der Rechtecke angeben:',
         rectangleWidth: 'Breite der Rechtecke angeben:',
+        /** With the value given last as the default, which Enter takes. */
+        rectangleLengthDefault: 'Länge der Rechtecke angeben <{{value}}>:',
+        rectangleWidthDefault: 'Breite der Rechtecke angeben <{{value}}>:',
         /** A grip's mode in front of its prompts; `(mehrere)` once the option Copy is on. */
         gripHeader: '** {{mode}} **',
         gripHeaderMultiple: '** {{mode}} (mehrere) **',
@@ -197,8 +223,21 @@ export const de = {
         arcRadiusInvalid: 'Radius darf nicht 0 und nicht kleiner als der halbe Abstand der Endpunkte sein.',
         /** ELLIPSE: the centre first, then one end of the first axis. */
         centerKeyword: 'Mittelpunkt',
+        /** ELLIPSE: the turn about the first axis instead of the other radius; RECHTECK: the angle of its sides. */
+        rotationKeyword: 'Drehung',
+        ellipseTurnInvalid: 'Drehung zu nahe an 90°: höchstens {{max}}° sind möglich.',
+        /** RECHTECK: cut corners, by a distance along each of the two sides. */
+        chamferKeyword: 'Fasen',
+        nonNegativeValue: 'Wert darf nicht negativ sein.',
+        /** RECHTECK at its start, while a chamfer or a rotation applies. */
+        rectangleModes: 'Aktuelle Rechteckmodi: {{modes}}',
+        rectangleModeChamfer: 'Fasen={{first}} x {{second}}',
+        rectangleModeRotation: 'Drehung={{angle}}',
         /** RECHTECK: length and width, then a point chooses the quadrant. */
         dimensionsKeyword: 'Abmessungen',
+        /** KREIS, BOGEN: a point given that gives none with those before it (the same one, or on one line). */
+        noCircle: 'Mit diesem Punkt ergibt sich kein Kreis.',
+        noArc: 'Mit diesem Punkt ergibt sich kein Bogen.',
         noLineToContinue: 'Keine Linie oder kein Bogen zum Fortsetzen.',
         allSegmentsUndone: 'Alle Segmente bereits zurückgenommen.',
         invalidInput: 'Punkt oder Option-Schlüsselwort erforderlich.',

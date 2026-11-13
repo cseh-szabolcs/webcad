@@ -6,12 +6,7 @@ import { currentLanguage, LANGUAGES, setLanguage } from 'app/i18n/i18n';
 import type { Point } from 'app/cad/model/Point';
 import { CadApiClient } from 'app/cad/persistence/CadApiClient';
 import {
-    DEFAULT_DYNAMIC_INPUT_SETTINGS,
     DEFAULT_EDITOR_SETTINGS,
-    DEFAULT_GRID_SETTINGS,
-    DEFAULT_OBJECT_TRACKING_SETTINGS,
-    DEFAULT_SNAP_SETTINGS,
-    DEFAULT_TRACKING_MODES,
     type DynamicInputSettings,
     type GridSettings,
     type ObjectTrackingSettings,
@@ -20,6 +15,7 @@ import {
     withOrtho,
     withPolar,
 } from 'app/settings/editorSettings';
+import { loadSwitches, saveSwitches } from 'app/settings/storedSwitches';
 import type { Viewport } from 'app/cad/renderer/Viewport';
 import { CadCanvas, type CadCanvasHandle } from 'app/ui/CadCanvas';
 import { CommandLine } from 'app/ui/CommandLine';
@@ -63,11 +59,16 @@ function App() {
     const [pointer, setPointer] = useState<Point | null>(null);
     const [selection, setSelection] = useState<SelectionSnapshot | null>(null);
     const [state, setState] = useState<LoadState>({ status: 'loading' });
-    const [snapSettings, setSnapSettings] = useState<SnapSettings>(DEFAULT_SNAP_SETTINGS);
-    const [tracking, setTracking] = useState<TrackingModes>(DEFAULT_TRACKING_MODES);
-    const [objectTracking, setObjectTracking] = useState<ObjectTrackingSettings>(DEFAULT_OBJECT_TRACKING_SETTINGS);
-    const [gridSettings, setGridSettings] = useState<GridSettings>(DEFAULT_GRID_SETTINGS);
-    const [dynamicInput, setDynamicInput] = useState<DynamicInputSettings>(DEFAULT_DYNAMIC_INPUT_SETTINGS);
+    // The switches of the status bar start as they were left in this browser
+    const [stored] = useState(loadSwitches);
+    const [snapSettings, setSnapSettings] = useState<SnapSettings>(stored.snap);
+    const [tracking, setTracking] = useState<TrackingModes>(stored.tracking);
+    const [objectTracking, setObjectTracking] = useState<ObjectTrackingSettings>(stored.objectTracking);
+    const [gridSettings, setGridSettings] = useState<GridSettings>(stored.grid);
+    const [dynamicInput, setDynamicInput] = useState<DynamicInputSettings>(stored.dynamicInput);
+    useEffect(() => {
+        saveSwitches({ snap: snapSettings, tracking, objectTracking, grid: gridSettings, dynamicInput });
+    }, [snapSettings, tracking, objectTracking, gridSettings, dynamicInput]);
     const { preference, setPreference, theme } = useTheme();
     const fullscreen = useFullscreen();
     const fullscreenTitle = !fullscreen.lockable

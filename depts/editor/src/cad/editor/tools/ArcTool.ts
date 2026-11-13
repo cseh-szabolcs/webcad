@@ -25,6 +25,13 @@ export type ArcMethod =
     | `startEnd${Exclude<Defining, 'Center'>}`
     | 'continue';
 
+const ARC_METHOD = /^(threePoints|continue|(startCenter|centerStart)(End|Angle|Length)|startEnd(Angle|Direction|Radius))$/;
+
+/** Whether `method` is one of BOGEN's, not that of another command. */
+export function isArcMethod(method: string | undefined): method is ArcMethod {
+    return method !== undefined && ARC_METHOD.test(method);
+}
+
 /** What an arc around its centre takes last: a point it ends towards, its angle or its chord. */
 type Last = 'End' | 'Angle' | 'Length';
 
@@ -135,7 +142,14 @@ export class ArcTool implements EditorTool {
         return {};
     }
 
+    /** A point that leaves the prompt as it was gave no arc: it is reported, and the prompt stays. */
     point(point: Point): ToolStep {
+        const prompt = this.prompt;
+        const step = this.takePoint(point);
+        return !step.done && this.prompt === prompt ? { message: () => t('message.noArc') } : step;
+    }
+
+    private takePoint(point: Point): ToolStep {
         const state = this.state;
         switch (state.kind) {
             case 'start':

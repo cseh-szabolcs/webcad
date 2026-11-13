@@ -105,9 +105,10 @@ The behaviour itself is in `docs/bedienung.md`; these are the decisions code mus
 - **Commands** start from `ui/ToolPanel.tsx`, a horizontal bar above the drawing (icons from
   `ui/ToolIcon.tsx`; another tool cancels the running command, the same one does nothing; a
   `ToolFlyout` is one button for several methods of a command: it shows the one used last, the
-  button beside it opens the menu of all; BOGEN has one, its methods are `ArcMethod`, passed on
-  as `startCommand(command, method)`, and another method than the running tool's `method`
-  restarts the command) or by name/alias at "Befehl:"
+  button beside it opens the menu of all; KREIS, BOGEN and ELLIPSE have one, their methods are
+  `CircleMethod`, `ArcMethod` and `EllipseMethod` (together `CommandMethod`), passed on as
+  `startCommand(command, method)`: the tool then asks that way straight away, as its options
+  would, and keeps the one it follows as its `method`; another one restarts the command) or by name/alias at "Befehl:"
   (`SelectionEditor.startCommand`); Enter with nothing typed repeats the last command.
   **Right click acts like Enter** everywhere (no context menus yet; tools have no right-click
   hook of their own); ignored while a rectangle or lasso is open or dragged.
@@ -203,13 +204,16 @@ are in the guide and the translation files.
 | PLINIE (`PLINE`) | `PolylineTool` | points stay in the tool (not snappable, like AutoCAD); one `AddPolylineCommand` when the command ends in any way, Esc and another tool included |
 | KREIS (`CIRCLE`) | `CircleTool` | `AddCircleCommand` as the step's command (`geometry/circle.ts`: `circleThrough`, `circleOnDiameter`) |
 | BOGEN (`ARC`) | `ArcTool` | `AddArcCommand`: through three points (`geometry/arc.ts`: `arcThrough` gives centre and direction; the second point is not stored), or around a centre (option "Zentrum" at the start or the second point, resp. an `ArcMethod` `startCenter…`/`centerStart…`): counter-clockwise from the start, ending by a point it ends towards (`arcEndToward`), by the included angle (option "Winkel", an `angle` prompt from the centre: typed, negative = clockwise, full turns dropped, or the direction to a point **measured from +X, not from the start**, like AutoCAD) or by the chord length (option "sehnenLänge", a `distance` prompt from the start, negative = the major arc); the end on the circle is stored. Or over its start and end, which stay as given (option "Endpunkt" at the second point, resp. an `ArcMethod` `startEnd…`): by its centre (only by the option; the arc then ends towards the end), its included angle, the direction it leaves the start in (both `angle` prompts from the start) or its radius (a `distance` prompt from the end, negative = the major arc); `arcCenterOverChord` gives the centre. Enter at the start, resp. the method `continue`, goes on tangentially from what was drawn last, to an end point. Ctrl (`cycle`) switches the direction: **a press, not a hold as in AutoCAD**, as Ctrl + click is a right click on macOS |
-| ELLIPSE (`ELLIPSE`) | `EllipseTool` | `AddEllipseCommand`; the first axis stays `radiusX` at its angle even when it is the minor one; `rotation` 0 when axis-aligned |
-| RECHTECK (`RECTANG`) | `RectangleTool` | `AddPolylineCommand` (closed, label `RECTANG`), corners by `rectangleCorners` |
+| ELLIPSE (`ELLIPSE`) | `EllipseTool` | `AddEllipseCommand`; the first axis stays `radiusX` at its angle even when it is the minor one; `rotation` 0 when axis-aligned; the option "Drehung" gives the other radius as the turn of a circle about the first axis (an `angle` prompt, `MAX_TURN_DEGREES`) |
+| RECHTECK (`RECTANG`) | `RectangleTool` | `AddPolylineCommand` (closed, label `RECTANG`), corners by `rectangleCorners`, or by `rectangleOutline` once a mode applies: the options "Drehung" (the angle of the sides) and "Fasen" (two distances that cut every corner, at `distance` prompts without `from`) stay in `DrawingMemory` for the following rectangles, like AutoCAD, and `start()` names them |
 
 LINIE, PLINIE and BOGEN remember what they drew last in the core's `DrawingMemory`
 (`tools/DrawingMemory.ts`; `continueFrom` gives its end and the direction it arrives there in),
 so Enter at the first point continues from it: PLINIE from the point, LINIE tangentially after
 an arc (only a length is asked for), BOGEN always tangentially (`ArcMethod` `continue`).
+It also holds the values Enter takes again as the default of a prompt, shown as `<25.0000>`
+(`formatDefault`): the radius of the circle drawn last (KREIS, also doubled for the diameter)
+and the length and width given last (RECHTECK); none until given once, gone on reload. RECHTECK's modes (rotation, chamfer) live there too.
 New elements get their own vertices and no layer/group/style yet. What each command still
 lacks is in `docs/todo/*_NotImplemented.md` (PLINE arcs with a proposed `bulges` schema in
 `Polyline_Draw_NotImplemented.md`), further shortcuts in `docs/todo/Zeichnen_Tastenkuerzel.md`.
@@ -321,7 +325,10 @@ GRIPMULTIFUNCTIONAL, `gripMenuDelay`, `gripObjectLimit` ~ GRIPOBJLIMIT,
 and crosshair) rather than importing the defaults, so the user can change them later; for now
 they are read when a document is loaded. The switches live in App state and may change at any
 time: `SnapSettings` (F3, OSMODE), `TrackingModes` (Ortho F8, `PolarSettings` F10),
-`ObjectTrackingSettings` (F11), `DynamicInputSettings` (F12), `GridSettings` (F7).
+`ObjectTrackingSettings` (F11), `DynamicInputSettings` (F12), `GridSettings` (F7). They are
+remembered per browser (`settings/storedSwitches.ts`: `localStorage`, every value validated and
+falling back to its default), like the theme, the language and the method a `ToolFlyout` used
+last; a new switch or value needs its line in `parseSwitches`.
 
 ## Translations, theme
 

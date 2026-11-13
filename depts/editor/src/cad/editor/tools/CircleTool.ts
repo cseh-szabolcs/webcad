@@ -3,12 +3,17 @@ import { circleOnDiameter, circleThrough, type CircleShape } from '../../geometr
 import type { Id, Point } from '../../model/Point';
 import { matchesKeyword } from '../commandInput';
 import { AddCircleCommand } from '../commands/AddCircleCommand';
+import { formatDefault, type DrawingMemory } from './DrawingMemory';
 import type { EditorTool, Message, ToolPreview, ToolPrompt, ToolStep } from './EditorTool';
 
 const NOTHING: ReadonlySet<Id> = new Set();
 /** The options of the centre prompt, the same in every language and only taken whole. */
 const THREE_POINTS = '3P';
 const TWO_POINTS = '2P';
+
+/** The ways KREIS draws a circle, as the tool bar offers them. */
+export const CIRCLE_METHODS = ['centerRadius', 'centerDiameter', 'twoPoints', 'threePoints'] as const;
+export type CircleMethod = (typeof CIRCLE_METHODS)[number];
 
 type State =
     | { kind: 'center' }
@@ -25,14 +30,30 @@ type State =
  * the option "Durchmesser" the diameter. The option "2P" takes the two ends of a diameter, "3P"
  * three points on the circle. Each prompt previews the circle a click would give. Points that give
  * no circle (on the last one, or three on a line) are ignored, the prompt stays. Esc ends without
- * a circle.
+ * a circle. Started with another method than `centerRadius` it asks that way straight away.
+ * The radius of the circle drawn last is the default of the radius (and, doubled, of the
+ * diameter), which Enter on its own takes.
  */
 export class CircleTool implements EditorTool {
     readonly command = 'CIRCLE';
     readonly highlighted = NOTHING;
+    /** The method the prompts follow now: the one it started with, or the one an option chose. */
+    method: CircleMethod;
     private state: State = { kind: 'center' };
     prompt: ToolPrompt = { kind: 'point', input: 'point', from: null, text: () => t('prompt.circleCenter') };
     preview: ToolPreview | null = null;
+
+    private readonly memory: DrawingMemory;
+
+    constructor(memory: DrawingMemory, method: CircleMethod = 'centerRadius') {
+        this.memory = memory;
+        this.method = method;
+        if (method === 'twoPoints') {
+            this.askTwoPoints([]);
+        } else if (method === 'threePoints') {
+            this.askThreePoints([]);
+        }
+    }
 
     start(): ToolStep {
         return {};
@@ -42,11 +63,18 @@ export class CircleTool implements EditorTool {
         return {};
     }
 
+    /** A point that leaves the prompt as it was gave no circle: it is reported, and the prompt stays. */
     point(point: Point): ToolStep {
+        const prompt = this.prompt;
+        const step = this.takePoint(point);
+        return !step.done && this.prompt === prompt ? { message: () => t('message.noCircle') } : step;
+    }
+
+    private takePoint(point: Point): ToolStep {
         const state = this.state;
         switch (state.kind) {
             case 'center':
-                this.askSize(point, false);
+                this.askSize(point, this.method === 'centerDiameter');
                 return {};
             case 'size':
                 return {};
@@ -56,7 +84,7 @@ export class CircleTool implements EditorTool {
                     return {};
                 }
                 const circle = circleOnDiameter(state.points[0], point);
-                return circle ? finish(circle) : {};
+                return circle ? this.finish(circle) : {};
             }
             case 'threePoints': {
                 const [first, second] = state.points;
@@ -71,7 +99,7 @@ export class CircleTool implements EditorTool {
                     return {};
                 }
                 const circle = circleThrough(first, second, point);
-                return circle ? finish(circle) : {};
+                return circle ? this.finish(circle) : {};
             }
         }
     }
@@ -85,11 +113,16 @@ export class CircleTool implements EditorTool {
         if (!(distance > 0)) {
             return { message: () => t('message.positiveValue') };
         }
-        return finish({ center: state.center, radius: state.diameter ? distance / 2 : distance });
+        return this.finish({ center: state.center, radius: state.diameter ? distance / 2 : distance });
     }
 
     text(text: string): ToolStep | null {
         const state = this.state;
+        const radius = this.memory.circleRadius;
+        // Enter on its own takes the radius drawn last
+        if (state.kind === 'size' && text === '' && radius !== null) {
+            return this.finish({ center: state.center, radius });
+        }
         const option = text.trim().toUpperCase();
         if (state.kind === 'center' && option === THREE_POINTS) {
             this.askThreePoints([]);
@@ -109,6 +142,7 @@ export class CircleTool implements EditorTool {
     cancel(): void {}
 
     private askSize(center: Point, diameter: boolean): void {
+        this.method = diameter ? 'centerDiameter' : 'centerRadius';
         this.state = { kind: 'size', center, diameter };
         const scale = diameter ? 0.5 : 1;
         this.preview = {
@@ -119,15 +153,22 @@ export class CircleTool implements EditorTool {
             },
             rubberBand: true,
         };
+        const radius = this.memory.circleRadius;
         this.prompt = {
             kind: 'point',
             input: 'distance',
             from: center,
-            text: () => t(diameter ? 'prompt.circleDiameter' : 'prompt.circleRadius'),
+            text: () =>
+                radius === null
+                    ? t(diameter ? 'prompt.circleDiameter' : 'prompt.circleRadius')
+                    : t(diameter ? 'prompt.circleDiameterDefault' : 'prompt.circleRadiusDefault', {
+                          value: formatDefault(diameter ? 2 * radius : radius),
+                      }),
         };
     }
 
     private askTwoPoints(points: Point[]): void {
+        this.method = 'twoPoints';
         this.state = { kind: 'twoPoints', points };
         const [first] = points;
         if (!first) {
@@ -143,6 +184,7 @@ export class CircleTool implements EditorTool {
     }
 
     private askThreePoints(points: Point[]): void {
+        this.method = 'threePoints';
         this.state = { kind: 'threePoints', points };
         const [first, second] = points;
         if (!first) {
@@ -161,6 +203,12 @@ export class CircleTool implements EditorTool {
         }
     }
 
+    /** Ends KREIS with the circle as one undo step, and remembers its radius as the default. */
+    private finish({ center, radius }: CircleShape): ToolStep {
+        this.memory.circleRadius = radius;
+        return { done: true, command: new AddCircleCommand(center, radius) };
+    }
+
     /** A point on its own without `from`, else a `next` point from it. */
     private askPoint(from: Point | null, text: Message): void {
         if (from === null) {
@@ -172,9 +220,4 @@ export class CircleTool implements EditorTool {
 
 function previewCircle(circle: CircleShape | null) {
     return circle && { kind: 'circle' as const, ...circle };
-}
-
-/** Ends KREIS with the circle as one undo step. */
-function finish({ center, radius }: CircleShape): ToolStep {
-    return { done: true, command: new AddCircleCommand(center, radius) };
 }

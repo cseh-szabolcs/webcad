@@ -33,14 +33,21 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   steht im Tooltip, z. B. `Linie (LINIE)`. Der Button des laufenden Befehls bleibt gedrückt; ein
   weiterer Klick darauf bewirkt nichts. Ein Klick auf einen anderen bricht den laufenden Befehl
   ab (`*Abbruch*`) und startet den neuen.
-  Der Button **Bogen** steht für mehrere Arten, einen Bogen zu zeichnen: Er zeigt die zuletzt
-  verwendete (anfangs **3 Punkte**, Tooltip `Bogen: 3 Punkte (BOGEN)`) und startet sie. Der
-  schmale Button **▾** daneben (**Weitere Bogen-Werkzeuge**) öffnet ein Menü mit allen Arten,
-  die gewählte ist fett; ein Klick auf eine startet sie und legt sie auf den Button. Das Menü
-  schließt auch mit **Esc** oder einem Klick daneben. Es gibt **3 Punkte**, **Start, Zentrum,
-  Ende / Winkel / Länge**, **Start, Ende, Winkel / Richtung / Radius**, **Zentrum, Start,
-  Ende / Winkel / Länge** und **Weiter** (siehe
-  [BOGEN](#befehl-bogen)); welche Art zuletzt verwendet wurde, gilt bis zum Neuladen der Seite.
+  Die Buttons **Kreis**, **Bogen** und **Ellipse** stehen für mehrere Arten (Methoden), das
+  Objekt zu zeichnen: Der Button zeigt die zuletzt verwendete (anfangs die erste des Menüs,
+  Tooltip z. B. `Bogen: 3 Punkte (BOGEN)`) und startet sie. Der schmale Button **▾** daneben
+  (z. B. **Weitere Bogen-Werkzeuge**) öffnet ein Menü mit allen Arten, die gewählte ist fett;
+  ein Klick auf eine startet sie und legt sie auf den Button. Das Menü schließt auch mit
+  **Esc** oder einem Klick daneben. Welche Art zuletzt verwendet wurde, merkt sich der
+  Browser, auch über das Neuladen der Seite hinweg. Ein Klick auf eine andere Methode, während der Befehl läuft, bricht ab und
+  startet ihn mit ihr neu; dieselbe bewirkt nichts (auch wenn eine Option zu ihr gewechselt
+  hat). **Enter** bei `Befehl:` wiederholt den Befehl immer so, wie er getippt beginnt.
+  - **Kreis**: **Mittelpunkt, Radius**, **Mittelpunkt, Durchmesser**, **2 Punkte**,
+    **3 Punkte** (siehe [KREIS](#befehl-kreis)).
+  - **Bogen**: **3 Punkte**, **Start, Zentrum, Ende / Winkel / Länge**, **Start, Ende,
+    Winkel / Richtung / Radius**, **Zentrum, Start, Ende / Winkel / Länge** und **Weiter**
+    (siehe [BOGEN](#befehl-bogen)).
+  - **Ellipse**: **Mittelpunkt**, **Achse, Ende** (siehe [ELLIPSE](#befehl-ellipse)).
 - **Zeichenfläche** in der Mitte, mit dem [BKS-Symbol](#bks-symbol) am Nullpunkt bzw.
   unten links.
 - **Kommandozeile** unter der Zeichenfläche: oben in Grau die letzte Meldung (z. B.
@@ -564,8 +571,11 @@ vorigen Segments** an (wie AutoCAD: die Abfrage eines Abstands ab dem letzten Pu
 ## Befehl KREIS
 
 Zeichnet einen **Kreis**, wie AutoCAD KREIS; danach endet der Befehl. Start mit dem Button
-**Kreis** in der Werkzeugleiste oder durch Tippen von `KREIS`, `K`, `CIRCLE` oder `C` bei
-`Befehl:`. Eine bestehende Auswahl wird dabei aufgehoben.
+**Kreis** in der Werkzeugleiste (bzw. einer Methode in seinem Menü **▾**) oder durch Tippen
+von `KREIS`, `K`, `CIRCLE` oder `C` bei `Befehl:`. Eine bestehende Auswahl wird dabei
+aufgehoben. Die Methoden des Menüs fragen gleich so, wie es sonst die Optionen tun:
+**Mittelpunkt, Radius** wie getippt, **Mittelpunkt, Durchmesser** nach dem Mittelpunkt gleich
+nach dem Durchmesser, **2 Punkte** und **3 Punkte** wie nach `2P` bzw. `3P`.
 
 1. **`Zentrum für Kreis angeben oder [3P/2P]:`** – der Mittelpunkt, mit Objektfang,
    Objektfangspuren und Koordinateneingabe wie der erste Punkt von [LINIE](#befehl-linie).
@@ -588,10 +598,17 @@ dazu ein gestricheltes **Gummiband** vom Mittelpunkt zum Cursor.
 - `3P` und `2P` müssen ganz getippt werden (Groß-/Kleinschreibung egal); sie heißen in beiden
   Sprachen so.
 - Nur ein **positiver** Radius oder Durchmesser wird genommen (sonst `Wert muss positiv und
-  ungleich Null sein.`); Enter ohne Eingabe meldet `Erfordert numerischen Abstand oder zweiten
-  Punkt.` (es gibt noch keinen vorgegebenen Radius). Die Abfrage bleibt jeweils stehen.
+  ungleich Null sein.`); die Abfrage bleibt stehen.
+- **Vorgabe:** Nach dem ersten Kreis nennt die Aufforderung den Radius des zuletzt gezeichneten
+  Kreises (egal mit welcher Methode) in spitzen Klammern, z. B. `Radius für Kreis angeben oder
+  [Durchmesser] <25.0000>:`, beim Durchmesser das Doppelte (`Durchmesser für Kreis angeben
+  <50.0000>:`). **Enter** ohne Eingabe (oder ein Rechtsklick) zeichnet den Kreis mit diesem
+  Wert. Solange es noch keinen gibt, meldet Enter `Erfordert numerischen Abstand oder zweiten
+  Punkt.`. Die Vorgabe gilt bis zum Neuladen der Seite und zeigt `DEFAULT_VALUE_DECIMALS`
+  Nachkommastellen (`src/cad/editor/tools/DrawingMemory.ts`).
 - Punkte, die keinen Kreis ergeben (bei 2P auf dem ersten Punkt, bei 3P auf dem vorigen oder
-  alle drei auf einer Geraden), werden ignoriert; die Abfrage bleibt.
+  alle drei auf einer Geraden), werden nicht genommen: `Mit diesem Punkt ergibt sich kein
+  Kreis.`, die Abfrage bleibt.
 - **Esc** bricht bei jeder Abfrage ab (`*Abbruch*`), ohne Kreis.
 - Der Kreis hat einen eigenen Mittelpunkt, noch keinen Layer und den Standardstil, und ist
   **ein** Schritt für Rückgängig (`Rückgängig: KREIS`).
@@ -629,8 +646,9 @@ am zuletzt Gezeichneten.
   Punkte bestimmt damit die Richtung (im oder gegen den Uhrzeigersinn) und, ob es der kurze
   oder der lange Teil des Kreises ist.
 - Punkte, die keinen Bogen ergeben (der zweite auf dem Startpunkt, der dritte auf einem der
-  beiden ersten oder alle drei auf einer Geraden), werden ignoriert; die Abfrage bleibt. Die
-  Vorschau zeigt dort nichts.
+  beiden ersten oder alle drei auf einer Geraden), werden nicht genommen: `Mit diesem Punkt
+  ergibt sich kein Bogen.`, die Abfrage bleibt. Die Vorschau zeigt dort nichts. Das gilt bei
+  allen Methoden unten ebenso.
 
 ### Start, Zentrum, Ende
 
@@ -655,7 +673,7 @@ nach dem Startpunkt gleich nach dem Mittelpunkt) oder mit `Z` beim zweiten Punkt
   **Abweichung von AutoCAD:** dort gilt die andere Richtung nur, solange Strg gehalten wird;
   hier schaltet ein Druck um, weil Strg + Klick auf dem Mac ein Rechtsklick ist (und der wirkt
   wie Enter).
-- Punkte, die keinen Bogen ergeben, werden ignoriert, die Abfrage bleibt: der Mittelpunkt auf
+- Punkte, die keinen Bogen ergeben, werden mit derselben Meldung nicht genommen, die Abfrage bleibt: der Mittelpunkt auf
   dem Startpunkt, das Ende im Mittelpunkt oder auf dem Strahl durch den Startpunkt (das wäre
   ein voller Kreis).
 
@@ -738,7 +756,7 @@ gleich nach diesem Wert) oder mit `E` beim zweiten Punkt.
 
 1. **`Startpunkt für Bogen angeben oder [Zentrum]:`** – wie oben.
 2. **`Endpunkt für Bogen angeben:`** – das Ende des Bogens, gemessen ab dem Startpunkt, mit
-   Gummiband. Hier gibt es keine Option; ein Punkt auf dem Startpunkt wird ignoriert.
+   Gummiband. Hier gibt es keine Option; ein Punkt auf dem Startpunkt wird nicht genommen.
 3. Nach `E` beim zweiten Punkt: **`Mittelpunkt für Bogen angeben (Strg wechselt die Richtung)
    oder [Winkel/RIchtung/RAdius]:`** – ein Punkt ist der **Mittelpunkt**: Der Bogen läuft dann
    wie bei [Start, Zentrum, Ende](#start-zentrum-ende) vom Startpunkt um ihn herum und endet
@@ -764,7 +782,8 @@ gleich nach diesem Wert) oder mit `E` beim zweiten Punkt.
   (`Richtung darf nicht auf der Geraden durch Start- und Endpunkt liegen.`), ein Radius von `0`
   oder unter dem halben Abstand der beiden Punkte (`Radius darf nicht 0 und nicht kleiner als
   der halbe Abstand der Endpunkte sein.`). Ein Mittelpunkt, der keinen Bogen ergibt (auf dem
-  Startpunkt, oder mit dem Endpunkt auf dem Strahl durch den Startpunkt), wird ignoriert.
+  Startpunkt, oder mit dem Endpunkt auf dem Strahl durch den Startpunkt), wird nicht genommen
+  (`Mit diesem Punkt ergibt sich kein Bogen.`).
 
 ### Weiter
 
@@ -781,7 +800,7 @@ Startpunkt (bei jeder Methode) oder mit **Weiter** im Menü **▾**.
 - **Strg** (allein gedrückt) lässt den Bogen den Startpunkt in der Gegenrichtung verlassen
   (der Rest desselben Kreises).
 - Ein Punkt genau in der Richtung oder Gegenrichtung (das wäre eine Gerade) oder auf dem
-  Startpunkt wird ignoriert.
+  Startpunkt wird nicht genommen (`Mit diesem Punkt ergibt sich kein Bogen.`).
 - Gibt es nichts zum Fortsetzen (noch keine Linie, Polylinie und kein Bogen gezeichnet, oder
   das zuletzt Gezeichnete wurde per Rückgängig entfernt), meldet die Kommandozeile `Keine Linie
   oder kein Bogen zum Fortsetzen.` und die Abfrage des Startpunkts bleibt. Kreise, Ellipsen und
@@ -819,15 +838,17 @@ switches direction):` und `Specify radius of arc (Ctrl switches direction):`, di
 ## Befehl ELLIPSE
 
 Zeichnet eine **Ellipse**, wie AutoCAD ELLIPSE; danach endet der Befehl. Start mit dem Button
-**Ellipse** in der Werkzeugleiste oder durch Tippen von `ELLIPSE` oder `EL` bei `Befehl:`.
-Eine bestehende Auswahl wird dabei aufgehoben.
+**Ellipse** in der Werkzeugleiste (bzw. einer Methode in seinem Menü **▾**) oder durch Tippen
+von `ELLIPSE` oder `EL` bei `Befehl:`. Eine bestehende Auswahl wird dabei aufgehoben. Im Menü
+fragt **Achse, Ende** wie getippt, **Mittelpunkt** gleich nach dem Mittelpunkt (wie nach der
+Option `Mittelpunkt`); der Button zeigt anfangs **Mittelpunkt**, wie in AutoCAD.
 
 1. **`Achsenendpunkt der Ellipse angeben oder [Mittelpunkt]:`** – ein Ende der ersten Achse.
 2. **`Anderen Endpunkt der Achse angeben:`** – ab dem ersten Ende, also mit Polarspur, Ortho,
    `@`, Direkter Distanzeingabe und der Bemaßung der dynamischen Eingabe, dazu ein
    gestricheltes Gummiband. Die erste Achse legt Mittelpunkt, Länge und Winkel fest; sie darf
    die längere oder die kürzere Achse sein.
-3. **`Abstand zur anderen Achse angeben:`** – die halbe Länge der anderen Achse, eine Abfrage
+3. **`Abstand zur anderen Achse angeben oder [Drehung]:`** – die halbe Länge der anderen Achse, eine Abfrage
    eines Abstands ab dem **Mittelpunkt** wie der Radius bei [KREIS](#befehl-kreis): eine Zahl,
    oder der Abstand eines geklickten oder getippten Punkts vom Mittelpunkt. Eine Vorschau zeigt
    die Ellipse, dazu das Gummiband vom Mittelpunkt zum Cursor.
@@ -835,6 +856,16 @@ Eine bestehende Auswahl wird dabei aufgehoben.
 `M` (Mittelpunkt) + Enter beim ersten Punkt fragt stattdessen **`Mittelpunkt der Ellipse
 angeben:`** und dann **`Endpunkt der Achse angeben:`** (ab dem Mittelpunkt; der Abstand ist die
 halbe erste Achse), danach weiter mit Schritt 3.
+
+`D` (Drehung) + Enter bei Schritt 3 fragt stattdessen **`Drehung um Hauptachse angeben:`**:
+Die Ellipse ist dann ein Kreis auf der ersten Achse, um diese Achse aus der Zeichenebene
+gedreht; die andere Halbachse ist die erste mal dem Cosinus des Winkels (0° gibt einen Kreis,
+60° die halbe Breite). Eine Abfrage eines Winkels ab dem Mittelpunkt: eine getippte Zahl in
+Grad, oder die Richtung vom Mittelpunkt zu einem Punkt (ab der X-Achse), mit Vorschau,
+Gummiband und dem Winkelfeld der dynamischen Eingabe. Näher als `MAX_TURN_DEGREES`
+(`src/cad/editor/tools/EllipseTool.ts`) an 90° wäre die Ellipse zu flach: `Drehung zu nahe an
+90°: höchstens 89.4° sind möglich.`, die Abfrage bleibt. Das Vorzeichen und volle Drehungen
+spielen keine Rolle.
 
 - Ein zweites Achsenende auf dem ersten (bzw. ein Achsenende auf dem Mittelpunkt) wird
   ignoriert; nur ein **positiver** Abstand zur anderen Achse wird genommen, wie bei KREIS.
@@ -844,8 +875,9 @@ halbe erste Achse), danach weiter mit Schritt 3.
   Quadranten, Schnittpunkte) und zeigen Griffe an ihren gedrehten Achsenenden.
 
 Im Englischen: `Specify axis endpoint of ellipse or [Center]:` (Option `Center`, `C`),
-`Specify other endpoint of axis:`, `Specify center of ellipse:`, `Specify endpoint of axis:`
-und `Specify distance to other axis:`.
+`Specify other endpoint of axis:`, `Specify center of ellipse:`, `Specify endpoint of axis:`,
+`Specify distance to other axis or [Rotation]:` (Option `Rotation`, `R`) und `Specify rotation
+around major axis:`.
 
 ## Befehl RECHTECK
 
@@ -854,34 +886,69 @@ danach endet der Befehl. Start mit dem Button **Rechteck** in der Werkzeugleiste
 Tippen von `RECHTECK`, `REC` oder `RECTANG` bei `Befehl:`. Eine bestehende Auswahl wird dabei
 aufgehoben.
 
-1. **`Ersten Eckpunkt angeben:`** – eine Ecke, mit Objektfang, Objektfangspuren und
+1. **`Ersten Eckpunkt angeben oder [Fasen]:`** – eine Ecke, mit Objektfang, Objektfangspuren und
    Koordinateneingabe wie der erste Punkt von [LINIE](#befehl-linie).
-2. **`Anderen Eckpunkt angeben oder [Abmessungen]:`** – die diagonal gegenüberliegende Ecke,
+2. **`Anderen Eckpunkt angeben oder [Abmessungen/Drehung]:`** – die diagonal gegenüberliegende Ecke,
    ab dem ersten Eckpunkt, also mit Polarspur, Ortho, `@` (z. B. `@1000,500`), Direkter
    Distanzeingabe (die Diagonale in Richtung Cursor) und der Bemaßung der dynamischen Eingabe
    (`,` wechselt dort zu X/Y). Eine **Vorschau** zeigt das Rechteck, das ein Klick ergäbe. Der
-   Klick erzeugt es; die Seiten liegen parallel zu X und Y.
+   Klick erzeugt es; die Seiten liegen parallel zu X und Y, solange keine
+   [Drehung](#drehung-und-fasen) gilt.
 
 `A` (Abmessungen) + Enter beim anderen Eckpunkt fragt **`Länge der Rechtecke angeben:`** (die
 Seite in X-Richtung) und **`Breite der Rechtecke angeben:`** (in Y-Richtung). Beides sind
 Abfragen eines Abstands ab dem ersten Eckpunkt wie der Radius bei [KREIS](#befehl-kreis): eine
 getippte **Zahl**, oder der Abstand eines geklickten oder getippten Punkts vom ersten Eckpunkt,
 dazu ein gestricheltes Gummiband. Danach kommt wieder `Anderen Eckpunkt angeben oder
-[Abmessungen]:`: die Vorschau zeigt das Rechteck mit dieser Länge und Breite in dem Quadranten um
+[Abmessungen/Drehung]:`: die Vorschau zeigt das Rechteck mit dieser Länge und Breite in dem Quadranten um
 den ersten Eckpunkt, in dem der Cursor liegt, und ein Klick (oder getippter Punkt) wählt nur
 diesen Quadranten (auf einer Achse gilt die positive Seite). `A` fragt dort erneut nach den
 Abmessungen.
 
 - Ein anderer Eckpunkt mit gleichem X oder Y wie der erste ergibt keine Fläche und wird
   ignoriert; die Abfrage bleibt. Nur eine **positive** Länge oder Breite wird genommen (sonst
-  `Wert muss positiv und ungleich Null sein.`); Vorgabewerte gibt es noch nicht.
+  `Wert muss positiv und ungleich Null sein.`).
+- **Vorgabe:** Länge und Breite merkt sich der Befehl, sobald sie einmal angegeben wurden:
+  Die Aufforderungen heißen dann z. B. `Länge der Rechtecke angeben <300.0000>:` und `Breite
+  der Rechtecke angeben <200.0000>:`, und **Enter** ohne Eingabe übernimmt den Wert. Vorher
+  meldet Enter `Erfordert numerischen Abstand oder zweiten Punkt.`. Wie bei
+  [KREIS](#befehl-kreis) gilt die Vorgabe bis zum Neuladen der Seite.
 - Enter ohne Eingabe beim anderen Eckpunkt meldet `Punkt oder Option-Schlüsselwort erforderlich.`
 - **Esc** bricht bei jeder Abfrage ab (`*Abbruch*`), ohne Rechteck.
 - Das Rechteck hat eigene Eckpunkte, noch keinen Layer und den Standardstil, und ist **ein**
   Schritt für Rückgängig (`Rückgängig: RECHTECK`).
 
-Im Englischen: `Specify first corner point:`, `Specify other corner point or [Dimensions]:`
-(Option `Dimensions`, `D`), `Specify length for rectangles:` und `Specify width for rectangles:`.
+### Drehung und Fasen
+
+Zwei Einstellungen gelten, einmal gesetzt, **auch für die folgenden Rechtecke**, bis sie
+geändert werden (und bis zum Neuladen der Seite), wie in AutoCAD. Gilt eine, nennt der Befehl
+sie beim Start, z. B. `Aktuelle Rechteckmodi: Fasen=30.0000 x 20.0000  Drehung=45`.
+
+- **Drehung**: `D` + Enter beim anderen Eckpunkt fragt **`Drehwinkel angeben <0>:`**, einen
+  Winkel ab dem ersten Eckpunkt: eine getippte Zahl in Grad (gegen den Uhrzeigersinn), oder die
+  Richtung vom ersten Eckpunkt zu einem Punkt; **Enter** behält den Wert in den spitzen
+  Klammern. Danach kommt wieder der andere Eckpunkt: Die Seiten liegen jetzt entlang des
+  Winkels, der andere Eckpunkt bleibt die gegenüberliegende Ecke. Länge und Breite der
+  `Abmessungen` und der Quadrant zählen ebenfalls entlang der gedrehten Seiten. `0` stellt die
+  Drehung ab.
+- **Fasen**: `F` + Enter beim ersten Eckpunkt fragt **`Ersten Fasenabstand für Rechtecke
+  angeben <0.0000>:`** und **`Zweiten Fasenabstand für Rechtecke angeben <…>:`** (Vorgabe ist
+  der erste Abstand). Jeder ist eine Zahl oder der Abstand zweier Punkte (nach dem ersten
+  fragt `Zweiten Punkt angeben:`); **Enter** übernimmt den Wert in den Klammern. Danach kommt
+  wieder der erste Eckpunkt. Das Rechteck hat dann acht Eckpunkte: Jede Ecke ist schräg
+  abgeschnitten, um den ersten Abstand auf der Seite, die (vom ersten Eckpunkt aus reihum) an
+  der Ecke ankommt, und um den zweiten auf der Seite, die von ihr weggeht. Passen die Abstände
+  nicht auf eine Seite (ihre Summe ist länger), wird das Rechteck ohne Fasen gezeichnet. Ein
+  Abstand von `0` stellt die Fasen ab; ein negativer meldet `Wert darf nicht negativ sein.`
+  Die dynamische Eingabe zeigt bei den Fasenabständen kein Feld (sie haben keinen Punkt, von
+  dem sie messen).
+
+Im Englischen: `Specify first corner point or [Chamfer]:`, `Specify other corner point or
+[Dimensions/Rotation]:` (Optionen `Chamfer` `C`, `Dimensions` `D`, `Rotation` `R`), `Specify
+length for rectangles:`, `Specify width for rectangles:`, `Specify rotation angle <0>:`,
+`Specify first chamfer distance for rectangles <0.0000>:`, `Specify second chamfer distance for
+rectangles <…>:`, `Specify second point:` und `Current rectangle modes: Chamfer=… x …
+Rotation=…`.
 
 ## Objektfang (OFANG)
 
@@ -1240,8 +1307,11 @@ und BKS-Symbol, gelesen beim Laden eines Plans:
 | `ucsIconLabelSize` | Schriftgröße der Achsenbeschriftung „X“/„Y“ in px              | UCSICON Eigenschaften |
 | `ucsIconOpacity`   | Deckkraft des BKS-Symbols (0–1), damit es sich von gezeichneten Linien abhebt |  |
 
-Die Startwerte der Schalter in der Statuszeile und ihrer Menüs (gelten nach jedem
-Neuladen):
+Was in der Statuszeile und ihren Menüs geändert wird (OFANG, Fangmodi, POLAR mit
+Winkelschritt und Zusatzwinkeln, ORTHO, OTRACK, RASTER mit Abstand und Hauptlinien, DYN mit
+seinen Teilen), merkt sich der Browser und gilt nach dem Neuladen wieder (`localStorage`,
+`src/settings/storedSwitches.ts`; ein gespeicherter Wert, der nicht mehr gültig ist, fällt auf
+seinen Startwert zurück). Die Startwerte, solange nichts gespeichert ist:
 
 - `DEFAULT_SNAP_SETTINGS`: OFANG `enabled` und die Fangmodi `modes` (OSMODE).
 - `DEFAULT_TRACKING_MODES`: ORTHO `ortho` und die Polarspur `polar` mit `enabled`,
@@ -1269,13 +1339,12 @@ Neuladen):
   eigenen Segmenten während des Befehls, aktueller Layer und Stil; Details in
   `docs/todo/Polyline_Draw_NotImplemented.md`.
 - Bei KREIS: die Optionen `Ttr` (Tangente, Tangente, Radius) und „Tan, Tan, Tan“ (brauchen den
-  Tangenten-Fang), ein vorgegebener Radius (`<25.0000>`, Enter übernimmt den letzten), ein
-  Dropdown der Methoden am Button, aktueller Layer und Stil.
-- Bei ELLIPSE: die Optionen `Drehung` (Rotation um die erste Achse) und `Bogen` (elliptischer
+  Tangenten-Fang), aktueller Layer und Stil.
+- Bei ELLIPSE: die Option `Bogen` (elliptischer
   Bogen mit Start- und Endwinkel), aktueller Layer und Stil; Details in
   `docs/todo/Circle_Ellipse_Draw_NotImplemented.md`.
-- Bei RECHTECK: die Optionen `Fasen`, `Abrunden`, `Breite`, `Erhebung` und `Objekthöhe` beim
-  ersten Eckpunkt, `Fläche` und `Drehung` beim anderen, Vorgabewerte für Länge und Breite, die
+- Bei RECHTECK: die Optionen `Abrunden`, `Breite`, `Erhebung` und `Objekthöhe` beim
+  ersten Eckpunkt, `Fläche` beim anderen, `Punkte auswählen` beim Drehwinkel, die
   Bemaßung beider Seiten in der dynamischen Eingabe, aktueller Layer und Stil; Details in
   `docs/todo/Rectangle_Draw_NotImplemented.md`.
 - Bei BOGEN: aktueller Layer und Stil; Details in
@@ -1302,9 +1371,9 @@ Neuladen):
   Aussehen der Felder, mehrere Bemaßungen (z. B. beim Ziehen an Grips), rote Markierung
   ungültiger Felder, Einheiten und Genauigkeit, Vervollständigung von Befehlsnamen,
   Eingabe-Historie mit den Pfeiltasten, Koordinaten am Cursor ohne Befehl.
-- Was in der Statuszeile und ihren Menüs geändert wird (OFANG, Fangmodi, POLAR, ORTHO,
-  OTRACK, RASTER, DYN), wird noch nicht gespeichert; nach dem Neuladen gelten wieder die Startwerte aus
-  den [Einstellungen](#einstellungen).
+- Die Schalter der Statuszeile und die zuletzt verwendeten Methoden merkt sich nur dieser
+  Browser, nicht das Konto oder der Plan; die Vorgabewerte der Befehle (Kreisradius,
+  Rechteckmaße, Drehung, Fasen) gelten weiter nur bis zum Neuladen.
 - Beim BKS-Symbol: eigenes BKS (Befehl BKS, Ursprung verschieben, Drehen) samt Wirkung auf
   Koordinateneingabe, Ortho, Polarspur und Raster; Symbol wählen, Griffe und Kontextmenü;
   Befehl BKSYMBOL zum Umschalten; 3D-Darstellung. Die Größe ist fest in px und wächst nicht

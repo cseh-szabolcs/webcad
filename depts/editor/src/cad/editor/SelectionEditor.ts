@@ -27,10 +27,11 @@ import type { SnapPoint } from './snapping/SnapGeometry';
 import { orthoPoint } from './tracking/ortho';
 import { t } from '../../i18n/i18n';
 import { findCommand, labelName, type EditorCommand } from './commandNames';
-import type { DrawingMemory } from './tools/DrawingMemory';
-import { ArcTool, type ArcMethod } from './tools/ArcTool';
-import { CircleTool } from './tools/CircleTool';
-import { EllipseTool } from './tools/EllipseTool';
+import { emptyDrawingMemory, type DrawingMemory } from './tools/DrawingMemory';
+import { ArcTool, isArcMethod } from './tools/ArcTool';
+import type { CommandMethod } from './tools/CommandMethod';
+import { CIRCLE_METHODS, CircleTool } from './tools/CircleTool';
+import { ELLIPSE_METHODS, EllipseTool } from './tools/EllipseTool';
 import { GripTool } from './tools/GripTool';
 import { gripActions, vertexRemoval, type GripAction } from './grips/actions';
 import { RemovePolylineVertexCommand } from './commands/PolylineVertexCommands';
@@ -345,7 +346,7 @@ export class SelectionEditor {
     private state: State = { kind: 'idle', pickfirst: new Set() };
     /** The command started last, which Enter at "Befehl:" repeats. */
     private lastCommand: EditorCommand | null = null;
-    private readonly drawingMemory: DrawingMemory = { lastDrawn: null };
+    private readonly drawingMemory: DrawingMemory = emptyDrawingMemory();
     /** The running tool's prompt the editor last started, to notice when the tool asks anew. */
     private prompt: EditorTool['prompt'] | null = null;
     /** Text typed at the current point prompt or the command prompt. */
@@ -498,10 +499,10 @@ export class SelectionEditor {
      * Starts a command, e.g. SCHIEBEN (with a pickfirst selection straight at the base point,
      * otherwise by selecting objects), LINIE, PLINIE, KREIS, BOGEN, ELLIPSE or RECHTECK. Another running command is cancelled
      * first, like a toolbar click in AutoCAD; the same command keeps running. `method` starts
-     * BOGEN with one of its methods, as its tool buttons do; another method than the running one
-     * starts it anew.
+     * BOGEN, KREIS or ELLIPSE with one of its methods, as its tool buttons do; another method
+     * than the running one starts it anew.
      */
-    startCommand(command: EditorCommand, method?: ArcMethod): void {
+    startCommand(command: EditorCommand, method?: CommandMethod): void {
         const state = this.state;
         if (state.kind === 'command') {
             if (state.tool.command === command && (method === undefined || state.tool.method === method)) {
@@ -537,7 +538,8 @@ export class SelectionEditor {
         this.startTool(new GripTool(this.history, this.index, hot, action), hot);
     }
 
-    private newTool(command: EditorCommand, method?: ArcMethod): EditorTool {
+    /** A method that is none of the command's counts as none. */
+    private newTool(command: EditorCommand, method?: CommandMethod): EditorTool {
         switch (command) {
             case 'MOVE':
                 return new MoveTool();
@@ -546,13 +548,13 @@ export class SelectionEditor {
             case 'PLINE':
                 return new PolylineTool(this.history, this.drawingMemory);
             case 'CIRCLE':
-                return new CircleTool();
+                return new CircleTool(this.drawingMemory, CIRCLE_METHODS.find((candidate) => candidate === method));
             case 'ARC':
-                return new ArcTool(this.history, this.drawingMemory, method);
+                return new ArcTool(this.history, this.drawingMemory, isArcMethod(method) ? method : undefined);
             case 'ELLIPSE':
-                return new EllipseTool();
+                return new EllipseTool(ELLIPSE_METHODS.find((candidate) => candidate === method));
             case 'RECTANG':
-                return new RectangleTool();
+                return new RectangleTool(this.drawingMemory);
         }
     }
 

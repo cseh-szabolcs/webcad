@@ -27,7 +27,8 @@ const A = { x: 1500, y: 1500 };
 
 const AXIS_START_PROMPT = 'Achsenendpunkt der Ellipse angeben oder [Mittelpunkt]:';
 const OTHER_END_PROMPT = 'Anderen Endpunkt der Achse angeben:';
-const OTHER_AXIS_PROMPT = 'Abstand zur anderen Achse angeben:';
+const OTHER_AXIS_PROMPT = 'Abstand zur anderen Achse angeben oder [Drehung]:';
+const TURN_PROMPT = 'Drehung um Hauptachse angeben:';
 
 /** Without Dynamic Input, so typed coordinates are absolute. */
 const setup = (dynamicInput = false) => {
@@ -151,5 +152,82 @@ describe('EllipseTool (ELLIPSE)', () => {
         expect(editor.snapshot.dynamicInput).toMatchObject({ format: 'distance', fields: [{ kind: 'distance', text: '300.00' }] });
         type(editor, '250');
         expect(ellipses()).toEqual([{ center: { x: 1500, y: 2000 }, radiusX: 500, radiusY: 250, rotation: 90 }]);
+    });
+
+    it('asks for the centre straight away when started with the method "center"', () => {
+        const { editor, ellipses } = setup();
+        editor.startCommand('ELLIPSE', 'center');
+        expect(editor.snapshot).toMatchObject({ command: 'ELLIPSE', prompt: 'Mittelpunkt der Ellipse angeben:', from: null });
+        type(editor, '1500,1500');
+        type(editor, '2000,1500');
+        type(editor, '200');
+        expect(ellipses()).toEqual([{ center: A, radiusX: 500, radiusY: 200, rotation: 0 }]);
+        // Enter repeats ELLIPSE as such, from the end of the axis
+        editor.keyDown({ key: 'Enter' });
+        expect(editor.snapshot).toMatchObject({ command: 'ELLIPSE', prompt: AXIS_START_PROMPT });
+    });
+
+    it('starts anew with another method, and keeps running with the one it follows', () => {
+        const { editor } = setup();
+        editor.startCommand('ELLIPSE');
+        type(editor, '1500,1500');
+        editor.startCommand('ELLIPSE', 'axisEnd');
+        expect(editor.snapshot).toMatchObject({ prompt: OTHER_END_PROMPT, from: A });
+        editor.startCommand('ELLIPSE', 'center');
+        expect(editor.snapshot).toMatchObject({ prompt: 'Mittelpunkt der Ellipse angeben:', from: null });
+        editor.startCommand('ELLIPSE', 'axisEnd');
+        expect(editor.snapshot.prompt).toBe(AXIS_START_PROMPT);
+        // The option makes it that method too
+        type(editor, 'm');
+        type(editor, '1500,1500');
+        editor.startCommand('ELLIPSE', 'center');
+        expect(editor.snapshot).toMatchObject({ prompt: 'Endpunkt der Achse angeben:', from: A });
+        // A method of another command counts as none
+        editor.keyDown({ key: 'Escape' });
+        editor.startCommand('ELLIPSE', 'threePoints');
+        expect(editor.snapshot.prompt).toBe(AXIS_START_PROMPT);
+    });
+
+    it('takes the turn about the first axis with the option "Drehung", typed or towards a point', () => {
+        const { editor, ellipses } = setup();
+        for (const turn of ['60', '0', '-60', '@100<120']) {
+            editor.startCommand('ELLIPSE', 'center');
+            type(editor, '1500,1500');
+            type(editor, '2000,1500');
+            type(editor, 'd');
+            expect(editor.snapshot).toMatchObject({ prompt: TURN_PROMPT, from: A, preview: { kind: 'curve', rubberBand: true } });
+            type(editor, turn);
+        }
+        // The other radius is the first times the cosine: a circle without a turn
+        expect(ellipses()).toEqual([
+            { center: A, radiusX: 500, radiusY: 250, rotation: 0 },
+            { center: A, radiusX: 500, radiusY: 500, rotation: 0 },
+            { center: A, radiusX: 500, radiusY: 250, rotation: 0 },
+            { center: A, radiusX: 500, radiusY: 250, rotation: 0 },
+        ]);
+    });
+
+    it('previews the turned ellipse, and takes no turn too close to 90°', () => {
+        const { editor, ellipses } = setup();
+        editor.startCommand('ELLIPSE', 'center');
+        type(editor, '1500,1500');
+        type(editor, '2000,1500');
+        type(editor, 'Drehung');
+        const { preview } = editor.snapshot;
+        if (typeof preview !== 'object' || preview?.kind !== 'curve') {
+            throw new Error('no curve preview');
+        }
+        const turned = preview.curveAt({ x: 1600, y: 1500 + 100 * Math.sqrt(3) });
+        expect(turned).toMatchObject({ kind: 'ellipse', center: A, radiusX: 500, rotation: 0 });
+        expect((turned as { radiusY: number }).radiusY).toBeCloseTo(250);
+        expect(preview.curveAt({ x: 1500, y: 1800 })).toBeNull();
+        for (const turn of ['90', '89.5', '270']) {
+            type(editor, turn);
+            expect(editor.snapshot).toMatchObject({ prompt: TURN_PROMPT, message: 'Drehung zu nahe an 90°: höchstens 89.4° sind möglich.' });
+        }
+        type(editor, 'x');
+        expect(editor.snapshot.message).toBe('Erfordert gültigen numerischen Winkel oder zweiten Punkt.');
+        editor.keyDown({ key: 'Escape' });
+        expect(ellipses()).toEqual([]);
     });
 });

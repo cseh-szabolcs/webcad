@@ -26,8 +26,8 @@ const at = (modelPoint: Point, change: Partial<EditorPointerEvent> = {}): Editor
 /** Empty space between the door, the sofa and the rug, where nothing snaps. */
 const A = { x: 1500, y: 1500 };
 
-const FIRST_PROMPT = 'Ersten Eckpunkt angeben:';
-const OTHER_PROMPT = 'Anderen Eckpunkt angeben oder [Abmessungen]:';
+const FIRST_PROMPT = 'Ersten Eckpunkt angeben oder [Fasen]:';
+const OTHER_PROMPT = 'Anderen Eckpunkt angeben oder [Abmessungen/Drehung]:';
 const LENGTH_PROMPT = 'Länge der Rechtecke angeben:';
 const WIDTH_PROMPT = 'Breite der Rechtecke angeben:';
 
@@ -192,7 +192,42 @@ describe('RectangleTool (RECHTECK)', () => {
         type(editor, '100');
         type(editor, '50');
         type(editor, 'a');
-        expect(editor.snapshot.prompt).toBe(LENGTH_PROMPT);
+        expect(editor.snapshot.prompt).toBe('Länge der Rechtecke angeben <100.0000>:');
+    });
+
+    it('takes the length and the width given last with Enter', () => {
+        const { editor, polylines } = setup();
+        editor.startCommand('RECTANG');
+        type(editor, '1500,1500');
+        type(editor, 'a');
+        // Nothing to take yet
+        type(editor, '');
+        expect(editor.snapshot).toMatchObject({ prompt: LENGTH_PROMPT, message: 'Erfordert numerischen Abstand oder zweiten Punkt.' });
+        type(editor, '300');
+        expect(editor.snapshot.prompt).toBe(WIDTH_PROMPT);
+        type(editor, '200');
+        type(editor, '1600,1600');
+        editor.startCommand('RECTANG');
+        type(editor, '1500,1500');
+        type(editor, 'a');
+        expect(editor.snapshot.prompt).toBe('Länge der Rechtecke angeben <300.0000>:');
+        editor.keyDown({ key: 'Enter' });
+        expect(editor.snapshot.prompt).toBe('Breite der Rechtecke angeben <200.0000>:');
+        // Another width becomes the default in turn
+        type(editor, '50');
+        type(editor, '1600,1600');
+        editor.startCommand('RECTANG');
+        type(editor, '1500,1500');
+        type(editor, 'a');
+        editor.keyDown({ key: 'Enter' });
+        expect(editor.snapshot.prompt).toBe('Breite der Rechtecke angeben <50.0000>:');
+        editor.keyDown({ key: 'Enter' });
+        type(editor, '1600,1600');
+        expect(polylines()).toEqual([
+            rectangle(A, { x: 1800, y: 1700 }),
+            rectangle(A, { x: 1800, y: 1550 }),
+            rectangle(A, { x: 1800, y: 1550 }),
+        ]);
     });
 
     it('ends with Esc at every prompt, without a rectangle', () => {
@@ -220,5 +255,146 @@ describe('RectangleTool (RECHTECK)', () => {
         editor.keyDown({ key: 'Enter' });
         expect(editor.snapshot).toMatchObject({ command: 'RECTANG', prompt: FIRST_PROMPT });
         expect(polylines()).toEqual([rectangle({ x: 1000, y: 1140 }, { x: 1100, y: 1240 })]);
+    });
+
+    describe('modes', () => {
+        const ROTATION_PROMPT = 'Drehwinkel angeben <0>:';
+        const CHAMFER_FIRST_PROMPT = 'Ersten Fasenabstand für Rechtecke angeben <0.0000>:';
+        const r = (n: number) => Math.round(n * 1000) / 1000 + 0;
+        /** The points of the polyline drawn last, rounded. */
+        const last = (polylines: () => { points: Point[]; closed: boolean }[]) =>
+            polylines()
+                .at(-1)!
+                .points.map(({ x, y }) => ({ x: r(x), y: r(y) }));
+        const from = (dx: number, dy: number) => ({ x: A.x + dx, y: A.y + dy });
+
+        it('turns the sides with the option "Drehung", typed or towards a point, also with dimensions', () => {
+            const { editor, polylines } = setup();
+            editor.startCommand('RECTANG');
+            type(editor, '1500,1500');
+            type(editor, 'd');
+            expect(editor.snapshot).toMatchObject({ prompt: ROTATION_PROMPT, from: A, preview: { kind: 'curve', rubberBand: true } });
+            type(editor, '90');
+            expect(editor.snapshot).toMatchObject({ prompt: OTHER_PROMPT, from: A });
+            const { preview } = editor.snapshot;
+            if (typeof preview !== 'object' || preview?.kind !== 'curve') {
+                throw new Error('no curve preview');
+            }
+            expect(preview.curveAt(from(-200, 300))).toMatchObject({ kind: 'polygon' });
+            type(editor, '1300,1800');
+            // The first side runs upwards now
+            expect(last(polylines)).toEqual([A, from(0, 300), from(-200, 300), from(-200, 0)]);
+            // Towards a point, and with length and width along the turned sides
+            editor.startCommand('RECTANG');
+            type(editor, '1500,1500');
+            type(editor, 'Drehung');
+            expect(editor.snapshot.prompt).toBe('Drehwinkel angeben <90>:');
+            type(editor, '@100,100');
+            type(editor, 'a');
+            type(editor, '200');
+            type(editor, '100');
+            type(editor, '1500,1900');
+            const d = Math.SQRT1_2;
+            expect(last(polylines)).toEqual(
+                [from(0, 0), from(200 * d, 200 * d), from(100 * d, 300 * d), from(-100 * d, 100 * d)].map(({ x, y }) => ({ x: r(x), y: r(y) })),
+            );
+            expect(polylines().every((polyline) => polyline.closed)).toBe(true);
+        });
+
+        it('keeps the rotation for the following rectangles, names it at the start, and Enter keeps it', () => {
+            const { editor, polylines } = setup();
+            editor.startCommand('RECTANG');
+            expect(editor.snapshot.message).toBeNull();
+            type(editor, '1500,1500');
+            type(editor, 'd');
+            type(editor, '90');
+            editor.keyDown({ key: 'Escape' });
+            editor.startCommand('RECTANG');
+            expect(editor.snapshot).toMatchObject({ prompt: FIRST_PROMPT, message: 'Aktuelle Rechteckmodi: Drehung=90' });
+            type(editor, '1500,1500');
+            type(editor, 'd');
+            editor.keyDown({ key: 'Enter' });
+            type(editor, '1300,1800');
+            expect(last(polylines)).toEqual([A, from(0, 300), from(-200, 300), from(-200, 0)]);
+            // Back to 0, and the corners are exactly those given again
+            editor.startCommand('RECTANG');
+            type(editor, '1500,1500');
+            type(editor, 'd');
+            type(editor, 'x');
+            expect(editor.snapshot.message).toBe('Erfordert gültigen numerischen Winkel oder zweiten Punkt.');
+            type(editor, '0');
+            type(editor, '1800,1700');
+            expect(polylines().at(-1)).toEqual(rectangle(A, { x: 1800, y: 1700 }));
+            editor.startCommand('RECTANG');
+            expect(editor.snapshot.message).toBeNull();
+        });
+
+        it('cuts the corners with the option "Fasen": two distances, the second like the first by default', () => {
+            const { editor, polylines } = setup();
+            editor.startCommand('RECTANG');
+            type(editor, 'f');
+            expect(editor.snapshot).toMatchObject({ prompt: CHAMFER_FIRST_PROMPT, from: null, preview: null });
+            type(editor, '-1');
+            expect(editor.snapshot).toMatchObject({ prompt: CHAMFER_FIRST_PROMPT, message: 'Wert darf nicht negativ sein.' });
+            type(editor, '50');
+            expect(editor.snapshot.prompt).toBe('Zweiten Fasenabstand für Rechtecke angeben <50.0000>:');
+            editor.keyDown({ key: 'Enter' });
+            expect(editor.snapshot).toMatchObject({ command: 'RECTANG', prompt: FIRST_PROMPT });
+            type(editor, '1500,1500');
+            type(editor, '1800,1700');
+            expect(last(polylines)).toEqual([
+                from(0, 50),
+                from(50, 0),
+                from(250, 0),
+                from(300, 50),
+                from(300, 150),
+                from(250, 200),
+                from(50, 200),
+                from(0, 150),
+            ]);
+            expect(polylines().at(-1)!.closed).toBe(true);
+        });
+
+        it('takes a chamfer distance from two points, keeps it for the following rectangles and leaves it out where it does not fit', () => {
+            const { editor, polylines } = setup();
+            editor.startCommand('RECTANG');
+            type(editor, 'Fasen');
+            type(editor, '1500,1500');
+            expect(editor.snapshot).toMatchObject({ prompt: 'Zweiten Punkt angeben:', from: A });
+            // No default between the two points
+            type(editor, '');
+            expect(editor.snapshot.prompt).toBe('Zweiten Punkt angeben:');
+            type(editor, '1500,1530');
+            expect(editor.snapshot.prompt).toBe('Zweiten Fasenabstand für Rechtecke angeben <30.0000>:');
+            type(editor, '20');
+            editor.keyDown({ key: 'Escape' });
+            editor.startCommand('RECTANG');
+            expect(editor.snapshot.message).toBe('Aktuelle Rechteckmodi: Fasen=30.0000 x 20.0000');
+            type(editor, '1500,1500');
+            type(editor, '1800,1700');
+            // The first distance lies on the side that arrives at a corner, the second on the one that leaves
+            expect(last(polylines).slice(0, 4)).toEqual([from(0, 30), from(20, 0), from(270, 0), from(300, 20)]);
+            // Too small for the chamfer: a plain rectangle
+            editor.startCommand('RECTANG');
+            type(editor, '1500,1500');
+            type(editor, '1540,1540');
+            expect(polylines().at(-1)).toEqual(rectangle(A, { x: 1540, y: 1540 }));
+            // With a rotation both are named, and 0 switches the chamfer off
+            editor.startCommand('RECTANG');
+            type(editor, '1500,1500');
+            type(editor, 'd');
+            type(editor, '90');
+            type(editor, '1300,1800');
+            expect(last(polylines)).toHaveLength(8);
+            editor.startCommand('RECTANG');
+            expect(editor.snapshot.message).toBe('Aktuelle Rechteckmodi: Fasen=30.0000 x 20.0000  Drehung=90');
+            type(editor, 'f');
+            expect(editor.snapshot.prompt).toBe('Ersten Fasenabstand für Rechtecke angeben <30.0000>:');
+            type(editor, '0');
+            editor.keyDown({ key: 'Enter' });
+            editor.keyDown({ key: 'Escape' });
+            editor.startCommand('RECTANG');
+            expect(editor.snapshot.message).toBe('Aktuelle Rechteckmodi: Drehung=90');
+        });
     });
 });

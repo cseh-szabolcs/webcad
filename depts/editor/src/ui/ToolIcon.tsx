@@ -1,16 +1,16 @@
 import type { EditorCommand } from 'app/cad/editor/commandNames';
 import type { ArcMethod } from 'app/cad/editor/tools/ArcTool';
+import type { CircleMethod } from 'app/cad/editor/tools/CircleTool';
+import type { CommandMethod } from 'app/cad/editor/tools/CommandMethod';
+import type { EllipseMethod } from 'app/cad/editor/tools/EllipseTool';
 
 /**
  * Paths in a 24×24 box: a diagonal line with its two end points, a zigzag of three segments
- * with its two end points, a circle with its centre, an ellipse turned by 30°, a rectangle, and
- * the four-arrow cross of AutoCAD's MOVE.
+ * with its two end points, a rectangle, and the four-arrow cross of AutoCAD's MOVE.
  */
-const ICON_PATHS: Record<Exclude<EditorCommand, 'ARC'>, string> = {
+const ICON_PATHS: Record<Exclude<EditorCommand, keyof typeof METHOD_ICON_PATHS>, string> = {
     LINE: 'M6.5 17.5L17.5 6.5 M3 18h3v3H3z M18 3h3v3h-3z',
     PLINE: 'M4.5 18L9 8l6 8l4.5-10 M3 18h3v3H3z M18 3h3v3h-3z',
-    CIRCLE: 'M20 12a8 8 0 1 1-16 0a8 8 0 1 1 16 0z M11 11h2v2h-2z',
-    ELLIPSE: 'M19.79 7.5a9 5 -30 1 1-15.58 9a9 5 -30 1 1 15.58-9z',
     RECTANG: 'M3.5 6.5h17v11h-17z',
     MOVE: 'M12 3v18 M3 12h18 M9 6l3-3l3 3 M9 18l3 3l3-3 M6 9l-3 3l3 3 M18 9l3 3l-3 3',
 };
@@ -47,11 +47,42 @@ const ARC_ICON_PATHS: Record<ArcMethod, string> = {
     continue: 'M3 19h5a11 11 0 0 0 11-11 M17.5 5h3v3h-3z',
 };
 
-/** Icon of a command's tool button (of BOGEN's method, by default its first), drawn in the text colour. */
-export function ToolIcon({ command, method = 'threePoints' }: { command: EditorCommand; method?: ArcMethod }) {
+const CIRCLE = 'M20 12a8 8 0 1 1-16 0a8 8 0 1 1 16 0z';
+/** Smaller, so the points on it fit into the box. */
+const CIRCLE_THROUGH = 'M19 12a7 7 0 1 1-14 0a7 7 0 1 1 14 0z';
+
+/** KREIS: a circle with its centre and a radius or a diameter, or through the two ends of a diameter or three points. */
+const CIRCLE_ICON_PATHS: Record<CircleMethod, string> = {
+    centerRadius: `${CIRCLE} M11 11h2v2h-2z M13 12h7`,
+    centerDiameter: `${CIRCLE} M11 11h2v2h-2z M4 12h7 M13 12h7`,
+    twoPoints: `${CIRCLE_THROUGH} M2 10.5h3v3H2z M19 10.5h3v3h-3z`,
+    threePoints: `${CIRCLE_THROUGH} M10.5 3.5h3v3h-3z M4.44 14h3v3h-3z M16.56 14h3v3h-3z`,
+};
+
+const ELLIPSE = 'M19.5 12a7.5 5 0 1 1-15 0a7.5 5 0 1 1 15 0z';
+
+/** ELLIPSE: an ellipse with both ends of its first axis, or with its centre and one end. */
+const ELLIPSE_ICON_PATHS: Record<EllipseMethod, string> = {
+    axisEnd: `${ELLIPSE} M1.5 10.5h3v3h-3z M19.5 10.5h3v3h-3z`,
+    center: `${ELLIPSE} M11 11h2v2h-2z M19.5 10.5h3v3h-3z`,
+};
+
+/** The commands with an icon per method; the first is shown without one. */
+const METHOD_ICON_PATHS = { ARC: ARC_ICON_PATHS, CIRCLE: CIRCLE_ICON_PATHS, ELLIPSE: ELLIPSE_ICON_PATHS };
+
+function iconPath(command: EditorCommand, method: CommandMethod | undefined): string {
+    if (command === 'ARC' || command === 'CIRCLE' || command === 'ELLIPSE') {
+        const paths: Record<string, string> = METHOD_ICON_PATHS[command];
+        return paths[method ?? ''] ?? Object.values(paths)[0];
+    }
+    return ICON_PATHS[command];
+}
+
+/** Icon of a command's tool button, or of one of its methods, drawn in the text colour. */
+export function ToolIcon({ command, method }: { command: EditorCommand; method?: CommandMethod }) {
     return (
         <svg className="tool-icon" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-            <path d={command === 'ARC' ? ARC_ICON_PATHS[method] : ICON_PATHS[command]} />
+            <path d={iconPath(command, method)} />
         </svg>
     );
 }

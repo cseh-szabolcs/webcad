@@ -105,7 +105,8 @@ describe('CircleTool (KREIS)', () => {
         editor.startCommand('CIRCLE');
         type(editor, '1500,1500');
         type(editor, 'd');
-        expect(editor.snapshot).toMatchObject({ prompt: DIAMETER_PROMPT, from: A });
+        // The radius drawn last is the default, doubled for the diameter
+        expect(editor.snapshot).toMatchObject({ prompt: 'Durchmesser für Kreis angeben <500.0000>:', from: A });
         type(editor, '250');
         expect(circles()).toEqual([
             { center: A, radius: 250 },
@@ -156,7 +157,10 @@ describe('CircleTool (KREIS)', () => {
         expect(preview.curveAt({ x: 1500, y: 1900 })).toEqual({ kind: 'circle', center: { x: 1500, y: 1700 }, radius: 200 });
         // The first point again gives no circle
         type(editor, '1500,1500');
-        expect(editor.snapshot.prompt).toBe('Zweiten Endpunkt für Kreisdurchmesser angeben:');
+        expect(editor.snapshot).toMatchObject({
+            prompt: 'Zweiten Endpunkt für Kreisdurchmesser angeben:',
+            message: 'Mit diesem Punkt ergibt sich kein Kreis.',
+        });
         type(editor, '@0,400');
         expect(circles()).toEqual([{ center: { x: 1500, y: 1700 }, radius: 200 }]);
     });
@@ -174,7 +178,7 @@ describe('CircleTool (KREIS)', () => {
         expect(editor.snapshot).toMatchObject({ prompt: 'Dritten Punkt auf Kreis angeben:', from: { x: 2500, y: 1500 } });
         // On a line with the first two
         type(editor, '3000,1500');
-        expect(editor.snapshot.prompt).toBe('Dritten Punkt auf Kreis angeben:');
+        expect(editor.snapshot).toMatchObject({ prompt: 'Dritten Punkt auf Kreis angeben:', message: 'Mit diesem Punkt ergibt sich kein Kreis.' });
         type(editor, '2000,2000');
         expect(circles()).toEqual([{ center: { x: 2000, y: 1500 }, radius: 500 }]);
     });
@@ -213,5 +217,89 @@ describe('CircleTool (KREIS)', () => {
         editor.keyDown({ key: 'Enter' });
         expect(editor.snapshot).toMatchObject({ command: 'CIRCLE', prompt: CENTER_PROMPT });
         expect(circles()).toEqual([{ center: { x: 1000, y: 1140 }, radius: 100 }]);
+    });
+
+    it('asks its way straight away when started with a method', () => {
+        const { editor, circles } = setup();
+        editor.startCommand('CIRCLE', 'centerDiameter');
+        expect(editor.snapshot).toMatchObject({ command: 'CIRCLE', prompt: CENTER_PROMPT });
+        type(editor, '1500,1500');
+        expect(editor.snapshot).toMatchObject({ prompt: DIAMETER_PROMPT, from: A });
+        type(editor, '250');
+        editor.startCommand('CIRCLE', 'twoPoints');
+        expect(editor.snapshot).toMatchObject({ prompt: 'Ersten Endpunkt für Kreisdurchmesser angeben:', from: null });
+        type(editor, '1500,1500');
+        type(editor, '1500,1900');
+        editor.startCommand('CIRCLE', 'threePoints');
+        expect(editor.snapshot.prompt).toBe('Ersten Punkt auf Kreis angeben:');
+        for (const point of ['1500,1500', '2500,1500', '2000,2000']) {
+            type(editor, point);
+        }
+        editor.startCommand('CIRCLE', 'centerRadius');
+        type(editor, '1500,1500');
+        expect(editor.snapshot.prompt).toBe('Radius für Kreis angeben oder [Durchmesser] <500.0000>:');
+        type(editor, '100');
+        expect(circles()).toEqual([
+            { center: A, radius: 125 },
+            { center: { x: 1500, y: 1700 }, radius: 200 },
+            { center: { x: 2000, y: 1500 }, radius: 500 },
+            { center: A, radius: 100 },
+        ]);
+        // Enter repeats KREIS as such, with centre and radius
+        editor.keyDown({ key: 'Enter' });
+        type(editor, '1500,1500');
+        expect(editor.snapshot.prompt).toBe('Radius für Kreis angeben oder [Durchmesser] <100.0000>:');
+    });
+
+    it('takes the radius of the circle drawn last with Enter, as the radius or as the diameter', () => {
+        for (const dynamicInput of [false, true]) {
+            const { editor, circles } = setup(dynamicInput);
+            editor.startCommand('CIRCLE');
+            click(editor, A);
+            type(editor, '75.5');
+            // By any method: a circle on a diameter of 400
+            editor.startCommand('CIRCLE', 'twoPoints');
+            click(editor, A);
+            click(editor, { x: 1500, y: 1900 });
+            editor.startCommand('CIRCLE');
+            click(editor, A);
+            expect(editor.snapshot.prompt).toBe('Radius für Kreis angeben oder [Durchmesser] <200.0000>:');
+            editor.keyDown({ key: 'Enter' });
+            expect(editor.snapshot).toMatchObject({ command: null, prompt: 'Befehl:' });
+            editor.startCommand('CIRCLE', 'centerDiameter');
+            click(editor, A);
+            expect(editor.snapshot.prompt).toBe('Durchmesser für Kreis angeben <400.0000>:');
+            // A right click is Enter
+            editor.pointerDown(at(A, { button: 2 }));
+            expect(circles()).toEqual([
+                { center: A, radius: 75.5 },
+                { center: { x: 1500, y: 1700 }, radius: 200 },
+                { center: A, radius: 200 },
+                { center: A, radius: 200 },
+            ]);
+        }
+    });
+
+    it('starts anew with another method, and keeps running with the one it follows', () => {
+        const { editor } = setup();
+        editor.startCommand('CIRCLE');
+        type(editor, '1500,1500');
+        editor.startCommand('CIRCLE', 'centerRadius');
+        expect(editor.snapshot).toMatchObject({ prompt: RADIUS_PROMPT, from: A });
+        // The option makes it that method
+        type(editor, 'd');
+        editor.startCommand('CIRCLE', 'centerDiameter');
+        expect(editor.snapshot).toMatchObject({ prompt: DIAMETER_PROMPT, from: A });
+        editor.startCommand('CIRCLE', 'centerRadius');
+        expect(editor.snapshot).toMatchObject({ prompt: CENTER_PROMPT, from: null });
+        type(editor, '3P');
+        editor.startCommand('CIRCLE', 'threePoints');
+        expect(editor.snapshot.prompt).toBe('Ersten Punkt auf Kreis angeben:');
+        type(editor, '1500,1500');
+        editor.startCommand('CIRCLE', 'twoPoints');
+        expect(editor.snapshot).toMatchObject({ prompt: 'Ersten Endpunkt für Kreisdurchmesser angeben:', from: null });
+        // A method of another command counts as none
+        editor.startCommand('CIRCLE', 'startCenterEnd');
+        expect(editor.snapshot.prompt).toBe(CENTER_PROMPT);
     });
 });

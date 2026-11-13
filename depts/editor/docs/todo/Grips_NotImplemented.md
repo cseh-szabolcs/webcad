@@ -27,7 +27,7 @@ sind die Abweichungen und Lücken unten.
   ersten Zielpunkt und rastet weitere Kopien mit Shift auf den ersten Versatz.
 - `Zurück` nimmt Kopien und Basispunkte zurück, aber keinen Bezug und nicht das Einschalten von
   `Kopieren`. Die Vorgaben `<0>` und `<1.0000>` des Bezugs sind fest, AutoCAD merkt sich den
-  letzten Wert.
+  letzten Wert (wie es `DrawingMemory` für KREIS und RECHTECK tut).
 - Die Modi lassen sich nicht per Schlüsselwort anspringen (`ST`, `MO`, `RO`, `SC`, `MI` in
   AutoCAD), nur der Reihe nach.
 - Bei der Bezugslänge ohne Punkt (und beim Bezugswinkel) zeigt die dynamische Eingabe keine

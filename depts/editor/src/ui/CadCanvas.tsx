@@ -2,7 +2,7 @@ import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import { DocumentHistory } from 'app/cad/editor/commands/DocumentHistory';
 import { SelectionOverlay } from 'app/cad/editor/overlays/SelectionOverlay';
 import { SelectionEditor, type EditorCommand, type SelectionSnapshot } from 'app/cad/editor/SelectionEditor';
-import type { ArcMethod } from 'app/cad/editor/tools/ArcTool';
+import type { CommandMethod } from 'app/cad/editor/tools/CommandMethod';
 import type { CadDocument } from 'app/cad/model/CadDocument';
 import type { Point } from 'app/cad/model/Point';
 import type { DisplayTheme } from 'app/cad/renderer/displayColor';
@@ -29,8 +29,8 @@ const NOTHING: ReadonlySet<string> = new Set();
 
 export interface CadCanvasHandle {
     fit(): void;
-    /** Starts a command (SCHIEBEN takes over the current pickfirst selection; BOGEN with `method`); cancels another running one. */
-    startCommand(command: EditorCommand, method?: ArcMethod): void;
+    /** Starts a command (SCHIEBEN takes over the current pickfirst selection; BOGEN, KREIS and ELLIPSE with `method`); cancels another running one. */
+    startCommand(command: EditorCommand, method?: CommandMethod): void;
     /** Undo and redo of document changes; ignored while a command runs. */
     undo(): void;
     redo(): void;

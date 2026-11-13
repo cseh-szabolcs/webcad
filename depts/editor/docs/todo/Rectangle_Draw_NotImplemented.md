@@ -11,14 +11,14 @@ Vollständige Aufforderung in AutoCAD: `Ersten Eckpunkt angeben oder
 [Chamfer/Elevation/Fillet/Thickness/Width]:`). Die Werte gelten auch für die folgenden Rechtecke,
 bis sie geändert werden; AutoCAD nennt sie am Befehlsanfang (z. B. die aktuellen Fasenabstände).
 
-- **Fasen** (`Chamfer`): `Ersten Fasenabstand für Rechtecke angeben <0.0000>:` und den zweiten
-  Abstand, dann acht Eckpunkte statt vier (schräge Ecken). Die Geometrie geht mit geraden
-  Segmenten. Es fehlt eine Abfrage eines Abstands **ohne** Basispunkt (getdist: Zahl, oder
-  zwei Punkte). Die heutige `distance`-Abfrage braucht `from`. Fasen und Abrunden schließen
-  sich aus. Passt eine Fase nicht ins Rechteck, zeichnet AutoCAD ohne Fase.
+- **Fasen** ist umgesetzt (acht Eckpunkte; passt die Fase nicht, ohne). **Zu prüfen gegen
+  AutoCAD:** auf welcher der beiden Seiten einer Ecke der erste und der zweite Abstand liegt
+  (hier: der erste auf der ankommenden Seite, reihum ab dem ersten Eckpunkt, also bei ungleichen
+  Abständen wie ein Windrad) und wann genau AutoCAD die Fase weglässt. Fasen und Abrunden
+  schließen sich später aus.
 - **Abrunden** (`Fillet`): `Rundungsradius für Rechtecke angeben <0.0000>:`, Ecken als
   Bogensegmente. Braucht Bögen in Polylinien (Vorschlag `bulges` an `PolylineElement`, siehe
-  `Polyline_Draw_NotImplemented.md`), dazu dieselbe Abstandsabfrage ohne Basispunkt.
+  `Polyline_Draw_NotImplemented.md`); die Abstandsabfrage ohne Basispunkt gibt es (wie bei Fasen).
 - **Breite** (`Width`): Polylinienbreite. Braucht Breite/Halbbreite im Polylinienmodell und im
   Renderer (wie PLINIE Breite).
 - **Erhebung** und **Objekthöhe** (`Elevation`, `Thickness`): Z-Höhe und Extrusion. Das Modell
@@ -35,20 +35,17 @@ Vollständig: `Anderen Eckpunkt angeben oder [Fläche/Abmessungen/Drehung]:`.
   eine reine Zahlenabfrage (getreal, ohne Punkt) und eine reine Schlüsselwortabfrage. Zu prüfen
   ist, ob AutoCAD danach sofort zeichnet (ab dem ersten Eckpunkt in +X/+Y, gedreht) oder wie die
   Spezifikation einen Quadranten wählen lässt.
-- **Drehung** (`Rotation`): `Drehwinkel angeben oder [Punkte auswählen] <0>:` (EN `Specify
-  rotation angle or [Pick points] <0>:`), Winkel als Zahl oder vom ersten Eckpunkt zu einem
-  Punkt, `Punkte auswählen` mit zwei Punkten. Danach wieder die Eckpunkt-Abfrage,
-  die Seiten dann entlang des Winkels (auch für Abmessungen und Quadrant). Der Winkel bleibt
-  Vorgabe für folgende Rechtecke. Braucht eine Winkelabfrage (getangle mit DYN-Winkelfeld, wie
-  ELLIPSE Drehung).
+- **Drehung** ist umgesetzt (Winkel als Zahl oder vom ersten Eckpunkt zu einem Punkt, bleibt
+  für die folgenden Rechtecke). Offen: die Option `Punkte auswählen` (`Drehwinkel angeben oder
+  [Punkte auswählen] <0>:`, EN `Pick points`) mit zwei frei gewählten Punkten.
+- Die Rechteckmodi (Drehung, Fasen) gelten nur bis zum Neuladen der Seite.
 
 ## Weiteres
 
-- **Vorgabewerte** wie AutoCAD: `Länge der Rechtecke angeben <10.0000>:`, Enter übernimmt den
-  zuletzt verwendeten Wert (ebenso Breite, Fläche, Drehung, Fase, Rundung). Sie bleiben über
-  Befehle hinweg erhalten, z. B. in einem Speicher wie `DrawingMemory`. Heute meldet Enter
-  `Punkt oder Option-Schlüsselwort erforderlich.` bzw. `Erfordert numerischen Abstand oder
-  zweiten Punkt.`.
+- **Vorgabewerte**: für Länge und Breite umgesetzt (`DrawingMemory`, Enter übernimmt den
+  zuletzt angegebenen Wert). AutoCAD beginnt mit `<10.0000>`, hier gibt es vor der ersten
+  Angabe keine Vorgabe. Offen für Fläche, Drehung, Fase und Rundung, sobald es die Optionen
+  gibt.
 - **DYN beim anderen Eckpunkt**: AutoCAD zeigt dort zwei Bemaßungen an den Seiten (Länge und
   Breite, Tab wechselt). Bisher gilt die Bemaßung von `next` (Abstand/Winkel der Diagonale,
   `,` wechselt zu X/Y).

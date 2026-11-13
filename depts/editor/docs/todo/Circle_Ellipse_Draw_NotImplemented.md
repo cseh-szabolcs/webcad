@@ -15,18 +15,16 @@ Offen, mit dem, was dafür fehlt:
 - **Tan, Tan, Tan** (in AutoCAD nur über das Menü): drei Objekte, Kreis tangential zu allen
   dreien (Apollonius-Problem, für Linien der In-/Ankreis).
 - **Tangenten-Fang (TAN)** inkl. „verzögerter Tangente“ bei 2P/3P, und Lot (PER).
-- **Vorgabe-Radius** wie AutoCAD CIRCLERAD: `Radius für Kreis angeben oder [Durchmesser] <25.0000>:`,
-  Enter übernimmt den zuletzt verwendeten Radius bzw. Durchmesser.
-- **Methoden-Dropdown** am Button (Mittelpunkt-Radius, Mittelpunkt-Durchmesser, 2P, 3P, TTR, TTT),
-  startet den Befehl gleich mit der Option.
+- Der Vorgabe-Radius (wie AutoCAD CIRCLERAD) ist umgesetzt; er gilt nur bis zum Neuladen der
+  Seite und folgt keiner Einstellung für Einheiten und Genauigkeit (feste Nachkommastellen).
+- Im Methoden-Menü am Button fehlen TTR und TTT (die Methoden dazu gibt es noch nicht).
 - DYN: Beschriftung „Radius“/„Durchmesser“ am Feld.
 
 ## ELLIPSE
 
-- **Drehung** (`Abstand zur anderen Achse angeben oder [Drehung]:` → „Drehung um Hauptachse
-  angeben:“): Kreis um die erste Achse gedreht, Nebenachse = Hauptachse · cos(Winkel), gültig
-  0° bis 89,4°. Braucht eine Winkel-Abfrage (getangle: Zahl in Grad oder Winkel vom Mittelpunkt
-  zu einem Punkt) mit DYN-Winkelfeld.
+- **Drehung** ist umgesetzt. Abweichend von AutoCAD (gültig 0° bis 89,4°) zählt nur der Betrag
+  des Cosinus, also auch negative Winkel und solche über 90°; zu prüfen, wie AutoCAD den
+  gezeigten Winkel misst und was es bei ungültigen Werten meldet.
 - **Bogen** (`[Bogen/Mittelpunkt]`): elliptischer Bogen, erst die Ellipse wie oben, dann
   „Startwinkel angeben oder [Parameter]:“ und „Endwinkel angeben oder [Parameter/eingeschlossener
   Winkel]:“. Braucht ein Modell für elliptische Bögen (z. B. `startAngle`/`endAngle` als
@@ -38,7 +36,8 @@ Offen, mit dem, was dafür fehlt:
 ## Gemeinsam
 
 - Aktueller Layer und Stil für neue Objekte.
-- Werkzeug-Dropdowns in der Werkzeugleiste für KREIS und ELLIPSE (wie am Button **Bogen**, `ToolFlyout` in `src/ui/ToolPanel.tsx`).
+- Der Button **Ellipse** zeigt anfangs **Mittelpunkt** (wie in AutoCAD), getippt beginnt ELLIPSE aber mit dem Achsenendpunkt.
+- Im Menü der Ellipse fehlt der elliptische Bogen.
 
 ## Noch zu prüfen
 
