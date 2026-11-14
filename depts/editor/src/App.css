@@ -251,6 +251,37 @@
     user-select: none;
 }
 
+/* Compass (ViewCompass), static in the top right corner; opacity from EditorSettings.compassOpacity */
+.view-compass {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    pointer-events: none;
+}
+
+.view-compass-ring {
+    fill: none;
+    stroke: var(--compass);
+    stroke-width: 1.5;
+}
+
+.view-compass-face {
+    fill: var(--compass);
+    fill-opacity: 0.15;
+    stroke: var(--compass);
+    stroke-width: 1;
+}
+
+.view-compass-north {
+    fill: var(--compass);
+}
+
+.view-compass text {
+    fill: var(--compass);
+    font-weight: 600;
+    user-select: none;
+}
+
 /* Drawn crosshair (CrosshairCursor); its parts are positioned around the cursor pixel */
 .crosshair {
     position: absolute;

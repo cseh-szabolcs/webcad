@@ -5,7 +5,7 @@ const CHANGED: EditorSwitches = {
     snap: { enabled: false, modes: new Set(['END', 'GCE']) },
     tracking: { ortho: false, polar: { enabled: true, incrementAngle: 15, additionalAngles: [33, 71.5] } },
     objectTracking: { enabled: true, allPolarAngles: true },
-    grid: { enabled: false, spacing: 2.5, majorEvery: 4 },
+    grid: { enabled: false, spacing: 2.5, majorEvery: 4, axes: false, compass: false },
     dynamicInput: { enabled: false, pointerInput: false, dimensionInput: true, prompts: false },
 };
 
@@ -26,13 +26,13 @@ describe('stored switches', () => {
             JSON.stringify({
                 snap: { enabled: 'yes', modes: ['MID', 'NOPE'] },
                 tracking: { polar: { incrementAngle: 7, additionalAngles: [1, 'x'] } },
-                grid: { enabled: false, spacing: -1, majorEvery: 1000 },
+                grid: { enabled: false, spacing: -1, majorEvery: 1000, axes: 'no', compass: false },
                 dynamicInput: { prompts: false },
             }),
         );
         expect(parsed.snap).toEqual({ enabled: true, modes: new Set(['MID']) });
         expect(parsed.tracking).toEqual(DEFAULT_EDITOR_SWITCHES.tracking);
-        expect(parsed.grid).toEqual({ ...DEFAULT_EDITOR_SWITCHES.grid, enabled: false });
+        expect(parsed.grid).toEqual({ ...DEFAULT_EDITOR_SWITCHES.grid, enabled: false, compass: false });
         expect(parsed.dynamicInput).toEqual({ ...DEFAULT_EDITOR_SWITCHES.dynamicInput, prompts: false });
         expect(parsed.objectTracking).toEqual(DEFAULT_EDITOR_SWITCHES.objectTracking);
     });

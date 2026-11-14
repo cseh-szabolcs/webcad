@@ -1308,7 +1308,7 @@ X und Y durch den Nullpunkt; regelmäßig ist eine davon eine kräftigere Hauptl
 | Eingabe                       | Wirkung                                                  |
 |-------------------------------|----------------------------------------------------------|
 | **F7** oder Button **RASTER** | Schaltet das Raster ein oder aus                         |
-| **▾** neben RASTER            | Menü mit **Rasterabstand (mm)** und **Hauptlinie alle**  |
+| **▾** neben RASTER            | Menü mit **Rasterabstand (mm)**, **Hauptlinie alle**, **Achsen farbig** und **Kompass** |
 
 - **Rasterabstand**: Abstand der Linien in mm, größer als 0, Dezimalpunkt.
 - **Hauptlinie alle**: jede wievielte Linie eine Hauptlinie ist, ganze Zahl ab 1 bis
@@ -1321,6 +1321,14 @@ X und Y durch den Nullpunkt; regelmäßig ist eine davon eine kräftigere Hauptl
   Hauptlinie alle 10 zeigt das Raster also 10 mm, 100 mm, 1 m oder 10 m; die
   Hauptlinien der einen Stufe sind die Nebenlinien der nächsten. Feiner als der
   eingestellte Abstand wird es nie.
+- **Achsen farbig** (Haken): Die X-Achse (y = 0) ist rot, die Y-Achse (x = 0) grün, wie in
+  AutoCAD; nur bei eingeschaltetem Raster. Farben: Einstellung `gridAxisColor`.
+- **Kompass** (Haken): oben rechts in der Zeichenfläche ein Ring mit **N**, **O**, **S**,
+  **W** (englisch **E** statt O); Norden ist +Y. Er zeigt sich unabhängig davon, ob das
+  Raster an ist, dreht sich nie (es gibt nur das WKS), ist nur Anzeige und für Klicks
+  durchlässig. Größe und Deckkraft: Einstellungen `compassSize`, `compassOpacity`.
+- Beide Haken schalten das Raster nicht ein und werden wie die anderen Schalter im Browser
+  gemerkt.
 
 ## BKS-Symbol
 
@@ -1397,6 +1405,9 @@ und BKS-Symbol, gelesen beim Laden eines Plans:
 | `trackingAcquireDelay` | Verweildauer in ms, bis ein Fangpunkt für die Objektfangspuren erfasst (bzw. wieder entfernt) wird | (keine) |
 | `gridMinSpacing`   | Kleinster Abstand der Rasterlinien in px; enger wird das Raster gröber |      |
 | `gridColor`        | Farben der Neben- und Hauptlinien des Rasters, bei Hell / Dunkel | Optionen → Farben |
+| `gridAxisColor`    | Farben der X-Achse (rot) und Y-Achse (grün) des Rasters, bei Hell / Dunkel | Optionen → Farben (Achsenfarbe) |
+| `compassSize`      | Durchmesser des Kompassrings in px                             | ViewCube-Größe |
+| `compassOpacity`   | Deckkraft des Kompasses (0–1)                                  | ViewCube-Deckkraft (inaktiv) |
 | `ucsIcon`          | BKS-Symbol anzeigen                                            | UCSICON Ein/Aus |
 | `ucsIconAtOrigin`  | BKS-Symbol am Nullpunkt, solange es dort passt; aus = immer unten links | UCSICON Ursprung / Kein Ursprung |
 | `ucsIconSize`      | Länge der Achsen des BKS-Symbols in px                         | UCSICON Eigenschaften |
@@ -1416,7 +1427,7 @@ seinen Startwert zurück). Die Startwerte, solange nichts gespeichert ist:
 - `DEFAULT_OBJECT_TRACKING_SETTINGS`: OTRACK `enabled` (F11) und `allPolarAngles` (Mit
   allen Polarwinkeln spuren statt nur orthogonal).
 - `DEFAULT_GRID_SETTINGS`: RASTER `enabled` (GRIDMODE), `spacing` (GRIDUNIT),
-  `majorEvery` (GRIDMAJOR).
+  `majorEvery` (GRIDMAJOR), `axes` (farbige Achsen), `compass` (Kompass, wie der ViewCube).
 - `DEFAULT_DYNAMIC_INPUT_SETTINGS`: DYN `enabled` (F12), `pointerInput` und
   `dimensionInput` (die Bits von DYNMODE), `prompts` (DYNPROMPT).
 

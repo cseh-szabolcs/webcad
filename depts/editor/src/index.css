@@ -15,6 +15,8 @@
     --snap-tooltip-border: #6b7280;
     /* UCS icon (UcsIcon) */
     --ucs-icon: #4b5563;
+    /* Compass (ViewCompass) */
+    --compass: #4b5563;
     /* Dynamic Input fields and temporary dimensions (DynamicInputLayer) */
     --dyn-field-bg: #ffffff;
     --dyn-field-fg: #111827;
@@ -46,6 +48,7 @@
     --snap-tooltip-fg: #e5e7eb;
     --snap-tooltip-border: #6b7280;
     --ucs-icon: #d1d5db;
+    --compass: #d1d5db;
     --dyn-field-bg: #1b2028;
     --dyn-field-fg: #e5e7eb;
     --dyn-field-border: #6b7280;

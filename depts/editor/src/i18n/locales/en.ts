@@ -254,6 +254,12 @@ export const en: Translations = {
         tracking: '{{label}}: {{distance}} < {{angle}}°',
         trackingAngle: '{{label}}: < {{angle}}°',
     },
+    compass: {
+        north: 'N',
+        east: 'E',
+        south: 'S',
+        west: 'W',
+    },
     status: {
         grid: 'GRID',
         gridTitle: 'Grid on/off (F7)',
@@ -262,6 +268,10 @@ export const en: Translations = {
         gridSpacingTitle: 'Distance between grid lines in mm, greater than 0 (decimal point)',
         majorEvery: 'Major line every',
         majorEveryTitle: 'Which line is a major line, whole number from 1 to {{max}}',
+        gridAxes: 'Coloured axes (X red, Y green)',
+        gridAxesTitle: 'Show the X axis red and the Y axis green while the grid is on',
+        gridCompass: 'Compass',
+        gridCompassTitle: 'Show the compass top right, also while the grid is off',
         ortho: 'ORTHO',
         orthoTitle: 'Ortho on/off (F8)',
         polar: 'POLAR',

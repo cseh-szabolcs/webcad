@@ -173,9 +173,12 @@ The behaviour itself is in `docs/bedienung.md`; these are the decisions code mus
   closes it. `chooseGripAction` runs the `GripTool` with that action in place of STRETCH, or
   removes the vertex at once. Ctrl on its own goes through the actions (`EditorTool.cycle`,
   which BOGEN uses for the direction of an arc).
-- **Grid** (`cad/renderer/grid.ts`, `ui/GridLayer.ts`) and **UCS icon**
-  (`cad/renderer/ucsIcon.ts`, `ui/UcsIcon.ts`) are display only, on layers of their own, never
-  in the document, the bounds, picking or snapping. There is only the WCS (no custom UCS).
+- **Grid** (`cad/renderer/grid.ts`, `ui/GridLayer.ts`, with the X axis red and the Y axis
+  green, `GridSettings.axes`), **UCS icon** (`cad/renderer/ucsIcon.ts`, `ui/UcsIcon.ts`) and
+  **compass** (`ui/ViewCompass.ts`, `GridSettings.compass`) are display only, on layers of their
+  own, never in the document, the bounds, picking or snapping. There is only the WCS (no custom
+  UCS), so the compass is a static SVG top right: it never gets the viewport, and its switch
+  neither redraws the grid (`GridLayer.setGrid` skips it) nor anything else.
 
 ## Commands (tools)
 
@@ -330,10 +333,10 @@ service (`COLLAB_PROXY_TARGET` when running on the host). Nothing is relayed yet
 AutoCAD-like system variables (`crosshairSize` ~ CURSORSIZE, `pickboxSize` ~ PICKBOX and the
 hover/click tolerance, `apertureSize` ~ APERTURE, `showApertureBox` ~ APBOX, `snapMarkerSize`
 ~ AUTOSNAPSIZE, `snapMarker`/`snapTooltip`/`snapMagnet` ~ AUTOSNAP, `polarTolerance` (also for
-OTRACK), `trackingAcquireDelay`, `snapPreview`, `previewColor` and `gridColor` per theme,
+OTRACK), `trackingAcquireDelay`, `snapPreview`, `previewColor`, `gridColor` and `gridAxisColor` per theme,
 `gripSize` ~ GRIPSIZE, `gripColor` ~ GRIPCOLOR/GRIPHOVER/GRIPHOT, `gripMenu` ~
 GRIPMULTIFUNCTIONAL, `gripMenuDelay`, `gripObjectLimit` ~ GRIPOBJLIMIT,
-`gridMinSpacing`, `ucsIcon…` ~ UCSICON). Code receives the object (App → `CadCanvas` → editor
+`gridMinSpacing`, `ucsIcon…` ~ UCSICON, `compassSize`/`compassOpacity` ~ the ViewCube). Code receives the object (App → `CadCanvas` → editor
 and crosshair) rather than importing the defaults, so the user can change them later; for now
 they are read when a document is loaded. The switches live in App state and may change at any
 time: `SnapSettings` (F3, OSMODE), `TrackingModes` (Ortho F8, `PolarSettings` F10),

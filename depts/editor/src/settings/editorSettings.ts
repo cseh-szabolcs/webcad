@@ -78,6 +78,12 @@ export interface EditorSettings {
     gridMinSpacing: number;
     /** Colours of the grid's minor and major lines, per background. */
     gridColor: Readonly<Record<DisplayTheme, { minor: string; major: string }>>;
+    /** Colours of the grid's X axis (red) and Y axis (green), per background, like AutoCAD. */
+    gridAxisColor: Readonly<Record<DisplayTheme, { x: string; y: string }>>;
+    /** Diameter of the compass ring in screen px (top right of the drawing). */
+    compassSize: number;
+    /** Opacity of the compass (0–1), so it never stands out over the drawing. */
+    compassOpacity: number;
     /** Whether the UCS icon shows, like UCSICON ON/OFF. */
     ucsIcon: boolean;
     /**
@@ -120,6 +126,12 @@ export const DEFAULT_EDITOR_SETTINGS: Readonly<EditorSettings> = {
         light: { minor: '#eef0f3', major: '#dde1e6' },
         dark: { minor: '#283039', major: '#343d48' },
     },
+    gridAxisColor: {
+        light: { x: '#e0525a', y: '#3fa55b' },
+        dark: { x: '#c2474e', y: '#3c9454' },
+    },
+    compassSize: 64,
+    compassOpacity: 0.55,
     ucsIcon: true,
     ucsIconAtOrigin: true,
     ucsIconSize: 80,
@@ -141,12 +153,18 @@ export interface GridSettings {
      * grid gets coarser by this factor (by 2 at 1), like AutoCAD's adaptive grid.
      */
     majorEvery: number;
+    /** Whether the grid shows its X axis red and its Y axis green (only while it is on). */
+    axes: boolean;
+    /** Whether the compass shows top right, whether the grid is on or not (like the ViewCube). */
+    compass: boolean;
 }
 
 export const DEFAULT_GRID_SETTINGS: Readonly<GridSettings> = {
     enabled: true,
     spacing: 10,
     majorEvery: 10,
+    axes: true,
+    compass: true,
 };
 
 /** Running object snaps, switched while the editor runs (status bar, F3). */

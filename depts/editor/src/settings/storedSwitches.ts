@@ -84,6 +84,8 @@ export function parseSwitches(json: string | null): EditorSwitches {
                 Number.isInteger(grid.majorEvery) && (grid.majorEvery as number) >= 1 && (grid.majorEvery as number) <= MAX_MAJOR_EVERY
                     ? (grid.majorEvery as number)
                     : d.grid.majorEvery,
+            axes: flag(grid.axes, d.grid.axes),
+            compass: flag(grid.compass, d.grid.compass),
         },
         dynamicInput: {
             enabled: flag(dynamicInput.enabled, d.dynamicInput.enabled),

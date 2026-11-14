@@ -24,6 +24,7 @@ import { GridLayer } from './GridLayer';
 import { GripMenu } from './GripMenu';
 import { polarTooltipText, SnapMarker, trackingTooltipText, type TrackingDisplay } from './SnapMarker';
 import { UcsIcon } from './UcsIcon';
+import { ViewCompass } from './ViewCompass';
 
 const NOTHING: ReadonlySet<string> = new Set();
 
@@ -90,6 +91,7 @@ export function CadCanvas({
     const snapMarkerRef = useRef<SnapMarker | null>(null);
     const gridRef = useRef<GridLayer | null>(null);
     const ucsIconRef = useRef<UcsIcon | null>(null);
+    const compassRef = useRef<ViewCompass | null>(null);
     const themeRef = useRef(theme);
     const settingsRef = useRef(settings);
     const snapSettingsRef = useRef(snapSettings);
@@ -158,6 +160,10 @@ export function CadCanvas({
         const ucsIcon = new UcsIcon(container, settingsRef.current);
         ucsIcon.setViewport(viewportRef.current);
         ucsIconRef.current = ucsIcon;
+        // Static: never told about the viewport or the size, so it never redraws
+        const compass = new ViewCompass(container, settingsRef.current);
+        compass.setVisible(gridSettingsRef.current.compass);
+        compassRef.current = compass;
         const history = new DocumentHistory(document);
         // Subscribed before the editor, so the paths are up to date when its overlay redraws
         const unsubscribeHistory = history.subscribe(({ document, changedElementIds }) =>
@@ -296,7 +302,10 @@ export function CadCanvas({
         });
         onSelectionChangeRef.current?.(editor.snapshot);
         // The prompt always changes with the language, so this also redraws the tooltips
-        const refreshTexts = () => editor.refreshTexts();
+        const refreshTexts = () => {
+            editor.refreshTexts();
+            compass.refreshTexts();
+        };
         i18n.on('languageChanged', refreshTexts);
 
         const observer = new ResizeObserver(([entry]) => {
@@ -347,6 +356,8 @@ export function CadCanvas({
             gridRef.current = null;
             ucsIcon.dispose();
             ucsIconRef.current = null;
+            compass.dispose();
+            compassRef.current = null;
             i18n.off('languageChanged', refreshTexts);
             unsubscribe();
             editor.dispose();
@@ -394,6 +405,11 @@ export function CadCanvas({
         gridSettingsRef.current = gridSettings;
         gridRef.current?.setGrid(gridSettings);
     }, [gridSettings]);
+
+    // Only on its own switch (GridLayer.setGrid skips it as well)
+    useEffect(() => {
+        compassRef.current?.setVisible(gridSettings.compass);
+    }, [gridSettings.compass]);
 
     useEffect(() => {
         themeRef.current = theme;

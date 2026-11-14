@@ -57,6 +57,18 @@ export function gridLines(
     return { vertical, horizontal };
 }
 
+/**
+ * Where the grid's axes lie in a view of `size`, in view px: `x` of the Y axis (model x = 0),
+ * `y` of the X axis (model y = 0); null for an axis outside the view.
+ */
+export function gridAxes(viewport: Viewport, size: Size): { x: number | null; y: number | null } {
+    const origin = viewport.modelToView({ x: 0, y: 0 });
+    return {
+        x: origin.x >= 0 && origin.x <= size.width ? origin.x : null,
+        y: origin.y >= 0 && origin.y <= size.height ? origin.y : null,
+    };
+}
+
 /** Parses a typed grid spacing in mm (the point is the decimal separator); null unless > 0. */
 export function parseGridSpacing(text: string): number | null {
     const trimmed = text.trim();

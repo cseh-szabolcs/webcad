@@ -79,7 +79,7 @@ export function StatusBar({
 
 /**
  * RASTER switch (like F7) with a menu of the grid spacing and the lines per major line, like
- * AutoCAD's GRIDUNIT and GRIDMAJOR.
+ * AutoCAD's GRIDUNIT and GRIDMAJOR, and the switches of the coloured axes and the compass.
  */
 function GridSwitch({ settings, onChange }: { settings: GridSettings; onChange: (settings: GridSettings) => void }) {
     const { t } = useTranslation();
@@ -121,6 +121,16 @@ function GridSwitch({ settings, onChange }: { settings: GridSettings; onChange: 
                         title={t('status.majorEveryTitle', { max: MAX_MAJOR_EVERY })}
                         onChange={(majorEvery) => onChange({ ...settings, enabled: true, majorEvery })}
                     />
+                    {(['axes', 'compass'] as const).map((part) => (
+                        <label key={part} title={t(part === 'axes' ? 'status.gridAxesTitle' : 'status.gridCompassTitle')}>
+                            <input
+                                type="checkbox"
+                                checked={settings[part]}
+                                onChange={() => onChange({ ...settings, [part]: !settings[part] })}
+                            />
+                            {t(part === 'axes' ? 'status.gridAxes' : 'status.gridCompass')}
+                        </label>
+                    ))}
                 </div>
             )}
         </div>

@@ -290,6 +290,12 @@ export const de = {
         tracking: '{{label}}: {{distance}} < {{angle}}°',
         trackingAngle: '{{label}}: < {{angle}}°',
     },
+    compass: {
+        north: 'N',
+        east: 'O',
+        south: 'S',
+        west: 'W',
+    },
     status: {
         grid: 'RASTER',
         gridTitle: 'Raster ein/aus (F7)',
@@ -298,6 +304,10 @@ export const de = {
         gridSpacingTitle: 'Abstand der Rasterlinien in mm, größer als 0 (Dezimalpunkt)',
         majorEvery: 'Hauptlinie alle',
         majorEveryTitle: 'Jede wievielte Linie eine Hauptlinie ist, ganze Zahl von 1 bis {{max}}',
+        gridAxes: 'Achsen farbig (X rot, Y grün)',
+        gridAxesTitle: 'Die X-Achse rot und die Y-Achse grün anzeigen, solange das Raster an ist',
+        gridCompass: 'Kompass',
+        gridCompassTitle: 'Den Kompass oben rechts anzeigen, auch bei ausgeschaltetem Raster',
         ortho: 'ORTHO',
         orthoTitle: 'Ortho ein/aus (F8)',
         polar: 'POLAR',

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gridLines, gridStep, parseGridSpacing, parseMajorEvery } from './grid';
+import { gridAxes, gridLines, gridStep, parseGridSpacing, parseMajorEvery } from './grid';
 import { Viewport } from './Viewport';
 
 const GRID = { spacing: 10, majorEvery: 10 };
@@ -79,5 +79,16 @@ describe('grid input', () => {
         expect(parseMajorEvery('101')).toBeNull();
         expect(parseMajorEvery('2.5')).toBeNull();
         expect(parseMajorEvery('')).toBeNull();
+    });
+});
+
+describe('gridAxes', () => {
+    it('gives the Y axis as x and the X axis as y in view px', () => {
+        expect(gridAxes(new Viewport(1, { x: 5, y: 95 }), { width: 100, height: 100 })).toEqual({ x: 5, y: 95 });
+    });
+
+    it('leaves out an axis outside the view', () => {
+        expect(gridAxes(new Viewport(1, { x: -1, y: 50 }), { width: 100, height: 100 })).toEqual({ x: null, y: 50 });
+        expect(gridAxes(new Viewport(1, { x: 50, y: 101 }), { width: 100, height: 100 })).toEqual({ x: 50, y: null });
     });
 });

@@ -1,14 +1,15 @@
 import type { DisplayTheme } from 'app/cad/renderer/displayColor';
-import { gridLines } from 'app/cad/renderer/grid';
+import { gridAxes, gridLines } from 'app/cad/renderer/grid';
 import type { Size, Viewport } from 'app/cad/renderer/Viewport';
 import type { EditorSettings, GridSettings } from 'app/settings/editorSettings';
 
-type GridLayerSettings = Pick<EditorSettings, 'gridMinSpacing' | 'gridColor'>;
+type GridLayerSettings = Pick<EditorSettings, 'gridMinSpacing' | 'gridColor' | 'gridAxisColor'>;
 
 /**
  * The grid (like AutoCAD's GRIDMODE) on its own canvas under the drawing, in view px, so it is
  * never part of the document, its bounds or the renderer. Lines are 1 CSS px wide on whole
- * device pixels, so they stay sharp on HiDPI screens; major lines are drawn over minor ones.
+ * device pixels, so they stay sharp on HiDPI screens; major lines are drawn over minor ones, the
+ * axes (X red, Y green, like AutoCAD) over both.
  */
 export class GridLayer {
     private readonly canvas: HTMLCanvasElement;
@@ -46,8 +47,17 @@ export class GridLayer {
     }
 
     setGrid(grid: GridSettings): void {
+        const old = this.grid;
         this.grid = grid;
-        this.draw();
+        // The compass switch lives in GridSettings too but does not change the grid
+        if (
+            old.enabled !== grid.enabled ||
+            old.spacing !== grid.spacing ||
+            old.majorEvery !== grid.majorEvery ||
+            old.axes !== grid.axes
+        ) {
+            this.draw();
+        }
     }
 
     dispose(): void {
@@ -86,6 +96,18 @@ export class GridLayer {
                 if (line.major === major) {
                     context.fillRect(0, Math.floor(line.at * ratio), width, lineWidth);
                 }
+            }
+        }
+        if (this.grid.axes) {
+            const axes = gridAxes(this.viewport, size);
+            const axisColors = this.settings.gridAxisColor[this.theme];
+            if (axes.y !== null) {
+                context.fillStyle = axisColors.x;
+                context.fillRect(0, Math.floor(axes.y * ratio), width, lineWidth);
+            }
+            if (axes.x !== null) {
+                context.fillStyle = axisColors.y;
+                context.fillRect(Math.floor(axes.x * ratio), 0, lineWidth, height);
             }
         }
     }
