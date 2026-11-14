@@ -77,7 +77,14 @@ const GROUPS = [
             { command: 'RECTANG', label: 'toolbar.rectangle', title: 'toolbar.rectangleTitle' },
         ],
     },
-    { label: 'toolbar.modify', tools: [{ command: 'MOVE', label: 'toolbar.move', title: 'toolbar.moveTitle' }] },
+    {
+        label: 'toolbar.modify',
+        tools: [
+            { command: 'MOVE', label: 'toolbar.move', title: 'toolbar.moveTitle' },
+            { command: 'UNION', label: 'toolbar.union', title: 'toolbar.unionTitle' },
+            { command: 'SUBTRACT', label: 'toolbar.subtract', title: 'toolbar.subtractTitle' },
+        ],
+    },
 ] as const satisfies readonly { label: ParseKeys; tools: readonly (Tool | ToolFlyoutSpec)[] }[];
 
 interface ToolPanelProps {

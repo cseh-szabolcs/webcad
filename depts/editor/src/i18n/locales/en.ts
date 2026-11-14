@@ -60,6 +60,10 @@ export const en: Translations = {
         rectangleTitle: 'Rectangle ({{command}})',
         move: 'Move',
         moveTitle: 'Move ({{command}})',
+        subtract: 'Subtract',
+        subtractTitle: 'Subtract ({{command}})',
+        union: 'Union',
+        unionTitle: 'Union ({{command}})',
         undo: 'Undo',
         undoTitle: 'Undo (Ctrl/⌘+Z)',
         redo: 'Redo',
@@ -92,6 +96,8 @@ export const en: Translations = {
     prompt: {
         idle: 'Command:',
         select: '{{command}} Select objects:',
+        subtractFrom: '{{command}} Select objects to subtract from:',
+        subtractObjects: 'Select objects to subtract:',
         basePoint: 'Specify base point or [Displacement] <Displacement>:',
         displacement: 'Specify displacement <0,0>:',
         secondPoint: 'Specify second point or <use first point as displacement>:',
@@ -229,6 +235,9 @@ export const en: Translations = {
         foundTotal: '{{count}} found, {{total}} total',
         foundDuplicatesTotal: '{{count}} found ({{duplicates}} duplicate), {{total}} total',
         foundRemovedTotal: '{{count}} found, {{removed}} removed, {{total}} total',
+        skippedNoArea: '{{count}} skipped (neither a closed polyline nor a circle)',
+        subtractNothing: 'No closed polylines or circles selected.',
+        unionTooFew: 'At least 2 closed polylines or circles must be selected.',
     },
     snap: {
         mode: {

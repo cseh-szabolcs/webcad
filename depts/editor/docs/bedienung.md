@@ -36,7 +36,9 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   (Befehl [PLINIE](#befehl-plinie)), **Kreis** (Befehl [KREIS](#befehl-kreis)), **Bogen**
   (Befehl [BOGEN](#befehl-bogen)), **Ellipse** (Befehl [ELLIPSE](#befehl-ellipse)) und
   **Rechteck** (Befehl [RECHTECK](#befehl-rechteck)), daneben nach einer
-  Trennlinie **Ändern** mit **Verschieben** (Befehl [SCHIEBEN](#befehl-schieben)). Der Name
+  Trennlinie **Ändern** mit **Verschieben** (Befehl [SCHIEBEN](#befehl-schieben)),
+  **Vereinigung** (Befehl [VEREINIG](#befehl-vereinig)) und
+  **Differenz** (Befehl [DIFFERENZ](#befehl-differenz)). Der Name
   steht im Tooltip, z. B. `Linie (LINIE)`. Der Button des laufenden Befehls bleibt gedrückt; ein
   weiterer Klick darauf bewirkt nichts. Ein Klick auf einen anderen bricht den laufenden Befehl
   ab (`*Abbruch*`) und startet den neuen.
@@ -478,6 +480,76 @@ bedeuten dort dasselbe.
 Ungültige Eingaben meldet die Kommandozeile mit `Punkt oder Option-Schlüsselwort
 erforderlich.`, die Aufforderung bleibt. Getippte Zeichen lösen keine anderen
 Tastenkürzel aus; Strg/⌘-Kürzel, F3, F7, F8, F10, F11 und F12 wirken weiter.
+
+## Befehl DIFFERENZ
+
+Stanzt Objekte aus anderen aus, wie AutoCADs DIFFERENZ (`SUBTRACT`). Button **Differenz**
+(Quadrat mit ausgestanztem Kreis) in der Werkzeugleiste, oder bei `Befehl:` `DIFFERENZ`, `SU`
+oder `SUBTRACT` tippen.
+
+AutoCAD verlangt dafür Regionen, die es hier nicht gibt. Eine Fläche haben stattdessen
+**geschlossene Polylinien** (auch mit Bogensegmenten, ab drei Scheitelpunkten) und **Kreise**;
+sie werden direkt gewählt. Alles andere in einer Auswahl (Linien, Bögen, offene Polylinien,
+Ellipsen, Splines) wird übergangen und bleibt unverändert; die Kommandozeile meldet
+`N übergangen (weder geschlossene Polylinie noch Kreis)`.
+
+1. **`DIFFERENZ Objekte wählen, von denen subtrahiert werden soll:`** Die Objekte, die bleiben
+   und ausgestanzt werden. Gewählt wird wie bei [SCHIEBEN](#befehl-schieben) (Klick, Rechteck,
+   Lasso, Shift entfernt), **Enter** oder **Rechtsklick** beendet die Auswahl. Ist beim Start
+   schon etwas gewählt, wird diese Auswahl übernommen (`N gefunden`) und es geht direkt zu
+   Schritt 2. Mehrere Objekte zählen zusammen als eine Fläche (ihre Vereinigung).
+2. **`Objekte für Subtraktion wählen:`** Die Objekte, deren Fläche herausgenommen wird. Die
+   Objekte aus Schritt 1 bleiben dabei hervorgehoben; wird eines davon noch einmal gewählt,
+   zählt es weiter zu Schritt 1. **Enter** oder **Rechtsklick** führt die Differenz aus.
+
+Danach sind **alle** gewählten Objekte mit Fläche durch die Umrisse dessen ersetzt, was übrig
+bleibt, auch Objekte aus Schritt 2, die nichts berühren (wie in AutoCAD). Bleibt nichts übrig,
+entsteht nichts.
+
+- Die Umrisse sind exakt: geschlossene Polylinien aus Strecken und Kreisbögen; ein ganzer Kreis
+  bleibt ein Kreis. Ein Umriss, den nichts berührt, behält seine Scheitelpunkte.
+- Sie stehen in der Zeichenreihenfolge an der Stelle des ersten Objekts aus Schritt 1 und haben
+  dessen Layer und Stil; der erste Umriss hat auch dessen Namen.
+- **Löcher und mehrere Teile:** Es gibt kein Objekt mit mehreren Umrissen. Entstehen mehrere
+  (ein Loch mitten in der Fläche, zwei getrennte Teile), sind es einzelne Objekte in einer
+  **Gruppe**, die sich wie AutoCADs eine Region zusammen wählen lassen: in der Gruppe des ersten
+  Objekts, sonst in einer neuen mit dem Namen des Befehls. Ein einzelner Umriss bleibt in der
+  Gruppe des ersten Objekts bzw. ohne Gruppe. Eine Füllfarbe spart ein Loch nicht aus.
+- Scheitelpunkte, die kein Objekt mehr braucht, und leer gewordene Gruppen verschwinden mit.
+- Punkte, die näher beieinander liegen als `POINT_TOLERANCE` in
+  `src/cad/geometry/regionBoolean.ts`, gelten als derselbe Punkt; so zählen auch Kanten, die
+  aufeinander liegen, als gemeinsame Kante.
+
+Enthält eine der beiden Auswahlen kein Objekt mit Fläche, endet der Befehl ohne Änderung mit
+`Keine geschlossenen Polylinien oder Kreise gewählt.`; **Enter** ohne Auswahl in Schritt 2
+beendet ihn ebenfalls ohne Änderung. **Esc** bricht ab (`*Abbruch*`). Die Differenz ist ein
+Schritt für **Rückgängig** (`Rückgängig: DIFFERENZ`). Eine Vorschau des Ergebnisses gibt es
+nicht.
+
+## Befehl VEREINIG
+
+Führt Objekte zu einem zusammen, wie AutoCADs VEREINIG (`UNION`). Button **Vereinigung**
+(Quadrat und Kreis als ein Umriss) in der Werkzeugleiste, oder bei `Befehl:` `VEREINIG`, `UNI`
+oder `UNION` tippen.
+
+Wie bei [DIFFERENZ](#befehl-differenz) haben **geschlossene Polylinien** und **Kreise** eine
+Fläche; alles andere in der Auswahl wird übergangen und bleibt unverändert
+(`N übergangen (weder geschlossene Polylinie noch Kreis)`).
+
+1. **`VEREINIG Objekte wählen:`** Gewählt wird wie bei [SCHIEBEN](#befehl-schieben),
+   **Enter** oder **Rechtsklick** führt die Vereinigung aus. Ist beim Start schon etwas gewählt,
+   wird diese Auswahl ohne Nachfrage vereinigt.
+
+Danach sind alle gewählten Objekte mit Fläche durch die Umrisse ihrer gemeinsamen Fläche
+ersetzt: Wo sie sich überlappen oder an einer Kante berühren, entsteht ein Umriss; ein Objekt,
+das ganz in einem anderen liegt, geht darin auf. Für die Umrisse gilt dasselbe wie bei
+DIFFERENZ (exakt aus Strecken und Kreisbögen, an der Stelle und mit Layer, Stil und Namen des
+zuerst gewählten Objekts). Objekte, die sich nicht berühren, und Löcher, die ein Ring aus
+Objekten umschließt, sind einzelne Umrisse in einer **Gruppe**, wie AutoCADs eine Region.
+
+Es braucht mindestens zwei Objekte mit Fläche, sonst endet der Befehl ohne Änderung mit
+`Mindestens 2 geschlossene Polylinien oder Kreise müssen gewählt sein.`. **Esc** bricht ab.
+Die Vereinigung ist ein Schritt für **Rückgängig** (`Rückgängig: VEREINIG`).
 
 ## Befehl LINIE
 
@@ -1376,6 +1448,9 @@ seinen Startwert zurück). Die Startwerte, solange nichts gespeichert ist:
 - Bei den Grips: Kopieren mit
   gedrückter Strg-Taste und Versatzfang mit Shift, die
   Längenangaben der dynamischen Eingabe; Details in `docs/todo/Grips_NotImplemented.md`.
+- Bei DIFFERENZ und VEREINIG: Ellipsen und Splines als Flächen, ein Objekt mit mehreren
+  Umrissen (Region), dessen Füllung Löcher ausspart, eine Vorschau, der Befehl SCHNITTMENGE;
+  Details in `docs/todo/Subtract_NotImplemented.md`.
 - Alle anderen Bearbeitungsbefehle wie Löschen, Gruppieren oder Kopieren.
 - Gruppenauswahl ausschalten (AutoCAD Ctrl+Shift+A), um einzelne Gruppenmitglieder zu
   wählen.

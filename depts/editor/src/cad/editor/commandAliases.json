@@ -1,5 +1,7 @@
 {
     "MOVE": ["SCHIEBEN"],
+    "SUBTRACT": ["DIFFERENZ", "SU"],
+    "UNION": ["VEREINIG", "UNI"],
     "LINE": ["LINIE", "L"],
     "PLINE": ["PLINIE", "PL"],
     "CIRCLE": ["KREIS", "K", "C"],

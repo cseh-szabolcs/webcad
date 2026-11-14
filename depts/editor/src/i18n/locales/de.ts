@@ -61,6 +61,10 @@ export const de = {
         rectangleTitle: 'Rechteck ({{command}})',
         move: 'Verschieben',
         moveTitle: 'Verschieben ({{command}})',
+        subtract: 'Differenz',
+        subtractTitle: 'Differenz ({{command}})',
+        union: 'Vereinigung',
+        unionTitle: 'Vereinigung ({{command}})',
         undo: 'Rückgängig',
         undoTitle: 'Rückgängig (Strg/⌘+Z)',
         redo: 'Wiederherstellen',
@@ -93,6 +97,8 @@ export const de = {
     prompt: {
         idle: 'Befehl:',
         select: '{{command}} Objekte wählen:',
+        subtractFrom: '{{command}} Objekte wählen, von denen subtrahiert werden soll:',
+        subtractObjects: 'Objekte für Subtraktion wählen:',
         basePoint: 'Basispunkt angeben oder [Verschiebung] <Verschiebung>:',
         displacement: 'Verschiebung angeben <0,0>:',
         secondPoint: 'Zweiten Punkt angeben oder <ersten Punkt als Verschiebung verwenden>:',
@@ -264,6 +270,10 @@ export const de = {
         foundTotal: '{{count}} gefunden, {{total}} gesamt',
         foundDuplicatesTotal: '{{count}} gefunden ({{duplicates}} doppelt), {{total}} gesamt',
         foundRemovedTotal: '{{count}} gefunden, {{removed}} entfernt, {{total}} gesamt',
+        /** DIFFERENZ, VEREINIG: selected objects that bound no area. */
+        skippedNoArea: '{{count}} übergangen (weder geschlossene Polylinie noch Kreis)',
+        subtractNothing: 'Keine geschlossenen Polylinien oder Kreise gewählt.',
+        unionTooFew: 'Mindestens 2 geschlossene Polylinien oder Kreise müssen gewählt sein.',
     },
     snap: {
         mode: {

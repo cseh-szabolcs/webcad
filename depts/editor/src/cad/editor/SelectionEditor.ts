@@ -37,6 +37,8 @@ import { gripActions, segmentOfGrip, vertexRemoval, type GripAction } from './gr
 import { RemovePolylineVertexCommand, SetPolylineBulgeCommand } from './commands/PolylineVertexCommands';
 import { LineTool } from './tools/LineTool';
 import { MoveTool } from './tools/MoveTool';
+import { SubtractTool } from './tools/SubtractTool';
+import { UnionTool } from './tools/UnionTool';
 import { PolylineTool } from './tools/PolylineTool';
 import { RectangleTool } from './tools/RectangleTool';
 import type { EditorTool, Message, PointPrompt, ToolId, ToolPreview, ToolStep } from './tools/EditorTool';
@@ -497,7 +499,7 @@ export class SelectionEditor {
 
     /**
      * Starts a command, e.g. SCHIEBEN (with a pickfirst selection straight at the base point,
-     * otherwise by selecting objects), LINIE, PLINIE, KREIS, BOGEN, ELLIPSE or RECHTECK. Another running command is cancelled
+     * otherwise by selecting objects), DIFFERENZ, VEREINIG, LINIE, PLINIE, KREIS, BOGEN, ELLIPSE or RECHTECK. Another running command is cancelled
      * first, like a toolbar click in AutoCAD; the same command keeps running. `method` starts
      * BOGEN, KREIS or ELLIPSE with one of its methods, as its tool buttons do; another method
      * than the running one starts it anew.
@@ -552,6 +554,10 @@ export class SelectionEditor {
         switch (command) {
             case 'MOVE':
                 return new MoveTool();
+            case 'SUBTRACT':
+                return new SubtractTool(this.index);
+            case 'UNION':
+                return new UnionTool(this.index);
             case 'LINE':
                 return new LineTool(this.history, this.drawingMemory);
             case 'PLINE':
@@ -1685,7 +1691,15 @@ export class SelectionEditor {
         const state = this.state;
         const command: ToolId | null = state.kind === 'idle' ? null : state.tool.command;
         const selecting = this.selecting();
-        const highlighted = state.kind === 'idle' ? state.pickfirst : selecting ? state.selection : state.tool.highlighted;
+        // A later object selection of a command shows what it selected before with it (DIFFERENZ)
+        const highlighted =
+            state.kind === 'idle'
+                ? state.pickfirst
+                : !selecting
+                  ? state.tool.highlighted
+                  : state.tool.highlighted.size > 0
+                    ? new Set([...state.tool.highlighted, ...state.selection])
+                    : state.selection;
         const pointPrompt = this.pointPrompt() !== null;
         const from = this.from();
         const preview = from !== null && state.kind === 'command' ? state.tool.preview : null;

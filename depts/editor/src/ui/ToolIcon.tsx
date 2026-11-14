@@ -6,13 +6,17 @@ import type { EllipseMethod } from 'app/cad/editor/tools/EllipseTool';
 
 /**
  * Paths in a 24×24 box: a diagonal line with its two end points, a zigzag of three segments
- * with its two end points, a rectangle, and the four-arrow cross of AutoCAD's MOVE.
+ * with its two end points, a rectangle, the four-arrow cross of AutoCAD's MOVE, a square and a
+ * circle on its corner as one outline, and a square with that circle cut out of its corner, the
+ * rest of the circle dashed.
  */
 const ICON_PATHS: Record<Exclude<EditorCommand, keyof typeof METHOD_ICON_PATHS>, string> = {
     LINE: 'M6.5 17.5L17.5 6.5 M3 18h3v3H3z M18 3h3v3h-3z',
     PLINE: 'M4.5 18L9 8l6 8l4.5-10 M3 18h3v3H3z M18 3h3v3h-3z',
     RECTANG: 'M3.5 6.5h17v11h-17z',
     MOVE: 'M12 3v18 M3 12h18 M9 6l3-3l3 3 M9 18l3 3l3-3 M6 9l-3 3l3 3 M18 9l3 3l-3 3',
+    UNION: 'M3 8h7A5 5 0 1 1 15 13v7H3z',
+    SUBTRACT: 'M3 8h7A5 5 0 0 0 15 13v7H3z M10.06 7.22A5 5 0 0 1 11.46 4.46 M12.73 3.54A5 5 0 0 1 15.78 3.06 M17.27 3.54A5 5 0 0 1 19.46 5.73 M19.94 7.22A5 5 0 0 1 19.46 10.27 M18.54 11.54A5 5 0 0 1 15.78 12.94',
 };
 
 /** Parts of the icons of an arc around its centre: a quarter arc with its start, and its centre bottom left. */

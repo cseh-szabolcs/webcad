@@ -11,7 +11,7 @@ steps. So far it loads a plan through the API and displays it (wheel zoom, middl
 pan, status line, light/dark mode), has AutoCAD-like object selection, a grid, a UCS icon,
 object snap, polar tracking, Ortho, object snap tracking, Dynamic Input, the commands LINIE,
 PLINIE (straight segments only), KREIS, BOGEN (three points; around a centre given before or after the start, ending by a point, an angle or a chord length; or over start and end by an angle, a start direction or a radius), ELLIPSE, RECHTECK and SCHIEBEN with preview, typed
-coordinates and undo/redo, and grips that edit the selection (the grip modes STRETCH, MOVE,
+coordinates and undo/redo, DIFFERENZ and VEREINIG (AutoCAD SUBTRACT and UNION on closed polylines and circles), and grips that edit the selection (the grip modes STRETCH, MOVE,
 ROTATE, SCALE, MIRROR with their options Base point, Copy, Undo, Reference, eXit; several hot
 grips; a menu of further actions per grip).
 Changes are not saved to the backend yet. Once the plan is shown, the editor logs in to the
@@ -193,6 +193,9 @@ are in the guide and the translation files.
 | ELLIPSE (`ELLIPSE`) | `EllipseTool` | `AddEllipseCommand`; the first axis stays `radiusX` at its angle even when it is the minor one; `rotation` 0 when axis-aligned; the option "Drehung" gives the other radius as the turn of a circle about the first axis (an `angle` prompt, `MAX_TURN_DEGREES`) |
 | RECHTECK (`RECTANG`) | `RectangleTool` | `AddPolylineCommand` (closed, label `RECTANG`), corners by `rectangleCorners`, or by `rectangleOutline` once a mode applies: the options "Drehung" (the angle of the sides) and "Fasen" (two distances that cut every corner, at `distance` prompts without `from`) stay in `DrawingMemory` for the following rectangles, like AutoCAD, and `start()` names them |
 
+| DIFFERENZ (`SUBTRACT`) | `SubtractTool` | `SubtractCommand`: two object selections (the first is the pickfirst selection if there is one; a tool's `highlighted` stays shown during a later `select` prompt), then the area of the second set is taken out of that of the first (`geometry/regionBoolean.ts`: `subtractShapes`). **AutoCAD takes regions, the model has none:** closed polylines (≥ 3 vertices) and circles bound an area (`subtractableShape`), anything else is passed over with a message. All of them are replaced by the exact outlines left (closed polylines with `bulges`, a whole circle a circle) at the place of the first minuend, with its layer, style and name; several outlines (pieces, holes) go into its group or a new one, so a fill does not spare a hole. No preview |
+| VEREINIG (`UNION`) | `UnionTool` | `SubtractCommand` without subtrahends and with the label `UNION` (`unionShapes`): one object selection, or the pickfirst selection at once; the objects with an area are replaced by the outlines of their areas taken together, as for DIFFERENZ; fewer than two of them change nothing, like AutoCAD. `tools/areaObjects.ts` has what both tools share (`objectsWithArea`, the message for objects passed over) |
+
 LINIE, PLINIE and BOGEN remember what they drew last in the core's `DrawingMemory`
 (`tools/DrawingMemory.ts`; `continueFrom` gives its end and the direction it arrives there in),
 so Enter at the first point continues from it: PLINIE from the point, LINIE tangentially after
@@ -233,6 +236,7 @@ All pure TS and unit-tested unless noted.
   the new document and the changed element ids), `DocumentHistory` (current document, undo/redo
   stacks, listeners, `revertLast`, `combineLast`), `MoveCommand`, `AddLineCommand`,
   `AddPolylineCommand` (its `label` names the command), `AddCircleCommand`, `AddArcCommand`, `AddEllipseCommand`,
+  `SubtractCommand` (the first command that removes elements: with them the vertices no other element uses and groups left empty; `undo` puts the document's arrays back),
   `CompositeCommand`. `CadCanvas` keeps the history of the loaded document; the editor and the
   renderer follow it (`PaperRenderer.updateElements` replaces, adds and removes only the
   changed items as planned by the pure `cad/renderer/sceneUpdate.ts`, subscribed before the
@@ -279,6 +283,7 @@ All pure TS and unit-tested unless noted.
   need nothing of their own. Code that builds or changes a polyline must keep `bulges` as long
   as `vertexIds`.
 - `cad/geometry/`: `bezier`, `intersect`, `arc.angleOnArc`, `arc.arcThrough`, `arc.arcEndToward`, `arc.arcCenterOverChord`, `polygon.polygonCentroid`,
+  `regionBoolean` (`subtractShapes` and `unionShapes` on `ClosedShape`s, outlines of segments and circular arcs or circles: edges cut where they meet, each piece kept if exactly one of its sides is in the result, joined to loops; `closedShapeArea`),
   `ellipse` (rotated ellipses), `circle`, `similarity` (`rotationAbout`, `scalingAbout`,
   `reflectionAcross`; quarter turns exact). `cad/model/drawOrder.ts` gives the renderer's element
   order for selection and snapping.
