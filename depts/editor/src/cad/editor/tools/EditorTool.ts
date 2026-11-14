@@ -47,7 +47,18 @@ export interface PointPrompt {
 export type ToolPrompt =
     /** Object selection (verb-noun): the editor collects it and hands it over with objectsSelected. */
     | { kind: 'select'; text: Message }
-    | PointPrompt;
+    | PointPrompt
+    | KeywordPrompt;
+
+/**
+ * Only an option or Enter answers it (SPIEGELN: "Quellobjekte löschen?"); the tool gets it with
+ * `text()`, a click gives nothing. With `preview` the tool's preview stays as at that point.
+ */
+export interface KeywordPrompt {
+    kind: 'keyword';
+    text: Message;
+    preview?: { from: Point; point: Point };
+}
 
 /** A shape a tool previews, in model coordinates. */
 export type PreviewCurve =

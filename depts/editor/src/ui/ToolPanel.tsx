@@ -81,6 +81,7 @@ const GROUPS = [
         label: 'toolbar.modify',
         tools: [
             { command: 'MOVE', label: 'toolbar.move', title: 'toolbar.moveTitle' },
+            { command: 'MIRROR', label: 'toolbar.mirror', title: 'toolbar.mirrorTitle' },
             { command: 'UNION', label: 'toolbar.union', title: 'toolbar.unionTitle' },
             { command: 'SUBTRACT', label: 'toolbar.subtract', title: 'toolbar.subtractTitle' },
         ],

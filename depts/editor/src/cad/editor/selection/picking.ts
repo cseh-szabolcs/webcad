@@ -10,12 +10,13 @@ import type { ShapeIndex } from './ShapeIndex';
 /**
  * Element whose outline passes through the pick box, the square reaching `halfSize` (mm)
  * from `point` on each side, like AutoCAD's PICKBOX; if several do, the one drawn on top.
+ * With `accept`, only elements it takes count.
  */
-export function pickAt(index: ShapeIndex, point: Point, halfSize: number): Id | null {
+export function pickAt(index: ShapeIndex, point: Point, halfSize: number, accept?: (id: Id) => boolean): Id | null {
     const box = { x: point.x - halfSize, y: point.y - halfSize, width: 2 * halfSize, height: 2 * halfSize };
     const candidates = index.search(box);
     for (let i = candidates.length - 1; i >= 0; i--) {
-        if (polylineTouchesRect(candidates[i].points, box)) {
+        if ((!accept || accept(candidates[i].id)) && polylineTouchesRect(candidates[i].points, box)) {
             return candidates[i].id;
         }
     }

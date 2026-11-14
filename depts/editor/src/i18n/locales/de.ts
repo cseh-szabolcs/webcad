@@ -61,6 +61,8 @@ export const de = {
         rectangleTitle: 'Rechteck ({{command}})',
         move: 'Verschieben',
         moveTitle: 'Verschieben ({{command}})',
+        mirror: 'Spiegeln',
+        mirrorTitle: 'Spiegeln ({{command}})',
         subtract: 'Differenz',
         subtractTitle: 'Differenz ({{command}})',
         union: 'Vereinigung',
@@ -102,6 +104,10 @@ export const de = {
         basePoint: 'Basispunkt angeben oder [Verschiebung] <Verschiebung>:',
         displacement: 'Verschiebung angeben <0,0>:',
         secondPoint: 'Zweiten Punkt angeben oder <ersten Punkt als Verschiebung verwenden>:',
+        mirrorFirstPoint: 'Ersten Punkt der Spiegelachse angeben:',
+        mirrorSecondPoint: 'Zweiten Punkt der Spiegelachse angeben:',
+        /** Enter takes No: the originals stay beside their mirror images. */
+        mirrorErase: 'Quellobjekte löschen? [Ja/Nein] <N>:',
         lineFirst: 'Ersten Punkt angeben:',
         lineNext: 'Nächsten Punkt angeben oder [Zurück]:',
         lineNextClose: 'Nächsten Punkt angeben oder [Schließen/Zurück]:',
@@ -259,6 +265,12 @@ export const de = {
         noLineToContinue: 'Keine Linie oder kein Bogen zum Fortsetzen.',
         allSegmentsUndone: 'Alle Segmente bereits zurückgenommen.',
         invalidInput: 'Punkt oder Option-Schlüsselwort erforderlich.',
+        /** At a prompt that takes only an option. */
+        invalidKeyword: 'Ungültiges Optionsschlüsselwort.',
+        /** SPIEGELN: whether the originals go. */
+        yesKeyword: 'Ja',
+        noKeyword: 'Nein',
+        mirrorSamePoint: 'Die Punkte der Spiegelachse müssen verschieden sein.',
         invalidDistance: 'Erfordert numerischen Abstand oder zweiten Punkt.',
         invalidAngle: 'Erfordert gültigen numerischen Winkel oder zweiten Punkt.',
         positiveValue: 'Wert muss positiv und ungleich Null sein.',

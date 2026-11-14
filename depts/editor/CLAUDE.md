@@ -10,7 +10,7 @@ installed (unused). **It is being rebuilt from scratch, closer to AutoCAD behavi
 steps. So far it loads a plan through the API and displays it (wheel zoom, middle/Space+drag
 pan, status line, light/dark mode), has AutoCAD-like object selection, a grid, a UCS icon,
 object snap, polar tracking, Ortho, object snap tracking, Dynamic Input, the commands LINIE,
-PLINIE (straight segments only), KREIS, BOGEN (three points; around a centre given before or after the start, ending by a point, an angle or a chord length; or over start and end by an angle, a start direction or a radius), ELLIPSE, RECHTECK and SCHIEBEN with preview, typed
+PLINIE (straight segments only), KREIS, BOGEN (three points; around a centre given before or after the start, ending by a point, an angle or a chord length; or over start and end by an angle, a start direction or a radius), ELLIPSE, RECHTECK, SCHIEBEN and SPIEGELN with preview, typed
 coordinates and undo/redo, DIFFERENZ and VEREINIG (AutoCAD SUBTRACT and UNION on closed polylines and circles), and grips that edit the selection (the grip modes STRETCH, MOVE,
 ROTATE, SCALE, MIRROR with their options Base point, Copy, Undo, Reference, eXit; several hot
 grips; a menu of further actions per grip).
@@ -189,6 +189,7 @@ are in the guide and the translation files.
 | Command (id) | Tool | Result |
 |---|---|---|
 | SCHIEBEN (`MOVE`) | `MoveTool` | `MoveCommand` (zero displacement does nothing); vertices shared with elements that are not moved are detached (the neighbours keep a copy at the old position), like AutoCAD MOVE |
+| SPIEGELN (`MIRROR`) | `MirrorTool` | two points of the mirror line (`reflectionAcross`; the same point twice is refused), a `transform` preview with `keepsOriginals`, then the `keyword` prompt "Quellobjekte löschen?", which keeps that preview: No (the default) runs a `CopyCommand`, Yes a `TransformCommand`, both with the label `MIRROR`. Spec in `docs/specs/MIRROR_Werkzeug_Spezifikation.md` |
 | LINIE (`LINE`) | `LineTool` | an `AddLineCommand` per point at once (drawn and snappable); "Zurück" = `DocumentHistory.revertLast`; the run becomes one undo step (`combineLast` → `CompositeCommand`) |
 | PLINIE (`PLINE`) | `PolylineTool` | points stay in the tool (not snappable, like AutoCAD); one `AddPolylineCommand` when the command ends in any way, Esc and another tool included |
 | KREIS (`CIRCLE`) | `CircleTool` | `AddCircleCommand` as the step's command (`geometry/circle.ts`: `circleThrough`, `circleOnDiameter`) |
@@ -228,7 +229,9 @@ All pure TS and unit-tested unless noted.
   `distance()`: a typed number as is, or the distance to a point given) | `angle` (likewise
   with the optional `angle()`: typed degrees as they are, or the direction from `from` to a point given, from 0 up to 360;
   with `from` null a `distance` or `angle` prompt takes a number or hands
-  the point itself to `point()`, and shows no DYN field)), gets the selected
+  the point itself to `point()`, and shows no DYN field), or `keyword`: only an option or
+  Enter, given to `text()`; no snap, no DYN field, a click gives nothing, and with its `preview`
+  (a `from` and a point) the tool's preview stays as it was there), gets the selected
   objects, points, distances and option text (`''` = Enter or right click), and returns a
   `ToolStep` (`done`, `message`, a `DocumentCommand` to run after the end). A new prompt object
   starts a new point prompt. Previews are `ToolPreview`s (`polyline`, `curve` with a
@@ -249,7 +252,7 @@ All pure TS and unit-tested unless noted.
   afterwards and where its vertices go) and splits shared vertices where elements disagree; new
   edit commands build on it, as `MoveCommand`, `StretchCommand` (grips, label `GRIP_STRETCH`)
   and `TransformCommand` (rotation, scaling or reflection as a `Similarity`, named by its
-  `label`: the grip modes now, the commands DREHEN, VARIA, SPIEGELN later) do. `CopyCommand`
+  `label`: the grip modes and SPIEGELN now, the commands DREHEN and VARIA later) do. `CopyCommand`
   adds copies of elements as such edits would leave them (own vertices, shared where the
   originals share and agree; grouped elements in a copy of their group). `EditCommand` applies
   edits given as a function of the document (a grip's Lengthen and Radius);

@@ -6,7 +6,7 @@ Auf dem Mac entspricht **Option (⌥)** der Taste Alt.
 Tastenkürzel wirken, solange der Fokus nicht in einem Textfeld liegt.
 
 Der Editor zeigt Pläne an, wählt Objekte aus, zeichnet Linien mit dem Befehl LINIE,
-Polylinien mit PLINIE, Kreise mit KREIS, Bögen mit BOGEN, Ellipsen mit ELLIPSE und Rechtecke mit RECHTECK, verschiebt Objekte mit dem Befehl SCHIEBEN und streckt sie an ihren [Grips](#grips) (mit Raster, Objektfang, Polarspur, Ortho, Objektfangspuren, Koordinateneingabe, dynamischer Eingabe und Rückgängig). Gespeichert wird noch nichts; was
+Polylinien mit PLINIE, Kreise mit KREIS, Bögen mit BOGEN, Ellipsen mit ELLIPSE und Rechtecke mit RECHTECK, verschiebt Objekte mit dem Befehl SCHIEBEN, spiegelt sie mit SPIEGELN und streckt sie an ihren [Grips](#grips) (mit Raster, Objektfang, Polarspur, Ortho, Objektfangspuren, Koordinateneingabe, dynamischer Eingabe und Rückgängig). Gespeichert wird noch nichts; was
 sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgesetzt).
 
 ## Oberfläche
@@ -62,6 +62,7 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   (Befehl [BOGEN](#befehl-bogen)), **Ellipse** (Befehl [ELLIPSE](#befehl-ellipse)) und
   **Rechteck** (Befehl [RECHTECK](#befehl-rechteck)), daneben nach einer
   Trennlinie **Ändern** mit **Verschieben** (Befehl [SCHIEBEN](#befehl-schieben)),
+  **Spiegeln** (Befehl [SPIEGELN](#befehl-spiegeln)),
   **Vereinigung** (Befehl [VEREINIG](#befehl-vereinig)) und
   **Differenz** (Befehl [DIFFERENZ](#befehl-differenz)). Der Name
   steht im Tooltip, z. B. `Linie (LINIE)`. Der Button des laufenden Befehls bleibt gedrückt; ein
@@ -135,6 +136,7 @@ noch nicht.
 | Kein Befehl (mit oder ohne Auswahl)       | Wiederholt den zuletzt gestarteten Befehl; ist ein Befehlsname getippt, führt er diesen aus. Ohne bisherigen Befehl passiert nichts |
 | `Objekte wählen:`                         | Beendet die Auswahl                                 |
 | Punkt-Aufforderung                        | Wie Enter: nimmt das Getippte, sonst die Vorgabe des Befehls (z. B. bei SCHIEBEN `Basispunkt` die Option Verschiebung, bei LINIE `Ersten Punkt` das Fortsetzen, beim nächsten Punkt das Beenden, bei einem hot [Grip](#grips) den nächsten Modus, mit dessen Option `Kopieren` das Beenden) |
+| Frage mit Optionen allein (SPIEGELN `Quellobjekte löschen?`) | Wie Enter: nimmt das Getippte, sonst die Vorgabe |
 | Auswahlrechteck oder Lasso offen          | Wird ignoriert, startet also keinen Befehl          |
 
 So lässt sich z. B. LINIE mit einem Rechtsklick beenden und mit einem zweiten Rechtsklick
@@ -505,6 +507,38 @@ bedeuten dort dasselbe.
 Ungültige Eingaben meldet die Kommandozeile mit `Punkt oder Option-Schlüsselwort
 erforderlich.`, die Aufforderung bleibt. Getippte Zeichen lösen keine anderen
 Tastenkürzel aus; Strg/⌘-Kürzel, F3, F7, F8, F10, F11 und F12 wirken weiter.
+
+## Befehl SPIEGELN
+
+Spiegelt Objekte an einer Achse, wie AutoCADs SPIEGELN (`MIRROR`). Button **Spiegeln** (Dreieck
+und sein Spiegelbild an einer gestrichelten Achse) in der Werkzeugleiste, oder bei `Befehl:`
+`SPIEGELN`, `MI` oder `MIRROR`.
+
+1. **Objekte wählen.** Wie bei [SCHIEBEN](#befehl-schieben): Eine vorhandene Auswahl wird
+   übernommen (`N gefunden`), sonst fragt die Kommandozeile `SPIEGELN Objekte wählen:`;
+   **Enter** oder **Rechtsklick** beendet die Auswahl.
+2. **`Ersten Punkt der Spiegelachse angeben:`** Klick, mit [Objektfang](#objektfang-ofang) und
+   [Objektfangspuren](#objektfangspuren-otrack), oder Koordinaten eintippen.
+3. **`Zweiten Punkt der Spiegelachse angeben:`** Wie der zweite Punkt von SCHIEBEN, also auch
+   mit [Polarspur](#polarspur-polar), [Ortho](#ortho-ortho) (für eine waagrechte oder senkrechte
+   Achse), direkter Abstandseingabe und [dynamischer Eingabe](#dynamische-eingabe-dyn). Bis
+   dahin folgt eine Vorschau dem Cursor: die Spiegelbilder der Objekte und die Achse als
+   gestrichelte Linie vom ersten Punkt; die Originale bleiben hervorgehoben. Gespiegelt wird an
+   der Geraden durch beide Punkte, wie weit sie auch auseinander liegen. Liegt der zweite Punkt
+   auf dem ersten, meldet die Kommandozeile `Die Punkte der Spiegelachse müssen verschieden
+   sein.` und fragt erneut.
+4. **`Quellobjekte löschen? [Ja/Nein] <N>:`** **Enter**, **Rechtsklick** oder `N` + Enter:
+   Die Originale bleiben, die Spiegelbilder kommen als Kopien dazu (mit Layer, Stil und Name
+   der Originale; Kopien gruppierter Objekte bilden eine eigene Gruppe). `J` + Enter: Die
+   Originale selbst werden gespiegelt. Hier wird nur eine Option angenommen: Ein Klick bewirkt
+   nichts, es gibt weder Objektfang noch Felder der dynamischen Eingabe, und anderes Getipptes
+   meldet `Ungültiges Optionsschlüsselwort.` Die Vorschau bleibt bis zur Antwort stehen.
+
+Bögen und Bogensegmente von Polylinien kehren beim Spiegeln ihre Richtung um, Ellipsen ihre
+Drehung. Mit `J` gilt für geteilte Punkte dasselbe wie bei SCHIEBEN: Nicht gewählte Objekte
+bleiben, wie sie sind. **Esc** bricht bei jeder Aufforderung ab (`*Abbruch*`), ohne etwas zu
+ändern. Der Befehl ist ein Rückgängig-Schritt (`Rückgängig: SPIEGELN`). Der
+[Grip-Modus](#grip-modi) SPIEGELN spiegelt dagegen ohne Rückfrage die Originale.
 
 ## Befehl DIFFERENZ
 
@@ -1394,7 +1428,7 @@ merkt sich die Wahl. Die Umschaltung wirkt sofort, auch mitten in einem Befehl: 
 Statusleiste (RASTER/GRID, OFANG/OSNAP …), Fang-Tooltips und Kommandozeile wechseln. Die
 Kommandozeile folgt dem englischen AutoCAD (`Command:`, `MOVE`, `Specify base point or
 [Displacement] <Displacement>:`, `1 found, 2 total`, `*Cancel*`); die Option heißt dann
-**Displacement**, also `D` statt `V`. Befehlsnamen gelten in beiden Sprachen (`SCHIEBEN`
+**Displacement**, also `D` statt `V`, und SPIEGELN fragt `[Yes/No]`, also `Y` statt `J`. Befehlsnamen gelten in beiden Sprachen (`SCHIEBEN`
 und `MOVE`); angezeigt wird der Name der eingestellten Sprache. Die Namen im Plan selbst
 werden nicht übersetzt.
 
@@ -1487,6 +1521,8 @@ seinen Startwert zurück). Die Startwerte, solange nichts gespeichert ist:
 - Bei DIFFERENZ und VEREINIG: Ellipsen und Splines als Flächen, ein Objekt mit mehreren
   Umrissen (Region), dessen Füllung Löcher ausspart, eine Vorschau, der Befehl SCHNITTMENGE;
   Details in `docs/todo/Subtract_NotImplemented.md`.
+- Bei SPIEGELN: Text, Schraffuren und Blöcke (die es im Modell noch nicht gibt, samt den
+  Einstellungen dazu), anklickbare Optionen; Details in `docs/todo/Mirror_NotImplemented.md`.
 - Alle anderen Bearbeitungsbefehle wie Löschen, Gruppieren oder Kopieren.
 - Gruppenauswahl ausschalten (AutoCAD Ctrl+Shift+A), um einzelne Gruppenmitglieder zu
   wählen.

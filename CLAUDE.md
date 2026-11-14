@@ -24,7 +24,7 @@ apps in one repo:
 - **CAD editor frontend** in `depts/editor/`: Vite + React 19 + TypeScript + Paper.js,
   **being rebuilt from scratch, closer to AutoCAD behaviour**, in small steps. It loads a plan
   through the API and draws and edits it (selection, snapping, tracking, drawing commands,
-  MOVE, SUBTRACT, UNION, grip editing, undo/redo); changes are not saved to the backend yet. **Everything about the editor
+  MOVE, MIRROR, SUBTRACT, UNION, grip editing, undo/redo); changes are not saved to the backend yet. **Everything about the editor
   (state, structure, rules) is in `depts/editor/CLAUDE.md`**, its user
   guide in `depts/editor/docs/bedienung.md`.
 

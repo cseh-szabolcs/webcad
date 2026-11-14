@@ -36,12 +36,13 @@ import { GripTool } from './tools/GripTool';
 import { gripActions, segmentOfGrip, vertexRemoval, type GripAction } from './grips/actions';
 import { RemovePolylineVertexCommand, SetPolylineBulgeCommand } from './commands/PolylineVertexCommands';
 import { LineTool } from './tools/LineTool';
+import { MirrorTool } from './tools/MirrorTool';
 import { MoveTool } from './tools/MoveTool';
 import { SubtractTool } from './tools/SubtractTool';
 import { UnionTool } from './tools/UnionTool';
 import { PolylineTool } from './tools/PolylineTool';
 import { RectangleTool } from './tools/RectangleTool';
-import type { EditorTool, Message, PointPrompt, ToolId, ToolPreview, ToolStep } from './tools/EditorTool';
+import type { EditorTool, KeywordPrompt, Message, PointPrompt, ToolId, ToolPreview, ToolStep } from './tools/EditorTool';
 import {
     backspaceDynamic,
     dynamicFields,
@@ -86,6 +87,7 @@ export type { EditorCommand };
 
 /** Typed text that is neither a point nor an option, like AutoCAD. */
 const INVALID_INPUT: Message = () => t('message.invalidInput');
+const INVALID_KEYWORD: Message = () => t('message.invalidKeyword');
 /** The same at a `distance` prompt. */
 const INVALID_DISTANCE: Message = () => t('message.invalidDistance');
 /** The same at an `angle` prompt. */
@@ -498,7 +500,7 @@ export class SelectionEditor {
         this.state =
             state.kind === 'idle' ? { kind: 'idle', pickfirst: free(state.pickfirst) } : { ...state, selection: free(state.selection) };
         this.areaPreview = null;
-        if (this.pointPrompt() === null) {
+        if (this.pointPrompt() === null && this.keywordPrompt() === null) {
             this.hoverAt(this.lastPointer);
         }
         this.changed();
@@ -587,6 +589,8 @@ export class SelectionEditor {
         switch (command) {
             case 'MOVE':
                 return new MoveTool();
+            case 'MIRROR':
+                return new MirrorTool();
             case 'SUBTRACT':
                 return new SubtractTool(this.index);
             case 'UNION':
@@ -692,6 +696,13 @@ export class SelectionEditor {
             }
             return;
         }
+        if (this.keywordPrompt() !== null) {
+            // A click gives nothing here; a right click is Enter as everywhere
+            if (event.button === 2) {
+                this.submitInput();
+            }
+            return;
+        }
         if (event.button === 2) {
             // Ignored while a rectangle or lasso is being spanned, so it never starts a command
             if (this.area !== null || this.press !== null) {
@@ -749,6 +760,9 @@ export class SelectionEditor {
         if (this.pointPrompt() !== null) {
             this.updateSnap(event);
             this.changed();
+            return;
+        }
+        if (this.keywordPrompt() !== null) {
             return;
         }
         this.hoverAt(event);
@@ -885,7 +899,7 @@ export class SelectionEditor {
             }
             return true;
         }
-        if (this.pointPrompt() !== null) {
+        if (this.pointPrompt() !== null || this.keywordPrompt() !== null) {
             return this.typeKey(event);
         }
         if (state.kind !== 'idle') {
@@ -969,6 +983,11 @@ export class SelectionEditor {
             this.prompt = prompt;
             if (prompt.kind === 'select') {
                 this.state = { ...state, selection: new Set() };
+            } else if (prompt.kind === 'keyword') {
+                this.underCursor = null;
+                this.blockedUnderCursor = false;
+                this.input = '';
+                this.updateSnap(null);
             } else {
                 this.underCursor = null;
                 this.startPointPrompt();
@@ -982,6 +1001,12 @@ export class SelectionEditor {
     private pointPrompt(): PointPrompt | null {
         const state = this.state;
         return state.kind === 'command' && state.tool.prompt.kind === 'point' ? state.tool.prompt : null;
+    }
+
+    /** The running command's keyword prompt, or null at other prompts. */
+    private keywordPrompt(): KeywordPrompt | null {
+        const state = this.state;
+        return state.kind === 'command' && state.tool.prompt.kind === 'keyword' ? state.tool.prompt : null;
     }
 
     /** The running command selects objects. */
@@ -1003,7 +1028,11 @@ export class SelectionEditor {
     /** Typed text the prompt cannot take. */
     private invalidInput(): void {
         const input = this.pointPrompt()?.input;
-        this.message = input === 'distance' ? INVALID_DISTANCE : input === 'angle' ? INVALID_ANGLE : INVALID_INPUT;
+        if (this.keywordPrompt() !== null) {
+            this.message = INVALID_KEYWORD;
+        } else {
+            this.message = input === 'distance' ? INVALID_DISTANCE : input === 'angle' ? INVALID_ANGLE : INVALID_INPUT;
+        }
         this.changed();
     }
 
@@ -1177,7 +1206,12 @@ export class SelectionEditor {
      */
     private submitText(text: string): void {
         const { tool } = this.state as Extract<State, { kind: 'command' }>;
-        const prompt = this.pointPrompt()!;
+        const prompt = this.pointPrompt();
+        if (prompt === null) {
+            // A keyword prompt takes no point
+            this.textGiven(tool, text);
+            return;
+        }
         const distance = prompt.input === 'distance' && text !== '' ? parseNumber(text) : null;
         if (distance !== null) {
             this.distanceGiven(distance);
@@ -1190,12 +1224,7 @@ export class SelectionEditor {
         }
         const parsed = text === '' ? null : parsePointInput(text);
         if (parsed === null) {
-            const step = tool.text(text);
-            if (step === null) {
-                this.invalidInput();
-            } else {
-                this.applyStep(step);
-            }
+            this.textGiven(tool, text);
             return;
         }
         const from = this.from();
@@ -1213,6 +1242,16 @@ export class SelectionEditor {
             return;
         }
         this.pointGiven(point);
+    }
+
+    /** An option of the tool, or `''` for Enter on its own. */
+    private textGiven(tool: EditorTool, text: string): void {
+        const step = tool.text(text);
+        if (step === null) {
+            this.invalidInput();
+        } else {
+            this.applyStep(step);
+        }
     }
 
     /**
@@ -1755,7 +1794,9 @@ export class SelectionEditor {
                     ? new Set([...state.tool.highlighted, ...state.selection])
                     : state.selection;
         const pointPrompt = this.pointPrompt() !== null;
-        const from = this.from();
+        const keywordPrompt = this.keywordPrompt();
+        // A keyword prompt may keep the preview where the last point left it
+        const from = keywordPrompt?.preview?.from ?? this.from();
         const preview = from !== null && state.kind === 'command' ? state.tool.preview : null;
         const previewKeeps = preview !== null && state.kind === 'command' && state.tool.keepsOriginals === true;
         const snap = pointPrompt ? this.snap : null;
@@ -1768,7 +1809,7 @@ export class SelectionEditor {
         const snapPreview = pointPrompt
             ? this.snapPreview.filter(({ point }) => snap === null || !coincide(point, snap.point))
             : NO_POINTS;
-        const previewPoint = this.previewPoint();
+        const previewPoint = keywordPrompt?.preview?.point ?? this.previewPoint();
         const previewValue = pointPrompt ? this.typedPromptValue() : null;
         const dynamicInput = this.dynamicInputView();
         const input = dynamicInput !== null ? dynamicText(this.dynamic, this.dynamicContext()) : this.input;
@@ -1843,7 +1884,7 @@ export class SelectionEditor {
             command,
             prompt,
             input,
-            acceptsInput: pointPrompt || (state.kind === 'idle' && area === null),
+            acceptsInput: pointPrompt || keywordPrompt !== null || (state.kind === 'idle' && area === null),
             message,
             hovered,
             highlighted,
@@ -1853,7 +1894,7 @@ export class SelectionEditor {
             gripMenu,
             controlFrames,
             area,
-            cursor: pointPrompt ? 'point' : selecting ? 'select' : 'command',
+            cursor: pointPrompt || keywordPrompt !== null ? 'point' : selecting ? 'select' : 'command',
             blocked,
             snap,
             snapCycle,

@@ -1,5 +1,6 @@
 {
     "MOVE": ["SCHIEBEN"],
+    "MIRROR": ["SPIEGELN", "MI"],
     "SUBTRACT": ["DIFFERENZ", "SU"],
     "UNION": ["VEREINIG", "UNI"],
     "LINE": ["LINIE", "L"],

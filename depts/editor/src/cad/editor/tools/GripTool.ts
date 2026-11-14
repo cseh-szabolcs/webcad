@@ -479,7 +479,8 @@ function degreesTo(from: Point, to: Point): number {
     return (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI;
 }
 
-function transformPreview(at: (point: Point) => Similarity | null): ToolPreview {
+/** The copies of the highlighted elements under the similarity a click at the point would give. */
+export function transformPreview(at: (point: Point) => Similarity | null): ToolPreview {
     return {
         kind: 'transform',
         matrixAt: (point): PreviewMatrix | null => {
