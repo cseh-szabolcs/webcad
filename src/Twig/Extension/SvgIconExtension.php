@@ -28,7 +28,7 @@ final class SvgIconExtension
 
     private const string Svg = '<svg class="%s" viewBox="0 0 %d %d" aria-hidden="true">%s</svg>';
 
-    ##[AsTwigFilter('svg_icon')]
+    // #[AsTwigFilter('svg_icon')]
     #[AsTwigFunction(name: 'svg_icon', isSafe: ['html'])]
     public function svgIcon(string $name, array $options = [], string $default = ':/'): string
     {

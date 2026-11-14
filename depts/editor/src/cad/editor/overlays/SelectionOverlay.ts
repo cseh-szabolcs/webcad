@@ -49,8 +49,8 @@ export interface OverlayHost {
     readonly revision: number;
     /** Gives `item` the display style of element `id` (the rendered item may be dimmed). */
     applyElementStyle(item: paper.Path, id: Id): void;
-    /** Gives `item` the display style `styleId`, the default style for null. */
-    applyStyleById(item: paper.Path, styleId: Id | null): void;
+    /** Gives `item` the display style of a new element on layer `layerId`. */
+    applyLayerStyle(item: paper.Path, layerId: Id | null): void;
 }
 
 /**
@@ -87,6 +87,8 @@ export class SelectionOverlay {
     private selectionKey: readonly unknown[] | null = null;
     private moveKey: readonly unknown[] | null = null;
     private gripsKey: readonly unknown[] | null = null;
+    /** The layer the previews of new elements are drawn by (see SelectionSnapshot.currentLayerId). */
+    private currentLayerId: Id | null = null;
 
     constructor(host: OverlayHost, settings: Pick<EditorSettings, 'gripSize' | 'gripColor'> = DEFAULT_EDITOR_SETTINGS) {
         this.host = host;
@@ -103,6 +105,7 @@ export class SelectionOverlay {
     render(snapshot: SelectionSnapshot): void {
         const { hovered, highlighted, grips, hoveredGrip, hotGrips, controlFrames, area, from, preview, previewKeeps, previewPoint, previewValue } =
             snapshot;
+        this.currentLayerId = snapshot.currentLayerId;
         const layer = this.host.activateOverlay();
         const groups = (this.groups ??= createGroups(layer));
         const { revision, scale } = this.host;
@@ -252,7 +255,7 @@ export class SelectionOverlay {
     private linePreview(parent: paper.Group, from: Point, to: Point): void {
         const line = new paper.Path.Line({ from: [from.x, from.y], to: [to.x, to.y], insert: false });
         line.strokeScaling = false;
-        this.host.applyStyleById(line, null);
+        this.host.applyLayerStyle(line, this.currentLayerId);
         parent.addChild(line);
     }
 
@@ -260,7 +263,7 @@ export class SelectionOverlay {
     private polylinePreview(parent: paper.Group, points: readonly Point[], closed = false): void {
         const path = new paper.Path({ segments: points.map((p) => [p.x, p.y]), closed, insert: false });
         path.strokeScaling = false;
-        this.host.applyStyleById(path, null);
+        this.host.applyLayerStyle(path, this.currentLayerId);
         parent.addChild(path);
     }
 
@@ -278,7 +281,7 @@ export class SelectionOverlay {
                   : ellipsePathSpec(curve.center, curve.radiusX, curve.radiusY, curve.rotation);
         const path = pathOf(spec);
         path.strokeScaling = false;
-        this.host.applyStyleById(path, null);
+        this.host.applyLayerStyle(path, this.currentLayerId);
         parent.addChild(path);
     }
 

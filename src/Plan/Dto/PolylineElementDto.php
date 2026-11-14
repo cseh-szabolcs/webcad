@@ -17,7 +17,7 @@ final readonly class PolylineElementDto extends AbstractElementDto
      */
     public function __construct(
         string $id,
-        ?string $layerId,
+        string $layerId,
         ?string $groupId,
         ?string $styleId,
         #[Assert\Count(min: 2)]

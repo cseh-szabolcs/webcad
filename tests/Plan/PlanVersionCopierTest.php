@@ -41,7 +41,7 @@ final class PlanVersionCopierTest extends KernelTestCase
 
         // Every id is new, and replacing them in order gives the draft again
         $ids = [];
-        foreach (['vertices', 'layers', 'groups', 'styles', 'elements'] as $list) {
+        foreach (['vertices', 'floors', 'layers', 'groups', 'styles', 'elements'] as $list) {
             self::assertCount(\count($draft[$list]), $copied[$list], $list);
             foreach ($copied[$list] as $i => $item) {
                 self::assertNotSame($draft[$list][$i]['id'], $item['id'], $list);

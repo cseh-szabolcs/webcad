@@ -68,9 +68,15 @@ final readonly class PlanFactory
             $vertices[$vertex->id] = $this->persist(new Entity\Vertex(Uuid::v7(), $version, $vertex->x, $vertex->y));
         }
 
+        $floors = [];
+        foreach ($document->floors as $position => $floor) {
+            $floors[$floor->id] = $this->persist(new Entity\Floor(Uuid::v7(), $version, $position, $floor->name));
+        }
+
         $layers = [];
         foreach ($document->layers as $position => $layer) {
-            $layers[$layer->id] = $this->persist(new Entity\Layer(Uuid::v7(), $version, $position, $layer->name, $layer->visible, $layer->locked));
+            $floor = $floors[$layer->floorId] ?? throw new \InvalidArgumentException(\sprintf('Layer "%s" refers to unknown floor "%s".', $layer->id, $layer->floorId));
+            $layers[$layer->id] = $this->persist(new Entity\Layer(Uuid::v7(), $version, $floor, $position, $layer->name, $layer->visible, $layer->locked, $layer->color, $layer->linetype, $layer->transparency, $layer->description));
         }
 
         $groups = [];
@@ -86,7 +92,7 @@ final readonly class PlanFactory
         $vector = static fn (Vector2Dto $v): Entity\Vector2 => new Entity\Vector2($v->x, $v->y);
         foreach ($document->elements as $position => $element) {
             $vertex = static fn (string $id): Entity\Vertex => $vertices[$id] ?? throw self::unknown('vertex', $id, $element->id);
-            $layer = null === $element->layerId ? null : ($layers[$element->layerId] ?? throw self::unknown('layer', $element->layerId, $element->id));
+            $layer = $layers[$element->layerId] ?? throw self::unknown('layer', $element->layerId, $element->id);
             $group = null === $element->groupId ? null : ($groups[$element->groupId] ?? throw self::unknown('group', $element->groupId, $element->id));
             $style = null === $element->styleId ? null : ($styles[$element->styleId] ?? throw self::unknown('style', $element->styleId, $element->id));
             $id = Uuid::v7();

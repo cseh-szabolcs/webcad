@@ -12,7 +12,7 @@ final readonly class CircleElementDto extends AbstractElementDto
 
     public function __construct(
         string $id,
-        ?string $layerId,
+        string $layerId,
         ?string $groupId,
         ?string $styleId,
         #[OA\Property(format: 'uuid')]

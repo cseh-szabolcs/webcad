@@ -63,7 +63,7 @@ function additions(
     return steps.reverse();
 }
 
-/** The layer an element is drawn on: its own if the document knows it, else none (null). */
+/** The layer an element is drawn on: its own if the document knows it, else the one for the rest (null). */
 function sceneLayer(element: CadElement, index: DocumentIndex): Id | null {
-    return element.layerId !== null && index.layers.has(element.layerId) ? element.layerId : null;
+    return index.layers.has(element.layerId) ? element.layerId : null;
 }

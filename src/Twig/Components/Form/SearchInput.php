@@ -3,7 +3,6 @@
 namespace App\Twig\Components\Form;
 
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
-use Symfony\UX\TwigComponent\Attribute\ExposeInTemplate;
 
 #[AsTwigComponent]
 class SearchInput

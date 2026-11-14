@@ -28,8 +28,8 @@ class EllipseElement extends Element
         #[ORM\Column(nullable: true)]
         private float $radiusY,
         #[ORM\Column(nullable: true)]
-        private float $rotation = 0.0,
-        ?Layer $layer = null,
+        private float $rotation,
+        Layer $layer,
         ?Group $group = null,
         ?ElementStyle $style = null,
         ?string $name = null,

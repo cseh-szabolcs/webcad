@@ -6,7 +6,7 @@ use App\Plan\Enum\PlanUnit;
 use OpenApi\Attributes as OA;
 use Symfony\Component\Validator\Constraints as Assert;
 
-#[OA\Schema(description: 'The drawing of a plan, as the editor loads it: everything the user drew and the layers, groups and styles it uses. Model coordinates are millimetres with Y up, whatever the display unit.')]
+#[OA\Schema(description: 'The drawing of a plan, as the editor loads it: everything the user drew and the floors, layers, groups and styles it uses. Model coordinates are millimetres with Y up, whatever the display unit.')]
 final readonly class PlanDocumentDto
 {
     public const int SCHEMA_VERSION = 1;
@@ -14,6 +14,7 @@ final readonly class PlanDocumentDto
     /**
      * @param list<VertexDto>           $vertices
      * @param list<ElementDtoInterface> $elements
+     * @param list<FloorDto>            $floors
      * @param list<LayerDto>            $layers
      * @param list<GroupDto>            $groups
      * @param list<ElementStyleDto>     $styles
@@ -32,6 +33,10 @@ final readonly class PlanDocumentDto
         #[Assert\Valid]
         #[OA\Property(description: 'In document order: within a layer, a later element is drawn on top.')]
         public array $elements,
+        #[Assert\Valid]
+        #[Assert\Count(min: 1)]
+        #[OA\Property(description: 'In the order of their tabs; at least one.')]
+        public array $floors,
         #[Assert\Valid]
         #[OA\Property(description: 'In drawing order: a later layer is drawn on top.')]
         public array $layers,

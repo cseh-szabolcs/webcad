@@ -31,7 +31,7 @@ class ArcElement extends Element
         /** Direction from start to end, Y up: false is counter-clockwise. */
         #[ORM\Column(nullable: true)]
         private bool $clockwise,
-        ?Layer $layer = null,
+        Layer $layer,
         ?Group $group = null,
         ?ElementStyle $style = null,
         ?string $name = null,

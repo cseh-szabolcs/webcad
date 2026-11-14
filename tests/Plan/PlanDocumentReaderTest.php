@@ -31,8 +31,8 @@ final class PlanDocumentReaderTest extends KernelTestCase
 
         static::getContainer()->get(PlanDocumentReader::class)->read($draft);
 
-        // Vertices, polylines with their vertices, elements, layers, groups, styles; none per element
-        self::assertCount(6, $queries->getData()['tenant']);
+        // Vertices, polylines with their vertices, elements, floors, layers, groups, styles; none per element or layer
+        self::assertCount(7, $queries->getData()['tenant']);
     }
 
     private function sampleDocument(): PlanDocumentDto

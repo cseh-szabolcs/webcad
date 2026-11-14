@@ -16,7 +16,7 @@ Später, in dieser Reihenfolge vorgeschlagen:
 3. **Breite und Halbbreite (Width/Halfwidth):** Start-/Endbreite je Segment im Schema (z. B. `widths?: [number, number][]`), Darstellung als Fläche mit Gehrung an den Ecken, Breitenvorschau, Meldung `Aktuelle Linienbreite beträgt …` beim Start. Klären, wie sich das zu Stil-Strichstärken verhält.
 4. **Fangen an den eigenen Segmenten während des Befehls:** AutoCAD bietet das nicht (die Polylinie existiert erst am Ende). Wäre bei Bedarf über eine temporäre Fanggeometrie im Editor-Kern möglich, ohne das Dokument zu ändern.
 5. **Temporäres Markierungskreuz am Startpunkt** (spezifiziert, in AutoCAD nur mit BLIPMODE).
-6. Aktueller Layer und Stil für neue Objekte, geteilte Punkte mit Nachbarobjekten (siehe `Vertex_Handling_NotDecided.md`), Bearbeitung mit Griffen und PEDIT.
+6. Aktueller Stil für neue Objekte (sie liegen auf dem aktuellen Layer und zeichnen VonLayer), geteilte Punkte mit Nachbarobjekten (siehe `Vertex_Handling_NotDecided.md`), Bearbeitung mit Griffen und PEDIT.
 7. **Leertaste wie Enter** (Spezifikation Abschnitte 1 und 8): gilt für alle Befehle; bisher verschiebt die Leertaste ohne getippten Text bewusst die Ansicht (siehe bedienung.md).
 8. **Optionen im DYN-Tooltip** (Abschnitt 7): das ↓-Menü der dynamischen Eingabe fehlt für alle Befehle (siehe `Dynamic_Input_NotImplemented.md`).
 

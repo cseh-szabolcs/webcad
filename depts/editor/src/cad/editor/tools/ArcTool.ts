@@ -125,9 +125,13 @@ export class ArcTool implements EditorTool {
     private readonly history: DocumentHistory;
     private readonly memory: DrawingMemory;
 
-    constructor(history: DocumentHistory, memory: DrawingMemory, method: ArcMethod = 'threePoints') {
+    /** The current layer, which what is drawn goes on. */
+    private readonly layerId: () => Id;
+
+    constructor(history: DocumentHistory, memory: DrawingMemory, layerId: () => Id, method: ArcMethod = 'threePoints') {
         this.history = history;
         this.memory = memory;
+        this.layerId = layerId;
         this.method = method;
         if (centerFirst(method)) {
             this.askCenter(null);
@@ -465,7 +469,7 @@ export class ArcTool implements EditorTool {
 
     /** Ends BOGEN with the arc as one undo step, and remembers it to continue from. */
     private finish(center: Point, start: Point, end: Point, clockwise: boolean): ToolStep {
-        const command = new AddArcCommand(center, start, end, clockwise);
+        const command = new AddArcCommand(this.layerId(), center, start, end, clockwise);
         this.memory.lastDrawn = command.arcId;
         return { done: true, command };
     }

@@ -74,10 +74,17 @@ final class PlanFactoryTest extends KernelTestCase
         self::assertCount(4, $this->entitiesOf(Entity\ElementStyle::class, $plan));
 
         $layers = $this->entitiesOf(Entity\Layer::class, $plan, ['position' => 'ASC']);
-        self::assertSame(['Walls', 'Doors & windows', 'Furniture'], array_map(static fn (Entity\Layer $l): string => $l->getName(), $layers));
+        self::assertSame(['0', 'Walls', 'Doors & windows', 'Furniture'], array_map(static fn (Entity\Layer $l): string => $l->getName(), $layers));
+        self::assertSame(['#000000', '#1f2937', '#374151', '#2563eb'], array_map(static fn (Entity\Layer $l): string => $l->getColor(), $layers));
+
+        $floors = $this->entitiesOf(Entity\Floor::class, $plan, ['position' => 'ASC']);
+        self::assertSame(['Ground floor'], array_map(static fn (Entity\Floor $f): string => $f->getName(), $floors));
+        foreach ($layers as $layer) {
+            self::assertSame($floors[0], $layer->getFloor());
+        }
 
         $documentIds = [];
-        foreach ([...$document->vertices, ...$document->layers, ...$document->groups, ...$document->styles] as $model) {
+        foreach ([...$document->vertices, ...$document->floors, ...$document->layers, ...$document->groups, ...$document->styles] as $model) {
             $documentIds[] = $model->id;
         }
         foreach ($elements as $element) {
@@ -98,7 +105,9 @@ final class PlanFactoryTest extends KernelTestCase
         self::assertSame('Wall', $wallOuter->getStyle()->getName());
         self::assertTrue($wallOuter->isClosed());
         self::assertSame('Door D1', $doorLeaf->getGroup()->getName());
-        self::assertNull($axis->getLayer());
+        self::assertSame('0', $axis->getLayer()->getName());
+        // Drawn with the colour, linetype and transparency of its layer
+        self::assertNull($doorLeaf->getStyle());
         self::assertNull($axis->getStyle());
         self::assertSame(600.0, $table->getRadius());
         self::assertSame([1000.0, 700.0, 0.0], [$rug->getRadiusX(), $rug->getRadiusY(), $rug->getRotation()]);
@@ -112,7 +121,7 @@ final class PlanFactoryTest extends KernelTestCase
         $plan = $this->createAndReload($this->sampleDocument());
 
         $document = $this->sampleDocument();
-        $document = new PlanDocumentDto($document->id, 'Other name', $document->schemaVersion, PlanUnit::Metre, $document->vertices, $document->elements, $document->layers, $document->groups, $document->styles);
+        $document = new PlanDocumentDto($document->id, 'Other name', $document->schemaVersion, PlanUnit::Metre, $document->vertices, $document->elements, $document->floors, $document->layers, $document->groups, $document->styles);
         $version = $this->factory()->createVersion($plan, $document);
         $this->em()->flush();
 
@@ -129,7 +138,7 @@ final class PlanFactoryTest extends KernelTestCase
     {
         $document = $this->sampleDocument();
         $elements = $document->elements;
-        $elements[] = new LineElementDto(Uuid::v7()->toRfc4122(), null, null, null, $document->vertices[0]->id, Uuid::v7()->toRfc4122());
+        $elements[] = new LineElementDto(Uuid::v7()->toRfc4122(), $document->layers[0]->id, null, null, $document->vertices[0]->id, Uuid::v7()->toRfc4122());
 
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/unknown vertex/');
@@ -137,10 +146,32 @@ final class PlanFactoryTest extends KernelTestCase
         $this->factory()->create(new Project(Uuid::v7(), 'P'), $this->withElements($document, $elements));
     }
 
+    public function testUnknownLayerIsRejected(): void
+    {
+        $document = $this->sampleDocument();
+        $elements = $document->elements;
+        $elements[] = new LineElementDto(Uuid::v7()->toRfc4122(), Uuid::v7()->toRfc4122(), null, null, $document->vertices[0]->id, $document->vertices[1]->id);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/unknown layer/');
+
+        $this->factory()->create(new Project(Uuid::v7(), 'P'), $this->withElements($document, $elements));
+    }
+
+    public function testLayerOfAnUnknownFloorIsRejected(): void
+    {
+        $d = $this->sampleDocument();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/unknown floor/');
+
+        $this->factory()->create(new Project(Uuid::v7(), 'P'), new PlanDocumentDto($d->id, $d->name, $d->schemaVersion, $d->unit, $d->vertices, $d->elements, [], $d->layers, $d->groups, $d->styles));
+    }
+
     public function testOtherSchemaVersionIsRejected(): void
     {
         $document = $this->sampleDocument();
-        $document = new PlanDocumentDto($document->id, $document->name, 2, $document->unit, $document->vertices, $document->elements, $document->layers, $document->groups, $document->styles);
+        $document = new PlanDocumentDto($document->id, $document->name, 2, $document->unit, $document->vertices, $document->elements, $document->floors, $document->layers, $document->groups, $document->styles);
 
         $this->expectException(\InvalidArgumentException::class);
 
@@ -159,7 +190,7 @@ final class PlanFactoryTest extends KernelTestCase
      */
     private function withElements(PlanDocumentDto $d, array $elements): PlanDocumentDto
     {
-        return new PlanDocumentDto($d->id, $d->name, $d->schemaVersion, $d->unit, $d->vertices, $elements, $d->layers, $d->groups, $d->styles);
+        return new PlanDocumentDto($d->id, $d->name, $d->schemaVersion, $d->unit, $d->vertices, $elements, $d->floors, $d->layers, $d->groups, $d->styles);
     }
 
     private function createAndReload(PlanDocumentDto $document): Plan

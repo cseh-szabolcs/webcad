@@ -3,13 +3,13 @@ import type { CadElement } from './CadElement';
 import type { Layer } from './Layer';
 
 /**
- * Elements in the renderer's drawing order: elements without a known layer first, then layer
- * by layer, each in document order; so the last one is drawn on top. `include` decides per
- * layer (undefined for elements without a known layer, which are always kept).
+ * Elements in the renderer's drawing order: layer by layer, each in document order, so the last
+ * one is drawn on top. `include` decides per layer. Elements of a layer the document does not
+ * know come first and are always kept.
  */
 export function elementsInDrawOrder(doc: CadDocument, include: (layer: Layer) => boolean): CadElement[] {
     const layers = new Map(doc.layers.map((layer, i) => [layer.id, { layer, order: i }]));
-    const entry = (element: CadElement) => (element.layerId !== null ? layers.get(element.layerId) : undefined);
+    const entry = (element: CadElement) => layers.get(element.layerId);
     return doc.elements
         .filter((element) => {
             const layer = entry(element)?.layer;

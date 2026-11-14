@@ -22,6 +22,7 @@ import { gripAt, selectionControlFrames, selectionGrips, type Grip } from './sel
 import { buildSelectionUnits, expandToUnits } from './selection/grouping';
 import { pickAt, pickCrossing, pickLasso, pickWindow } from './selection/picking';
 import { ShapeIndex } from './selection/ShapeIndex';
+import { resolveCurrentLayer } from './layers';
 import { SnapEngine, SnapMemory, coincide, sameSnapPoint, type SnapResult } from './snapping/SnapEngine';
 import type { SnapPoint } from './snapping/SnapGeometry';
 import { orthoPoint } from './tracking/ortho';
@@ -118,6 +119,11 @@ export type SelectionArea =
 export interface SelectionSnapshot {
     /** Running command (or `GRIP_EDIT` while a grip is edited), or null while the editor waits for one. */
     command: ToolId | null;
+    /**
+     * The current layer, which new elements go on: one of the shown floor, per editor and never
+     * part of the document. Null only for a floor without layers.
+     */
+    currentLayerId: Id | null;
     /** Command line prompt. */
     prompt: string;
     /** Text typed at the prompt so far, not yet ended with Enter. */
@@ -358,6 +364,17 @@ export class SelectionEditor {
     /** The command started last, which Enter at "Befehl:" repeats. */
     private lastCommand: EditorCommand | null = null;
     private readonly drawingMemory: DrawingMemory = emptyDrawingMemory();
+    /** The floor shown: the first one, until floors can be switched. */
+    private floorId: Id | null = null;
+    /** See SelectionSnapshot.currentLayerId; kept valid by derive(). */
+    private currentLayerId: Id | null = null;
+    /** For the drawing tools: the layer of what they draw now. */
+    private readonly layerForNew = (): Id => {
+        if (this.currentLayerId === null) {
+            throw new Error('The floor has no layer to draw on.');
+        }
+        return this.currentLayerId;
+    };
     /** The running tool's prompt the editor last started, to notice when the tool asks anew. */
     private prompt: EditorTool['prompt'] | null = null;
     /** Text typed at the current point prompt or the command prompt. */
@@ -599,18 +616,34 @@ export class SelectionEditor {
             case 'UNION':
                 return new UnionTool(this.index);
             case 'LINE':
-                return new LineTool(this.history, this.drawingMemory);
+                return new LineTool(this.history, this.drawingMemory, this.layerForNew);
             case 'PLINE':
-                return new PolylineTool(this.history, this.drawingMemory);
+                return new PolylineTool(this.history, this.drawingMemory, this.layerForNew);
             case 'CIRCLE':
-                return new CircleTool(this.drawingMemory, CIRCLE_METHODS.find((candidate) => candidate === method));
+                return new CircleTool(this.drawingMemory, this.layerForNew, CIRCLE_METHODS.find((candidate) => candidate === method));
             case 'ARC':
-                return new ArcTool(this.history, this.drawingMemory, isArcMethod(method) ? method : undefined);
+                return new ArcTool(this.history, this.drawingMemory, this.layerForNew, isArcMethod(method) ? method : undefined);
             case 'ELLIPSE':
-                return new EllipseTool(ELLIPSE_METHODS.find((candidate) => candidate === method));
+                return new EllipseTool(this.layerForNew, ELLIPSE_METHODS.find((candidate) => candidate === method));
             case 'RECTANG':
-                return new RectangleTool(this.drawingMemory);
+                return new RectangleTool(this.drawingMemory, this.layerForNew);
         }
+    }
+
+    /**
+     * Makes a shown layer of the floor the current one, also while a command runs (what it draws
+     * next goes there). Returns false for any other layer, which changes nothing.
+     */
+    setCurrentLayer(id: Id): boolean {
+        const { document } = this.history;
+        if (this.floorId === null || resolveCurrentLayer(document, this.floorId, id) !== id) {
+            return false;
+        }
+        if (id !== this.currentLayerId) {
+            this.currentLayerId = id;
+            this.changed();
+        }
+        return true;
     }
 
     /** Publishes the texts again after a language change. */
@@ -1463,6 +1496,8 @@ export class SelectionEditor {
     /** Builds the structures derived from the document; drops selected elements that are gone. */
     private derive(doc: CadDocument): void {
         this.index = indexDocument(doc);
+        this.floorId = (this.floorId !== null && this.index.floors.has(this.floorId) ? this.floorId : doc.floors[0]?.id) ?? null;
+        this.currentLayerId = this.floorId === null ? null : resolveCurrentLayer(doc, this.floorId, this.currentLayerId);
         this.snapEngine = new SnapEngine(doc);
         const shapes = buildElementShapes(doc);
         this.shapes = new ShapeIndex(shapes);
@@ -1860,6 +1895,7 @@ export class SelectionEditor {
             previous !== null &&
             sameDocument &&
             command === previous.command &&
+            this.currentLayerId === previous.currentLayerId &&
             sameIds(highlighted, previous.highlighted) &&
             grips === previous.grips &&
             hoveredGrip === previous.hoveredGrip &&
@@ -1890,6 +1926,7 @@ export class SelectionEditor {
         }
         return {
             command,
+            currentLayerId: this.currentLayerId,
             prompt,
             input,
             acceptsInput: pointPrompt || keywordPrompt !== null || (state.kind === 'idle' && area === null),

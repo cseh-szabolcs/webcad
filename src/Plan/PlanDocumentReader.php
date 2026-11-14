@@ -8,6 +8,7 @@ use App\Plan\Dto\CircleElementDto;
 use App\Plan\Dto\ElementDtoInterface;
 use App\Plan\Dto\ElementStyleDto;
 use App\Plan\Dto\EllipseElementDto;
+use App\Plan\Dto\FloorDto;
 use App\Plan\Dto\GroupDto;
 use App\Plan\Dto\LayerDto;
 use App\Plan\Dto\LineElementDto;
@@ -18,6 +19,7 @@ use App\Plan\Dto\VertexDto;
 use App\Plan\Entity\PlanVersion;
 use App\Plan\Repository\ElementRepository;
 use App\Plan\Repository\ElementStyleRepository;
+use App\Plan\Repository\FloorRepository;
 use App\Plan\Repository\GroupRepository;
 use App\Plan\Repository\LayerRepository;
 use App\Plan\Repository\VertexRepository;
@@ -31,6 +33,7 @@ final readonly class PlanDocumentReader
 {
     public function __construct(
         private VertexRepository $vertices,
+        private FloorRepository $floors,
         private LayerRepository $layers,
         private GroupRepository $groups,
         private ElementStyleRepository $styles,
@@ -52,8 +55,22 @@ final readonly class PlanDocumentReader
                 $this->vertices->findByPlanVersion($version),
             ),
             elements: array_map($this->element(...), $this->elements->findByPlanVersion($version)),
+            floors: array_map(
+                static fn (Entity\Floor $f): FloorDto => new FloorDto($f->getId()->toRfc4122(), $f->getName()),
+                $this->floors->findByPlanVersion($version),
+            ),
             layers: array_map(
-                static fn (Entity\Layer $l): LayerDto => new LayerDto($l->getId()->toRfc4122(), $l->getName(), $l->isVisible(), $l->isLocked()),
+                static fn (Entity\Layer $l): LayerDto => new LayerDto(
+                    $l->getId()->toRfc4122(),
+                    $l->getFloor()->getId()->toRfc4122(),
+                    $l->getName(),
+                    $l->isVisible(),
+                    $l->isLocked(),
+                    $l->getColor(),
+                    $l->getLinetype(),
+                    $l->getTransparency(),
+                    $l->getDescription(),
+                ),
                 $this->layers->findByPlanVersion($version),
             ),
             groups: array_map(
@@ -78,7 +95,7 @@ final readonly class PlanDocumentReader
     private function element(Entity\Element $element): ElementDtoInterface
     {
         $id = $element->getId()->toRfc4122();
-        $layerId = $element->getLayer()?->getId()->toRfc4122();
+        $layerId = $element->getLayer()->getId()->toRfc4122();
         $groupId = $element->getGroup()?->getId()->toRfc4122();
         $styleId = $element->getStyle()?->getId()->toRfc4122();
         $vertex = static fn (Entity\Vertex $v): string => $v->getId()->toRfc4122();

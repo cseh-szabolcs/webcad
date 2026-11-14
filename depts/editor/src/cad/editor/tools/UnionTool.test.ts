@@ -35,7 +35,7 @@ const TOO_FEW = 'Mindestens 2 geschlossene Polylinien oder Kreise müssen gewäh
 
 /** The sample plan with a circle on the right edge of the sofa. */
 const setup = () => {
-    const circle = new AddCircleCommand({ x: 2600, y: 3050 }, 200);
+    const circle = new AddCircleCommand(sampleIds.layer['0'], { x: 2600, y: 3050 }, 200);
     const before = circle.execute(parseDocument(samplePlan)).document;
     const history = new DocumentHistory(before);
     return { editor: new SelectionEditor(history), history, before, circle: circle.circleId };

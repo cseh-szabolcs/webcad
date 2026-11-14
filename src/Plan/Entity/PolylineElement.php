@@ -34,7 +34,7 @@ class PolylineElement extends Element
         /** A closed polyline also joins its last vertex to the first. */
         #[ORM\Column(nullable: true)]
         private bool $closed,
-        ?Layer $layer = null,
+        Layer $layer,
         ?Group $group = null,
         ?ElementStyle $style = null,
         ?string $name = null,

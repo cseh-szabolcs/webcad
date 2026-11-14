@@ -64,7 +64,7 @@ final class GetPlanDocumentControllerTest extends WebTestCase
 
         // Same document as the sample, with every id replaced by a new one in the same order
         $ids = [$actual['id'] => $expected['id']];
-        foreach (['vertices', 'layers', 'groups', 'styles', 'elements'] as $list) {
+        foreach (['vertices', 'floors', 'layers', 'groups', 'styles', 'elements'] as $list) {
             self::assertCount(\count($expected[$list]), $actual[$list], $list);
             foreach ($actual[$list] as $i => $item) {
                 $ids[$item['id']] = $expected[$list][$i]['id'];

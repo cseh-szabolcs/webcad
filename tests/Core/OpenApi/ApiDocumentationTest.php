@@ -73,10 +73,13 @@ final class ApiDocumentationTest extends WebTestCase
         $schemas = $this->document()['components']['schemas'];
 
         foreach (['LineElement', 'PolylineElement', 'ArcElement', 'CircleElement', 'EllipseElement', 'BezierElement'] as $name) {
-            foreach (['layerId', 'groupId', 'styleId'] as $property) {
+            foreach (['groupId', 'styleId'] as $property) {
                 self::assertContains($property, $schemas[$name]['required'], $name);
                 self::assertTrue($schemas[$name]['properties'][$property]['nullable'], $name);
             }
+            // Every element is on a layer
+            self::assertContains('layerId', $schemas[$name]['required'], $name);
+            self::assertArrayNotHasKey('nullable', $schemas[$name]['properties']['layerId'], $name);
             self::assertNotContains('name', $schemas[$name]['required'], $name);
         }
         self::assertContains('fillColor', $schemas['ElementStyle']['required']);

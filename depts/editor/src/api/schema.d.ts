@@ -88,9 +88,9 @@ export interface components {
             id: string;
             /**
              * Format: uuid
-             * @description Layer of the element; null for none.
+             * @description Layer of the element.
              */
-            layerId: string | null;
+            layerId: string;
             /**
              * Format: uuid
              * @description Group of the element; null for none.
@@ -98,7 +98,7 @@ export interface components {
             groupId: string | null;
             /**
              * Format: uuid
-             * @description Style of the element; null for the default style.
+             * @description Style of the element; null to draw it with the colour, linetype and transparency of its layer.
              */
             styleId: string | null;
             /**
@@ -134,9 +134,9 @@ export interface components {
             id: string;
             /**
              * Format: uuid
-             * @description Layer of the element; null for none.
+             * @description Layer of the element.
              */
-            layerId: string | null;
+            layerId: string;
             /**
              * Format: uuid
              * @description Group of the element; null for none.
@@ -144,7 +144,7 @@ export interface components {
             groupId: string | null;
             /**
              * Format: uuid
-             * @description Style of the element; null for the default style.
+             * @description Style of the element; null to draw it with the colour, linetype and transparency of its layer.
              */
             styleId: string | null;
             /**
@@ -176,9 +176,9 @@ export interface components {
             id: string;
             /**
              * Format: uuid
-             * @description Layer of the element; null for none.
+             * @description Layer of the element.
              */
-            layerId: string | null;
+            layerId: string;
             /**
              * Format: uuid
              * @description Group of the element; null for none.
@@ -186,7 +186,7 @@ export interface components {
             groupId: string | null;
             /**
              * Format: uuid
-             * @description Style of the element; null for the default style.
+             * @description Style of the element; null to draw it with the colour, linetype and transparency of its layer.
              */
             styleId: string | null;
             /**
@@ -214,9 +214,9 @@ export interface components {
             id: string;
             /**
              * Format: uuid
-             * @description Layer of the element; null for none.
+             * @description Layer of the element.
              */
-            layerId: string | null;
+            layerId: string;
             /**
              * Format: uuid
              * @description Group of the element; null for none.
@@ -224,7 +224,7 @@ export interface components {
             groupId: string | null;
             /**
              * Format: uuid
-             * @description Style of the element; null for the default style.
+             * @description Style of the element; null to draw it with the colour, linetype and transparency of its layer.
              */
             styleId: string | null;
             /**
@@ -260,9 +260,9 @@ export interface components {
             id: string;
             /**
              * Format: uuid
-             * @description Layer of the element; null for none.
+             * @description Layer of the element.
              */
-            layerId: string | null;
+            layerId: string;
             /**
              * Format: uuid
              * @description Group of the element; null for none.
@@ -270,7 +270,7 @@ export interface components {
             groupId: string | null;
             /**
              * Format: uuid
-             * @description Style of the element; null for the default style.
+             * @description Style of the element; null to draw it with the colour, linetype and transparency of its layer.
              */
             styleId: string | null;
             /**
@@ -307,9 +307,9 @@ export interface components {
             id: string;
             /**
              * Format: uuid
-             * @description Layer of the element; null for none.
+             * @description Layer of the element.
              */
-            layerId: string | null;
+            layerId: string;
             /**
              * Format: uuid
              * @description Group of the element; null for none.
@@ -317,7 +317,7 @@ export interface components {
             groupId: string | null;
             /**
              * Format: uuid
-             * @description Style of the element; null for the default style.
+             * @description Style of the element; null to draw it with the colour, linetype and transparency of its layer.
              */
             styleId: string | null;
             /**
@@ -329,14 +329,41 @@ export interface components {
         };
         /** @description A drawn object of the plan, told apart by its type. */
         Element: components["schemas"]["LineElement"] | components["schemas"]["PolylineElement"] | components["schemas"]["ArcElement"] | components["schemas"]["CircleElement"] | components["schemas"]["EllipseElement"] | components["schemas"]["BezierElement"];
-        /** @description A layer of the plan. Elements on a hidden layer are neither drawn nor snapped to; those on a locked one cannot be selected. */
+        /** @description A storey of the plan, the top of its contents: layers belong to a floor, elements to a layer. */
+        Floor: {
+            /** Format: uuid */
+            id: string;
+            /** @example Ground floor */
+            name: string;
+        };
+        /** @enum {string} */
+        Linetype: "continuous" | "dashed" | "hidden" | "center" | "dot" | "dashDot";
+        /** @description A layer of a floor. Elements on a hidden layer are neither drawn nor snapped to nor selectable; those on a locked one cannot be selected. An element without a style is drawn with the colour, linetype and transparency of its layer. Every floor has a layer "0". */
         Layer: {
             /** Format: uuid */
             id: string;
-            /** @example Walls */
+            /**
+             * Format: uuid
+             * @description The floor the layer belongs to.
+             */
+            floorId: string;
+            /**
+             * @description Unique within its floor, whatever the case.
+             * @example Walls
+             */
             name: string;
             visible: boolean;
             locked: boolean;
+            /** @example #1f2937 */
+            color: string;
+            linetype: components["schemas"]["Linetype"];
+            /** @description In percent: 0 is opaque, 90 the most see-through. */
+            transparency: number;
+            /**
+             * @description Free text; empty for none.
+             * @example Load-bearing walls
+             */
+            description: string;
         };
         /** @description Elements that are picked together. Membership is stored on the element (groupId). */
         Group: {
@@ -360,7 +387,7 @@ export interface components {
             /** @description Fill colour of a closed element; null for none. */
             fillColor: string | null;
         };
-        /** @description The drawing of a plan, as the editor loads it: everything the user drew and the layers, groups and styles it uses. Model coordinates are millimetres with Y up, whatever the display unit. */
+        /** @description The drawing of a plan, as the editor loads it: everything the user drew and the floors, layers, groups and styles it uses. Model coordinates are millimetres with Y up, whatever the display unit. */
         PlanDocument: {
             /**
              * Format: uuid
@@ -381,6 +408,8 @@ export interface components {
             vertices: components["schemas"]["Vertex"][];
             /** @description In document order: within a layer, a later element is drawn on top. */
             elements: components["schemas"]["Element"][];
+            /** @description In the order of their tabs; at least one. */
+            floors: components["schemas"]["Floor"][];
             /** @description In drawing order: a later layer is drawn on top. */
             layers: components["schemas"]["Layer"][];
             groups: components["schemas"]["Group"][];

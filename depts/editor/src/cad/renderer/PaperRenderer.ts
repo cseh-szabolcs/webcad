@@ -3,10 +3,12 @@ import type { CadDocument } from '../model/CadDocument';
 import { indexDocument, type DocumentIndex } from '../model/DocumentIndex';
 import type { Id } from '../model/Point';
 import type { DisplayTheme } from './displayColor';
-import { applyStyle, createItem, DEFAULT_STYLE, styleOf } from './ElementRenderer';
+import { applyDisplay, createItem } from './ElementRenderer';
+import { elementDisplay, layerDisplay } from './elementDisplay';
 import { planSceneUpdate } from './sceneUpdate';
 import type { Rect, Size, Viewport } from './Viewport';
 
+/** For elements of a layer the document does not know, below all others. */
 const DEFAULT_LAYER = '__default';
 /** Neutral greys for dimmed elements (see setDimmed), per background. */
 const DIMMED = {
@@ -68,7 +70,8 @@ export class PaperRenderer {
 
         this.layers.set(DEFAULT_LAYER, new this.scope.Layer({ name: DEFAULT_LAYER }));
         for (const layer of doc.layers) {
-            this.layers.set(layer.id, new this.scope.Layer({ name: layer.name, visible: layer.visible }));
+            // Without its name: Paper.js refuses names of digits only, like layer "0"
+            this.layers.set(layer.id, new this.scope.Layer({ visible: layer.visible }));
         }
 
         for (const element of doc.elements) {
@@ -146,18 +149,16 @@ export class PaperRenderer {
     }
 
     /**
-     * Display only: draws these elements faintly (SELECTED_BY_OTHERS_OPACITY), as another
+     * Display only: draws these elements fainter (by SELECTED_BY_OTHERS_OPACITY), as another
      * collaborator has them selected; elements left out show in full again.
      */
     setSelectedByOthers(ids: ReadonlySet<Id>): void {
         const previous = this.selectedByOthers;
         this.selectedByOthers = new Set(ids);
+        this.scope.activate();
         for (const id of new Set([...previous, ...ids])) {
             if (previous.has(id) !== ids.has(id)) {
-                const item = this.items.get(id);
-                if (item) {
-                    item.opacity = ids.has(id) ? SELECTED_BY_OTHERS_OPACITY : 1;
-                }
+                this.restyle(id);
             }
         }
     }
@@ -172,18 +173,18 @@ export class PaperRenderer {
         return { x, y, width, height };
     }
 
-    /** Gives `item` the display style of element `id`, e.g. a copy of a dimmed item. */
+    /** Gives `item` the style and opacity element `id` is drawn with, e.g. a copy of a dimmed item. */
     applyElementStyle(item: paper.Path, id: Id): void {
         const element = this.index?.elements.get(id);
         if (element && this.index) {
-            applyStyle(this.scope, item, styleOf(element, this.index), this.theme);
+            applyDisplay(this.scope, item, elementDisplay(element, this.index), this.theme);
         }
     }
 
-    /** Gives `item` the display style `styleId` (the default style for null), e.g. a preview of a new element. */
-    applyStyleById(item: paper.Path, styleId: Id | null): void {
-        const style = (styleId !== null && this.index?.styles.get(styleId)) || DEFAULT_STYLE;
-        applyStyle(this.scope, item, style, this.theme);
+    /** Gives `item` the style and opacity of a new element on layer `layerId`, e.g. the preview of one. */
+    applyLayerStyle(item: paper.Path, layerId: Id | null): void {
+        const layer = layerId !== null ? this.index?.layers.get(layerId) : undefined;
+        applyDisplay(this.scope, item, layerDisplay(layer), this.theme);
     }
 
     /** Re-colours all elements for the background; geometry stays as it is. */
@@ -256,14 +257,16 @@ export class PaperRenderer {
         this.overlayScope.project.remove();
     }
 
-    /** Own style, then the grey of a dimmed element on top. */
+    /** Own style and opacity, fainter while somebody else has it selected, then the grey of a dimmed element on top. */
     private restyle(id: Id): void {
         const item = this.items.get(id);
         if (!item) {
             return;
         }
         this.applyElementStyle(item, id);
-        item.opacity = this.selectedByOthers.has(id) ? SELECTED_BY_OTHERS_OPACITY : 1;
+        if (this.selectedByOthers.has(id)) {
+            item.opacity *= SELECTED_BY_OTHERS_OPACITY;
+        }
         if (this.dimmed.has(id)) {
             const grey = DIMMED[this.theme];
             item.strokeColor = new this.scope.Color(grey.stroke);
@@ -273,7 +276,7 @@ export class PaperRenderer {
         }
     }
 
-    private layerFor(layerId: Id | null): paper.Layer {
-        return this.layers.get(layerId ?? DEFAULT_LAYER) ?? this.layers.get(DEFAULT_LAYER)!;
+    private layerFor(layerId: Id): paper.Layer {
+        return this.layers.get(layerId) ?? this.layers.get(DEFAULT_LAYER)!;
     }
 }

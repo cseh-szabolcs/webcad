@@ -20,7 +20,7 @@ class CircleElement extends Element
         private Vertex $centerVertex,
         #[ORM\Column(nullable: true)]
         private float $radius,
-        ?Layer $layer = null,
+        Layer $layer,
         ?Group $group = null,
         ?ElementStyle $style = null,
         ?string $name = null,

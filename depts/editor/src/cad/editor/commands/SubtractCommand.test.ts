@@ -18,7 +18,7 @@ const ids = (prefix: string) => {
 };
 /** The sample plan with a circle added, and its id. The sofa spans 600…2600 × 2600…3500. */
 function withCircle(x: number, y: number, radius: number, from: CadDocument = doc): { document: CadDocument; circle: string } {
-    const command = new AddCircleCommand({ x, y }, radius, ids(`circle-${x}`));
+    const command = new AddCircleCommand(sampleIds.layer['0'], { x, y }, radius, ids(`circle-${x}`));
     return { document: command.execute(from).document, circle: command.circleId };
 }
 const subtract = (minuends: string[], subtrahends: string[]) => new SubtractCommand(minuends, subtrahends, 'DIFFERENZ', 'SUBTRACT', ids('new'));
@@ -124,6 +124,7 @@ describe('SubtractCommand', () => {
 
     it('leaves nothing where the area is covered', () => {
         const cover = new AddPolylineCommand(
+            sampleIds.layer['0'],
             [
                 { x: 500, y: 2500 },
                 { x: 2700, y: 2500 },

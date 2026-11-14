@@ -38,8 +38,8 @@ abstract class Element
         #[ORM\Column]
         private int $position,
         #[ORM\ManyToOne]
-        #[ORM\JoinColumn(onDelete: 'SET NULL')]
-        private ?Layer $layer = null,
+        #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+        private Layer $layer,
         #[ORM\ManyToOne]
         #[ORM\JoinColumn(onDelete: 'SET NULL')]
         private ?Group $group = null,
@@ -67,7 +67,7 @@ abstract class Element
         return $this->position;
     }
 
-    public function getLayer(): ?Layer
+    public function getLayer(): Layer
     {
         return $this->layer;
     }

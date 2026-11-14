@@ -11,10 +11,9 @@ class Async
     public string $fetchDataPath;
     public string $optionValue;
     public string $optionLabel;
-    public null|bool|int|float|string $value = null;
+    public bool|int|float|string|null $value = null;
     public ?string $selectData = null;
     public ?string $placeholder = null;
-
 
     #[ExposeInTemplate]
     public function getParsedValue(): string

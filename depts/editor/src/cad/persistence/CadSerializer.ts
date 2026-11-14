@@ -1,8 +1,9 @@
 import { CURRENT_SCHEMA_VERSION, type CadDocument } from '../model/CadDocument';
 import { vertexRefs, type BaseElement, type CadElement } from '../model/CadElement';
 import type { ElementStyle } from '../model/ElementStyle';
+import type { Floor } from '../model/Floor';
 import type { Group } from '../model/Group';
-import type { Layer } from '../model/Layer';
+import { DEFAULT_LAYER_NAME, LINETYPES, MAX_LAYER_TRANSPARENCY, type Layer, type Linetype } from '../model/Layer';
 import type { Id, Unit, Vector2 } from '../model/Point';
 import type { Vertex } from '../model/Vertex';
 
@@ -18,6 +19,7 @@ export class CadDocumentError extends Error {
 
 const UNITS: readonly Unit[] = ['mm', 'cm', 'm'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 
 export function serializeDocument(doc: CadDocument): string {
     return JSON.stringify(doc);
@@ -57,6 +59,7 @@ export function parseDocument(input: unknown): CadDocument {
         schemaVersion,
         unit: unit as Unit,
         vertices: list(root.vertices, '$.vertices', parseVertex),
+        floors: list(root.floors, '$.floors', parseFloor),
         layers: list(root.layers, '$.layers', parseLayer),
         groups: list(root.groups, '$.groups', parseGroup),
         styles: list(root.styles, '$.styles', parseStyle),
@@ -72,13 +75,35 @@ function parseVertex(value: unknown, path: string): Vertex {
     return { id: uuid(r.id, `${path}.id`), x: number(r.x, `${path}.x`), y: number(r.y, `${path}.y`) };
 }
 
+function parseFloor(value: unknown, path: string): Floor {
+    const r = record(value, path);
+    return { id: uuid(r.id, `${path}.id`), name: string(r.name, `${path}.name`) };
+}
+
 function parseLayer(value: unknown, path: string): Layer {
     const r = record(value, path);
+    const color = string(r.color, `${path}.color`);
+    if (!HEX_COLOR.test(color)) {
+        throw new CadDocumentError(`${path}.color`, `expected a colour like "#1f2937", got "${color}"`);
+    }
+    const linetype = string(r.linetype, `${path}.linetype`);
+    if (!LINETYPES.includes(linetype as Linetype)) {
+        throw new CadDocumentError(`${path}.linetype`, `unknown linetype "${linetype}"`);
+    }
+    const transparency = number(r.transparency, `${path}.transparency`);
+    if (!Number.isInteger(transparency) || transparency < 0 || transparency > MAX_LAYER_TRANSPARENCY) {
+        throw new CadDocumentError(`${path}.transparency`, `must be a whole number from 0 to ${MAX_LAYER_TRANSPARENCY}`);
+    }
     return {
         id: uuid(r.id, `${path}.id`),
+        floorId: string(r.floorId, `${path}.floorId`),
         name: string(r.name, `${path}.name`),
         visible: boolean(r.visible, `${path}.visible`),
         locked: boolean(r.locked, `${path}.locked`),
+        color,
+        linetype: linetype as Linetype,
+        transparency,
+        description: string(r.description, `${path}.description`),
     };
 }
 
@@ -104,7 +129,7 @@ function parseElement(value: unknown, path: string): CadElement {
     const base: BaseElement = {
         id: uuid(r.id, `${path}.id`),
         name: r.name === undefined ? null : nullable(r.name, `${path}.name`, string),
-        layerId: nullable(r.layerId, `${path}.layerId`, string),
+        layerId: string(r.layerId, `${path}.layerId`),
         groupId: nullable(r.groupId, `${path}.groupId`, string),
         styleId: nullable(r.styleId, `${path}.styleId`, string),
     };
@@ -170,7 +195,28 @@ function parseElement(value: unknown, path: string): CadElement {
 
 function checkReferences(doc: CadDocument): void {
     const vertexIds = uniqueIds(doc.vertices, '$.vertices');
+    const floorIds = uniqueIds(doc.floors, '$.floors');
+    if (floorIds.size === 0) {
+        throw new CadDocumentError('$.floors', 'needs at least one floor');
+    }
     const layerIds = uniqueIds(doc.layers, '$.layers');
+    /** Per floor, the layer names in lower case. */
+    const names = new Map<Id, Set<string>>();
+    doc.layers.forEach((layer, i) => {
+        const path = `$.layers[${i}]`;
+        ref(layer.floorId, floorIds, `${path}.floorId`, 'floor');
+        const taken = names.get(layer.floorId) ?? new Set();
+        names.set(layer.floorId, taken);
+        if (taken.has(layer.name.toLowerCase())) {
+            throw new CadDocumentError(`${path}.name`, `duplicate layer name "${layer.name}"`);
+        }
+        taken.add(layer.name.toLowerCase());
+    });
+    doc.floors.forEach((floor, i) => {
+        if (!names.get(floor.id)?.has(DEFAULT_LAYER_NAME)) {
+            throw new CadDocumentError(`$.floors[${i}]`, `has no layer "${DEFAULT_LAYER_NAME}"`);
+        }
+    });
     const groupIds = uniqueIds(doc.groups, '$.groups');
     const styleIds = uniqueIds(doc.styles, '$.styles');
     uniqueIds(doc.elements, '$.elements');

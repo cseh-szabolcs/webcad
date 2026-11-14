@@ -50,7 +50,7 @@ Vollständig: `Anderen Eckpunkt angeben oder [Fläche/Abmessungen/Drehung]:`.
   Breite, Tab wechselt). Bisher gilt die Bemaßung von `next` (Abstand/Winkel der Diagonale,
   `,` wechselt zu X/Y).
 - Fangen und Spuren an der eigenen Vorschau gibt es nicht (wie bei PLINIE).
-- Aktueller Layer und Stil für neue Objekte.
+- Aktueller Stil für neue Objekte (sie liegen auf dem aktuellen Layer und zeichnen VonLayer).
 
 ## Noch zu prüfen
 

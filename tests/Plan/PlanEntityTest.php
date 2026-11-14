@@ -9,6 +9,7 @@ use App\Plan\Entity\CircleElement;
 use App\Plan\Entity\Element;
 use App\Plan\Entity\ElementStyle;
 use App\Plan\Entity\EllipseElement;
+use App\Plan\Entity\Floor;
 use App\Plan\Entity\Group;
 use App\Plan\Entity\Layer;
 use App\Plan\Entity\LineElement;
@@ -17,6 +18,7 @@ use App\Plan\Entity\PlanVersion;
 use App\Plan\Entity\PolylineElement;
 use App\Plan\Entity\Vector2;
 use App\Plan\Entity\Vertex;
+use App\Plan\Enum\Linetype;
 use App\Plan\Enum\PlanUnit;
 use App\Project\Entity\Project;
 use Doctrine\ORM\EntityManagerInterface;
@@ -38,8 +40,9 @@ final class PlanEntityTest extends KernelTestCase
         $project = new Project(Uuid::v7(), 'Einfamilienhaus');
         $plan = new Plan(Uuid::v7(), $project, 'Erdgeschoss', PlanUnit::Centimetre);
         $draft = $plan->getDraft();
-        $walls = new Layer(Uuid::v7(), $draft, 0, 'Walls');
-        $hidden = new Layer(Uuid::v7(), $draft, 1, 'Hidden', visible: false, locked: true);
+        $floor = new Floor(Uuid::v7(), $draft, 0, 'Erdgeschoss');
+        $walls = new Layer(Uuid::v7(), $draft, $floor, 0, 'Walls');
+        $hidden = new Layer(Uuid::v7(), $draft, $floor, 1, 'Hidden', visible: false, locked: true, color: '#dc2626', linetype: Linetype::DashDot, transparency: 40, description: 'Hilfslinien');
         $door = new Group(Uuid::v7(), $draft, 'Door D1');
         $dashed = new ElementStyle(Uuid::v7(), $draft, 'Dashed', '#374151', 1.0, [8.0, 4.0], '#f3f4f6');
         $a = new Vertex(Uuid::v7(), $draft, 0.0, 0.0);
@@ -48,14 +51,14 @@ final class PlanEntityTest extends KernelTestCase
 
         $elements = [
             $polyline = new PolylineElement(Uuid::v7(), $draft, 0, [$a, $b, $c, $a], false, $walls, name: 'Wall', bulges: [0.0, 0.5, -1.0, 0.0]),
-            $line = new LineElement(Uuid::v7(), $draft, 1, $a, $c, style: $dashed),
+            $line = new LineElement(Uuid::v7(), $draft, 1, $a, $c, $walls, style: $dashed),
             $arc = new ArcElement(Uuid::v7(), $draft, 2, $a, $b, $c, true, $hidden, $door),
-            $circle = new CircleElement(Uuid::v7(), $draft, 3, $b, 600.0),
-            $ellipse = new EllipseElement(Uuid::v7(), $draft, 4, $b, 1000.0, 700.0, 0.5),
-            $bezier = new BezierElement(Uuid::v7(), $draft, 5, $a, $b, new Vector2(500.0, -200.0), new Vector2(-500.0, -200.0)),
+            $circle = new CircleElement(Uuid::v7(), $draft, 3, $b, 600.0, $walls),
+            $ellipse = new EllipseElement(Uuid::v7(), $draft, 4, $b, 1000.0, 700.0, 0.5, $walls),
+            $bezier = new BezierElement(Uuid::v7(), $draft, 5, $a, $b, new Vector2(500.0, -200.0), new Vector2(-500.0, -200.0), $walls),
         ];
 
-        foreach ([$project, $plan, $walls, $hidden, $door, $dashed, $a, $b, $c, ...$elements] as $entity) {
+        foreach ([$project, $plan, $floor, $walls, $hidden, $door, $dashed, $a, $b, $c, ...$elements] as $entity) {
             $em->persist($entity);
         }
         $em->flush();
@@ -83,10 +86,13 @@ final class PlanEntityTest extends KernelTestCase
         self::assertSame($polyline->getVertices()[0], $line->getStartVertex());
         self::assertSame('Wall', $polyline->getName());
         self::assertSame('Walls', $polyline->getLayer()->getName());
+        self::assertSame('Erdgeschoss', $polyline->getLayer()->getFloor()->getName());
+        // A layer starts with the defaults of a new one
+        self::assertSame(['#000000', Linetype::Continuous, 0, ''], [$polyline->getLayer()->getColor(), $polyline->getLayer()->getLinetype(), $polyline->getLayer()->getTransparency(), $polyline->getLayer()->getDescription()]);
         self::assertFalse($polyline->isClosed());
         self::assertSame([0.0, 0.5, -1.0, 0.0], $polyline->getBulges());
 
-        self::assertNull($line->getLayer());
+        self::assertSame($polyline->getLayer(), $line->getLayer());
         self::assertSame([8.0, 4.0], $line->getStyle()->getDashPattern());
         self::assertSame('#f3f4f6', $line->getStyle()->getFillColor());
         self::assertSame(4000.5, $line->getEndVertex()->getY());
@@ -95,6 +101,7 @@ final class PlanEntityTest extends KernelTestCase
         self::assertSame('Door D1', $arc->getGroup()->getName());
         self::assertFalse($arc->getLayer()->isVisible());
         self::assertTrue($arc->getLayer()->isLocked());
+        self::assertSame(['#dc2626', Linetype::DashDot, 40, 'Hilfslinien'], [$arc->getLayer()->getColor(), $arc->getLayer()->getLinetype(), $arc->getLayer()->getTransparency(), $arc->getLayer()->getDescription()]);
 
         self::assertSame(600.0, $circle->getRadius());
         self::assertSame([1000.0, 700.0, 0.5], [$ellipse->getRadiusX(), $ellipse->getRadiusY(), $ellipse->getRotation()]);
@@ -118,7 +125,7 @@ final class PlanEntityTest extends KernelTestCase
 
         $this->expectException(\InvalidArgumentException::class);
 
-        new PolylineElement(Uuid::v7(), $draft, 0, [new Vertex(Uuid::v7(), $draft, 0.0, 0.0)], false);
+        new PolylineElement(Uuid::v7(), $draft, 0, [new Vertex(Uuid::v7(), $draft, 0.0, 0.0)], false, $this->newLayer($draft));
     }
 
     public function testPolylineNeedsABulgePerVertexOrNone(): void
@@ -127,11 +134,13 @@ final class PlanEntityTest extends KernelTestCase
         $a = new Vertex(Uuid::v7(), $draft, 0.0, 0.0);
         $b = new Vertex(Uuid::v7(), $draft, 100.0, 0.0);
 
-        self::assertSame([0.0, 0.0], new PolylineElement(Uuid::v7(), $draft, 0, [$a, $b], false)->getBulges());
+        $layer = $this->newLayer($draft);
+
+        self::assertSame([0.0, 0.0], new PolylineElement(Uuid::v7(), $draft, 0, [$a, $b], false, $layer)->getBulges());
 
         $this->expectException(\InvalidArgumentException::class);
 
-        new PolylineElement(Uuid::v7(), $draft, 1, [$a, $b], false, bulges: [0.5]);
+        new PolylineElement(Uuid::v7(), $draft, 1, [$a, $b], false, $layer, bulges: [0.5]);
     }
 
     public function testPublishMakesTheCopyTheNumberedHead(): void
@@ -193,9 +202,10 @@ final class PlanEntityTest extends KernelTestCase
         $draft = $plan->getDraft();
         $head = new PlanVersion(Uuid::v7(), $plan, PlanUnit::Millimetre);
         $vertex = new Vertex(Uuid::v7(), $draft, 0.0, 0.0);
-        $line = new LineElement(Uuid::v7(), $head, 0, $headVertex = new Vertex(Uuid::v7(), $head, 0.0, 0.0), $headVertex);
+        $layer = $this->newLayer($head);
+        $line = new LineElement(Uuid::v7(), $head, 0, $headVertex = new Vertex(Uuid::v7(), $head, 0.0, 0.0), $headVertex, $layer);
         $plan->publish($head);
-        foreach ([$plan->getProject(), $plan, $head, $vertex, $headVertex, $line] as $entity) {
+        foreach ([$plan->getProject(), $plan, $head, $vertex, $headVertex, $layer->getFloor(), $layer, $line] as $entity) {
             $em->persist($entity);
         }
         $em->flush();
@@ -209,6 +219,16 @@ final class PlanEntityTest extends KernelTestCase
         self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM plan_version WHERE id IN (?, ?)', $versions));
         self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM plan_vertex WHERE plan_version_id IN (?, ?)', $versions));
         self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM element WHERE plan_version_id IN (?, ?)', $versions));
+        self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM plan_layer WHERE plan_version_id IN (?, ?)', $versions));
+        self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM plan_floor WHERE plan_version_id IN (?, ?)', $versions));
+    }
+
+    /**
+     * Layer "0" on a floor of its own.
+     */
+    private function newLayer(PlanVersion $version): Layer
+    {
+        return new Layer(Uuid::v7(), $version, new Floor(Uuid::v7(), $version, 0, 'Floor'), 0, '0');
     }
 
     private function newPlan(): Plan

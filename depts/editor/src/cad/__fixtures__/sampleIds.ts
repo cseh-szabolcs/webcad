@@ -1,7 +1,7 @@
 /**
  * Readable names for the sample plan's ids, so tests stay legible. The fixture uses numbered
  * UUIDs `00000000-0000-7000-8000-000000000NNN`: vertices 001+, elements 101+, layers 201+,
- * groups 301+, styles 401+. Keep this file in sync when the fixture changes.
+ * groups 301+, styles 401+, floors 501+. Keep this file in sync when the fixture changes.
  */
 export const sampleIds = {
     vertex: {
@@ -78,7 +78,11 @@ export const sampleIds = {
         'kc-4': '00000000-0000-7000-8000-000000000071',
         'sink-center': '00000000-0000-7000-8000-000000000072',
     },
+    floor: {
+        'ground': '00000000-0000-7000-8000-000000000501',
+    },
     layer: {
+        '0': '00000000-0000-7000-8000-000000000204',
         'walls': '00000000-0000-7000-8000-000000000201',
         'openings': '00000000-0000-7000-8000-000000000202',
         'furniture': '00000000-0000-7000-8000-000000000203',

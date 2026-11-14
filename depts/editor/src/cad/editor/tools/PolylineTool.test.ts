@@ -101,7 +101,7 @@ describe('PolylineTool (PLINIE)', () => {
         expect(polylines()).toEqual([{ points: [A, B, C], closed: false }]);
         expect(editor.snapshot).toMatchObject({ command: null, prompt: 'Befehl:', canUndo: true });
         const added = history.document.elements.at(-1) as PolylineElement;
-        expect(added).toMatchObject({ layerId: null, groupId: null, styleId: null });
+        expect(added).toMatchObject({ layerId: sampleIds.layer['0'], groupId: null, styleId: null });
         expect(new Set(added.vertexIds).size).toBe(3);
         expect(editor.undo()).toBe(true);
         expect(polylines()).toEqual([]);

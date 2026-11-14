@@ -17,4 +17,3 @@ class Trigger
 
     public ?string $bindItemLabelFn = null;
 }
-

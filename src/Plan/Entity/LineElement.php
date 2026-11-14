@@ -21,7 +21,7 @@ class LineElement extends Element
         #[ORM\ManyToOne]
         #[ORM\JoinColumn(onDelete: 'CASCADE')]
         private Vertex $endVertex,
-        ?Layer $layer = null,
+        Layer $layer,
         ?Group $group = null,
         ?ElementStyle $style = null,
         ?string $name = null,

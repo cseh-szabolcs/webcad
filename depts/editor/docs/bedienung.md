@@ -678,8 +678,8 @@ Schlüsselwort, beginnt dort das Kürzel (`L` oder `Länge` für `sehnenLänge`)
 gilt es auch.
 
 - Jedes Segment ist eine eigene Linie mit eigenen Endpunkten; aufeinanderfolgende Linien
-  teilen keinen Punkt, ihre Enden liegen nur aufeinander. Neue Linien haben noch keinen Layer
-  und den Standardstil.
+  teilen keinen Punkt, ihre Enden liegen nur aufeinander. Neue Linien liegen auf dem
+  [aktuellen Layer](#layer) und zeichnen mit dessen Farbe, Linientyp und Transparenz.
 - Alle Linien eines LINIE-Aufrufs sind **ein** Schritt für Rückgängig (`Rückgängig: LINIE`).
   „Zurück“ wirkt nur innerhalb des laufenden Befehls und lässt sich nicht wiederherstellen.
 - Die **Leertaste** ohne getippten Text verschiebt weiter die Ansicht (bewusste Abweichung:
@@ -743,8 +743,8 @@ vorigen Segments** an (wie AutoCAD: die Abfrage eines Abstands ab dem letzten Pu
 - Danach geht es mit `Nächsten Punkt angeben` weiter; „Zurück“ nimmt das Segment wieder weg.
 
 - Endet der Befehl mit nur dem Startpunkt (ohne Segment), entsteht nichts.
-- Die Polylinie hat eigene Punkte, die sie mit keinem anderen Objekt teilt, noch keinen Layer
-  und den Standardstil.
+- Die Polylinie hat eigene Punkte, die sie mit keinem anderen Objekt teilt, und liegt auf dem
+  [aktuellen Layer](#layer).
 - Sie ist **ein** Schritt für Rückgängig (`Rückgängig: PLINIE`). „Zurück“ wirkt nur innerhalb
   des laufenden Befehls.
 - Die **Leertaste** ohne getippten Text verschiebt weiter die Ansicht, wie bei LINIE.
@@ -791,7 +791,7 @@ dazu ein gestricheltes **Gummiband** vom Mittelpunkt zum Cursor.
   alle drei auf einer Geraden), werden nicht genommen: `Mit diesem Punkt ergibt sich kein
   Kreis.`, die Abfrage bleibt.
 - **Esc** bricht bei jeder Abfrage ab (`*Abbruch*`), ohne Kreis.
-- Der Kreis hat einen eigenen Mittelpunkt, noch keinen Layer und den Standardstil, und ist
+- Der Kreis hat einen eigenen Mittelpunkt, liegt auf dem [aktuellen Layer](#layer) und ist
   **ein** Schritt für Rückgängig (`Rückgängig: KREIS`).
 
 Im Englischen heißen die Aufforderungen `Specify center point for circle or [3P/2P]:`,
@@ -1000,7 +1000,7 @@ Startpunkt (bei jeder Methode) oder mit **Weiter** im Menü **▾**.
 - **Esc** bricht bei jeder Abfrage ab (`*Abbruch*`), ohne Bogen.
 - **Enter** bei `Befehl:` wiederholt BOGEN, wie getippt (also mit 3 Punkten als Vorgabe), auch
   nach einem Start über das Menü.
-- Der Bogen hat eigene Punkte (Zentrum, Start, Ende), noch keinen Layer und den Standardstil,
+- Der Bogen hat eigene Punkte (Zentrum, Start, Ende), liegt auf dem [aktuellen Layer](#layer)
   und ist **ein** Schritt für Rückgängig (`Rückgängig: BOGEN`). Er lässt sich danach wie jeder
   Bogen wählen, fangen und an seinen [Grips](#grips) bearbeiten.
 
@@ -1051,7 +1051,7 @@ spielen keine Rolle.
 - Ein zweites Achsenende auf dem ersten (bzw. ein Achsenende auf dem Mittelpunkt) wird
   ignoriert; nur ein **positiver** Abstand zur anderen Achse wird genommen, wie bei KREIS.
 - **Esc** bricht bei jeder Abfrage ab, ohne Ellipse.
-- Die Ellipse hat einen eigenen Mittelpunkt, noch keinen Layer und den Standardstil, und ist
+- Die Ellipse hat einen eigenen Mittelpunkt, liegt auf dem [aktuellen Layer](#layer) und ist
   **ein** Schritt für Rückgängig (`Rückgängig: ELLIPSE`). Gedrehte Ellipsen fangen (Zentrum,
   Quadranten, Schnittpunkte) und zeigen Griffe an ihren gedrehten Achsenenden.
 
@@ -1096,7 +1096,7 @@ Abmessungen.
   [KREIS](#befehl-kreis) gilt die Vorgabe bis zum Neuladen der Seite.
 - Enter ohne Eingabe beim anderen Eckpunkt meldet `Punkt oder Option-Schlüsselwort erforderlich.`
 - **Esc** bricht bei jeder Abfrage ab (`*Abbruch*`), ohne Rechteck.
-- Das Rechteck hat eigene Eckpunkte, noch keinen Layer und den Standardstil, und ist **ein**
+- Das Rechteck hat eigene Eckpunkte, liegt auf dem [aktuellen Layer](#layer) und ist **ein**
   Schritt für Rückgängig (`Rückgängig: RECHTECK`).
 
 ### Drehung und Fasen
@@ -1130,6 +1130,33 @@ length for rectangles:`, `Specify width for rectangles:`, `Specify rotation angl
 `Specify first chamfer distance for rectangles <0.0000>:`, `Specify second chamfer distance for
 rectangles <…>:`, `Specify second point:` und `Current rectangle modes: Chamfer=… x …
 Rotation=…`.
+
+## Layer
+
+Die Bedienung der Layer (Panel, Anlegen, Ändern, Löschen) ist noch nicht umgesetzt; was davon
+schon gilt:
+
+- Jedes Objekt liegt auf einem **Layer**, jeder Layer in einem **Stockwerk**. Jedes Stockwerk hat
+  den Layer `0` (AutoCAD: Layer 0); Layernamen sind je Stockwerk eindeutig, Groß- und
+  Kleinschreibung zählt dabei nicht.
+- Der **aktuelle Layer** nimmt auf, was die Zeichenbefehle neu anlegen. Er gilt je Benutzer und
+  gehört nicht zur Zeichnung (AutoCAD speichert CLAYER in der Zeichnung; hier würden sich
+  Mitzeichnende sonst gegenseitig umstellen). Solange er sich nicht wählen lässt, ist es der
+  Layer `0`; ist der ausgeblendet, der erste sichtbare Layer des Stockwerks.
+- **VonLayer** (AutoCAD: ByLayer): Ein Objekt ohne eigenen Stil zeichnet mit Farbe, Linientyp und
+  Transparenz seines Layers; neue Objekte haben keinen Stil. Ein Objekt mit Stil (im Beispielplan
+  Wände und Möbel) zeichnet ganz nach seinem Stil, der Layer wirkt dann nicht auf sein Aussehen.
+  Die Strichmuster der Linientypen stehen in `LINETYPE_DASHES`
+  (`src/cad/renderer/elementDisplay.ts`), die größte Transparenz in `MAX_LAYER_TRANSPARENCY`
+  (`src/cad/model/Layer.ts`).
+- Die Standardfarbe eines Layers ist Schwarz, das auf dunklem Hintergrund hell gezeichnet wird
+  (wie AutoCADs Farbe 7).
+- Ein **ausgeblendeter** Layer wird nicht gezeichnet, nicht gefangen, lässt sich nicht wählen
+  und zählt nicht für „Zoom Grenzen“. Das ist **ein** Schalter statt AutoCADs „Ein/Aus“ und
+  „Frieren“ (eine bewusste Abweichung: ohne Regenerierung gibt es zwischen beiden keinen
+  Unterschied in der Leistung). Ein **gesperrter** Layer wird gezeichnet und gefangen, seine
+  Objekte lassen sich aber nicht wählen.
+- Kopien (Grip-Option „Kopieren“, SPIEGELN) bleiben auf dem Layer ihres Originals.
 
 ## Objektfang (OFANG)
 
@@ -1524,20 +1551,20 @@ seinen Startwert zurück). Die Startwerte, solange nichts gespeichert ist:
 - Kontextmenüs mit der rechten Maustaste und eine Einstellung dafür wie AutoCADs
   Rechtsklick-Anpassung (wie Enter, Kontextmenü, zeitabhängiger Rechtsklick: kurz = Enter,
   lang = Menü).
-- Bei LINIE: aktueller Layer und Stil für neue Objekte, gemeinsame Punkte (echte Verbindungen) zwischen
+- Bei LINIE: aktueller Stil für neue Objekte, gemeinsame Punkte (echte Verbindungen) zwischen
   den Segmenten, englische Optionen mit `_` im deutschen Editor.
 - Bei PLINIE: Bogensegmente (Option `Kreisbogen` mit ihren Unteroptionen, danach `sehnenLänge`
   tangential zum Bogen), Breite und Halbbreite, die Meldung zur aktuellen Linienbreite, Fangen an den
-  eigenen Segmenten während des Befehls, aktueller Layer und Stil; Details in
+  eigenen Segmenten während des Befehls, aktueller Stil; Details in
   `docs/todo/Polyline_Draw_NotImplemented.md`.
 - Bei KREIS: die Optionen `Ttr` (Tangente, Tangente, Radius) und „Tan, Tan, Tan“ (brauchen den
-  Tangenten-Fang), aktueller Layer und Stil.
+  Tangenten-Fang), aktueller Stil.
 - Bei ELLIPSE: die Option `Bogen` (elliptischer
-  Bogen mit Start- und Endwinkel), aktueller Layer und Stil; Details in
+  Bogen mit Start- und Endwinkel), aktueller Stil; Details in
   `docs/todo/Circle_Ellipse_Draw_NotImplemented.md`.
 - Bei RECHTECK: die Optionen `Abrunden`, `Breite`, `Erhebung` und `Objekthöhe` beim
   ersten Eckpunkt, `Fläche` beim anderen, `Punkte auswählen` beim Drehwinkel, die
-  Bemaßung beider Seiten in der dynamischen Eingabe, aktueller Layer und Stil; Details in
+  Bemaßung beider Seiten in der dynamischen Eingabe, aktueller Stil; Details in
   `docs/todo/Rectangle_Draw_NotImplemented.md`.
 - Bei BOGEN: aktueller Layer und Stil; Details in
   `docs/todo/Arc_Draw_NotImplemented.md`.

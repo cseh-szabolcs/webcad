@@ -17,5 +17,5 @@ class TableList
 
     public string $contextId = '';
 
-    public null|int|string $count = null;
+    public int|string|null $count = null;
 }

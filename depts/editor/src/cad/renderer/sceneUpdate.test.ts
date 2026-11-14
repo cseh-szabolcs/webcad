@@ -2,17 +2,15 @@ import { describe, expect, it } from 'vitest';
 import type { CadDocument } from '../model/CadDocument';
 import type { CadElement } from '../model/CadElement';
 import { indexDocument } from '../model/DocumentIndex';
+import { newLayer } from '../model/Layer';
 import { planSceneUpdate } from './sceneUpdate';
 
-const LAYERS = [
-    { id: 'walls', name: 'Walls', visible: true, locked: false },
-    { id: 'furniture', name: 'Furniture', visible: true, locked: false },
-];
+const LAYERS = [newLayer('0', 'floor', '0'), newLayer('walls', 'floor', 'Walls'), newLayer('furniture', 'floor', 'Furniture')];
 
-/** A document of lines `id@layer` (`id` alone for no layer), all on the same two vertices. */
+/** A document of lines `id@layer` (`id` alone for layer 0), all on the same two vertices. */
 function drawing(...lines: string[]): CadDocument {
     const elements = lines.map((line): CadElement => {
-        const [id, layerId = null] = line.split('@');
+        const [id, layerId = '0'] = line.split('@');
         return { id, type: 'line', name: null, layerId, groupId: null, styleId: null, startVertexId: 'a', endVertexId: 'b' };
     });
     return {
@@ -25,6 +23,7 @@ function drawing(...lines: string[]): CadDocument {
             { id: 'b', x: 10, y: 0 },
         ],
         elements,
+        floors: [{ id: 'floor', name: 'Floor' }],
         layers: LAYERS,
         groups: [],
         styles: [],
@@ -62,8 +61,8 @@ describe('planSceneUpdate', () => {
         ]);
     });
 
-    it('draws an element of an unknown layer with those that have none', () => {
-        const doc = drawing('1', '2@gone', '3');
+    it('draws the elements of unknown layers together', () => {
+        const doc = drawing('1@gone', '2@lost', '3@gone');
         expect(plan(doc, ['1', '3'], ['2'])).toEqual([{ kind: 'add', id: '2', beforeId: '3' }]);
     });
 

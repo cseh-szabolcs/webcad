@@ -13,8 +13,7 @@ final class Tab
 
     public ?string $href = null;
 
-    public ?string $dataSource  = null;
+    public ?string $dataSource = null;
 
     public bool $active = false;
 }
-

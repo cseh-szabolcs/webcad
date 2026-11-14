@@ -35,9 +35,13 @@ export class PolylineTool implements EditorTool {
     prompt: ToolPrompt = { kind: 'point', input: 'point', from: null, text: () => t('prompt.polylineStart') };
     preview: ToolPreview | null = null;
 
-    constructor(history: DocumentHistory, memory: DrawingMemory) {
+    /** The current layer, which what is drawn goes on. */
+    private readonly layerId: () => Id;
+
+    constructor(history: DocumentHistory, memory: DrawingMemory, layerId: () => Id) {
         this.history = history;
         this.memory = memory;
+        this.layerId = layerId;
     }
 
     start(): ToolStep {
@@ -134,7 +138,7 @@ export class PolylineTool implements EditorTool {
     private finish(points: readonly Point[], closed: boolean): ToolStep {
         this.state = { kind: 'first' };
         if (points.length >= 2) {
-            const command = new AddPolylineCommand(points, closed);
+            const command = new AddPolylineCommand(this.layerId(), points, closed);
             this.history.execute(command);
             this.memory.lastDrawn = command.polylineId;
         }

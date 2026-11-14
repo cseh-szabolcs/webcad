@@ -43,13 +43,12 @@ function drawing(vertices: Record<string, Point>, elements: Partial<CadElement>[
         elements: elements.map((element, i) => ({
             id: `e${i}`,
             name: null,
-            layerId: null,
+            layerId: L['0'],
             groupId: null,
             styleId: null,
             ...(element.type === 'ellipse' && { rotation: 0 }),
             ...element,
         })) as CadElement[],
-        layers: [],
         groups: [],
     };
 }

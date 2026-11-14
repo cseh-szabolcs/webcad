@@ -57,8 +57,12 @@ export class RectangleTool implements EditorTool {
     preview: ToolPreview | null = null;
     private readonly memory: DrawingMemory;
 
-    constructor(memory: DrawingMemory) {
+    /** The current layer, which what is drawn goes on. */
+    private readonly layerId: () => Id;
+
+    constructor(memory: DrawingMemory, layerId: () => Id) {
         this.memory = memory;
+        this.layerId = layerId;
     }
 
     /** Names the modes that apply, like AutoCAD's "Current rectangle modes". */
@@ -101,7 +105,7 @@ export class RectangleTool implements EditorTool {
                 return {};
             case 'other': {
                 const corners = rectangleAt(state.first, state.size, point, this.modes());
-                return corners ? { done: true, command: new AddPolylineCommand(corners, true, 'RECTANG') } : {};
+                return corners ? { done: true, command: new AddPolylineCommand(this.layerId(), corners, true, 'RECTANG') } : {};
             }
             default:
                 return {};

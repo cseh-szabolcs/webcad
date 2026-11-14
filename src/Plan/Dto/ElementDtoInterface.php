@@ -19,7 +19,7 @@ interface ElementDtoInterface
     // The properties every element type has, declared in AbstractElementDto
     public string $id { get; }
 
-    public ?string $layerId { get; }
+    public string $layerId { get; }
 
     public ?string $groupId { get; }
 

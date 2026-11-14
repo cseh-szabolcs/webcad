@@ -1,6 +1,7 @@
 import type { CadDocument } from './CadDocument';
 import type { CadElement } from './CadElement';
 import type { ElementStyle } from './ElementStyle';
+import type { Floor } from './Floor';
 import type { Group } from './Group';
 import type { Layer } from './Layer';
 import type { Id } from './Point';
@@ -10,6 +11,7 @@ import type { Vertex } from './Vertex';
 export interface DocumentIndex {
     vertices: ReadonlyMap<Id, Vertex>;
     elements: ReadonlyMap<Id, CadElement>;
+    floors: ReadonlyMap<Id, Floor>;
     layers: ReadonlyMap<Id, Layer>;
     groups: ReadonlyMap<Id, Group>;
     styles: ReadonlyMap<Id, ElementStyle>;
@@ -23,6 +25,7 @@ export function indexDocument(doc: CadDocument): DocumentIndex {
     return {
         vertices: byId(doc.vertices),
         elements: byId(doc.elements),
+        floors: byId(doc.floors),
         layers: byId(doc.layers),
         groups: byId(doc.groups),
         styles: byId(doc.styles),

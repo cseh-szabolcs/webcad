@@ -54,7 +54,11 @@ export class EllipseTool implements EditorTool {
     prompt: ToolPrompt = { kind: 'point', input: 'point', from: null, text: () => t('prompt.ellipseAxisStart') };
     preview: ToolPreview | null = null;
 
-    constructor(method: EllipseMethod = 'axisEnd') {
+    /** The current layer, which what is drawn goes on. */
+    private readonly layerId: () => Id;
+
+    constructor(layerId: () => Id, method: EllipseMethod = 'axisEnd') {
+        this.layerId = layerId;
         this.method = method;
         if (method === 'center') {
             this.askCenter();
@@ -110,7 +114,7 @@ export class EllipseTool implements EditorTool {
         if (radiusY === null) {
             return { message: () => t('message.ellipseTurnInvalid', { max: MAX_TURN_DEGREES }) };
         }
-        return { done: true, command: new AddEllipseCommand({ center, radiusX, radiusY, rotation }) };
+        return { done: true, command: new AddEllipseCommand(this.layerId(), { center, radiusX, radiusY, rotation }) };
     }
 
     /** The distance to the other axis: only a positive one, else the prompt stays. */
@@ -123,7 +127,7 @@ export class EllipseTool implements EditorTool {
             return { message: () => t('message.positiveValue') };
         }
         const { center, radiusX, rotation } = state;
-        return { done: true, command: new AddEllipseCommand({ center, radiusX, radiusY: distance, rotation }) };
+        return { done: true, command: new AddEllipseCommand(this.layerId(), { center, radiusX, radiusY: distance, rotation }) };
     }
 
     text(text: string): ToolStep | null {

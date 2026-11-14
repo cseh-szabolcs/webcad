@@ -28,6 +28,22 @@ describe('CadSerializer', () => {
         expect(doc.vertices[0]).not.toHaveProperty('hovered');
     });
 
+    it('reads floors and the properties of layers', () => {
+        const doc = parseDocument(samplePlan);
+        expect(doc.floors).toEqual([{ id: sampleIds.floor.ground, name: 'Ground floor' }]);
+        expect(doc.layers[0]).toEqual({
+            id: sampleIds.layer['0'],
+            floorId: sampleIds.floor.ground,
+            name: '0',
+            visible: true,
+            locked: false,
+            color: '#000000',
+            linetype: 'continuous',
+            transparency: 0,
+            description: '',
+        });
+    });
+
     it('keeps element names and reads a missing one as null', () => {
         const data = sample();
         delete data.elements[1].name;
@@ -67,6 +83,15 @@ describe('CadSerializer', () => {
         ['a dangling style reference', (d: any) => { d.elements[0].styleId = 'nope'; return d; }, '$.elements[0].styleId'],
         ['a dangling layer reference', (d: any) => { d.elements[0].layerId = 'nope'; return d; }, '$.elements[0].layerId'],
         ['a dangling group reference', (d: any) => { d.elements[0].groupId = 'nope'; return d; }, '$.elements[0].groupId'],
+        ['an element without a layer', (d: any) => { d.elements[0].layerId = null; return d; }, '$.elements[0].layerId'],
+        ['no floor', (d: any) => ({ ...d, floors: [], layers: [], elements: [] }), '$.floors'],
+        ['a layer of an unknown floor', (d: any) => { d.layers[1].floorId = 'nope'; return d; }, '$.layers[1].floorId'],
+        ['a floor without layer 0', (d: any) => { d.layers[0].name = 'Zero'; return d; }, '$.floors[0]'],
+        ['two layers of a floor with the same name', (d: any) => { d.layers[2].name = 'WALLS'; return d; }, '$.layers[2].name'],
+        ['a layer colour that is no hex colour', (d: any) => { d.layers[1].color = 'red'; return d; }, '$.layers[1].color'],
+        ['an unknown linetype', (d: any) => { d.layers[1].linetype = 'wavy'; return d; }, '$.layers[1].linetype'],
+        ['a layer transparency over the limit', (d: any) => { d.layers[1].transparency = 91; return d; }, '$.layers[1].transparency'],
+        ['a layer without description', (d: any) => { delete d.layers[1].description; return d; }, '$.layers[1].description'],
         ['a duplicate vertex id', (d: any) => { d.vertices[1].id = d.vertices[0].id; return d; }, '$.vertices[1].id'],
         ['a duplicate element id', (d: any) => { d.elements[1].id = d.elements[0].id; return d; }, '$.elements[1].id'],
         ['a non-positive radius', (d: any) => { d.elements[8].radiusY = 0; return d; }, '$.elements[8].radiusY'],

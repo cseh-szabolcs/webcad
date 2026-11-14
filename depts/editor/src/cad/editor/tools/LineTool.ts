@@ -35,9 +35,13 @@ export class LineTool implements EditorTool {
     private state: State = { kind: 'first' };
     prompt: ToolPrompt = { kind: 'point', input: 'point', from: null, text: () => t('prompt.lineFirst') };
 
-    constructor(history: DocumentHistory, memory: DrawingMemory) {
+    /** The current layer, which what is drawn goes on. */
+    private readonly layerId: () => Id;
+
+    constructor(history: DocumentHistory, memory: DrawingMemory, layerId: () => Id) {
         this.history = history;
         this.memory = memory;
+        this.layerId = layerId;
         this.lineBefore = memory.lastDrawn;
     }
 
@@ -114,7 +118,7 @@ export class LineTool implements EditorTool {
     }
 
     private addSegment(state: Extract<State, { kind: 'next' }>, to: Point): void {
-        const segment = new AddLineCommand(state.last, to);
+        const segment = new AddLineCommand(this.layerId(), state.last, to);
         this.history.execute(segment);
         this.memory.lastDrawn = segment.lineId;
         state.segments.push(segment);

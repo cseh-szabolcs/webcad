@@ -120,7 +120,7 @@ read the matching file before working in its area:
 Rules that apply everywhere:
 
 - **The persisted CAD document is independent of Paper.js, React and the editor tools.**
-  Store what the user defined (vertices, elements, layers, groups, styles); compute what can
+  Store what the user defined (vertices, elements, floors, layers, groups, styles); compute what can
   be derived (midpoints, intersections, bounding boxes, snap candidates, selection/hover state
   are never saved). The editor's own architecture is in `depts/editor/CLAUDE.md`.
 - **Backend layout by business area**, not by layer; namespaces follow the folders:
@@ -161,7 +161,7 @@ Rules that apply everywhere:
   `BaseTag`) and `main` (app_main; `src/Core/Tenancy/Entity`, `src/Security/Entity`). `TenantConnection` refuses queries before a
   tenant is selected; a `KernelTestCase` selects it with `TenantSwitcher` itself.
 - **Plans** are stored relationally and versioned (`Plan` → draft/head `PlanVersion` → content
-  entities); display values are columns of the element subclasses. A new display value is a
+  entities: floor → layer → element, every element on a layer, every layer on a floor); display values are columns of the element subclasses. A new display value is a
   field and a DTO field (then rebuild the schema). The *plan document* (the drawing of one version) exists
   only as `PlanDocumentDto` (`PlanDocumentReader` ↔ `PlanFactory`).
 - **API**: the DTOs and controller attributes are the only source of the OpenAPI document; a DTO

@@ -35,7 +35,7 @@ Offen, mit dem, was dafür fehlt:
 
 ## Gemeinsam
 
-- Aktueller Layer und Stil für neue Objekte.
+- Aktueller Stil für neue Objekte (sie liegen auf dem aktuellen Layer und zeichnen VonLayer).
 - Der Button **Ellipse** zeigt anfangs **Mittelpunkt** (wie in AutoCAD), getippt beginnt ELLIPSE aber mit dem Achsenendpunkt.
 - Im Menü der Ellipse fehlt der elliptische Bogen.
 

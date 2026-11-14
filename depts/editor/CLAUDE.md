@@ -56,10 +56,13 @@ viewport flips Y for the screen.
 ## Architecture
 
 - **The document model is independent of Paper.js, React and the tools.** The model
-  (vertices, elements, layers, groups, styles) is the source of truth; its types in `cad/model`
+  (vertices, elements, floors, layers, groups, styles) is the source of truth; its types in `cad/model`
   are aliases of the generated API schema (`CadDocument` = `ApiSchema['PlanDocument']`, see
   `docs/architecture/api-documentation.md`), only editor-side types (`Point`, `Id`) are its own.
-  New elements have `name: null`, ellipses always a `rotation`. Store what the user defined;
+  New elements have `name: null`, ellipses always a `rotation`. **Floor → layer → element:** every
+  element is on a layer (`layerId`, never null), every layer on a floor (`floorId`); every floor
+  has the layer `0` (`DEFAULT_LAYER_NAME`), layer names are unique per floor whatever the case
+  (`CadSerializer` checks both). Floors have no controls yet: the editor shows the first one. Store what the user defined;
   compute what can be derived (midpoints, intersections, bounding boxes, snap candidates,
   selection/hover state are never saved).
 - **Layering:** document model → editor core (tools, selection, command history, snapping,
@@ -208,9 +211,30 @@ an arc (only a length is asked for), BOGEN always tangentially (`ArcMethod` `con
 It also holds the values Enter takes again as the default of a prompt, shown as `<25.0000>`
 (`formatDefault`): the radius of the circle drawn last (KREIS, also doubled for the diameter)
 and the length and width given last (RECHTECK); none until given once, gone on reload. RECHTECK's modes (rotation, chamfer) live there too.
-New elements get their own vertices and no layer/group/style yet. What each command still
+New elements get their own vertices, the current layer and no group or style (see "Layers"). What each command still
 lacks is in `docs/todo/*_NotImplemented.md` (PLINE arcs with a proposed `bulges` schema in
 `Polyline_Draw_NotImplemented.md`), further shortcuts in `docs/todo/Zeichnen_Tastenkuerzel.md`.
+
+## Layers
+
+The controls (panel, layer commands, layers in the collaboration patch) are still to come; the
+spec is `Layer_System_Specification.md` in the repository root for now.
+
+- **ByLayer is `styleId: null`:** an element without a style is drawn with the colour, linetype
+  and transparency of its layer; an `ElementStyle` overrides the layer as a whole
+  (`cad/renderer/elementDisplay.ts`: `elementDisplay`, `layerDisplay`, `LINETYPE_DASHES`; pure).
+  `ElementRenderer.applyDisplay` sets style and opacity; `PaperRenderer.restyle` multiplies the
+  opacity while somebody else has the element selected.
+- **One visibility switch** (`visible`) instead of AutoCAD's On/Off and Freeze, with the effect
+  of Freeze: not drawn, not snapped, not selectable, not in the extents. `locked`: drawn and
+  snapped, not selectable.
+- **The current layer is editor state per user**, never in the document: `SelectionEditor`
+  keeps it (`setCurrentLayer`, `SelectionSnapshot.currentLayerId`), `derive()` keeps it valid with
+  `resolveCurrentLayer` (`cad/editor/layers.ts`: a shown layer of the floor, else layer `0`). The
+  drawing tools get it as a getter (`layerForNew`), so each `Add…Command` takes the layer current
+  when it is made, also within one LINIE run; the previews of new elements are drawn by it
+  (`PaperRenderer.applyLayerStyle`). Copies keep the layer of their original.
+- Paper.js layers carry no name: it refuses names of digits only, like `0`.
 
 ## Structure
 

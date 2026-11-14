@@ -12,6 +12,7 @@ import { MoveCommand } from './MoveCommand';
 import { SubtractCommand } from './SubtractCommand';
 
 const { element: E } = sampleIds;
+const LAYER = sampleIds.layer['0'];
 
 const doc = parseDocument(samplePlan);
 const ids = (prefix: string) => {
@@ -38,9 +39,9 @@ describe('document patches', () => {
         const sender = new DocumentHistory(doc);
         const receiver = new DocumentHistory(doc);
         mirrored(sender, receiver);
-        const circle = new AddCircleCommand({ x: 2600, y: 3050 }, 200, ids('circle'));
+        const circle = new AddCircleCommand(LAYER, { x: 2600, y: 3050 }, 200, ids('circle'));
         const steps: DocumentCommand[] = [
-            new AddLineCommand({ x: 1, y: 2 }, { x: 3, y: 4 }, ids('line')),
+            new AddLineCommand(LAYER, { x: 1, y: 2 }, { x: 3, y: 4 }, ids('line')),
             new MoveCommand([E.sofa, E.table], { x: 100, y: -50 }, ids('move')),
             circle,
             // Removes elements and vertices and puts new outlines where the sofa was
@@ -90,13 +91,13 @@ describe('document patches', () => {
     });
 
     it('are not applied to another plan', () => {
-        const patch = diffDocuments(doc, new AddLineCommand({ x: 1, y: 2 }, { x: 3, y: 4 }).execute(doc).document, [])!;
+        const patch = diffDocuments(doc, new AddLineCommand(LAYER, { x: 1, y: 2 }, { x: 3, y: 4 }).execute(doc).document, [])!;
 
         expect(applyDocumentPatch({ ...doc, id: 'another-plan' }, patch)).toBeNull();
     });
 
     it('are not applied where an element would be left without a vertex', () => {
-        const moved = new AddLineCommand({ x: 1, y: 2 }, { x: 3, y: 4 }, ids('line'));
+        const moved = new AddLineCommand(LAYER, { x: 1, y: 2 }, { x: 3, y: 4 }, ids('line'));
         const withLine = moved.execute(doc).document;
         // The line of somebody who never told this document of its vertices
         const patch = diffDocuments(doc, withLine, [moved.lineId])!;
@@ -112,8 +113,8 @@ describe('DocumentHistory.applyRemote', () => {
         const history = new DocumentHistory(doc);
         const listener = vi.fn();
         history.subscribe(listener);
-        const mine = new AddLineCommand({ x: 1, y: 2 }, { x: 3, y: 4 }, ids('mine'));
-        const theirs = new AddLineCommand({ x: 5, y: 6 }, { x: 7, y: 8 }, ids('theirs'));
+        const mine = new AddLineCommand(LAYER, { x: 1, y: 2 }, { x: 3, y: 4 }, ids('mine'));
+        const theirs = new AddLineCommand(LAYER, { x: 5, y: 6 }, { x: 7, y: 8 }, ids('theirs'));
 
         history.execute(mine);
         history.applyRemote(theirs.execute(history.document), 'm1');

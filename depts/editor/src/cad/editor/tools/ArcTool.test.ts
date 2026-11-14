@@ -117,7 +117,7 @@ describe('ArcTool (BOGEN)', () => {
         click(editor, C);
         expect(arcs()).toEqual([{ center: CENTER, start: A, end: C, clockwise: true }]);
         expect(editor.snapshot).toMatchObject({ command: null, prompt: 'Befehl:', canUndo: true });
-        expect(history.document.elements.at(-1)).toMatchObject({ type: 'arc', name: null, layerId: null, groupId: null, styleId: null });
+        expect(history.document.elements.at(-1)).toMatchObject({ type: 'arc', name: null, layerId: sampleIds.layer['0'], groupId: null, styleId: null });
         expect(history.document.vertices).toHaveLength(before.vertices.length + 3);
         expect(editor.undo()).toBe(true);
         expect(history.document.vertices).toEqual(before.vertices);

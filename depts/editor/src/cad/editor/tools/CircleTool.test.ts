@@ -89,7 +89,7 @@ describe('CircleTool (KREIS)', () => {
         expect(circles()).toEqual([{ center: A, radius: 300 }]);
         expect(editor.snapshot).toMatchObject({ command: null, prompt: 'Befehl:', canUndo: true });
         const added = history.document.elements.at(-1) as CircleElement;
-        expect(added).toMatchObject({ layerId: null, groupId: null, styleId: null });
+        expect(added).toMatchObject({ layerId: sampleIds.layer['0'], groupId: null, styleId: null });
         expect(editor.undo()).toBe(true);
         expect(circles()).toEqual([]);
         expect(editor.snapshot.message).toBe('Rückgängig: KREIS');

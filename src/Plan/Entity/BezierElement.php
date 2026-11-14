@@ -29,7 +29,7 @@ class BezierElement extends Element
         private Vector2 $startControl,
         #[ORM\Embedded(columnPrefix: 'end_control_')]
         private Vector2 $endControl,
-        ?Layer $layer = null,
+        Layer $layer,
         ?Group $group = null,
         ?ElementStyle $style = null,
         ?string $name = null,

@@ -2,17 +2,8 @@ import type { CadElement } from '../model/CadElement';
 import type { DocumentIndex } from '../model/DocumentIndex';
 import type { ElementStyle } from '../model/ElementStyle';
 import { displayFillColor, displayStrokeColor, type DisplayTheme } from './displayColor';
+import { elementDisplay, type ElementDisplay } from './elementDisplay';
 import { buildPathSpec } from './PathSpec';
-
-/** Used for elements without a style. */
-export const DEFAULT_STYLE: ElementStyle = {
-    id: '__default',
-    name: 'Default',
-    strokeColor: '#000000',
-    strokeWidth: 1,
-    dashPattern: [],
-    fillColor: null,
-};
 
 export function createItem(
     scope: paper.PaperScope,
@@ -48,11 +39,13 @@ export function updateItem(
     );
     path.closed = spec.closed;
 
-    applyStyle(scope, path, styleOf(element, index), theme);
+    applyDisplay(scope, path, elementDisplay(element, index), theme);
 }
 
-export function styleOf(element: CadElement, index: DocumentIndex): ElementStyle {
-    return (element.styleId !== null && index.styles.get(element.styleId)) || DEFAULT_STYLE;
+/** Style and opacity of an element (see elementDisplay). */
+export function applyDisplay(scope: paper.PaperScope, path: paper.Path, display: ElementDisplay, theme: DisplayTheme): void {
+    applyStyle(scope, path, display.style, theme);
+    path.opacity = display.opacity;
 }
 
 /** Colours are adapted to the background (see displayColor.ts); widths and dashes are not. */

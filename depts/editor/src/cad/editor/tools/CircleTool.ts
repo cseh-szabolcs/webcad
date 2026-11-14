@@ -45,8 +45,12 @@ export class CircleTool implements EditorTool {
 
     private readonly memory: DrawingMemory;
 
-    constructor(memory: DrawingMemory, method: CircleMethod = 'centerRadius') {
+    /** The current layer, which what is drawn goes on. */
+    private readonly layerId: () => Id;
+
+    constructor(memory: DrawingMemory, layerId: () => Id, method: CircleMethod = 'centerRadius') {
         this.memory = memory;
+        this.layerId = layerId;
         this.method = method;
         if (method === 'twoPoints') {
             this.askTwoPoints([]);
@@ -206,7 +210,7 @@ export class CircleTool implements EditorTool {
     /** Ends KREIS with the circle as one undo step, and remembers its radius as the default. */
     private finish({ center, radius }: CircleShape): ToolStep {
         this.memory.circleRadius = radius;
-        return { done: true, command: new AddCircleCommand(center, radius) };
+        return { done: true, command: new AddCircleCommand(this.layerId(), center, radius) };
     }
 
     /** A point on its own without `from`, else a `next` point from it. */

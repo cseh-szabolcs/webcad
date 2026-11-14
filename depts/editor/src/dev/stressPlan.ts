@@ -1,14 +1,17 @@
 import { CURRENT_SCHEMA_VERSION, type CadDocument } from 'app/cad/model/CadDocument';
 import type { CadElement } from 'app/cad/model/CadElement';
+import { DEFAULT_LAYER_NAME, newLayer } from 'app/cad/model/Layer';
 
 /** Mean distance between the elements in mm, so the density stays the same for every count. */
 const SPACING_MM = 500;
 /** Largest extent of one element in mm. */
 const ELEMENT_SIZE_MM = 1500;
+const FLOOR_ID = 'floor';
+const LAYER_ID = 'layer-0';
 
 /**
  * Dev only (`?stress=<count>`): a generated plan of `count` elements (lines, circles and closed
- * polylines without layer or style), to measure the editor on large drawings. The same count
+ * polylines on layer 0, without a style), to measure the editor on large drawings. The same count
  * always gives the same plan.
  */
 export function stressPlan(count: number): CadDocument {
@@ -23,7 +26,7 @@ export function stressPlan(count: number): CadDocument {
         return id;
     };
     for (let i = 0; i < count; i++) {
-        const base = { id: `e-${i}`, name: null, layerId: null, groupId: null, styleId: null };
+        const base = { id: `e-${i}`, name: null, layerId: LAYER_ID, groupId: null, styleId: null };
         const x = random() * side;
         const y = random() * side;
         const width = (random() - 0.5) * 2 * ELEMENT_SIZE_MM;
@@ -45,7 +48,8 @@ export function stressPlan(count: number): CadDocument {
         unit: 'mm',
         vertices,
         elements,
-        layers: [],
+        floors: [{ id: FLOOR_ID, name: 'Floor' }],
+        layers: [newLayer(LAYER_ID, FLOOR_ID, DEFAULT_LAYER_NAME)],
         groups: [],
         styles: [],
     };

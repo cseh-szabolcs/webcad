@@ -56,7 +56,7 @@ AutoCAD bietet sie im Dropdown des Buttons und als Optionen in den Aufforderunge
 - Bei Start, Zentrum, Winkel misst das Winkelfeld der dynamischen Eingabe wie die Abfrage ab
   der X-Achse, nicht den Winkel zwischen Start- und Endradius; der Bogen des Felds deckt sich
   also nur dann mit dem gezeichneten Bogen, wenn der Startpunkt rechts vom Mittelpunkt liegt.
-- Aktueller Layer und Stil für neue Objekte.
+- Aktueller Stil für neue Objekte (sie liegen auf dem aktuellen Layer und zeichnen VonLayer).
 - Der zweite Punkt (3 Punkte) wird nicht gespeichert: der Bogen ist danach Zentrum, Start, Ende
   und Richtung. Bei Start, Zentrum, Ende wird als Ende der Punkt auf dem Kreis gespeichert, nicht
   der angeklickte.

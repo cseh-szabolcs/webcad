@@ -13,6 +13,12 @@ Decisions
   vectors) are columns of the element subclass too (single table inheritance, so nullable in the
   database, never in PHP). A new display value is a field (schema rebuilt, see `tenancy.md`; a
   migration once they are back) and a field of its `…ElementDto`.
+- **Floor → layer → element:** a `Floor` (storey) is the top of the contents, a `Layer` belongs
+  to a floor and every `Element` to a layer (both not null). Every floor has a layer `0`, and layer
+  names are unique within a floor whatever the case; the editor's `CadSerializer` checks that,
+  the backend only that the references exist (`PlanFactory`). A layer carries what its elements
+  are drawn with while they have no style (`color`, `linetype`, `transparency`), a `description`,
+  and `visible`/`locked`. `Floor` has a UUID key like the other contents, not an integer id.
 - **Versioned:** the contents belong to a `PlanVersion`. A plan always has a **draft**, which the
   editor works on, and after the first publish a **head**. Publishing (the action comes later) is
   `$plan->publish($copier->copy($plan->getDraft()), $name)`: the copy becomes the head with the
@@ -36,7 +42,7 @@ Pitfalls
 - `PlanUnit` lives in `Enum/`, not `Entity/`: `EntityMappingTest` treats every file there as an
   entity (or embeddable, like `Vector2`).
 - A read must stay at one query per kind of content (`ElementRepository` fetch-joins the polyline
-  vertices); `PlanDocumentReaderTest` counts them.
+  vertices; floors and layers are a query each); `PlanDocumentReaderTest` counts them.
 - A polyline's arcs are a `bulge` per row of `plan_polyline_vertex` (the segment that starts at
   that position; DXF bulge, 0 = straight). The document always carries `bulges`, as long as
   `vertexIds`; `PolylineElementDto` validates the length.
@@ -45,7 +51,7 @@ Pitfalls
   `depts/editor/src/cad/__fixtures__/sample-plan.json` (editor tests), because the `php`
   container cannot see `depts/`. **Keep them byte-identical.** Its ids are numbered fixture UUIDs
   (`00000000-0000-7000-8000-000000000NNN`: vertices 001+, elements 101+, layers 201+, groups
-  301+, styles 401+), readable names in `name` and the editor's `sampleIds.ts`.
+  301+, styles 401+, floors 501+), readable names in `name` and the editor's `sampleIds.ts`.
 - `app:fixture:create` is a console command registered only in dev and test (`#[When]`), never in
   prod: it **drops the selected tenant's database** (`TenantProvisioner::reset`) before creating
   the sample plan under `DEV_PLAN_ID`, the id the editor loads in dev.
