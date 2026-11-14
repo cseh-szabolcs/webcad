@@ -282,6 +282,50 @@
     user-select: none;
 }
 
+/* Pointers of the other collaborators (RemoteCursors) under the own crosshair; --remote-color is set per pointer */
+.remote-cursors {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.remote-cursor {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    opacity: 0.8;
+}
+
+/* 1 px, not 0: a svg without size is not rendered at all, whatever its overflow */
+.remote-cursor-cross {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1px;
+    height: 1px;
+    overflow: visible;
+}
+
+.remote-cursor-cross path {
+    fill: none;
+    stroke: var(--remote-color);
+    stroke-width: 1;
+    stroke-dasharray: 3 2;
+}
+
+/* In the upper right half of the cross; its offsets come from RemoteCursors */
+.remote-cursor-name {
+    position: absolute;
+    font-size: 11px;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--remote-color);
+    user-select: none;
+}
+
 /* Drawn crosshair (CrosshairCursor); its parts are positioned around the cursor pixel */
 .crosshair {
     position: absolute;

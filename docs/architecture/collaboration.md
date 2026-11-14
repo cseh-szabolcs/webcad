@@ -3,8 +3,9 @@ Collaboration: server, room and login
 
 Several people can have the same project open. The collaboration server (`depts/collaboration/`,
 Socket.IO on Node, compose service `collaboration`) is the meeting point; later the editor's commands
-travel over it from one tab to the others. **So far it only knows who is there** (login, `app:joined`,
-`app:left`, a room limit); nothing is relayed, stored or applied. It has no database and no session,
+travel over it from one tab to the others. **So far it knows who is there** (login, `app:joined`,
+`app:left`, a room limit, a colour per collaborator) **and passes the pointers on**; no command is relayed,
+and nothing is stored or applied. It has no database and no session,
 and it never looks inside what a client sends.
 
 | Part | Is |
@@ -12,6 +13,7 @@ and it never looks inside what a client sends.
 | namespace | the uuid of the tenant (`app_main.tenant.uuid`), `/<uuid>`; the server accepts any uuid-shaped namespace, the token decides |
 | room | the id of the project (`Project.id`, a uuid): everybody with a plan of the project open meets, whichever plan |
 | collaborator | one socket (a second tab is a second collaborator); its id (`nanoid(8)`) is minted by the server |
+| colour | `Collaborator.color`, an index 0–4 (`COLLABORATOR_COLORS`): the server gives the lowest one nobody in the room has, so five people always differ; a room above five repeats them. The editor maps the index to `--collab-color-*` (`index.css`, one set per theme) |
 
 Login
 -----
@@ -55,11 +57,38 @@ sending it on) is done by the Node server, which is where load would show up fir
 the editor needs no change: put a web server of its own in front of `/socket.io`, or let the backend
 send the server's URL in `CollaborationAccessDto`.
 
+Pointers
+--------
+
+Each editor tells the others where its crosshair is, and draws theirs (`ui/RemoteCursors.ts`: a small
+dashed cross in the collaborator's colour, their name up and to the right, faint, under the own
+crosshair, never taking input).
+
+| Event | Direction | Carries |
+|---|---|---|
+| `app:cursor` | client → server | `x, y` in **model coordinates** (mm), rounded to a thousandth: two numbers, not an object, and independent of anyone's zoom or pan |
+| `app:cursor` | server → room (not the sender) | `userId, x, y`; the server puts in the id it knows, ignores anything that is not two finite numbers, stores nothing |
+| `app:cursor-gone` | client → server → room | nothing → `userId`: the crosshair left the drawing (also while panning) |
+
+What keeps the traffic small (`createCollaboration`, `CURSOR_INTERVAL_MS`):
+
+- **Throttled:** at most one position per interval; the first goes at once, the latest one is sent when
+  the interval is over, so the final position always arrives.
+- **Only when somebody listens:** nothing is sent while alone in the room. When somebody joins, the
+  current position goes out again, so the newcomer sees it without waiting for a move.
+- **Volatile:** `app:cursor` goes `socket.volatile.emit` (and the server relays it `volatile` as well), so
+  a position that cannot be delivered right away is dropped instead of queued; the next replaces it.
+  `app:cursor-gone` is reliable: a lost one would leave a pointer standing where nobody is.
+- **Never with a command:** a `volatile` message queued behind a reliable one is dropped, so commands
+  (later) travel as messages of their own.
+
+The pointers are not in `CollaborationState` but in a channel of their own (`CursorChannel`:
+`sendCursor`, `getCursors`, `subscribeCursors`): they change up to 20 times a second per person and
+must not render the editor's React tree. `CadCanvas` shows and sends them directly.
+
 Still to come
 -------------
 
 Relaying the editor's commands (`app:interaction`) with the rule that a received command changes
 only the receiving store (no undo entry, no save); presence in the drawing; announcing a
-publish or discard; a push from the backend. For the cursor: throttle it (one position per frame),
-send it only while somebody else is in the room and as `volatile` in a message of its own, never in
-the packet of a command (a `volatile` packet queued behind a reliable one is dropped).
+publish or discard; a push from the backend; the selection of the others.

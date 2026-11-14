@@ -9,7 +9,12 @@ export interface Collaborator {
   id: string
   name: string
   image: string | null
+  /** Index into the palette of {@link COLLABORATOR_COLORS} colours; free ones are handed out first. */
+  color: number
 }
+
+/** How many colours there are to tell collaborators apart; a room beyond it repeats them. */
+export const COLLABORATOR_COLORS = 5
 
 export interface JoinAck {
   /** How many are in the room, the asking client included. */
@@ -45,4 +50,12 @@ export const EVENTS = {
   join: 'app:join',
   joined: 'app:joined',
   left: 'app:left',
+  /**
+   * Where a collaborator's pointer is, in model coordinates. Client → server: `(x, y)`; server →
+   * room: `(userId, x, y)`. Never acknowledged and sent `volatile`, so a lost one is replaced by
+   * the next.
+   */
+  cursor: 'app:cursor',
+  /** The pointer left the drawing. Client → server: nothing; server → room: `(userId)`. Reliable. */
+  cursorGone: 'app:cursor-gone',
 } as const

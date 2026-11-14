@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { CadApiClient } from 'app/cad/persistence/CadApiClient';
-import { createCollaboration, type CollaborationState } from './createCollaboration';
+import { createCollaboration, type CollaborationState, type CursorChannel } from './createCollaboration';
 
 const CONNECTING: CollaborationState = { status: 'connecting', users: [], me: null, limit: null };
 const OFFLINE: CollaborationState = { ...CONNECTING, status: 'offline' };
@@ -8,10 +8,15 @@ const OFFLINE: CollaborationState = { ...CONNECTING, status: 'offline' };
 /**
  * Logs the editor in to the room of the plan's project (see `createCollaboration`). Trouble never
  * stops the editor: when the access cannot be loaded the state is `offline`. `planId` null means
- * there is nothing to join (no plan, or generated data).
+ * there is nothing to join (no plan, or generated data). `cursors` is the channel of the pointers
+ * once connected, null before and after.
  */
-export function useCollaboration(api: CadApiClient, planId: string | null): CollaborationState {
+export function useCollaboration(
+    api: CadApiClient,
+    planId: string | null,
+): { state: CollaborationState; cursors: CursorChannel | null } {
     const [state, setState] = useState<CollaborationState>(CONNECTING);
+    const [cursors, setCursors] = useState<CursorChannel | null>(null);
 
     useEffect(() => {
         if (planId === null) {
@@ -30,6 +35,7 @@ export function useCollaboration(api: CadApiClient, planId: string | null): Coll
                 const update = () => setState(collaboration.getState());
                 collaboration.subscribe(update);
                 close = () => collaboration.close();
+                setCursors(collaboration);
                 update();
             },
             () => {
@@ -42,8 +48,9 @@ export function useCollaboration(api: CadApiClient, planId: string | null): Coll
         return () => {
             controller.abort();
             close?.();
+            setCursors(null);
         };
     }, [api, planId]);
 
-    return planId === null ? OFFLINE : state;
+    return planId === null ? { state: OFFLINE, cursors: null } : { state, cursors };
 }

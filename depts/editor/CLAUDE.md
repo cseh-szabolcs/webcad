@@ -325,7 +325,14 @@ asks for a fresh token (the first lives only long enough for one handshake). Onl
 decides between `connected` and `full`; any other trouble is `offline` and never stops the editor.
 `ui/CollaborationStatus.tsx` shows it in the toolbar. `src/collaboration/types.ts` repeats the
 server's message shapes by hand (no codegen). Vite proxies `/socket.io` to the `collaboration`
-service (`COLLAB_PROXY_TARGET` when running on the host). Nothing is relayed yet: commands come next.
+service (`COLLAB_PROXY_TARGET` when running on the host). **Pointers:** `CadCanvas` tells the room where
+its crosshair shows (`shareCursor`, in model coordinates, snap point included, nothing while the crosshair
+is hidden) and draws the others' (`ui/RemoteCursors.ts`: a dashed cross and the name, one of the five
+`--collab-color-*` tokens by `Collaborator.color`; sizes are constants there). They travel in the
+`CursorChannel` of the `Collaboration` (`useCollaboration` returns it as `cursors`), not in
+`CollaborationState`, so they never render React; `createCollaboration` throttles them
+(`CURSOR_INTERVAL_MS`), sends only while somebody else is in the room and `volatile` (details in
+`docs/architecture/collaboration.md`). Commands are not relayed yet.
 
 ## Settings
 

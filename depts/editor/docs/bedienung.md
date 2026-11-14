@@ -31,6 +31,15 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   Namen. Grau: keine Verbindung (der Editor bleibt voll nutzbar), orange: der Raum ist voll
   (Einstellung der Obergrenze am Server, `COLLAB_MAX_CLIENTS_PER_ROOM`). Änderungen werden noch
   nicht an die anderen weitergegeben.
+  **Mauszeiger der anderen:** Hat eine andere Person das Projekt offen, sieht man ihren Zeiger in
+  der Zeichnung als kleines gestricheltes Kreuz mit ihrem Namen rechts oberhalb, schwach
+  gezeichnet und ohne Eingabe: Er liegt unter dem eigenen Fadenkreuz und verdeckt nichts, Klicks
+  gehen hindurch. Jede Person bekommt eine von fünf Farben, die im Raum nicht doppelt vorkommen
+  (`--collab-color-*` in `src/index.css`; Größe des Kreuzes `REMOTE_CURSOR_ARM_PX` in
+  `src/ui/RemoteCursors.ts`). Das Kreuz steht an der Modellposition, die der andere gerade
+  anzeigt (mit Fang), und folgt deinem Zoom und Verschieben. Es verschwindet, wenn der Zeiger die
+  Zeichenfläche verlässt oder beim Verschieben (Mittelklick) das Fadenkreuz weg ist. Allein im
+  Raum wird nichts gesendet.
 - **Werkzeugleiste** (unter der Toolbar, waagrecht): ein Symbol-Button je Befehl, gruppiert wie in
   AutoCAD: **Zeichnen** mit **Linie** (Befehl [LINIE](#befehl-linie)), **Polylinie**
   (Befehl [PLINIE](#befehl-plinie)), **Kreis** (Befehl [KREIS](#befehl-kreis)), **Bogen**

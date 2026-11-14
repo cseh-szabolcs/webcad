@@ -26,6 +26,10 @@ npm test           # node --test, real sockets over socket.io-client
 |---|---|---|
 | `app:join` | client → server, with ack | nothing → `{ clients, user, users }` |
 | `app:joined` / `app:left` | server → room | who arrived or went, and how many are there |
+| `app:cursor` | client → server → room | `x, y` (model coordinates) → `userId, x, y`, `volatile`, not to the sender |
+| `app:cursor-gone` | client → server → room | nothing → `userId`, reliable |
+
+Every collaborator has a `color` (0–4): the lowest one nobody in the room has.
 
 Files: `SocketServer.ts` (namespaces, room limit, join/leave), `isGranted.ts` (the handshake check),
 `token.ts` (signature and expiry), `types.ts` (the message shapes), `config.ts`, `index.ts`.

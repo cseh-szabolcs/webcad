@@ -6,6 +6,7 @@ import type { CommandMethod } from 'app/cad/editor/tools/CommandMethod';
 import type { CadDocument } from 'app/cad/model/CadDocument';
 import type { Point } from 'app/cad/model/Point';
 import type { DisplayTheme } from 'app/cad/renderer/displayColor';
+import type { CursorChannel } from 'app/collaboration/createCollaboration';
 import { i18n } from 'app/i18n/i18n';
 import { PaperRenderer } from 'app/cad/renderer/PaperRenderer';
 import { Viewport, type Size } from 'app/cad/renderer/Viewport';
@@ -22,6 +23,7 @@ import { CrosshairCursor } from './CrosshairCursor';
 import { DynamicInputLayer } from './DynamicInputLayer';
 import { GridLayer } from './GridLayer';
 import { GripMenu } from './GripMenu';
+import { RemoteCursors } from './RemoteCursors';
 import { polarTooltipText, SnapMarker, trackingTooltipText, type TrackingDisplay } from './SnapMarker';
 import { UcsIcon } from './UcsIcon';
 import { ViewCompass } from './ViewCompass';
@@ -64,6 +66,11 @@ interface CadCanvasProps {
     onPointerChange?: (viewPoint: Point | null) => void;
     /** Selection and command state, e.g. for the command line; also sent once on start. */
     onSelectionChange?: (snapshot: SelectionSnapshot) => void;
+    /**
+     * The pointers of the other collaborators: shown on the canvas, and the cursor shown here is
+     * told to them (model coordinates). Null while there is nobody to share with.
+     */
+    cursors?: CursorChannel | null;
     ref?: Ref<CadCanvasHandle>;
 }
 
@@ -80,6 +87,7 @@ export function CadCanvas({
     onViewportChange,
     onPointerChange,
     onSelectionChange,
+    cursors = null,
     ref,
 }: CadCanvasProps) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -92,6 +100,10 @@ export function CadCanvas({
     const gridRef = useRef<GridLayer | null>(null);
     const ucsIconRef = useRef<UcsIcon | null>(null);
     const compassRef = useRef<ViewCompass | null>(null);
+    const remoteCursorsRef = useRef<RemoteCursors | null>(null);
+    const cursorsRef = useRef(cursors);
+    /** Tells the others where the crosshair shows now; set while a document is loaded. */
+    const shareCursorRef = useRef<(() => void) | null>(null);
     const themeRef = useRef(theme);
     const settingsRef = useRef(settings);
     const snapSettingsRef = useRef(snapSettings);
@@ -120,6 +132,7 @@ export function CadCanvas({
         rendererRef.current?.setViewport(viewport);
         gridRef.current?.setViewport(viewport);
         ucsIconRef.current?.setViewport(viewport);
+        remoteCursorsRef.current?.setViewport(viewport);
         refreshOverlayRef.current?.();
         onViewportChangeRef.current?.(viewport);
     };
@@ -164,6 +177,10 @@ export function CadCanvas({
         const compass = new ViewCompass(container, settingsRef.current);
         compass.setVisible(gridSettingsRef.current.compass);
         compassRef.current = compass;
+        // Under the own crosshair and the snap display, over the rest
+        const remoteCursors = new RemoteCursors(container);
+        remoteCursors.setViewport(viewportRef.current);
+        remoteCursorsRef.current = remoteCursors;
         const history = new DocumentHistory(document);
         // Subscribed before the editor, so the paths are up to date when its overlay redraws
         const unsubscribeHistory = history.subscribe(({ document, changedElementIds }) =>
@@ -198,6 +215,16 @@ export function CadCanvas({
         };
         /** Pointer position while the crosshair shows, so it can follow snap and zoom changes. */
         let crosshairAt: Point | null = null;
+        /**
+         * The others see the crosshair where it shows (snap point and all), in model coordinates, and
+         * nothing while it is hidden. The channel throttles and drops what nobody would hear.
+         */
+        const shareCursor = () => {
+            cursorsRef.current?.sendCursor(
+                crosshairAt && viewportRef.current.viewToModel(cursorAt(crosshairAt)),
+            );
+        };
+        shareCursorRef.current = shareCursor;
         /**
          * Dynamic Input next to the crosshair: the prompt (or a typed command name) with the
          * prompts on, the fields at the crosshair or, for distance and angle from the prompt's
@@ -292,6 +319,7 @@ export function CadCanvas({
             crosshair.setMode(cursor);
             if (crosshairAt) {
                 crosshair.moveTo(cursorAt(crosshairAt));
+                shareCursor();
             }
             refreshDynamicInput();
         };
@@ -332,11 +360,13 @@ export function CadCanvas({
                 moveTo: (viewPoint) => {
                     crosshairAt = viewPoint;
                     crosshair.moveTo(cursorAt(viewPoint));
+                    shareCursor();
                     refreshDynamicInput();
                 },
                 hide: () => {
                     crosshairAt = null;
                     crosshair.hide();
+                    shareCursor();
                     refreshDynamicInput();
                 },
                 setRemoving: (removing) => crosshair.setRemoving(removing),
@@ -358,6 +388,9 @@ export function CadCanvas({
             ucsIconRef.current = null;
             compass.dispose();
             compassRef.current = null;
+            remoteCursors.dispose();
+            remoteCursorsRef.current = null;
+            shareCursorRef.current = null;
             i18n.off('languageChanged', refreshTexts);
             unsubscribe();
             editor.dispose();
@@ -373,6 +406,24 @@ export function CadCanvas({
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- callbacks read refs
     }, [document]);
+
+    // After the effect above, so that the layer of the loaded document exists
+    useEffect(() => {
+        cursorsRef.current = cursors;
+        const layer = remoteCursorsRef.current;
+        if (!cursors || !layer) {
+            return;
+        }
+        const show = () => layer.set(cursors.getCursors());
+        show();
+        // The pointer may be over the drawing already: tell the room where
+        shareCursorRef.current?.();
+        const unsubscribe = cursors.subscribeCursors(show);
+        return () => {
+            unsubscribe();
+            layer.set([]);
+        };
+    }, [cursors, document]);
 
     useEffect(() => {
         snapSettingsRef.current = snapSettings;

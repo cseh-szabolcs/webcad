@@ -123,3 +123,88 @@ test('rooms and tenants do not see each other', async () => {
   assert.equal(sameRoomName.clients, 1)
   assert.equal(heard, false)
 })
+
+const CURSOR_ROOM = '019b0000-0000-7000-8000-0000000000b1'
+
+/** Two joined sockets in their own room, so the tests do not hear each other. */
+async function pair(room: string) {
+  const first = connect(TENANT, { token: token({ room, name: 'Erika' }) })
+  const firstAck = await join(first)
+  const second = connect(TENANT, { token: token({ room, name: 'Max' }) })
+  const secondAck = await join(second)
+  return { first, second, firstAck, secondAck }
+}
+
+/** Resolves once nothing has arrived for `ms`: the way to check that something was not sent. */
+function silence(socket: Socket, event: string, ms = 150): Promise<unknown[]> {
+  const received: unknown[] = []
+  socket.on(event, (...args: unknown[]) => received.push(args))
+  return new Promise(resolve => setTimeout(() => resolve(received), ms))
+}
+
+test('hands out the lowest free colour and takes a left one back', async () => {
+  const room = '019b0000-0000-7000-8000-0000000000b2'
+  const { first, second, firstAck, secondAck } = await pair(room)
+  assert.deepEqual([firstAck.user.color, secondAck.user.color], [0, 1])
+
+  const left = once(second, 'app:left')
+  first.close()
+  await left
+
+  const third = await join(connect(TENANT, { token: token({ room, name: 'Lena' }) }))
+  assert.equal(third.user.color, 0)
+})
+
+test('a pointer position reaches the others with the sender the server knows', async () => {
+  const { first, second, firstAck } = await pair(CURSOR_ROOM)
+
+  const heard = new Promise<unknown[]>(resolve => second.once('app:cursor', (...args: unknown[]) => resolve(args)))
+  first.emit('app:cursor', 12.5, -3)
+  const [userId, x, y] = await heard
+
+  assert.equal(userId, firstAck.user.id)
+  assert.equal(x, 12.5)
+  assert.equal(y, -3)
+})
+
+test('the sender does not hear its own pointer, and what is no pair of numbers is dropped', async () => {
+  const { first, second } = await pair('019b0000-0000-7000-8000-0000000000b3')
+  const own = silence(first, 'app:cursor')
+  const others = silence(second, 'app:cursor')
+
+  first.emit('app:cursor', 1, 2)
+  first.emit('app:cursor', '1', 2)
+  first.emit('app:cursor', 1)
+  first.emit('app:cursor', Number.NaN, 2)
+  first.emit('app:cursor', { x: 1, y: 2 })
+
+  assert.equal((await own).length, 0)
+  assert.equal((await others).length, 1)
+})
+
+test('only those who joined send pointers, and only their room hears them', async () => {
+  const room = '019b0000-0000-7000-8000-0000000000b4'
+  const listener = connect(TENANT, { token: token({ room, name: 'Listener' }) })
+  await join(listener)
+  // Connected but never said hello
+  const stranger = connect(TENANT, { token: token({ room, name: 'Silent' }) })
+  await new Promise<void>(resolve => stranger.on('connect', () => resolve()))
+  const apart = connect(TENANT, { token: token({ room: '019b0000-0000-7000-8000-0000000000b5' }) })
+  await join(apart)
+  const inRoom = silence(listener, 'app:cursor')
+  const elsewhere = silence(apart, 'app:cursor')
+
+  stranger.emit('app:cursor', 1, 2)
+
+  assert.equal((await inRoom).length, 0)
+  assert.equal((await elsewhere).length, 0)
+})
+
+test('the others hear when a pointer leaves the drawing', async () => {
+  const { first, second, firstAck } = await pair('019b0000-0000-7000-8000-0000000000b6')
+
+  const gone = once<string>(second, 'app:cursor-gone')
+  first.emit('app:cursor-gone')
+
+  assert.equal(await gone, firstAck.user.id)
+})

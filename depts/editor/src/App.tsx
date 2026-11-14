@@ -62,7 +62,7 @@ function App() {
     const [selection, setSelection] = useState<SelectionSnapshot | null>(null);
     const [state, setState] = useState<LoadState>({ status: 'loading' });
     // Joined once the plan is shown; a generated stress plan belongs to no project
-    const collaboration = useCollaboration(api, state.status === 'loaded' && stressCount === 0 ? planId : null);
+    const { state: collaboration, cursors } = useCollaboration(api, state.status === 'loaded' && stressCount === 0 ? planId : null);
     // The switches of the status bar start as they were left in this browser
     const [stored] = useState(loadSwitches);
     const [snapSettings, setSnapSettings] = useState<SnapSettings>(stored.snap);
@@ -273,6 +273,7 @@ function App() {
                 onViewportChange={setViewport}
                 onPointerChange={setPointer}
                 onSelectionChange={setSelection}
+                cursors={cursors}
             />
             {selection && (
                 <CommandLine

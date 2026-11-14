@@ -8,7 +8,12 @@ export interface Collaborator {
     id: string;
     name: string;
     image: string | null;
+    /** Index into the palette of five colours (`--collab-color-*`); the server hands out free ones first. */
+    color: number;
 }
+
+/** How many colours there are; the server's `COLLABORATOR_COLORS`. */
+export const COLLABORATOR_COLORS = 5;
 
 export interface JoinAck {
     clients: number;
@@ -38,4 +43,12 @@ export const EVENTS = {
     join: 'app:join',
     joined: 'app:joined',
     left: 'app:left',
+    /**
+     * Where a pointer is, in model coordinates. To the server `(x, y)`, from it `(userId, x, y)`.
+     * Sent `volatile`: a lost position is replaced by the next, and it never shares a packet with
+     * a command (a volatile message queued behind a reliable one is dropped).
+     */
+    cursor: 'app:cursor',
+    /** The pointer left the drawing. To the server nothing, from it `(userId)`. Reliable. */
+    cursorGone: 'app:cursor-gone',
 } as const;

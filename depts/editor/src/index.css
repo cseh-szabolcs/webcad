@@ -13,6 +13,12 @@
     --snap-tooltip-bg: #ffffe1;
     --snap-tooltip-fg: #111827;
     --snap-tooltip-border: #6b7280;
+    /* The five colours of the collaborators' pointers (RemoteCursors) */
+    --collab-color-0: #2563eb;
+    --collab-color-1: #ea580c;
+    --collab-color-2: #9333ea;
+    --collab-color-3: #db2777;
+    --collab-color-4: #0d9488;
     /* UCS icon (UcsIcon) */
     --ucs-icon: #4b5563;
     /* Compass (ViewCompass) */
@@ -47,6 +53,11 @@
     --snap-tooltip-bg: #2d333b;
     --snap-tooltip-fg: #e5e7eb;
     --snap-tooltip-border: #6b7280;
+    --collab-color-0: #60a5fa;
+    --collab-color-1: #fb923c;
+    --collab-color-2: #c084fc;
+    --collab-color-3: #f472b6;
+    --collab-color-4: #2dd4bf;
     --ucs-icon: #d1d5db;
     --compass: #d1d5db;
     --dyn-field-bg: #1b2028;

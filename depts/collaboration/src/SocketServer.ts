@@ -4,7 +4,7 @@ import { Server } from 'socket.io'
 import type { Namespace, Socket } from 'socket.io'
 import { nanoid } from 'nanoid'
 import { isGranted } from './isGranted.ts'
-import { EVENTS } from './types.ts'
+import { COLLABORATOR_COLORS, EVENTS } from './types.ts'
 import type { Collaborator, JoinAck, RoomFull } from './types.ts'
 
 export interface SocketServerOptions {
@@ -32,7 +32,7 @@ interface SocketState {
 const TENANT_NAMESPACE = /^\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
- * One namespace per tenant, one room per project, and nothing in it but presence for now.
+ * One namespace per tenant, one room per project, and nothing in it but presence and the pointers for now.
  *
  * The server is stateless about the document: it never applies, stores or validates an edit.
  * Two things are decided here rather than by a client: the collaborator id (`nanoid`), so nobody
@@ -89,7 +89,7 @@ export default class SocketServer {
         socketId: socket.id,
         namespace: grant.namespace,
         room: grant.room,
-        user: { id: nanoid(8), name: grant.name, image: null },
+        user: { id: nanoid(8), name: grant.name, image: null, color: freeColor(occupants) },
         joined: false,
       })
       next()
@@ -114,9 +114,12 @@ export default class SocketServer {
       return
     }
 
-    this.print(`${state.user.name} (${socket.id}) connected to room ${state.room}`)
+    const { referer, 'user-agent': agent } = socket.handshake.headers
+    this.print(`${state.user.name} (${socket.id}) connected to room ${state.room} from ${referer ?? '?'} (${agent ?? '?'})`)
 
     socket.on(EVENTS.join, (ack?: (data: JoinAck) => void) => this.join(socket, ack))
+    socket.on(EVENTS.cursor, (x: unknown, y: unknown) => this.relayCursor(socket, x, y))
+    socket.on(EVENTS.cursorGone, () => this.relayCursorGone(socket))
     // Fires while the socket is still in its rooms, which is what lets the room be told how many
     // are left rather than how many there were.
     socket.on('disconnecting', () => this.leave(socket))
@@ -153,6 +156,26 @@ export default class SocketServer {
     this.print(`${state.user.name} (${state.user.id}) joined room ${state.room}`)
   }
 
+  /**
+   * Passes a pointer position on to the others, `volatile`: a position that cannot be delivered
+   * right away is dropped, since the next one replaces it. The sender is the one the server knows,
+   * never one the client names. Nothing is stored, and what is not a pair of numbers is ignored.
+   */
+  private relayCursor(socket: Socket, x: unknown, y: unknown): void {
+    const state = this.state.get(key(socket))
+    if (!state?.joined || !isCoordinate(x) || !isCoordinate(y)) return
+
+    socket.volatile.to(state.room).emit(EVENTS.cursor, state.user.id, x, y)
+  }
+
+  /** Reliable, unlike the positions: a lost one would leave a pointer standing where nobody is. */
+  private relayCursorGone(socket: Socket): void {
+    const state = this.state.get(key(socket))
+    if (!state?.joined) return
+
+    socket.to(state.room).emit(EVENTS.cursorGone, state.user.id)
+  }
+
   private leave(socket: Socket): void {
     const state = this.state.get(key(socket))
     this.state.delete(key(socket))
@@ -186,6 +209,19 @@ export default class SocketServer {
   private print(message: string): void {
     if (this.log) console.log(`[collaboration] ${message}`)
   }
+}
+
+/** The lowest colour no one in the room has; once all are taken, the colours repeat. */
+function freeColor(occupants: SocketState[]): number {
+  const taken = new Set(occupants.map(({ user }) => user.color))
+  for (let color = 0; color < COLLABORATOR_COLORS; color++) {
+    if (!taken.has(color)) return color
+  }
+  return occupants.length % COLLABORATOR_COLORS
+}
+
+function isCoordinate(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
 }
 
 /** Socket ids are only unique within a namespace. */
