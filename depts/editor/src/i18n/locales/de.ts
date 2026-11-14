@@ -63,6 +63,8 @@ export const de = {
         moveTitle: 'Verschieben ({{command}})',
         mirror: 'Spiegeln',
         mirrorTitle: 'Spiegeln ({{command}})',
+        erase: 'Löschen',
+        eraseTitle: 'Löschen ({{command}}, Entf)',
         subtract: 'Differenz',
         subtractTitle: 'Differenz ({{command}})',
         union: 'Vereinigung',

@@ -6,7 +6,7 @@ Auf dem Mac entspricht **Option (⌥)** der Taste Alt.
 Tastenkürzel wirken, solange der Fokus nicht in einem Textfeld liegt.
 
 Der Editor zeigt Pläne an, wählt Objekte aus, zeichnet Linien mit dem Befehl LINIE,
-Polylinien mit PLINIE, Kreise mit KREIS, Bögen mit BOGEN, Ellipsen mit ELLIPSE und Rechtecke mit RECHTECK, verschiebt Objekte mit dem Befehl SCHIEBEN, spiegelt sie mit SPIEGELN und streckt sie an ihren [Grips](#grips) (mit Raster, Objektfang, Polarspur, Ortho, Objektfangspuren, Koordinateneingabe, dynamischer Eingabe und Rückgängig). Gespeichert wird noch nichts; was
+Polylinien mit PLINIE, Kreise mit KREIS, Bögen mit BOGEN, Ellipsen mit ELLIPSE und Rechtecke mit RECHTECK, verschiebt Objekte mit dem Befehl SCHIEBEN, spiegelt sie mit SPIEGELN, löscht sie mit LÖSCHEN und streckt sie an ihren [Grips](#grips) (mit Raster, Objektfang, Polarspur, Ortho, Objektfangspuren, Koordinateneingabe, dynamischer Eingabe und Rückgängig). Gespeichert wird noch nichts; was
 sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgesetzt).
 
 ## Oberfläche
@@ -70,7 +70,8 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   Trennlinie **Ändern** mit **Verschieben** (Befehl [SCHIEBEN](#befehl-schieben)),
   **Spiegeln** (Befehl [SPIEGELN](#befehl-spiegeln)),
   **Vereinigung** (Befehl [VEREINIG](#befehl-vereinig)) und
-  **Differenz** (Befehl [DIFFERENZ](#befehl-differenz)). Der Name
+  **Differenz** (Befehl [DIFFERENZ](#befehl-differenz)) und **Löschen** (Befehl
+  [LÖSCHEN](#befehl-löschen)). Der Name
   steht im Tooltip, z. B. `Linie (LINIE)`. Der Button des laufenden Befehls bleibt gedrückt; ein
   weiterer Klick darauf bewirkt nichts. Ein Klick auf einen anderen bricht den laufenden Befehl
   ab (`*Abbruch*`) und startet den neuen.
@@ -545,6 +546,25 @@ Drehung. Mit `J` gilt für geteilte Punkte dasselbe wie bei SCHIEBEN: Nicht gew�
 bleiben, wie sie sind. **Esc** bricht bei jeder Aufforderung ab (`*Abbruch*`), ohne etwas zu
 ändern. Der Befehl ist ein Rückgängig-Schritt (`Rückgängig: SPIEGELN`). Der
 [Grip-Modus](#grip-modi) SPIEGELN spiegelt dagegen ohne Rückfrage die Originale.
+
+## Befehl LÖSCHEN
+
+Löscht Objekte, wie AutoCADs LÖSCHEN (`ERASE`). Button **Löschen** (Papierkorb) in der
+Werkzeugleiste, oder bei `Befehl:` `LÖSCHEN`, `LÖ`, `E` oder `ERASE`.
+
+- **Mit Auswahl:** Die gewählten Objekte werden sofort gelöscht (`N gefunden`), ohne Rückfrage.
+  Dasselbe tun **Entf** und, solange nichts getippt ist, die **Rücktaste**.
+- **Ohne Auswahl:** Die Kommandozeile fragt `LÖSCHEN Objekte wählen:`. Gewählt wird wie bei
+  [SCHIEBEN](#befehl-schieben); **Enter** oder **Rechtsklick** beendet die Auswahl und löscht.
+  Ist nichts gewählt, endet der Befehl; **Esc** bricht ab (`*Abbruch*`), ohne zu löschen.
+  Entf und Rücktaste bewirken ohne Auswahl nichts.
+
+Mit den Objekten verschwinden die Punkte, die kein anderes Objekt mehr braucht, und Gruppen,
+die dadurch leer werden; ein Klick auf ein gruppiertes Objekt wählt ohnehin die ganze Gruppe.
+Was jemand anderes gerade gewählt hat, lässt sich nicht wählen und damit nicht löschen. Das
+Löschen ist ein Rückgängig-Schritt (`Rückgängig: LÖSCHEN`): **Strg/⌘+Z** holt die Objekte an
+ihre alte Stelle in der Zeichenreihenfolge zurück. Die anderen im Raum sehen das Löschen und
+das Zurückholen sofort.
 
 ## Befehl DIFFERENZ
 
@@ -1527,6 +1547,8 @@ seinen Startwert zurück). Die Startwerte, solange nichts gespeichert ist:
 - Bei DIFFERENZ und VEREINIG: Ellipsen und Splines als Flächen, ein Objekt mit mehreren
   Umrissen (Region), dessen Füllung Löcher ausspart, eine Vorschau, der Befehl SCHNITTMENGE;
   Details in `docs/todo/Subtract_NotImplemented.md`.
+- Bei LÖSCHEN: der Befehl `HOPPLA` (`OOPS`), der das zuletzt Gelöschte auch nach anderen
+  Befehlen zurückholt, und die Auswahl-Optionen von AutoCAD (`L` für das letzte Objekt, `ALLE`).
 - Bei SPIEGELN: Text, Schraffuren und Blöcke (die es im Modell noch nicht gibt, samt den
   Einstellungen dazu), anklickbare Optionen; Details in `docs/todo/Mirror_NotImplemented.md`.
 - Alle anderen Bearbeitungsbefehle wie Löschen, Gruppieren oder Kopieren.

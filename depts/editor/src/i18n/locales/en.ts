@@ -62,6 +62,8 @@ export const en: Translations = {
         moveTitle: 'Move ({{command}})',
         mirror: 'Mirror',
         mirrorTitle: 'Mirror ({{command}})',
+        erase: 'Erase',
+        eraseTitle: 'Erase ({{command}}, Del)',
         subtract: 'Subtract',
         subtractTitle: 'Subtract ({{command}})',
         union: 'Union',

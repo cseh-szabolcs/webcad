@@ -1475,10 +1475,11 @@ describe('SelectionEditor typed commands', () => {
         expect(editor.snapshot).toMatchObject({ command: null, prompt: 'Befehl:', input: '', message: 'Unbekannter Befehl "XYZ".' });
     });
 
-    it('leaves Space, Enter, Backspace and Esc alone without text; Esc drops the text first', () => {
+    it('leaves Space, Enter and Esc alone without text; Esc drops the text first', () => {
         const editor = create();
         click(editor, TABLE);
-        for (const key of [' ', 'Enter', 'Backspace']) {
+        // The Rücktaste erases the selection then, see EraseTool.test.ts
+        for (const key of [' ', 'Enter']) {
             expect(editor.keyDown({ key }), key).toBe(false);
         }
         editor.keyDown({ key: 'm' });

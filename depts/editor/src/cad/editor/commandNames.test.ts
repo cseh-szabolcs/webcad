@@ -20,6 +20,8 @@ describe('commandNames', () => {
         expect(findCommand('Bogen')).toBe('ARC');
         expect(findCommand('el')).toBe('ELLIPSE');
         expect(findCommand('rec')).toBe('RECTANG');
+        expect(findCommand('löschen')).toBe('ERASE');
+        expect(findCommand('e')).toBe('ERASE');
         expect(findCommand('Rechteck')).toBe('RECTANG');
     });
 
@@ -40,7 +42,8 @@ describe('commandNames', () => {
         const names = EDITOR_COMMANDS.flatMap((command) => [
             ...new Set([command, ...(aliases as Record<string, string[]>)[command]]),
         ]);
-        expect(names.every((name) => /^[A-Z][A-Z0-9_]*$/.test(name)), names.join()).toBe(true);
+        // Upper case letters, umlauts included (LÖSCHEN)
+        expect(names.every((name) => /^\p{Lu}[\p{Lu}0-9_]*$/u.test(name)), names.join()).toBe(true);
         expect(new Set(names).size).toBe(names.length);
     });
 });

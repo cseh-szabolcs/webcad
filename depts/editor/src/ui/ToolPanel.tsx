@@ -84,6 +84,7 @@ const GROUPS = [
             { command: 'MIRROR', label: 'toolbar.mirror', title: 'toolbar.mirrorTitle' },
             { command: 'UNION', label: 'toolbar.union', title: 'toolbar.unionTitle' },
             { command: 'SUBTRACT', label: 'toolbar.subtract', title: 'toolbar.subtractTitle' },
+            { command: 'ERASE', label: 'toolbar.erase', title: 'toolbar.eraseTitle' },
         ],
     },
 ] as const satisfies readonly { label: ParseKeys; tools: readonly (Tool | ToolFlyoutSpec)[] }[];

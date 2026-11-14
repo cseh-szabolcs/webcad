@@ -11,7 +11,7 @@ steps. So far it loads a plan through the API and displays it (wheel zoom, middl
 pan, status line, light/dark mode), has AutoCAD-like object selection, a grid, a UCS icon,
 object snap, polar tracking, Ortho, object snap tracking, Dynamic Input, the commands LINIE,
 PLINIE (straight segments only), KREIS, BOGEN (three points; around a centre given before or after the start, ending by a point, an angle or a chord length; or over start and end by an angle, a start direction or a radius), ELLIPSE, RECHTECK, SCHIEBEN and SPIEGELN with preview, typed
-coordinates and undo/redo, DIFFERENZ and VEREINIG (AutoCAD SUBTRACT and UNION on closed polylines and circles), and grips that edit the selection (the grip modes STRETCH, MOVE,
+coordinates and undo/redo, LÖSCHEN, DIFFERENZ and VEREINIG (AutoCAD SUBTRACT and UNION on closed polylines and circles), and grips that edit the selection (the grip modes STRETCH, MOVE,
 ROTATE, SCALE, MIRROR with their options Base point, Copy, Undo, Reference, eXit; several hot
 grips; a menu of further actions per grip).
 Changes are not saved to the backend yet. Once the plan is shown, the editor logs in to the
@@ -190,6 +190,7 @@ are in the guide and the translation files.
 |---|---|---|
 | SCHIEBEN (`MOVE`) | `MoveTool` | `MoveCommand` (zero displacement does nothing); vertices shared with elements that are not moved are detached (the neighbours keep a copy at the old position), like AutoCAD MOVE |
 | SPIEGELN (`MIRROR`) | `MirrorTool` | two points of the mirror line (`reflectionAcross`; the same point twice is refused), a `transform` preview with `keepsOriginals`, then the `keyword` prompt "Quellobjekte löschen?", which keeps that preview: No (the default) runs a `CopyCommand`, Yes a `TransformCommand`, both with the label `MIRROR`. Spec in `docs/specs/MIRROR_Werkzeug_Spezifikation.md` |
+| LÖSCHEN (`ERASE`) | `EraseTool` | `EraseCommand`: the pickfirst selection at once, else one object selection, no question asked; Entf, and the Rücktaste while nothing is typed, start it on the selection (`SelectionEditor.keyDown`). With the elements go the vertices no other uses and groups left empty; `undo` puts back only what it removed, each at its old index, so a collaborator's changes in between stay |
 | LINIE (`LINE`) | `LineTool` | an `AddLineCommand` per point at once (drawn and snappable); "Zurück" = `DocumentHistory.revertLast`; the run becomes one undo step (`combineLast` → `CompositeCommand`) |
 | PLINIE (`PLINE`) | `PolylineTool` | points stay in the tool (not snappable, like AutoCAD); one `AddPolylineCommand` when the command ends in any way, Esc and another tool included |
 | KREIS (`CIRCLE`) | `CircleTool` | `AddCircleCommand` as the step's command (`geometry/circle.ts`: `circleThrough`, `circleOnDiameter`) |
@@ -242,7 +243,7 @@ All pure TS and unit-tested unless noted.
   the new document and the changed element ids), `DocumentHistory` (current document, undo/redo
   stacks, listeners that get a `HistoryChange` (with the document `before` and the `origin`), `revertLast`, `combineLast`, `applyRemote`), `MoveCommand`, `AddLineCommand`,
   `AddPolylineCommand` (its `label` names the command), `AddCircleCommand`, `AddArcCommand`, `AddEllipseCommand`,
-  `SubtractCommand` (the first command that removes elements: with them the vertices no other element uses and groups left empty; `undo` puts the document's arrays back),
+  `EraseCommand`, `SubtractCommand` (it removes elements too: with them the vertices no other element uses and groups left empty; `undo` puts the document's arrays back),
   `CompositeCommand`. `CadCanvas` keeps the history of the loaded document; the editor and the
   renderer follow it (`PaperRenderer.updateElements` replaces, adds and removes only the
   changed items as planned by the pure `cad/renderer/sceneUpdate.ts`, subscribed before the

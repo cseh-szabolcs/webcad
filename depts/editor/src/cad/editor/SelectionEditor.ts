@@ -36,6 +36,7 @@ import { GripTool } from './tools/GripTool';
 import { gripActions, segmentOfGrip, vertexRemoval, type GripAction } from './grips/actions';
 import { RemovePolylineVertexCommand, SetPolylineBulgeCommand } from './commands/PolylineVertexCommands';
 import { LineTool } from './tools/LineTool';
+import { EraseTool } from './tools/EraseTool';
 import { MirrorTool } from './tools/MirrorTool';
 import { MoveTool } from './tools/MoveTool';
 import { SubtractTool } from './tools/SubtractTool';
@@ -591,6 +592,8 @@ export class SelectionEditor {
                 return new MoveTool();
             case 'MIRROR':
                 return new MirrorTool();
+            case 'ERASE':
+                return new EraseTool();
             case 'SUBTRACT':
                 return new SubtractTool(this.index);
             case 'UNION':
@@ -914,6 +917,11 @@ export class SelectionEditor {
             return false;
         }
         if (this.area === null && this.typeCommandKey(event)) {
+            return true;
+        }
+        // Entf, or the Rücktaste with nothing typed, erases the selection like AutoCAD's Del
+        if ((event.key === 'Delete' || event.key === 'Backspace') && this.area === null && state.pickfirst.size > 0) {
+            this.startCommand('ERASE');
             return true;
         }
         if (event.key === 'Escape' && this.hotPicked.length > 0) {

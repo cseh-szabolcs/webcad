@@ -7,7 +7,7 @@ import type { EllipseMethod } from 'app/cad/editor/tools/EllipseTool';
 /**
  * Paths in a 24×24 box: a diagonal line with its two end points, a zigzag of three segments
  * with its two end points, a rectangle, the four-arrow cross of AutoCAD's MOVE, a triangle and
- * its mirror image on either side of a dashed axis, a square and a
+ * its mirror image on either side of a dashed axis, a trash can, a square and a
  * circle on its corner as one outline, and a square with that circle cut out of its corner, the
  * rest of the circle dashed.
  */
@@ -17,6 +17,7 @@ const ICON_PATHS: Record<Exclude<EditorCommand, keyof typeof METHOD_ICON_PATHS>,
     RECTANG: 'M3.5 6.5h17v11h-17z',
     MOVE: 'M12 3v18 M3 12h18 M9 6l3-3l3 3 M9 18l3 3l3-3 M6 9l-3 3l3 3 M18 9l3 3l-3 3',
     MIRROR: 'M9 6v12H3z M15 6v12h6z M12 2.5v3 M12 8v3 M12 13.5v3 M12 19v2.5',
+    ERASE: 'M4 6.5h16 M9.5 6.5V4h5v2.5 M6 6.5l1 14h10l1-14 M10 10.5v6.5 M14 10.5v6.5',
     UNION: 'M3 8h7A5 5 0 1 1 15 13v7H3z',
     SUBTRACT: 'M3 8h7A5 5 0 0 0 15 13v7H3z M10.06 7.22A5 5 0 0 1 11.46 4.46 M12.73 3.54A5 5 0 0 1 15.78 3.06 M17.27 3.54A5 5 0 0 1 19.46 5.73 M19.94 7.22A5 5 0 0 1 19.46 10.27 M18.54 11.54A5 5 0 0 1 15.78 12.94',
 };
