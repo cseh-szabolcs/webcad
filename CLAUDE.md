@@ -25,13 +25,11 @@ apps in one repo:
   **being rebuilt from scratch, closer to AutoCAD behaviour**, in small steps. It loads a plan
   through the API and draws and edits it (selection, snapping, tracking, drawing commands,
   MOVE, grip editing, undo/redo); changes are not saved to the backend yet. **Everything about the editor
-  (state, structure, rules, reference material) is in `depts/editor/CLAUDE.md`**, its user
+  (state, structure, rules) is in `depts/editor/CLAUDE.md`**, its user
   guide in `depts/editor/docs/bedienung.md`.
 
-### Reference material (read, don't copy)
+### Documentation
 
-- **`depts/editor-old/`** (previous editor) and **`depts/demo1/`** (OSNAP reference): see
-  `depts/editor/CLAUDE.md`; for comparison only, never imported.
 - **`docs/`**: `docs/todo/setup.md` (architecture concept, German) and `docs/architecture/`
   (see "Architecture" below).
 - **`depts/editor/docs/bedienung.md`**: user guide of the editor (German); keep it in sync
@@ -102,7 +100,7 @@ The `php` container mounts a named volume over `/app/depts`, so the editor sourc
 visible from inside `php`.
 
 **Node tooling runs on the host** (`npm install`, `npm test`, `npm run lint|build`, run
-inside `depts/editor/`, `depts/editor-old/` or `depts/collaboration/`); the `editor` and `collaboration` containers
+inside `depts/editor/` or `depts/collaboration/`); the `editor` and `collaboration` containers
 only serve (Vite resp. Node). Details (native bindings, `.npmrc`, Vite proxy) in `depts/editor/CLAUDE.md`. Model
 coordinates are **mm with Y up** in editor and backend alike.
 

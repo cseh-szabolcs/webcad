@@ -5,8 +5,7 @@ Several people can have the same project open. The collaboration server (`depts/
 Socket.IO on Node, compose service `collaboration`) is the meeting point; later the editor's commands
 travel over it from one tab to the others. **So far it only knows who is there** (login, `app:joined`,
 `app:left`, a room limit); nothing is relayed, stored or applied. It has no database and no session,
-and it never looks inside what a client sends. The design follows the reference project
-(`depts/collaboration-example/`, git-ignored, read only).
+and it never looks inside what a client sends.
 
 | Part | Is |
 |---|---|

@@ -32,22 +32,6 @@ for fixed constants in the code (thresholds, tolerances, limits): name the const
 file (e.g. "`TIE_TOLERANCE_PX` in `src/cad/editor/snapping/SnapEngine.ts`") instead of its
 value; renaming or moving such a constant means updating the guide.
 
-### Reference material (read, don't copy)
-
-- **`depts/editor-old/`**: the previous implementation (viewer, `CadEditor`, commands,
-  selection, handles, `PaperRenderer`, serializer, `CadApiClient`, tests). For comparison only,
-  never imported. Parts that fit may be adopted (reviewed, trimmed to the current step, with
-  their tests), but not wholesale: its interaction model (selection, handles, tools) differs
-  from AutoCAD. Already adopted: the document model (with `circle`), serializer, API client,
-  `Viewport`, `PathSpec`, arc geometry, `PaperRenderer` (with items map and overlay layer), the
-  canvas input routing, the highlight-by-restyled-copy overlay and `selectionUnit` (group
-  expansion). Once adopted, the code here is the reference.
-- **`depts/demo1/`** (git-ignored): a plain-JS object snap (OSNAP) reference with tests.
-  `Snap-Spezifikation.md` is the detailed snap/tracking/MOVE spec (German, AutoCAD behaviour).
-  Run with `npm run demo:dev` in `depts/demo1/`, then open http://localhost:3000/demo/. Use it
-  to cross-check our logic, not as a template; ideas may be adopted (the `rbush` spatial index
-  already is), always re-implemented as typed code in our structure, never copied or imported.
-
 ## Running it
 
 **Node tooling runs on the host**, inside `depts/editor/`: `npm run dev`, `npm run build`
@@ -58,7 +42,7 @@ documentation"). The `editor` container only serves Vite (http://localhost:8081,
 Vitest and oxlint ship platform-specific native bindings (macOS on the host, Linux musl in the
 container): after a dependency change, run `npm install` on the host and
 `docker compose restart editor`. `.npmrc` sets `cache=node_modules/.npm-cache`, so npm writes
-nothing to `~/.npm`; never install packages globally. The same holds for `depts/editor-old/`.
+nothing to `~/.npm`; never install packages globally.
 
 Vite proxies `/api` to `http://nginx` (same origin, no CORS); for `npm run dev` on the host set
 `API_PROXY_TARGET=http://localhost:8080`. In dev the editor loads the plan
