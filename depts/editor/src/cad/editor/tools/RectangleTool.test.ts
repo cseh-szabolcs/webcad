@@ -87,7 +87,7 @@ describe('RectangleTool (RECHTECK)', () => {
     it('starts by name or alias and drops the pickfirst selection', () => {
         for (const name of ['REC', 'rechteck', 'RECTANG']) {
             const { editor } = setup();
-            click(editor, { x: 3000, y: 0 });
+            click(editor, { x: 3000, y: -2900 });
             expect(editor.snapshot.highlighted.size).toBe(1);
             type(editor, name);
             expect(editor.snapshot).toMatchObject({ command: 'RECTANG', prompt: FIRST_PROMPT, cursor: 'point', grips: [] });

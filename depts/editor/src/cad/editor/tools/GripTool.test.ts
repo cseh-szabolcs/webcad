@@ -11,6 +11,7 @@ import { DEFAULT_DYNAMIC_INPUT_SETTINGS, DEFAULT_EDITOR_SETTINGS, DEFAULT_SNAP_S
 import type { CadElement, PolylineElement } from '../../model/CadElement';
 
 const { element: E, vertex: V } = sampleIds;
+const ELEMENTS = samplePlan.elements.length;
 
 /** One screen pixel is 2 mm (Y flipped): the pick box reaches 10 mm, a grip 7 mm more. */
 const at = (modelPoint: Point, change: Partial<EditorPointerEvent> = {}): EditorPointerEvent => ({
@@ -425,7 +426,7 @@ describe('grips: modes', () => {
         click(editor, { x: 5000, y: 3000 });
         expect(vertex(V['win-1'])).toEqual({ x: 6500, y: 3880 });
         expect(vertex(V['win-2'])).toEqual(WINDOW_END);
-        expect(history.document.elements).toHaveLength(10);
+        expect(history.document.elements).toHaveLength(ELEMENTS);
         expect(history.undoCommand?.label).toBe('GRIP_MIRROR');
     });
 
@@ -484,7 +485,8 @@ describe('grips: options', () => {
         click(editor, TARGET);
         expect(editor.snapshot).toMatchObject({ command: 'GRIP_EDIT', prompt: multiple });
         click(editor, { x: 5600, y: 1800 });
-        expect(circles(history)).toEqual([600, 1300, 1600]);
+        // Table, sink, then the two copies
+        expect(circles(history)).toEqual([600, 200, 1300, 1600]);
         expect(radius()).toBe(600);
         expect(editor.snapshot.hotGrips.map((grip) => grip.point)).toEqual([QUADRANT]);
         // Enter ends instead of changing the mode; the copies are one undo step
@@ -493,7 +495,7 @@ describe('grips: options', () => {
         expect([...editor.snapshot.highlighted]).toEqual([E.table]);
         editor.undo();
         expect(editor.snapshot.message).toBe('Rückgängig: STRECKEN');
-        expect(count(history)).toBe(10);
+        expect(count(history)).toBe(ELEMENTS);
         expect(editor.snapshot.canUndo).toBe(false);
     });
 
@@ -503,9 +505,9 @@ describe('grips: options', () => {
         click(editor, TARGET);
         click(editor, { x: 5600, y: 1800 });
         type(editor, 'z');
-        expect(circles(history)).toEqual([600, 1300]);
+        expect(circles(history)).toEqual([600, 200, 1300]);
         type(editor, 'Zurück');
-        expect(count(history)).toBe(10);
+        expect(count(history)).toBe(ELEMENTS);
         type(editor, 'z');
         expect(editor.snapshot).toMatchObject({ command: 'GRIP_EDIT', message: 'Nichts zum Zurücknehmen.' });
         editor.keyDown({ key: 'Escape' });
@@ -527,9 +529,9 @@ describe('grips: options', () => {
         click(editor, { x: 5600, y: 1800 });
         editor.keyDown({ key: 'Escape' });
         expect(editor.snapshot).toMatchObject({ command: null, message: '*Abbruch*' });
-        expect(count(history)).toBe(12);
+        expect(count(history)).toBe(ELEMENTS + 2);
         editor.undo();
-        expect(count(history)).toBe(10);
+        expect(count(history)).toBe(ELEMENTS);
     });
 
     it('copies the whole selection in the other modes', () => {
@@ -538,7 +540,7 @@ describe('grips: options', () => {
         type(editor, 'k');
         expect(editor.snapshot.prompt).toBe(`** SCHIEBEN (mehrere) ** Verschiebepunkt angeben oder ${OPTIONS}`);
         click(editor, TARGET);
-        expect(count(history)).toBe(12);
+        expect(count(history)).toBe(ELEMENTS + 2);
         expect(vertex(V['t-center'])).toEqual({ x: 4000, y: 1800 });
         const [table, rug] = history.document.elements.slice(-2);
         expect(table).toMatchObject({ type: 'circle', radius: 600 });
@@ -690,15 +692,15 @@ describe('grips: reference', () => {
 describe('grips: several hot grips', () => {
     const hot = (editor: SelectionEditor) => editor.snapshot.hotGrips.map((grip) => grip.point);
     const SHIFT = { shiftKey: true };
-    /** The outer wall selected: corners (0,0) (6000,0) (6000,4000) (0,4000). */
+    /** The outer wall selected: corners (0,-2900) (10000,-2900) (10000,4000) (0,4000). */
     const wall = () => {
         const context = setup();
-        click(context.editor, { x: 2000, y: 0 });
+        click(context.editor, { x: 2000, y: -2900 });
         return context;
     };
-    const LOWER_LEFT = { x: 0, y: 0 };
-    const LOWER_RIGHT = { x: 6000, y: 0 };
-    const UPPER_RIGHT = { x: 6000, y: 4000 };
+    const LOWER_LEFT = { x: 0, y: -2900 };
+    const LOWER_RIGHT = { x: 10000, y: -2900 };
+    const UPPER_RIGHT = { x: 10000, y: 4000 };
 
     it('makes a grip hot with Shift + click and warm again with another', () => {
         const { editor } = wall();
@@ -719,8 +721,8 @@ describe('grips: several hot grips', () => {
         expect(editor.snapshot).toMatchObject({ command: 'GRIP_EDIT', from: UPPER_RIGHT });
         expect(hot(editor)).toEqual([UPPER_RIGHT, LOWER_RIGHT]);
         type(editor, '@500,100');
-        expect(vertex(V['w-o2'])).toEqual({ x: 6500, y: 100 });
-        expect(vertex(V['w-o3'])).toEqual({ x: 6500, y: 4100 });
+        expect(vertex(V['w-o2'])).toEqual({ x: 10500, y: -2800 });
+        expect(vertex(V['w-o3'])).toEqual({ x: 10500, y: 4100 });
         expect(vertex(V['w-o1'])).toEqual(LOWER_LEFT);
         expect(editor.snapshot).toMatchObject({ command: null, hotGrips: [] });
     });
@@ -731,13 +733,13 @@ describe('grips: several hot grips', () => {
         click(editor, UPPER_RIGHT);
         expect(hot(editor)).toEqual([UPPER_RIGHT, LOWER_RIGHT]);
         type(editor, '@0,200');
-        expect(vertex(V['w-o2'])).toEqual({ x: 6000, y: 200 });
-        expect(vertex(V['w-o3'])).toEqual({ x: 6000, y: 4200 });
+        expect(vertex(V['w-o2'])).toEqual({ x: 10000, y: -2700 });
+        expect(vertex(V['w-o3'])).toEqual({ x: 10000, y: 4200 });
     });
 
     it('previews every element of the hot grips', () => {
         const { editor } = setup();
-        click(editor, { x: 2000, y: 0 });
+        click(editor, { x: 2000, y: -2900 });
         click(editor, WINDOW);
         click(editor, LOWER_RIGHT, SHIFT);
         click(editor, WINDOW_END, SHIFT);
@@ -767,7 +769,7 @@ describe('grips: several hot grips', () => {
         click(editor, WINDOW_END, SHIFT);
         expect(hot(editor)).toEqual([LOWER_RIGHT, WINDOW_END]);
         // Shift + click away from the grips still removes from the selection
-        click(editor, { x: 2000, y: 0 }, SHIFT);
+        click(editor, { x: 2000, y: -2900 }, SHIFT);
         expect([...editor.snapshot.highlighted]).toEqual([E.window]);
         expect(hot(editor)).toEqual([WINDOW_END]);
     });
@@ -781,7 +783,7 @@ describe('grips: several hot grips', () => {
         click(editor, LOWER_RIGHT, SHIFT);
         editor.startCommand('MOVE');
         editor.keyDown({ key: 'Escape' });
-        click(editor, { x: 2000, y: 0 });
+        click(editor, { x: 2000, y: -2900 });
         expect(hot(editor)).toEqual([]);
     });
 
@@ -791,8 +793,8 @@ describe('grips: several hot grips', () => {
         click(editor, LOWER_LEFT);
         enter(editor, 2);
         type(editor, '90');
-        expect(vertex(V['w-o2'])).toEqual({ x: 0, y: 6000 });
-        expect(vertex(V['w-o4'])).toEqual({ x: -4000, y: 0 });
+        expect(vertex(V['w-o2'])).toEqual({ x: 0, y: 7100 });
+        expect(vertex(V['w-o4'])).toEqual({ x: -6900, y: -2900 });
     });
 });
 

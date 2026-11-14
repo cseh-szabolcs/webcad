@@ -98,8 +98,8 @@ describe('SubtractCommand', () => {
         // The axis runs from a corner of the outer wall to one of the inner wall
         const { document } = subtract([E['wall-outer']], [E['wall-inner']]).execute(doc);
         const kept = document.vertices.map((vertex) => vertex.id);
-        expect(kept).toContain(V['w-o1']);
-        expect(kept).toContain(V['w-i1']);
+        expect(kept).toContain(V['w-o4']);
+        expect(kept).toContain(V['w-i4']);
         expect(kept).not.toContain(V['w-o2']);
         expect(kept).not.toContain(V['w-i3']);
         expect(document.elements.find((element) => element.id === E.axis)).toBe(doc.elements.find((element) => element.id === E.axis));

@@ -46,7 +46,7 @@ describe('ShapeIndex', () => {
     });
 
     it('returns everything for the whole plan', () => {
-        expect(ids(index.search({ x: -1000, y: -1000, width: 8000, height: 6000 }))).toEqual(ids(shapes));
+        expect(ids(index.search({ x: -1000, y: -4000, width: 12000, height: 9000 }))).toEqual(ids(shapes));
     });
 
     it('agrees with a brute-force search', () => {

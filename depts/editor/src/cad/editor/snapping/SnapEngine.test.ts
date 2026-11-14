@@ -56,12 +56,12 @@ function drawing(vertices: Record<string, Point>, elements: Partial<CadElement>[
 
 describe('SnapEngine: snap points', () => {
     it('snaps to the endpoint near the cursor', () => {
-        expect(snapped(engine.find(query({ x: 6005, y: 3 })))).toEqual({ mode: 'END', x: 6000, y: 0 });
-        expect(snapped(engine.find(query({ x: 6011, y: 3 })))).toBeNull();
+        expect(snapped(engine.find(query({ x: 10005, y: -2897 })))).toEqual({ mode: 'END', x: 10000, y: -2900 });
+        expect(snapped(engine.find(query({ x: 10011, y: -2897 })))).toBeNull();
     });
 
     it('snaps to the midpoint of a polyline edge', () => {
-        expect(snapped(engine.find(query({ x: 3004, y: 2 })))).toEqual({ mode: 'MID', x: 3000, y: 0 });
+        expect(snapped(engine.find(query({ x: 5004, y: -2898 })))).toEqual({ mode: 'MID', x: 5000, y: -2900 });
     });
 
     it('takes the midpoint of an arc at its middle angle', () => {
@@ -257,7 +257,7 @@ describe('SnapEngine: intersections', () => {
     });
 
     it('finds the corner of a polyline as intersection when endpoints are off', () => {
-        expect(snapped(engine.find(query({ x: 6005, y: 3 }, only('INT'))))).toEqual({ mode: 'INT', x: 6000, y: 0 });
+        expect(snapped(engine.find(query({ x: 10005, y: -2897 }, only('INT'))))).toEqual({ mode: 'INT', x: 10000, y: -2900 });
     });
 
     it('intersects segments, circles and arcs exactly', () => {
@@ -362,12 +362,12 @@ describe('SnapEngine: priority and settings', () => {
     });
 
     it('keeps the aperture at the same screen size at every zoom', () => {
-        expect(engine.find(query({ x: 6015, y: 0 }))).toBeNull();
-        expect(snapped(engine.find(query({ x: 6015, y: 0 }, { pixelSize: 2 })))).toEqual({ mode: 'END', x: 6000, y: 0 });
+        expect(engine.find(query({ x: 10015, y: -2900 }))).toBeNull();
+        expect(snapped(engine.find(query({ x: 10015, y: -2900 }, { pixelSize: 2 })))).toEqual({ mode: 'END', x: 10000, y: -2900 });
     });
 
     it('skips hidden layers but snaps to locked ones', () => {
-        expect(new SnapEngine(withLayer(L.walls, { visible: false })).find(query({ x: 6005, y: 3 }))).toBeNull();
+        expect(new SnapEngine(withLayer(L.walls, { visible: false })).find(query({ x: 10005, y: -2897 }))).toBeNull();
         expect(snapped(new SnapEngine(withLayer(L.furniture, { locked: true })).find(query({ x: 4605, y: 1804 })))).toEqual({
             mode: 'QUA',
             x: 4600,

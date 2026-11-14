@@ -67,16 +67,16 @@ describe('TransformCommand', () => {
     });
 
     it('leaves an element that is not transformed on a copy of the shared vertex', () => {
-        // The axis ends on the inner wall corner w-i1
+        // The axis ends on the inner wall corner w-i4
         const { document, changedElementIds } = new TransformCommand(
             'GRIP_SCALE',
             [E['wall-inner']],
             scalingAbout({ x: 0, y: 0 }, 2),
             ids(),
         ).execute(doc);
-        expect(vertex(document, V['w-i1'])).toEqual({ x: 480, y: 480 });
-        expect(vertexRefs(element(document, E.axis))).toEqual([V['w-o1'], 'copy-1']);
-        expect(vertex(document, 'copy-1')).toEqual({ x: 240, y: 240 });
+        expect(vertex(document, V['w-i4'])).toEqual({ x: 480, y: 7520 });
+        expect(vertexRefs(element(document, E.axis))).toEqual([V['w-o4'], 'copy-1']);
+        expect(vertex(document, 'copy-1')).toEqual({ x: 240, y: 3760 });
         expect(changedElementIds).toEqual([E['wall-inner'], E.axis]);
     });
 

@@ -24,13 +24,31 @@ describe('buildElementShapes', () => {
             E.axis,
             E['wall-outer'],
             E['wall-inner'],
+            E['wall-kitchen'],
+            E['wall-bedroom'],
+            E['wall-bath'],
             E['door-leaf'],
             E['door-swing'],
             E.window,
             E.curtain,
+            E['door-leaf-2'],
+            E['door-swing-2'],
+            E['door-leaf-3'],
+            E['door-swing-3'],
+            E['door-leaf-4'],
+            E['door-swing-4'],
+            E['window-bedroom'],
+            E['window-living'],
+            E['window-bath'],
             E.table,
             E.sofa,
             E.rug,
+            E.bed,
+            E['pillow-left'],
+            E['pillow-right'],
+            E.bathtub,
+            E['kitchen-counter'],
+            E.sink,
         ]);
     });
 
@@ -44,14 +62,14 @@ describe('buildElementShapes', () => {
 
 describe('pickAt', () => {
     it('picks an outline within the tolerance', () => {
-        expect(pickAt(index, { x: 3000, y: 4 }, 5)).toBe(E['wall-outer']);
-        expect(pickAt(index, { x: 3000, y: 10 }, 5)).toBeNull();
+        expect(pickAt(index, { x: 3000, y: 4004 }, 5)).toBe(E['wall-outer']);
+        expect(pickAt(index, { x: 3000, y: 4010 }, 5)).toBeNull();
     });
 
     it('uses a square pick box, so its corners hit too', () => {
-        // The outer wall's corner (6000, 0) is 5.7 mm away diagonally, but inside the ±5 mm square
-        expect(pickAt(index, { x: 6004, y: -4 }, 5)).toBe(E['wall-outer']);
-        expect(pickAt(index, { x: 6006, y: -6 }, 5)).toBeNull();
+        // The outer wall's corner (10000, -2900) is 5.7 mm away diagonally, but inside the ±5 mm square
+        expect(pickAt(index, { x: 10004, y: -2904 }, 5)).toBe(E['wall-outer']);
+        expect(pickAt(index, { x: 10006, y: -2906 }, 5)).toBeNull();
     });
 
     it('picks curves on their outline but not inside a filled shape', () => {
@@ -64,9 +82,9 @@ describe('pickAt', () => {
     it('prefers the element drawn on top', () => {
         // Shared end point of door leaf and door swing
         expect(pickAt(index, { x: 1000, y: 1140 }, 5)).toBe(E['door-swing']);
-        // The axis (no layer) lies below the wall at the origin
-        expect(pickAt(index, { x: 0, y: 0 }, 5)).toBe(E['wall-outer']);
-        expect(pickAt(index, { x: 120, y: 120 }, 5)).toBe(E.axis);
+        // The axis (no layer) lies below the wall at the top left corner
+        expect(pickAt(index, { x: 0, y: 4000 }, 5)).toBe(E['wall-outer']);
+        expect(pickAt(index, { x: 120, y: 3880 }, 5)).toBe(E.axis);
     });
 
     it('does not pick elements on locked layers', () => {
@@ -79,7 +97,7 @@ describe('pickWindow and pickCrossing', () => {
     const rect = (x1: number, y1: number, x2: number, y2: number) => rectFromCorners({ x: x1, y: y1 }, { x: x2, y: y2 });
 
     it('window-selects everything inside, in drawing order', () => {
-        expect(pickWindow(index, rect(-100, -100, 6100, 4100))).toEqual(shapes.map((shape) => shape.id));
+        expect(pickWindow(index, rect(-100, -3000, 10100, 4100))).toEqual(shapes.map((shape) => shape.id));
     });
 
     it('window-selects only elements lying completely inside', () => {

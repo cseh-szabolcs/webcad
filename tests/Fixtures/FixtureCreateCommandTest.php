@@ -57,8 +57,8 @@ final class FixtureCreateCommandTest extends KernelTestCase
         $plans = $this->em()->getRepository(Plan::class)->findAll();
         self::assertCount(1, $plans);
         self::assertSame(FixtureCreateCommand::DEV_PLAN_ID, $plans[0]->getId()->toRfc4122());
-        self::assertSame('Sample room', $plans[0]->getName());
-        self::assertCount(10, $this->em()->getRepository(Element::class)->findBy(['planVersion' => $plans[0]->getDraft()]));
+        self::assertSame('Sample apartment', $plans[0]->getName());
+        self::assertCount(28, $this->em()->getRepository(Element::class)->findBy(['planVersion' => $plans[0]->getDraft()]));
     }
 
     public function testCreatesAUserToLogInWith(): void
@@ -110,7 +110,7 @@ final class FixtureCreateCommandTest extends KernelTestCase
 
         $tester = $this->tester();
         self::assertSame(Command::SUCCESS, $tester->execute(['--force' => true, '--plan-id' => $id]));
-        self::assertStringContainsString(\sprintf('Plan "Sample room" (%s)', $id), $tester->getDisplay());
+        self::assertStringContainsString(\sprintf('Plan "Sample apartment" (%s)', $id), $tester->getDisplay());
 
         self::assertSame(Command::FAILURE, $tester->execute(['--force' => true, '--plan-id' => 'sample']));
     }

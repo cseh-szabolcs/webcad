@@ -39,17 +39,17 @@ describe('stretchTargets', () => {
     });
 
     it('moves a polyline vertex, or both ends of a segment by its midpoint', () => {
-        expect(stretch([grip(E['wall-outer'], { x: 6000, y: 0 })], { x: 500, y: 0 }).vertices).toEqual({
-            [V['w-o2']]: { x: 6500, y: 0 },
+        expect(stretch([grip(E['wall-outer'], { x: 10000, y: -2900 })], { x: 500, y: 0 }).vertices).toEqual({
+            [V['w-o2']]: { x: 10500, y: -2900 },
         });
-        expect(stretch([grip(E['wall-outer'], { x: 3000, y: 0 })], { x: 0, y: -300 }).vertices).toEqual({
-            [V['w-o1']]: { x: 0, y: -300 },
-            [V['w-o2']]: { x: 6000, y: -300 },
+        expect(stretch([grip(E['wall-outer'], { x: 5000, y: -2900 })], { x: 0, y: -300 }).vertices).toEqual({
+            [V['w-o1']]: { x: 0, y: -3200 },
+            [V['w-o2']]: { x: 10000, y: -3200 },
         });
         // The closing segment runs from the last vertex to the first
-        expect(stretch([grip(E['wall-outer'], { x: 0, y: 2000 })], { x: -300, y: 0 }).vertices).toEqual({
+        expect(stretch([grip(E['wall-outer'], { x: 0, y: 550 })], { x: -300, y: 0 }).vertices).toEqual({
             [V['w-o4']]: { x: -300, y: 4000 },
-            [V['w-o1']]: { x: -300, y: 0 },
+            [V['w-o1']]: { x: -300, y: -2900 },
         });
     });
 

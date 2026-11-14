@@ -21,7 +21,7 @@ const at = (modelPoint: Point, change: Partial<EditorPointerEvent> = {}): Editor
     ...change,
 });
 /** On the outer wall, a closed polyline around everything. */
-const WALL = { x: 3000, y: 0 };
+const WALL = { x: 3000, y: -2900 };
 /** On the table, a circle inside the wall. */
 const TABLE = { x: 4000 + 600 * Math.SQRT1_2, y: 1800 + 600 * Math.SQRT1_2 };
 /** On the rug, an ellipse. */

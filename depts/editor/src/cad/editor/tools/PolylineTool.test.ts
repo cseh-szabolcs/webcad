@@ -65,7 +65,7 @@ describe('PolylineTool (PLINIE)', () => {
     it('starts by name or alias and drops the pickfirst selection', () => {
         for (const name of ['PL', 'plinie', 'PLINE']) {
             const { editor } = setup();
-            click(editor, { x: 3000, y: 0 });
+            click(editor, { x: 3000, y: -2900 });
             expect(editor.snapshot.highlighted.size).toBe(1);
             type(editor, name);
             expect(editor.snapshot).toMatchObject({ command: 'PLINE', prompt: START_PROMPT, cursor: 'point', grips: [] });

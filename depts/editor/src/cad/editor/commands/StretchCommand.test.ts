@@ -41,12 +41,12 @@ describe('StretchCommand', () => {
     });
 
     it('leaves an element that is not stretched on a copy of the shared vertex', () => {
-        // The axis ends on the inner wall corner w-i1
-        const command = new StretchCommand([grip([E['wall-inner']], { x: 240, y: 240 })], { x: 100, y: 100 }, ids());
+        // The axis ends on the inner wall corner w-i4
+        const command = new StretchCommand([grip([E['wall-inner']], { x: 240, y: 3760 })], { x: 100, y: 100 }, ids());
         const { document, changedElementIds } = command.execute(doc);
-        expect(vertex(document, V['w-i1'])).toEqual({ x: 340, y: 340 });
-        expect(vertexRefs(element(document, E.axis))).toEqual([V['w-o1'], 'copy-1']);
-        expect(vertex(document, 'copy-1')).toEqual({ x: 240, y: 240 });
+        expect(vertex(document, V['w-i4'])).toEqual({ x: 340, y: 3860 });
+        expect(vertexRefs(element(document, E.axis))).toEqual([V['w-o4'], 'copy-1']);
+        expect(vertex(document, 'copy-1')).toEqual({ x: 240, y: 3760 });
         expect(changedElementIds).toEqual([E['wall-inner'], E.axis]);
     });
 
@@ -94,7 +94,7 @@ describe('StretchCommand', () => {
     });
 
     it('restores the document exactly on undo and repeats the result on redo', () => {
-        const command = new StretchCommand([grip([E['wall-inner']], { x: 240, y: 240 })], { x: 0.1, y: -0.7 }, ids());
+        const command = new StretchCommand([grip([E['wall-inner']], { x: 240, y: 3760 })], { x: 0.1, y: -0.7 }, ids());
         const first = command.execute(doc).document;
         const undone = command.undo(first);
         expect(undone.document).toEqual(doc);

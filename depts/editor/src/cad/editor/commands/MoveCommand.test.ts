@@ -35,11 +35,11 @@ describe('MoveCommand', () => {
     });
 
     it('detaches elements that are not moved onto a copy of the shared vertex', () => {
-        // The axis runs from the outer corner w-o1 to the inner corner w-i1 of the moved wall
+        // The axis runs from the outer corner w-o4 to the inner corner w-i4 of the moved wall
         const { document, changedElementIds } = new MoveCommand([E['wall-inner']], { x: 100, y: 50 }, ids()).execute(doc);
         expect(positions(document, E['wall-inner'])[0]).toEqual({ x: 340, y: 290 });
         expect(element(document, E['wall-inner'])).toEqual(element(doc, E['wall-inner']));
-        expect(vertexRefs(element(document, E.axis))).toEqual([V['w-o1'], 'clone-1']);
+        expect(vertexRefs(element(document, E.axis))).toEqual([V['w-o4'], 'clone-1']);
         expect(positions(document, E.axis)).toEqual(positions(doc, E.axis));
         expect(changedElementIds).toEqual([E['wall-inner'], E.axis]);
     });

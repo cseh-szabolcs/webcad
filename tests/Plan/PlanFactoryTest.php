@@ -31,17 +31,46 @@ final class PlanFactoryTest extends KernelTestCase
         $document = $this->sampleDocument();
         $plan = $this->createAndReload($document);
 
-        self::assertSame('Sample room', $plan->getName());
+        self::assertSame('Sample apartment', $plan->getName());
         self::assertSame(PlanUnit::Millimetre, $plan->getDraft()->getUnit());
         self::assertNotSame($document->id, $plan->getId()->toRfc4122());
 
         $elements = $this->elementsOf($plan);
         self::assertSame(
-            ['Wall outer', 'Wall inner', 'Door leaf', 'Door swing', 'Window', 'Table', 'Sofa', 'Axis', 'Rug', 'Curtain'],
+            [
+                'Wall outer',
+                'Wall inner',
+                'Door leaf',
+                'Door swing',
+                'Window',
+                'Table',
+                'Sofa',
+                'Axis',
+                'Rug',
+                'Curtain',
+                'Wall kitchen',
+                'Wall bedroom',
+                'Wall bath',
+                'Door leaf',
+                'Door swing',
+                'Door leaf',
+                'Door swing',
+                'Door leaf',
+                'Door swing',
+                'Window bedroom',
+                'Window living',
+                'Window bath',
+                'Bed',
+                'Pillow left',
+                'Pillow right',
+                'Bathtub',
+                'Kitchen counter',
+                'Sink',
+            ],
             array_map(static fn (Element $e): ?string => $e->getName(), $elements),
         );
-        self::assertCount(20, $this->entitiesOf(Entity\Vertex::class, $plan));
-        self::assertCount(1, $this->entitiesOf(Entity\Group::class, $plan));
+        self::assertCount(72, $this->entitiesOf(Entity\Vertex::class, $plan));
+        self::assertCount(4, $this->entitiesOf(Entity\Group::class, $plan));
         self::assertCount(4, $this->entitiesOf(Entity\ElementStyle::class, $plan));
 
         $layers = $this->entitiesOf(Entity\Layer::class, $plan, ['position' => 'ASC']);
@@ -61,7 +90,7 @@ final class PlanFactoryTest extends KernelTestCase
         [$wallOuter, , $doorLeaf, $doorSwing, , $table, , $axis, $rug, $curtain] = $this->elementsOf($this->createAndReload($this->sampleDocument()));
 
         // Shared vertices stay shared
-        self::assertSame($wallOuter->getVertices()[0], $axis->getStartVertex());
+        self::assertSame($wallOuter->getVertices()[3], $axis->getStartVertex());
         self::assertSame($table->getCenterVertex(), $rug->getCenterVertex());
         self::assertSame($doorSwing->getEndVertex(), $doorLeaf->getEndVertex());
 
@@ -91,9 +120,9 @@ final class PlanFactoryTest extends KernelTestCase
         self::assertNotSame($plan->getDraft(), $version);
         self::assertSame(PlanUnit::Metre, $version->getUnit());
         self::assertNull($version->getNumber());
-        self::assertSame('Sample room', $plan->getName());
-        self::assertCount(10, $this->em()->getRepository(Element::class)->findBy(['planVersion' => $version]));
-        self::assertCount(10, $this->elementsOf($plan));
+        self::assertSame('Sample apartment', $plan->getName());
+        self::assertCount(28, $this->em()->getRepository(Element::class)->findBy(['planVersion' => $version]));
+        self::assertCount(28, $this->elementsOf($plan));
     }
 
     public function testUnknownReferenceIsRejected(): void

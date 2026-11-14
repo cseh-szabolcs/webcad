@@ -23,11 +23,11 @@ describe('flattenPathSpec', () => {
 
     it('closes a closed polyline with its first point', () => {
         expect(flatten(E['wall-outer'])).toEqual([
-            { x: 0, y: 0 },
-            { x: 6000, y: 0 },
-            { x: 6000, y: 4000 },
+            { x: 0, y: -2900 },
+            { x: 10000, y: -2900 },
+            { x: 10000, y: 4000 },
             { x: 0, y: 4000 },
-            { x: 0, y: 0 },
+            { x: 0, y: -2900 },
         ]);
     });
 

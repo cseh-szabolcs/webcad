@@ -36,10 +36,10 @@ describe('RemovePolylineVertexCommand', () => {
     });
 
     it('leaves a vertex that something else still uses', () => {
-        // The axis ends on the inner wall's first corner
-        const command = new RemovePolylineVertexCommand(E['wall-inner'], 0);
+        // The axis ends on the inner wall's last corner
+        const command = new RemovePolylineVertexCommand(E['wall-inner'], 3);
         const { document } = command.execute(doc);
-        expect(vertexIds(document, E['wall-inner'])).toEqual([V['w-i2'], V['w-i3'], V['w-i4']]);
+        expect(vertexIds(document, E['wall-inner'])).toEqual([V['w-i1'], V['w-i2'], V['w-i3']]);
         expect(document.vertices).toEqual(doc.vertices);
         expect(command.undo(document).document).toEqual(doc);
     });

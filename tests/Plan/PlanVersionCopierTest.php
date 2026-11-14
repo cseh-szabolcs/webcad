@@ -77,7 +77,7 @@ final class PlanVersionCopierTest extends KernelTestCase
         self::assertSame(1, $first->getNumber());
         self::assertSame('Baueingabe', $first->getName());
         self::assertNull($plan->getHead()->getName());
-        self::assertCount(10, $this->read($first)['elements']);
+        self::assertCount(28, $this->read($first)['elements']);
     }
 
     private function createSample(): Plan

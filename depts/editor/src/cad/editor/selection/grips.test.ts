@@ -26,14 +26,14 @@ describe('elementGrips', () => {
 
     it('gives a closed polyline its vertices and all segment midpoints', () => {
         expect(points(element(E['wall-outer']), index)).toEqual([
-            { x: 0, y: 0 },
-            { x: 6000, y: 0 },
-            { x: 6000, y: 4000 },
+            { x: 0, y: -2900 },
+            { x: 10000, y: -2900 },
+            { x: 10000, y: 4000 },
             { x: 0, y: 4000 },
-            { x: 3000, y: 0 },
-            { x: 6000, y: 2000 },
-            { x: 3000, y: 4000 },
-            { x: 0, y: 2000 },
+            { x: 5000, y: -2900 },
+            { x: 10000, y: 550 },
+            { x: 5000, y: 4000 },
+            { x: 0, y: 550 },
         ]);
     });
 

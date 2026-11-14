@@ -22,10 +22,10 @@ const at = (modelPoint: Point, change: Partial<EditorPointerEvent> = {}): Editor
     altKey: false,
     ...change,
 });
-const WALL = { x: 3000, y: 0 };
+const WALL = { x: 5000, y: -2900 };
 const TABLE = { x: 4600, y: 1800 };
 /** On the same outlines, away from their grips (where Shift + click would make a grip hot). */
-const WALL_EDGE = { x: 2000, y: 0 };
+const WALL_EDGE = { x: 2000, y: -2900 };
 const TABLE_EDGE = { x: 4000 + 600 * Math.SQRT1_2, y: 1800 + 600 * Math.SQRT1_2 };
 const EMPTY = { x: 3000, y: 2000 };
 
@@ -64,9 +64,9 @@ const tableCentre = (history: DocumentHistory) => {
 describe('SelectionEditor hover', () => {
     it('hovers the element under the cursor within the pick box', () => {
         const editor = create();
-        editor.pointerMove(at({ x: 3000, y: 8 }));
+        editor.pointerMove(at({ x: 3000, y: -2892 }));
         expect(ids(editor.snapshot.hovered)).toEqual([E['wall-outer']]);
-        editor.pointerMove(at({ x: 3000, y: 12 }));
+        editor.pointerMove(at({ x: 3000, y: -2888 }));
         expect(editor.snapshot.hovered.size).toBe(0);
     });
 
@@ -75,7 +75,7 @@ describe('SelectionEditor hover', () => {
         const listener = vi.fn();
         editor.subscribe(listener);
         editor.pointerMove(at(WALL));
-        editor.pointerMove(at({ x: 3100, y: 0 }));
+        editor.pointerMove(at({ x: 3100, y: -2900 }));
         expect(listener).toHaveBeenCalledTimes(1);
         editor.pointerLeave();
         expect(listener).toHaveBeenCalledTimes(2);
@@ -315,9 +315,9 @@ describe('SelectionEditor SCHIEBEN: object selection (verb-noun)', () => {
 });
 
 describe('SelectionEditor SCHIEBEN: base point and second point', () => {
-    /** 8 mm (4 px) right of and 6 mm above the outer wall's corner (6000, 0). */
-    const NEAR_CORNER = { x: 6008, y: 6 };
-    const CORNER = { x: 6000, y: 0 };
+    /** 8 mm (4 px) right of and 6 mm above the outer wall's corner (10000, -2900). */
+    const NEAR_CORNER = { x: 10008, y: -2894 };
+    const CORNER = { x: 10000, y: -2900 };
 
     /** SCHIEBEN on the table, at the base point prompt. */
     const atBasePoint = () => {
@@ -346,7 +346,7 @@ describe('SelectionEditor SCHIEBEN: base point and second point', () => {
         const listener = vi.fn();
         editor.subscribe(listener);
         editor.pointerMove(at(NEAR_CORNER));
-        editor.pointerMove(at({ x: 6006, y: 4 }));
+        editor.pointerMove(at({ x: 10006, y: -2896 }));
         expect(listener).toHaveBeenCalledTimes(1);
     });
 
@@ -391,10 +391,10 @@ describe('SelectionEditor SCHIEBEN: base point and second point', () => {
         });
         expect(editor.snapshot.highlighted.size).toBe(0);
         expect(ids(editor.previous)).toEqual([E.table]);
-        // From the corner (6000, 0) to the wall midpoint (3000, 0)
-        expect(tableCentre(history)).toEqual({ x: 1000, y: 1800 });
+        // From the corner (10000, -2900) to the wall midpoint (5000, -2900)
+        expect(tableCentre(history)).toEqual({ x: -1000, y: 1800 });
         // Picking and snapping follow the moved geometry
-        editor.pointerMove(at({ x: 1600, y: 1800 }));
+        editor.pointerMove(at({ x: -400, y: 1800 }));
         expect(ids(editor.snapshot.hovered)).toEqual([E.table]);
         editor.pointerMove(at(TABLE));
         expect(editor.snapshot.hovered.size).toBe(0);
@@ -413,7 +413,7 @@ describe('SelectionEditor SCHIEBEN: base point and second point', () => {
         expect(editor.undo()).toBe(false);
         expect(editor.redo()).toBe(true);
         expect(editor.snapshot).toMatchObject({ message: 'Wiederherstellen: SCHIEBEN', canUndo: true, canRedo: false });
-        expect(tableCentre(history)).toEqual({ x: 1000, y: 1800 });
+        expect(tableCentre(history)).toEqual({ x: -1000, y: 1800 });
     });
 
     it('allows no undo while a command runs', () => {
@@ -423,11 +423,11 @@ describe('SelectionEditor SCHIEBEN: base point and second point', () => {
         editor.startCommand('MOVE');
         click(editor, NEAR_CORNER);
         click(editor, WALL);
-        click(editor, { x: 1600, y: 1800 });
+        click(editor, { x: -400, y: 1800 });
         editor.startCommand('MOVE');
         expect(editor.snapshot.canUndo).toBe(false);
         expect(editor.undo()).toBe(false);
-        expect(tableCentre(history)).toEqual({ x: 1000, y: 1800 });
+        expect(tableCentre(history)).toEqual({ x: -1000, y: 1800 });
     });
 
     it('leaves no undo step for a zero displacement', () => {
@@ -720,11 +720,11 @@ describe('SelectionEditor SCHIEBEN: polar tracking', () => {
 
     it('gives way to a snap point', () => {
         const { editor } = atSecondPoint();
-        // The outer wall's midpoint 3000,0 lies on the path down from the base point
-        editor.pointerMove(at({ x: 3004, y: 2 }));
-        expect(editor.snapshot.snap).toMatchObject({ mode: 'MID', point: WALL });
+        // The inner wall's midpoint 3000,240 lies on the path down from the base point
+        editor.pointerMove(at({ x: 3004, y: 242 }));
+        expect(editor.snapshot.snap).toMatchObject({ mode: 'MID', point: { x: 3000, y: 240 } });
         expect(editor.snapshot.polar).toBeNull();
-        expect(editor.snapshot.previewPoint).toEqual(WALL);
+        expect(editor.snapshot.previewPoint).toEqual({ x: 3000, y: 240 });
     });
 
     it('works with the object snap off, not at the base point prompt and not while off itself', () => {
@@ -791,8 +791,8 @@ describe('SelectionEditor SCHIEBEN: Ortho', () => {
 
     it('gives way to a snap point and to typed coordinates', () => {
         const { editor } = atSecondPoint();
-        editor.pointerMove(at({ x: 3004, y: 2 }));
-        expect(editor.snapshot.previewPoint).toEqual(WALL);
+        editor.pointerMove(at({ x: 3004, y: 242 }));
+        expect(editor.snapshot.previewPoint).toEqual({ x: 3000, y: 240 });
         const typed = atSecondPoint();
         typed.editor.pointerMove(at({ x: 3700, y: 1600 }));
         for (const key of '@100,100') {
@@ -978,15 +978,15 @@ describe('SelectionEditor SCHIEBEN: snap point preview', () => {
         const editor = atBasePoint();
         click(editor, EMPTY);
         // On the outer wall, far from its midpoint: its four corners and four edge midpoints
-        editor.pointerMove(at({ x: 3100, y: 4 }));
+        editor.pointerMove(at({ x: 3100, y: -2896 }));
         expect(editor.snapshot.snap).toBeNull();
         expect(preview(editor)).toHaveLength(8);
         expect(preview(editor)).toEqual(
             expect.arrayContaining([
-                { mode: 'END', point: { x: 0, y: 0 } },
-                { mode: 'END', point: { x: 6000, y: 4000 } },
-                { mode: 'MID', point: { x: 3000, y: 0 } },
-                { mode: 'MID', point: { x: 6000, y: 2000 } },
+                { mode: 'END', point: { x: 0, y: -2900 } },
+                { mode: 'END', point: { x: 10000, y: 4000 } },
+                { mode: 'MID', point: { x: 5000, y: -2900 } },
+                { mode: 'MID', point: { x: 10000, y: 550 } },
             ]),
         );
     });
