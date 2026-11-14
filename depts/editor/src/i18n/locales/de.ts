@@ -79,6 +79,13 @@ export const de = {
         fullscreenExit: 'Vollbild beenden',
         fullscreenUnsupported: 'Vollbild – von diesem Browser nicht vollständig unterstützt (Esc würde es beenden)',
     },
+    collaboration: {
+        connecting: 'Zusammenarbeit wird verbunden…',
+        people: '{{count}} online',
+        offline: 'Verbindung zur Zusammenarbeit nicht möglich',
+        full: 'Der Raum ist voll ({{limit}} Personen). Aktiv: {{names}}',
+        connected: 'Verbunden mit {{names}}',
+    },
     language: {
         de: 'Deutsch',
         en: 'English',

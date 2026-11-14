@@ -1,5 +1,6 @@
 import type { CadDocument } from '../model/CadDocument';
 import type { Id } from '../model/Point';
+import type { ApiSchema } from '../../api/types';
 import { parseDocument } from './CadSerializer';
 
 export class CadApiError extends Error {
@@ -38,6 +39,17 @@ export class CadApiClient {
             document: parseDocument(await response.json()),
             revision: parseEtag(response.headers.get('ETag')),
         };
+    }
+
+    /** The room of the plan's project and a short-lived token to join it. */
+    async loadCollaborationAccess(planId: Id, signal?: AbortSignal): Promise<ApiSchema['CollaborationAccess']> {
+        const url = `${this.baseUrl}/plans/${encodeURIComponent(planId)}/collaboration`;
+        const response = await this.fetchFn(url, { headers: { Accept: 'application/json' }, signal });
+        if (!response.ok) {
+            throw new CadApiError(response.status, `Loading the collaboration of plan "${planId}" failed with HTTP ${response.status}`);
+        }
+
+        return (await response.json()) as ApiSchema['CollaborationAccess'];
     }
 }
 

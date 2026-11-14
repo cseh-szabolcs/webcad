@@ -5,6 +5,7 @@ import type { CadDocument } from 'app/cad/model/CadDocument';
 import { currentLanguage, LANGUAGES, setLanguage } from 'app/i18n/i18n';
 import type { Point } from 'app/cad/model/Point';
 import { CadApiClient } from 'app/cad/persistence/CadApiClient';
+import { useCollaboration } from 'app/collaboration/useCollaboration';
 import {
     DEFAULT_EDITOR_SETTINGS,
     type DynamicInputSettings,
@@ -18,6 +19,7 @@ import {
 import { loadSwitches, saveSwitches } from 'app/settings/storedSwitches';
 import type { Viewport } from 'app/cad/renderer/Viewport';
 import { CadCanvas, type CadCanvasHandle } from 'app/ui/CadCanvas';
+import { CollaborationStatus } from 'app/ui/CollaborationStatus';
 import { CommandLine } from 'app/ui/CommandLine';
 import { FullscreenIcon } from 'app/ui/FullscreenIcon';
 import { useFullscreen } from 'app/ui/fullscreen';
@@ -59,6 +61,8 @@ function App() {
     const [pointer, setPointer] = useState<Point | null>(null);
     const [selection, setSelection] = useState<SelectionSnapshot | null>(null);
     const [state, setState] = useState<LoadState>({ status: 'loading' });
+    // Joined once the plan is shown; a generated stress plan belongs to no project
+    const collaboration = useCollaboration(api, state.status === 'loaded' && stressCount === 0 ? planId : null);
     // The switches of the status bar start as they were left in this browser
     const [stored] = useState(loadSwitches);
     const [snapSettings, setSnapSettings] = useState<SnapSettings>(stored.snap);
@@ -208,6 +212,7 @@ function App() {
                     </button>
                 </div>
                 <span className="toolbar-title">{state.document.name}</span>
+                <CollaborationStatus state={collaboration} />
                 <button type="button" onClick={() => canvasRef.current?.fit()} title={t('toolbar.zoomExtentsTitle')}>
                     {t('toolbar.zoomExtents')}
                 </button>

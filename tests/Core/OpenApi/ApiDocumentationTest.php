@@ -21,6 +21,15 @@ final class ApiDocumentationTest extends WebTestCase
         self::assertSame([200, 304, 404], array_keys($get['responses']));
     }
 
+    public function testCollaborationEndpointIsDocumented(): void
+    {
+        $get = $this->document()['paths']['/api/plans/{id}/collaboration']['get'];
+
+        self::assertSame(['Plan'], $get['tags']);
+        self::assertSame(self::SCHEMA_REF.'CollaborationAccess', $get['responses']['200']['content']['application/json']['schema']['$ref']);
+        self::assertSame([200, 404], array_keys($get['responses']));
+    }
+
     public function testInterfacesAreNamedWithoutSuffix(): void
     {
         $schemas = $this->document()['components']['schemas'];

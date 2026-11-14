@@ -30,6 +30,14 @@ describe('CadApiClient', () => {
         expect(fetchFn).toHaveBeenCalledWith('/api/plans/a%2Fb/document', expect.anything());
     });
 
+    it('loads the collaboration access of a plan', async () => {
+        const access = { namespace: 'tenant', room: 'project', userName: 'Erika', token: 'abc' };
+        const fetchFn = respond(access);
+
+        expect(await new CadApiClient('/api', fetchFn).loadCollaborationAccess('p/1')).toEqual(access);
+        expect(fetchFn).toHaveBeenCalledWith('/api/plans/p%2F1/collaboration', expect.anything());
+    });
+
     it('throws CadApiError with the HTTP status', async () => {
         const client = new CadApiClient('/api', respond({}, { status: 404 }));
         await expect(client.loadPlanDocument('missing')).rejects.toMatchObject({

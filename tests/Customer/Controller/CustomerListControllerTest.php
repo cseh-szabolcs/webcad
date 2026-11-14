@@ -86,7 +86,9 @@ final class CustomerListControllerTest extends WebTestCase
         );
         self::assertCount(1, $list->filter('.toolbar input[type="search"]'));
         self::assertCount(2, $list->filter('.toolbar select'));
-        self::assertCount(1, $list->filter('.data-table tbody template[x-for]'));
+        // One template for the rows; inside it another one for the tags of a row
+        self::assertCount(1, $list->filter('.data-table tbody > template[x-for]'));
+        self::assertCount(1, $list->filter('.data-table tbody template[x-for="tag in item.tags"]'));
         self::assertSame(
             ['Bearbeiten', 'Löschen', 'Plan anlegen'],
             $list->filter('#customer-actions[popover] .context-menu__item')->each(static fn ($item) => $item->text()),

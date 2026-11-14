@@ -30,6 +30,30 @@
     font-weight: 600;
 }
 
+/* Who is in the project's room (CollaborationStatus) */
+.collaboration-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.collaboration-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--collab-offline, #9a9a9a);
+}
+
+.collaboration-status-connected .collaboration-dot {
+    background: var(--collab-connected, #2e9d4f);
+}
+
+.collaboration-status-full .collaboration-dot {
+    background: var(--collab-full, #d98a1a);
+}
+
 .toolbar-scale {
     margin-left: auto;
     font-variant-numeric: tabular-nums;

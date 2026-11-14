@@ -78,6 +78,13 @@ export const en: Translations = {
         fullscreenExit: 'Exit full screen',
         fullscreenUnsupported: 'Full screen – not fully supported by this browser (Esc would end it)',
     },
+    collaboration: {
+        connecting: 'Connecting to collaboration…',
+        people: '{{count}} online',
+        offline: 'Collaboration not available',
+        full: 'The room is full ({{limit}} people). Active: {{names}}',
+        connected: 'Connected with {{names}}',
+    },
     language: {
         de: 'Deutsch',
         en: 'English',

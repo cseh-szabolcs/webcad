@@ -14,7 +14,8 @@ PLINIE (straight segments only), KREIS, BOGEN (three points; around a centre giv
 coordinates and undo/redo, and grips that edit the selection (the grip modes STRETCH, MOVE,
 ROTATE, SCALE, MIRROR with their options Base point, Copy, Undo, Reference, eXit; several hot
 grips; a menu of further actions per grip).
-Changes are not saved to the backend yet.
+Changes are not saved to the backend yet. Once the plan is shown, the editor logs in to the
+collaboration server (presence only so far, see "Collaboration").
 
 **How it behaves for the user is in `docs/bedienung.md`** (German, every mouse and keyboard
 action, per command and mode). Read it before changing an interaction; it is the reference for
@@ -320,6 +321,19 @@ All pure TS and unit-tested unless noted.
 - `ui/CrosshairCursor.ts`: the system pointer is hidden over the canvas; an AutoCAD-like
   crosshair as a DOM layer moved by CSS transform (the drawing is never redrawn for it), pick
   box in its centre, a minus sign while Shift is held; the grab hand while panning.
+
+## Collaboration
+
+`src/collaboration/` (`docs/architecture/collaboration.md` has the whole picture). After the plan
+is shown, `useCollaboration` loads `GET /api/plans/{id}/collaboration` (`CadApiClient`:
+`loadCollaborationAccess`) and `createCollaboration` connects to the namespace it names (the
+tenant) with the signed token: the server puts the socket in the room of the plan's project. It is
+shaped like a store (`getState`/`subscribe`), `connect` is injectable for tests, and a reconnect
+asks for a fresh token (the first lives only long enough for one handshake). Only the first answer
+decides between `connected` and `full`; any other trouble is `offline` and never stops the editor.
+`ui/CollaborationStatus.tsx` shows it in the toolbar. `src/collaboration/types.ts` repeats the
+server's message shapes by hand (no codegen). Vite proxies `/socket.io` to the `collaboration`
+service (`COLLAB_PROXY_TARGET` when running on the host). Nothing is relayed yet: commands come next.
 
 ## Settings
 

@@ -55,7 +55,7 @@ docker compose exec -T php vendor/bin/mate tools:list # AI Mate diagnostics; alw
 |------------|---------------------------------------------------------------------|
 | App        | http://localhost:8080 (nginx → php-fpm, document root `public/`; `/` redirects to `/de`) |
 | Editor dev | http://localhost:8081 (Vite; the `editor` container runs `npm run dev:init`) |
-| Old editor | http://localhost:8082 (`editor-old` container, reference only)         |
+| Collaboration | internal `collaboration:8081` (Socket.IO; the browser reaches it through the editor's Vite proxy `/socket.io`) |
 | API docs   | http://localhost:8080/_doc (Stoplight UI), `/_doc.json` (OpenAPI); dev and test only |
 | Mailpit    | http://localhost:8025 (SMTP on 1025)                                 |
 | phpMyAdmin | http://localhost:8210                                               |
@@ -102,8 +102,8 @@ The `php` container mounts a named volume over `/app/depts`, so the editor sourc
 visible from inside `php`.
 
 **Node tooling runs on the host** (`npm install`, `npm test`, `npm run lint|build`, run
-inside `depts/editor/` or `depts/editor-old/`); the `editor`/`editor-old` containers only serve
-Vite. Details (native bindings, `.npmrc`, Vite proxy) in `depts/editor/CLAUDE.md`. Model
+inside `depts/editor/`, `depts/editor-old/` or `depts/collaboration/`); the `editor` and `collaboration` containers
+only serve (Vite resp. Node). Details (native bindings, `.npmrc`, Vite proxy) in `depts/editor/CLAUDE.md`. Model
 coordinates are **mm with Y up** in editor and backend alike.
 
 ## Architecture
@@ -116,6 +116,7 @@ read the matching file before working in its area:
 | `plan-persistence.md` | why plans are stored as they are (relational, versioned, draft/head, publishing), plan vs. plan document, pitfalls (sample plan copies, `app:fixture:create`), `json_document`, what is planned or open |
 | `api-documentation.md` | DTOs, Nelmio rules, OpenAPI processors, generating the editor's types |
 | `tenancy.md` | one database per customer, the two entity managers and their mappings, selecting the tenant (login, session/cookie), tenant commands, schema rebuild instead of migrations |
+| `collaboration.md` | the collaboration server (Socket.IO, one namespace per tenant, one room per project), the signed token the backend issues, how the editor connects, what is still to come |
 | `cqrs.md` | commands, queries, handlers, buses, repositories instead of SQL, with the Project example |
 
 Rules that apply everywhere:

@@ -11,7 +11,8 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
 
 ## Oberfläche
 
-- **Toolbar** (oben): Buttons **Rückgängig** und **Wiederherstellen**, Name des Plans, Button
+- **Toolbar** (oben): Buttons **Rückgängig** und **Wiederherstellen**, Name des Plans, die
+  **Zusammenarbeit** (Punkt und Zahl, siehe unten), Button
   **Zoom Grenzen**, rechts die Auswahlen **Darstellung** (Hell / Dunkel / System, mit
   Sonne, Mond bzw. Bildschirm als Symbol) und **Sprache** (DE / EN). Jede ist ein Button
   mit dem gewählten Wert und **▾**, ihr Name steht nur im Tooltip. Ein Klick öffnet ein
@@ -24,6 +25,12 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   Lock, das gibt es nur in Chrome, Edge und anderen Chromium-Browsern, nicht in Safari und
   Firefox), ist der Button ausgegraut und ohne Funktion; sein Tooltip nennt den Grund. Kann
   die Seite gar nicht ins Vollbild (z. B. in einem iframe ohne Erlaubnis), fehlt der Button.
+- **Zusammenarbeit** (Toolbar, neben dem Namen des Plans): Sobald der Plan angezeigt wird,
+  meldet sich der Editor im Raum des Projekts an. Ein grüner Punkt mit **n online** zeigt, wie
+  viele Personen (Tabs eingerechnet) das Projekt gerade geöffnet haben; der Tooltip nennt ihre
+  Namen. Grau: keine Verbindung (der Editor bleibt voll nutzbar), orange: der Raum ist voll
+  (Einstellung der Obergrenze am Server, `COLLAB_MAX_CLIENTS_PER_ROOM`). Änderungen werden noch
+  nicht an die anderen weitergegeben.
 - **Werkzeugleiste** (unter der Toolbar, waagrecht): ein Symbol-Button je Befehl, gruppiert wie in
   AutoCAD: **Zeichnen** mit **Linie** (Befehl [LINIE](#befehl-linie)), **Polylinie**
   (Befehl [PLINIE](#befehl-plinie)), **Kreis** (Befehl [KREIS](#befehl-kreis)), **Bogen**

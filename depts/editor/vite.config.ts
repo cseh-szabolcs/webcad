@@ -17,6 +17,12 @@ export default defineConfig({
                 target: process.env.API_PROXY_TARGET ?? 'http://nginx',
                 changeOrigin: true,
             },
+            // The collaboration server (compose service "collaboration"), also same-origin; set
+            // COLLAB_PROXY_TARGET=http://localhost:<port> when running on the host
+            '/socket.io': {
+                target: process.env.COLLAB_PROXY_TARGET ?? 'http://collaboration:8081',
+                ws: true,
+            },
         },
     },
     resolve: {

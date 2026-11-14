@@ -39,16 +39,20 @@ services:
     ports:
       - "8081:8081"
 
-  editor-old:
-    container_name: ${COMPOSE_PROJECT_NAME}_editor-old
+  collaboration:
+    container_name: ${COMPOSE_PROJECT_NAME}_collaboration
     image: node:alpine
-    entrypoint: ["npm", "run", "dev:init"]
+    entrypoint: ['npm', 'run', 'start:dev-docker']
     working_dir: /app
+    environment:
+      NODE_ENV: development
+      COLLAB_AUTH_TOKEN: dev-collaboration-token
+      COLLAB_MAX_CLIENTS_PER_ROOM: 5
     volumes:
-      - './depts/editor-old:/app'
-      - editor-old-node-modules:/app/node_modules
-    ports:
-      - "8082:8082"
+      - './depts/collaboration:/app'
+      - collaboration-node-modules:/app/node_modules
+    expose:
+        - "8081"
 
   nginx:
     container_name: ${COMPOSE_PROJECT_NAME}_nginx
@@ -89,4 +93,4 @@ volumes:
   db-data:
   depts-data:
   editor-node-modules:
-  editor-old-node-modules:
+  collaboration-node-modules:
