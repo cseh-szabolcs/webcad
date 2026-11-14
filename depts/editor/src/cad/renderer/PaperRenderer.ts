@@ -13,6 +13,8 @@ const DIMMED = {
     light: { stroke: '#c3c8cf', fill: 'rgba(195, 200, 207, 0.25)' },
     dark: { stroke: '#5a616d', fill: 'rgba(90, 97, 109, 0.3)' },
 } satisfies Record<DisplayTheme, unknown>;
+/** How strongly the elements somebody else has selected still show (see setSelectedByOthers). */
+export const SELECTED_BY_OTHERS_OPACITY = 0.35;
 
 /**
  * Builds a Paper.js scene from a CadDocument. Items live in model space; the viewport is
@@ -33,6 +35,7 @@ export class PaperRenderer {
     private documentLayers: CadDocument['layers'] | null = null;
     private theme: DisplayTheme = 'light';
     private dimmed: ReadonlySet<Id> = new Set();
+    private selectedByOthers: ReadonlySet<Id> = new Set();
     private changes = 0;
 
     constructor(canvas: HTMLCanvasElement, overlayCanvas: HTMLCanvasElement) {
@@ -73,7 +76,7 @@ export class PaperRenderer {
             item.data.elementId = element.id;
             this.layerFor(element.layerId).addChild(item);
             this.items.set(element.id, item);
-            if (this.dimmed.has(element.id)) {
+            if (this.dimmed.has(element.id) || this.selectedByOthers.has(element.id)) {
                 this.restyle(element.id);
             }
         }
@@ -119,7 +122,7 @@ export class PaperRenderer {
                 layer.addChild(item);
             }
             this.items.set(step.id, item);
-            if (this.dimmed.has(step.id)) {
+            if (this.dimmed.has(step.id) || this.selectedByOthers.has(step.id)) {
                 this.restyle(step.id);
             }
         }
@@ -140,6 +143,33 @@ export class PaperRenderer {
         for (const id of new Set([...previous, ...ids])) {
             this.restyle(id);
         }
+    }
+
+    /**
+     * Display only: draws these elements faintly (SELECTED_BY_OTHERS_OPACITY), as another
+     * collaborator has them selected; elements left out show in full again.
+     */
+    setSelectedByOthers(ids: ReadonlySet<Id>): void {
+        const previous = this.selectedByOthers;
+        this.selectedByOthers = new Set(ids);
+        for (const id of new Set([...previous, ...ids])) {
+            if (previous.has(id) !== ids.has(id)) {
+                const item = this.items.get(id);
+                if (item) {
+                    item.opacity = ids.has(id) ? SELECTED_BY_OTHERS_OPACITY : 1;
+                }
+            }
+        }
+    }
+
+    /** Model-space bounds of the element as drawn, or null if it is not shown. */
+    getElementBounds(id: Id): Rect | null {
+        const item = this.items.get(id);
+        if (!item || !item.layer.visible) {
+            return null;
+        }
+        const { x, y, width, height } = item.bounds;
+        return { x, y, width, height };
     }
 
     /** Gives `item` the display style of element `id`, e.g. a copy of a dimmed item. */
@@ -233,6 +263,7 @@ export class PaperRenderer {
             return;
         }
         this.applyElementStyle(item, id);
+        item.opacity = this.selectedByOthers.has(id) ? SELECTED_BY_OTHERS_OPACITY : 1;
         if (this.dimmed.has(id)) {
             const grey = DIMMED[this.theme];
             item.strokeColor = new this.scope.Color(grey.stroke);

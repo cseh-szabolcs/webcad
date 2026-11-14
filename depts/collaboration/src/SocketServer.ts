@@ -4,7 +4,7 @@ import { Server } from 'socket.io'
 import type { Namespace, Socket } from 'socket.io'
 import { nanoid } from 'nanoid'
 import { isGranted } from './isGranted.ts'
-import { COLLABORATOR_COLORS, EVENTS } from './types.ts'
+import { COLLABORATOR_COLORS, EVENTS, SELECTION_ID_LENGTH, SELECTION_LIMIT } from './types.ts'
 import type { Collaborator, JoinAck, RoomFull } from './types.ts'
 
 export interface SocketServerOptions {
@@ -32,7 +32,8 @@ interface SocketState {
 const TENANT_NAMESPACE = /^\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
- * One namespace per tenant, one room per project, and nothing in it but presence and the pointers for now.
+ * One namespace per tenant, one room per project, and nothing in it but presence, the pointers and
+ * the selections for now.
  *
  * The server is stateless about the document: it never applies, stores or validates an edit.
  * Two things are decided here rather than by a client: the collaborator id (`nanoid`), so nobody
@@ -120,6 +121,7 @@ export default class SocketServer {
     socket.on(EVENTS.join, (ack?: (data: JoinAck) => void) => this.join(socket, ack))
     socket.on(EVENTS.cursor, (x: unknown, y: unknown) => this.relayCursor(socket, x, y))
     socket.on(EVENTS.cursorGone, () => this.relayCursorGone(socket))
+    socket.on(EVENTS.selection, (ids: unknown) => this.relaySelection(socket, ids))
     // Fires while the socket is still in its rooms, which is what lets the room be told how many
     // are left rather than how many there were.
     socket.on('disconnecting', () => this.leave(socket))
@@ -176,6 +178,17 @@ export default class SocketServer {
     socket.to(state.room).emit(EVENTS.cursorGone, state.user.id)
   }
 
+  /**
+   * Passes on which elements a collaborator has selected. Reliable, and not stored: the clients
+   * send theirs again when somebody joins. Anything but a list of ids within the limits is ignored.
+   */
+  private relaySelection(socket: Socket, ids: unknown): void {
+    const state = this.state.get(key(socket))
+    if (!state?.joined || !isIdList(ids)) return
+
+    socket.to(state.room).emit(EVENTS.selection, state.user.id, ids)
+  }
+
   private leave(socket: Socket): void {
     const state = this.state.get(key(socket))
     this.state.delete(key(socket))
@@ -222,6 +235,14 @@ function freeColor(occupants: SocketState[]): number {
 
 function isCoordinate(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
+}
+
+function isIdList(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) &&
+    value.length <= SELECTION_LIMIT &&
+    value.every(id => typeof id === 'string' && id.length > 0 && id.length <= SELECTION_ID_LENGTH)
+  )
 }
 
 /** Socket ids are only unique within a namespace. */

@@ -4,6 +4,7 @@ import { io } from 'socket.io-client'
 import type { Socket } from 'socket.io-client'
 import SocketServer from './SocketServer.ts'
 import { sign } from './testSupport.ts'
+import { SELECTION_ID_LENGTH, SELECTION_LIMIT } from './types.ts'
 import type { JoinAck } from './types.ts'
 
 const SECRET = 'test-secret'
@@ -207,4 +208,33 @@ test('the others hear when a pointer leaves the drawing', async () => {
   first.emit('app:cursor-gone')
 
   assert.equal(await gone, firstAck.user.id)
+})
+
+test('a selection reaches the others with the sender the server knows, an empty one too', async () => {
+  const { first, second, firstAck } = await pair('019b0000-0000-7000-8000-0000000000b7')
+  const hear = () => new Promise<unknown[]>(resolve => second.once('app:selection', (...args: unknown[]) => resolve(args)))
+
+  let heard = hear()
+  first.emit('app:selection', ['a', 'b'])
+  assert.deepEqual(await heard, [firstAck.user.id, ['a', 'b']])
+
+  heard = hear()
+  first.emit('app:selection', [])
+  assert.deepEqual(await heard, [firstAck.user.id, []])
+})
+
+test('what is no list of ids, or too long a one, is dropped', async () => {
+  const { first, second } = await pair('019b0000-0000-7000-8000-0000000000b8')
+  const own = silence(first, 'app:selection')
+  const others = silence(second, 'app:selection')
+
+  first.emit('app:selection', ['a'])
+  first.emit('app:selection', 'a')
+  first.emit('app:selection', [1])
+  first.emit('app:selection', [''])
+  first.emit('app:selection', ['x'.repeat(SELECTION_ID_LENGTH + 1)])
+  first.emit('app:selection', Array.from({ length: SELECTION_LIMIT + 1 }, (_, index) => `e${index}`))
+
+  assert.equal((await own).length, 0)
+  assert.equal((await others).length, 1)
 })

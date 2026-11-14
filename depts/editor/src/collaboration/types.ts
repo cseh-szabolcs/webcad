@@ -51,4 +51,13 @@ export const EVENTS = {
     cursor: 'app:cursor',
     /** The pointer left the drawing. To the server nothing, from it `(userId)`. Reliable. */
     cursorGone: 'app:cursor-gone',
+    /**
+     * The elements a collaborator has selected or is editing, all of them each time. To the server
+     * `(ids)`, from it `(userId, ids)`. Reliable; sent again when somebody joins, as the server
+     * stores nothing.
+     */
+    selection: 'app:selection',
 } as const;
+
+/** The most element ids one `app:selection` may carry; the server's `SELECTION_LIMIT`. */
+export const SELECTION_LIMIT = 5000;

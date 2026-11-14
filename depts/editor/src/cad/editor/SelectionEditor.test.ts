@@ -1846,3 +1846,73 @@ describe('SelectionEditor SCHIEBEN: Dynamic Input', () => {
         expect(editor.snapshot.dynamicInput?.fields[0].typed).toBe(false);
     });
 });
+
+describe('SelectionEditor elements selected by others', () => {
+    const others = (...names: (keyof typeof E)[]) => new Set(names.map((name) => E[name]));
+
+    it('neither hovers nor picks them, and says the cursor is on one', () => {
+        const editor = create();
+        editor.setSelectedByOthers(others('wall-outer'));
+
+        editor.pointerMove(at(WALL));
+        expect(editor.snapshot.hovered.size).toBe(0);
+        expect(editor.snapshot.blocked).toBe(true);
+        click(editor, WALL);
+        expect(editor.snapshot.highlighted.size).toBe(0);
+
+        editor.pointerMove(at(TABLE));
+        expect(editor.snapshot.blocked).toBe(false);
+        click(editor, TABLE);
+        expect(ids(editor.snapshot.highlighted)).toEqual([E.table]);
+    });
+
+    it('leaves them out of a rectangle', () => {
+        const editor = create();
+        editor.setSelectedByOthers(others('table'));
+
+        rectangle(editor, { x: 20000, y: 20000 }, { x: -20000, y: -20000 });
+
+        expect(editor.snapshot.highlighted.size).toBeGreaterThan(0);
+        expect(editor.snapshot.highlighted.has(E.table)).toBe(false);
+    });
+
+    it('takes them out of the selection, and gives them back once they are free', () => {
+        const editor = create();
+        click(editor, WALL);
+        click(editor, TABLE);
+
+        editor.setSelectedByOthers(others('wall-outer'));
+        expect(ids(editor.snapshot.highlighted)).toEqual([E.table]);
+
+        editor.setSelectedByOthers(new Set());
+        click(editor, WALL);
+        expect(ids(editor.snapshot.highlighted)).toEqual([E.table, E['wall-outer']]);
+    });
+
+    it('does not block at a point prompt, where they still snap', () => {
+        const editor = create();
+        editor.setSelectedByOthers(others('wall-outer'));
+        editor.startCommand('LINE');
+
+        editor.pointerMove(at(WALL));
+
+        expect(editor.snapshot.blocked).toBe(false);
+        expect(editor.snapshot.snap).not.toBeNull();
+    });
+
+    it('notifies only when the set changes', () => {
+        const editor = create();
+        const listener = vi.fn();
+        editor.setSelectedByOthers(others('wall-outer'));
+        editor.pointerMove(at(WALL));
+        editor.subscribe(listener);
+
+        editor.setSelectedByOthers(others('wall-outer'));
+        expect(listener).not.toHaveBeenCalled();
+
+        editor.setSelectedByOthers(new Set());
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(editor.snapshot.blocked).toBe(false);
+        expect(ids(editor.snapshot.hovered)).toEqual([E['wall-outer']]);
+    });
+});

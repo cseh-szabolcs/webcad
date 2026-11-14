@@ -40,6 +40,22 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   anzeigt (mit Fang), und folgt deinem Zoom und Verschieben. Es verschwindet, wenn der Zeiger die
   Zeichenfläche verlässt oder beim Verschieben (Mittelklick) das Fadenkreuz weg ist. Allein im
   Raum wird nichts gesendet.
+  **Auswahl der anderen:** Was eine andere Person ausgewählt hat oder gerade bearbeitet (alles,
+  was bei ihr als ausgewählt hervorgehoben ist, auch während eines Befehls oder am Grip), ist für
+  dich **gesperrt**: Das Objekt wird blass gezeichnet (`SELECTED_BY_OTHERS_OPACITY` in
+  `src/cad/renderer/PaperRenderer.ts`), über seiner linken oberen Ecke steht ihr Name in ihrer
+  Farbe, und du kannst es weder per Klick noch per Fenster, Kreuzen oder Lasso auswählen, also
+  auch nicht bearbeiten. Liegt das Fadenkreuz auf einem gesperrten Objekt (und auf keinem
+  freien), wird es zu einem Verbotszeichen (`.crosshair-blocked` in `src/App.css`); bei
+  Punktabfragen nicht, dort fängt das Objekt weiter wie jedes andere. Solange bei einer Person
+  etwas ausgewählt ist, wird ihr Mauszeiger nicht übertragen: Der Name am Objekt zeigt, wo sie
+  arbeitet. Hat jemand mehr als `REMOTE_SELECTION_LABEL_LIMIT` Objekte ausgewählt
+  (`src/ui/RemoteSelections.ts`), steht ein einziger Name über allen zusammen. Wählen zwei
+  dasselbe Objekt im selben Augenblick, behält es eine der beiden Personen, bei der anderen fällt
+  es wieder aus der Auswahl. Die Sperre endet, sobald die Person die Auswahl aufhebt, den Befehl
+  beendet oder den Raum verlässt. Es werden höchstens `SELECTION_LIMIT` Objekte je Person
+  gemeldet (`src/collaboration/types.ts`); was darüber hinaus ausgewählt ist, ist für die anderen
+  nicht gesperrt. Rückgängig und Wiederherstellen prüfen die Sperre noch nicht.
 - **Werkzeugleiste** (unter der Toolbar, waagrecht): ein Symbol-Button je Befehl, gruppiert wie in
   AutoCAD: **Zeichnen** mit **Linie** (Befehl [LINIE](#befehl-linie)), **Polylinie**
   (Befehl [PLINIE](#befehl-plinie)), **Kreis** (Befehl [KREIS](#befehl-kreis)), **Bogen**

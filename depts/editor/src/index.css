@@ -7,6 +7,7 @@
     --error: #b91c1c;
     --canvas-bg: #ffffff;
     --crosshair: #111827;
+    --cursor-blocked: #dc2626;
     /* AutoSnap marker, polar tracking path and their tooltips (SnapMarker) */
     --snap-marker: #15a33f;
     --polar-track: #15a33f;
@@ -48,6 +49,7 @@
     --error: #f87171;
     --canvas-bg: #212830;
     --crosshair: #f3f4f6;
+    --cursor-blocked: #f87171;
     --snap-marker: #4ade80;
     --polar-track: #4ade80;
     --snap-tooltip-bg: #2d333b;

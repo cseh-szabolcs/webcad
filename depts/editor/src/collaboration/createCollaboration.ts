@@ -1,7 +1,7 @@
 import { io } from 'socket.io-client';
 import type { ApiSchema } from 'app/api/types';
 import type { Point } from 'app/cad/model/Point';
-import { EVENTS } from './types';
+import { EVENTS, SELECTION_LIMIT } from './types';
 import type { Collaborator, JoinAck, JoinedMessage, LeftMessage, RoomFull } from './types';
 
 export type CollaborationAccess = ApiSchema['CollaborationAccess'];
@@ -82,7 +82,28 @@ export interface CursorChannel {
     subscribeCursors(listener: () => void): () => void;
 }
 
-export interface Collaboration extends CursorChannel {
+/** What another collaborator has selected or is editing; never empty. */
+export interface RemoteSelection {
+    user: Collaborator;
+    ids: readonly string[];
+}
+
+/**
+ * The selections: which elements the others hold, and which this editor tells them it holds. An
+ * element two picked at the same moment stays with the smaller collaborator id: for that one it is
+ * left out of the other's selection here, the other finds it in `getSelections` and lets go.
+ */
+export interface SelectionChannel {
+    /** The elements selected or edited here, all of them each time; only sent when they changed. */
+    sendSelection(ids: Iterable<string>): void;
+    getSelections(): readonly RemoteSelection[];
+    subscribeSelections(listener: () => void): () => void;
+}
+
+/** What the canvas shares with the room and shows of it. */
+export type PresenceChannel = CursorChannel & SelectionChannel;
+
+export interface Collaboration extends PresenceChannel {
     getState(): CollaborationState;
     subscribe(listener: () => void): () => void;
     close(): void;
@@ -97,14 +118,18 @@ const INITIAL: CollaborationState = { status: 'connecting', users: [], me: null,
 
 const rounded = (value: number) => Math.round(value * 10 ** CURSOR_DECIMALS) / 10 ** CURSOR_DECIMALS;
 
+function sameList(a: readonly string[], b: readonly string[]): boolean {
+    return a === b || (a.length === b.length && a.every((id, index) => id === b[index]));
+}
+
 function samePoint(a: Point | null | undefined, b: Point | null | undefined): boolean {
     return a === b || (!!a && !!b && a.x === b.x && a.y === b.y);
 }
 
 /**
  * Logs this editor in to the room of its project. One object shaped like a store (`getState`,
- * `subscribe`), so React reads it with `useSyncExternalStore`. It knows who is there and where
- * their pointers are; the commands will travel over the same socket later, as reliable messages
+ * `subscribe`), so React reads it with `useSyncExternalStore`. It knows who is there, where
+ * their pointers are and what they selected; the commands will travel over the same socket later, as reliable messages
  * of their own: the pointers are sent `volatile`, which a reliable message queued before them
  * would make the socket drop.
  */
@@ -126,6 +151,14 @@ export function createCollaboration(
     let sent: Point | null | undefined;
     let sentAt = 0;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    const selectionListeners = new Set<() => void>();
+    /** What each of the others says it selected, by collaborator id. */
+    const claims = new Map<string, readonly string[]>();
+    let selections: readonly RemoteSelection[] = [];
+    /** The selection here, and what the others last got of it (undefined: nothing yet). */
+    let mine: readonly string[] = [];
+    let mineSet: ReadonlySet<string> = new Set();
+    let sentSelection: readonly string[] | undefined;
 
     const set = (patch: Partial<CollaborationState>) => {
         state = { ...state, ...patch };
@@ -149,6 +182,26 @@ export function createCollaboration(
         }
     };
 
+    /** The others' selections without what this client keeps of an element picked by both. */
+    const refreshSelections = () => {
+        const me = state.me;
+        const next = state.users.flatMap((user) => {
+            const claimed = claims.get(user.id);
+            if (!claimed || !me || user.id === me.id) {
+                return [];
+            }
+            const ids = me.id < user.id ? claimed.filter((id) => !mineSet.has(id)) : claimed;
+            return ids.length > 0 ? [{ user, ids }] : [];
+        });
+        const same =
+            next.length === selections.length &&
+            next.every(({ user, ids }, index) => user === selections[index].user && sameList(ids, selections[index].ids));
+        if (!same) {
+            selections = next;
+            selectionListeners.forEach((listener) => listener());
+        }
+    };
+
     const socket = connect(access, refreshToken);
 
     /** Nobody to show it to means nothing to send. */
@@ -168,6 +221,18 @@ export function createCollaboration(
         }
     };
 
+    /** Reliable and at once: a selection changes with a click, not with every move. */
+    const flushSelection = () => {
+        if (!listening() || (sentSelection !== undefined && sameList(sentSelection, mine))) {
+            return;
+        }
+        // Somebody new takes an empty selection for granted
+        if (sentSelection !== undefined || mine.length > 0) {
+            socket.emit(EVENTS.selection, mine);
+        }
+        sentSelection = mine;
+    };
+
     const schedule = () => {
         if (timer !== null) {
             return;
@@ -183,10 +248,12 @@ export function createCollaboration(
     socket.on('connect', () => {
         // A new connection knows nothing of this client's pointer yet
         sent = undefined;
+        sentSelection = undefined;
         socket.emit(EVENTS.join, (ack: JoinAck) => {
             answered = true;
             set({ status: 'connected', users: ack.users, me: ack.user, limit: null });
             schedule();
+            flushSelection();
         });
     });
     socket.on(EVENTS.joined, ((message: JoinedMessage) => {
@@ -195,11 +262,21 @@ export function createCollaboration(
             // The newcomer sees this pointer at once rather than with its next move
             sent = undefined;
             schedule();
+            // And learns the selection, which the server does not keep
+            sentSelection = undefined;
+            flushSelection();
+            refreshSelections();
         }
     }) as never);
     socket.on(EVENTS.left, ((message: LeftMessage) => {
         set({ users: state.users.filter((user) => user.id !== message.userId) });
         withoutPointer(message.userId);
+        claims.delete(message.userId);
+        refreshSelections();
+    }) as never);
+    socket.on(EVENTS.selection, ((userId: string, ids: readonly string[]) => {
+        claims.set(userId, ids);
+        refreshSelections();
     }) as never);
     socket.on(EVENTS.cursor, ((userId: string, x: number, y: number) => {
         setPointers(new Map(pointers).set(userId, { x, y }));
@@ -218,6 +295,8 @@ export function createCollaboration(
         // Whoever was here is not known any more; socket.io-client reconnects by itself
         set({ status: 'offline', users: [], me: null });
         setPointers(new Map());
+        claims.clear();
+        refreshSelections();
     });
 
     return {
@@ -235,9 +314,25 @@ export function createCollaboration(
             cursorListeners.add(listener);
             return () => cursorListeners.delete(listener);
         },
+        sendSelection: (ids) => {
+            const next = [...ids].slice(0, SELECTION_LIMIT);
+            if (sameList(next, mine)) {
+                return;
+            }
+            mine = next;
+            mineSet = new Set(next);
+            flushSelection();
+            refreshSelections();
+        },
+        getSelections: () => selections,
+        subscribeSelections: (listener) => {
+            selectionListeners.add(listener);
+            return () => selectionListeners.delete(listener);
+        },
         close: () => {
             listeners.clear();
             cursorListeners.clear();
+            selectionListeners.clear();
             if (timer !== null) {
                 clearTimeout(timer);
             }

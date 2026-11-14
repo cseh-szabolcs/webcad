@@ -251,4 +251,72 @@ describe('pointers', () => {
 
         expect(volatileEmit).toHaveBeenCalledTimes(1);
     });
+
+    it('tells the others what is selected, reliably and only when it changed', () => {
+        const { collaboration, emit } = joined();
+        const sent = () => emit.mock.calls.filter(([event]) => event === 'app:selection');
+
+        collaboration.sendSelection([]);
+        expect(sent()).toEqual([]);
+
+        collaboration.sendSelection(new Set(['a', 'b']));
+        collaboration.sendSelection(new Set(['a', 'b']));
+        collaboration.sendSelection([]);
+
+        expect(sent()).toEqual([
+            ['app:selection', ['a', 'b']],
+            ['app:selection', []],
+        ]);
+    });
+
+    it('sends the selection again when somebody joins, as the server keeps none', () => {
+        const { collaboration, emit, trigger } = joined(true);
+        const sent = () => emit.mock.calls.filter(([event]) => event === 'app:selection');
+
+        collaboration.sendSelection(['a']);
+        expect(sent()).toEqual([]);
+
+        trigger('app:joined', { clients: 2, user: MAX });
+        expect(sent()).toEqual([['app:selection', ['a']]]);
+    });
+
+    it('knows what the others selected until they let go, leave or the connection drops', () => {
+        const { collaboration, trigger } = joined();
+        const listener = vi.fn();
+        collaboration.subscribeSelections(listener);
+
+        trigger('app:selection', 'm1', ['a', 'b']);
+        expect(collaboration.getSelections()).toEqual([{ user: { ...MAX, me: false }, ids: ['a', 'b'] }]);
+        trigger('app:selection', 'm1', ['a', 'b']);
+        expect(listener).toHaveBeenCalledTimes(1);
+
+        trigger('app:selection', 'm1', []);
+        expect(collaboration.getSelections()).toEqual([]);
+
+        trigger('app:selection', 'm1', ['a']);
+        trigger('app:left', { clients: 1, userId: 'm1' });
+        expect(collaboration.getSelections()).toEqual([]);
+
+        trigger('app:joined', { clients: 2, user: MAX });
+        trigger('app:selection', 'm1', ['a']);
+        trigger('disconnect');
+        expect(collaboration.getSelections()).toEqual([]);
+    });
+
+    it('keeps an element both picked at once for the smaller collaborator id', () => {
+        // Erika (e1) is before Max (m1): she keeps it
+        const erika = joined();
+        erika.collaboration.sendSelection(['a']);
+        erika.trigger('app:selection', 'm1', ['a', 'b']);
+        expect(erika.collaboration.getSelections().map(({ ids }) => ids)).toEqual([['b']]);
+
+        // Seen from somebody after Max, it is his
+        const zoe = setup();
+        zoe.trigger('connect');
+        const ZOE = { ...ERIKA, id: 'z1', name: 'Zoe' };
+        answerJoin(zoe.emit, { clients: 2, user: ZOE, users: [{ ...MAX, me: false }, { ...ZOE, me: true }] });
+        zoe.collaboration.sendSelection(['a']);
+        zoe.trigger('app:selection', 'm1', ['a']);
+        expect(zoe.collaboration.getSelections().map(({ ids }) => ids)).toEqual([['a']]);
+    });
 });

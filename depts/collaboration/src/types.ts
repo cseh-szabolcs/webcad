@@ -58,4 +58,15 @@ export const EVENTS = {
   cursor: 'app:cursor',
   /** The pointer left the drawing. Client → server: nothing; server → room: `(userId)`. Reliable. */
   cursorGone: 'app:cursor-gone',
+  /**
+   * The elements a collaborator has selected or is editing, all of them each time (none: an empty
+   * list). Client → server: `(ids)`; server → room: `(userId, ids)`. Reliable. Nothing is stored:
+   * everybody sends theirs again when somebody joins.
+   */
+  selection: 'app:selection',
 } as const
+
+/** The most element ids one `app:selection` may carry; a longer list is ignored. */
+export const SELECTION_LIMIT = 5000
+/** The longest element id taken (a uuid has 36 characters). */
+export const SELECTION_ID_LENGTH = 64

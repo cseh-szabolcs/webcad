@@ -326,6 +326,29 @@
     user-select: none;
 }
 
+/* Names over the elements the other collaborators selected (RemoteSelections); --remote-color is set per name */
+.remote-selections {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.remote-selection-name {
+    position: absolute;
+    top: 0;
+    left: 0;
+    padding: 2px 4px;
+    border-radius: 2px;
+    font-size: 11px;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--canvas-bg);
+    background: var(--remote-color);
+    opacity: 0.9;
+    user-select: none;
+}
+
 /* Drawn crosshair (CrosshairCursor); its parts are positioned around the cursor pixel */
 .crosshair {
     position: absolute;
@@ -674,4 +697,32 @@
     fill: none;
     stroke: var(--snap-marker);
     stroke-width: 1.5;
+}
+
+/* "Not allowed" in place of the crosshair, over an element somebody else has selected */
+.crosshair-blocked {
+    display: none;
+    position: absolute;
+    left: -8px;
+    top: -8px;
+    box-sizing: border-box;
+    width: 17px;
+    height: 17px;
+    border: 2px solid var(--cursor-blocked);
+    border-radius: 50%;
+    background: linear-gradient(
+        45deg,
+        transparent calc(50% - 1px),
+        var(--cursor-blocked) calc(50% - 1px),
+        var(--cursor-blocked) calc(50% + 1px),
+        transparent calc(50% + 1px)
+    );
+}
+
+.crosshair--blocked > * {
+    display: none;
+}
+
+.crosshair--blocked > .crosshair-blocked {
+    display: block;
 }

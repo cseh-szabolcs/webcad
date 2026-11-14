@@ -113,6 +113,14 @@ export class CrosshairCursor {
         this.updateMinus();
     }
 
+    /**
+     * Shows a "not allowed" sign in place of the crosshair: the cursor is on an element somebody
+     * else has selected. Its look is the CSS of `.crosshair-blocked`.
+     */
+    setBlocked(blocked: boolean): void {
+        this.root.classList.toggle('crosshair--blocked', blocked);
+    }
+
     /** Shows the crosshair at a view point (CSS px relative to the canvas). */
     moveTo(viewPoint: Point): void {
         this.root.style.transform = `translate(${Math.floor(viewPoint.x)}px, ${Math.floor(viewPoint.y)}px)`;
@@ -138,6 +146,7 @@ export class CrosshairCursor {
             ...lines.map((rect) => this.part('crosshair-line', rect)),
             ...(box ? [this.part('crosshair-box', box)] : []),
             this.minus,
+            this.blockedSign(),
         );
     }
 
@@ -146,6 +155,12 @@ export class CrosshairCursor {
         if (this.minus) {
             this.minus.hidden = !this.removing || this.mode === 'point';
         }
+    }
+
+    private blockedSign(): HTMLDivElement {
+        const element = document.createElement('div');
+        element.className = 'crosshair-blocked';
+        return element;
     }
 
     private part(className: string, rect: Rect): HTMLDivElement {

@@ -4,7 +4,7 @@ Collaboration: server, room and login
 Several people can have the same project open. The collaboration server (`depts/collaboration/`,
 Socket.IO on Node, compose service `collaboration`) is the meeting point; later the editor's commands
 travel over it from one tab to the others. **So far it knows who is there** (login, `app:joined`,
-`app:left`, a room limit, a colour per collaborator) **and passes the pointers on**; no command is relayed,
+`app:left`, a room limit, a colour per collaborator) **and passes the pointers and the selections on**; no command is relayed,
 and nothing is stored or applied. It has no database and no session,
 and it never looks inside what a client sends.
 
@@ -86,9 +86,43 @@ The pointers are not in `CollaborationState` but in a channel of their own (`Cur
 `sendCursor`, `getCursors`, `subscribeCursors`): they change up to 20 times a second per person and
 must not render the editor's React tree. `CadCanvas` shows and sends them directly.
 
+Selections
+----------
+
+What somebody has selected or is editing is locked for the others. Each editor tells the room the
+elements it shows as selected (`SelectionSnapshot.highlighted`: the pickfirst selection, a command's
+selection, what a tool works on), and treats what the others told it as taken.
+
+| Event | Direction | Carries |
+|---|---|---|
+| `app:selection` | client → server | `ids`: the ids of **all** elements selected now (none: `[]`), not a difference |
+| `app:selection` | server → room (not the sender) | `userId, ids`; the server ignores what is not a list of at most `SELECTION_LIMIT` strings of at most `SELECTION_ID_LENGTH` characters, and stores nothing |
+
+- **Reliable, not throttled:** a selection changes with a click. It is only sent when it differs from
+  what the room last got, and only while somebody else is there.
+- **The server keeps none:** when somebody joins, everybody sends theirs again (as with the pointer);
+  a selection goes with its collaborator on `app:left`, and all of them on a disconnect.
+- **Two at once:** nothing orders two picks of the same element, so the editors agree by a rule: it
+  stays with the smaller collaborator id. `createCollaboration` leaves it out of the other's selection
+  for the one who keeps it; the other finds it locked, drops it and says so with its next
+  `app:selection`.
+- **Above the limit** (`SELECTION_LIMIT`, the same number on both sides, well under Socket.IO's
+  message size) only the first ids are sent: the rest is not locked for the others.
+- **No pointer meanwhile:** while an editor has elements selected it sends `app:cursor-gone` instead
+  of positions; the name on the elements says where that person works.
+
+In the editor (`SelectionChannel` of the `Collaboration`: `sendSelection`, `getSelections`,
+`subscribeSelections`; like the pointers not in `CollaborationState`): `CadCanvas` hands the ids to
+`SelectionEditor.setSelectedByOthers` (not picked by click or area, out of the own selection, the
+snapshot's `blocked` while the cursor is on one) and to `PaperRenderer.setSelectedByOthers` (drawn
+faintly), and `ui/RemoteSelections.ts` puts the collaborator's name over each element. **It is editor
+state by element id, not a field of the element:** the element types are the API schema, and the
+document, its history and what is saved later must not know who looks at it. Undo and redo do not
+ask the lock yet; that comes with relaying the commands.
+
 Still to come
 -------------
 
 Relaying the editor's commands (`app:interaction`) with the rule that a received command changes
 only the receiving store (no undo entry, no save); presence in the drawing; announcing a
-publish or discard; a push from the backend; the selection of the others.
+publish or discard; a push from the backend.

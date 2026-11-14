@@ -15,7 +15,7 @@ coordinates and undo/redo, DIFFERENZ and VEREINIG (AutoCAD SUBTRACT and UNION on
 ROTATE, SCALE, MIRROR with their options Base point, Copy, Undo, Reference, eXit; several hot
 grips; a menu of further actions per grip).
 Changes are not saved to the backend yet. Once the plan is shown, the editor logs in to the
-collaboration server (presence only so far, see "Collaboration").
+collaboration server (presence, pointers and selections so far, see "Collaboration").
 
 **How it behaves for the user is in `docs/bedienung.md`** (German, every mouse and keyboard
 action, per command and mode). Read it before changing an interaction; it is the reference for
@@ -332,7 +332,15 @@ is hidden) and draws the others' (`ui/RemoteCursors.ts`: a dashed cross and the 
 `CursorChannel` of the `Collaboration` (`useCollaboration` returns it as `cursors`), not in
 `CollaborationState`, so they never render React; `createCollaboration` throttles them
 (`CURSOR_INTERVAL_MS`), sends only while somebody else is in the room and `volatile` (details in
-`docs/architecture/collaboration.md`). Commands are not relayed yet.
+`docs/architecture/collaboration.md`). **Selections:** what another collaborator shows as selected
+(`SelectionSnapshot.highlighted`, sent by `shareSelection` over the `SelectionChannel`; `useCollaboration`
+returns both channels as `presence`) is locked here. It is editor state by element id, never a field of
+the element or the document: `SelectionEditor.setSelectedByOthers` keeps those elements out of every pick
+(`pickAt`'s `accept`, `free`) and out of the own selection and reports `blocked` while the cursor is on one
+(`CrosshairCursor.setBlocked`), `PaperRenderer.setSelectedByOthers` draws them faintly
+(`SELECTED_BY_OTHERS_OPACITY`), `ui/RemoteSelections.ts` puts the name over each (`selectionLabels`, pure).
+While something is selected here the pointer is not sent. An element two picked at once stays with the
+smaller collaborator id (`createCollaboration`: `refreshSelections`). Commands are not relayed yet.
 
 ## Settings
 

@@ -6,7 +6,7 @@ import type { CommandMethod } from 'app/cad/editor/tools/CommandMethod';
 import type { CadDocument } from 'app/cad/model/CadDocument';
 import type { Point } from 'app/cad/model/Point';
 import type { DisplayTheme } from 'app/cad/renderer/displayColor';
-import type { CursorChannel } from 'app/collaboration/createCollaboration';
+import type { PresenceChannel } from 'app/collaboration/createCollaboration';
 import { i18n } from 'app/i18n/i18n';
 import { PaperRenderer } from 'app/cad/renderer/PaperRenderer';
 import { Viewport, type Size } from 'app/cad/renderer/Viewport';
@@ -24,6 +24,7 @@ import { DynamicInputLayer } from './DynamicInputLayer';
 import { GridLayer } from './GridLayer';
 import { GripMenu } from './GripMenu';
 import { RemoteCursors } from './RemoteCursors';
+import { RemoteSelections, selectionLabels } from './RemoteSelections';
 import { polarTooltipText, SnapMarker, trackingTooltipText, type TrackingDisplay } from './SnapMarker';
 import { UcsIcon } from './UcsIcon';
 import { ViewCompass } from './ViewCompass';
@@ -67,10 +68,11 @@ interface CadCanvasProps {
     /** Selection and command state, e.g. for the command line; also sent once on start. */
     onSelectionChange?: (snapshot: SelectionSnapshot) => void;
     /**
-     * The pointers of the other collaborators: shown on the canvas, and the cursor shown here is
-     * told to them (model coordinates). Null while there is nobody to share with.
+     * The pointers and selections of the other collaborators: shown on the canvas, and the cursor
+     * shown here (model coordinates) and the selection are told to them. What the others selected
+     * cannot be picked here. Null while there is nobody to share with.
      */
-    cursors?: CursorChannel | null;
+    presence?: PresenceChannel | null;
     ref?: Ref<CadCanvasHandle>;
 }
 
@@ -87,7 +89,7 @@ export function CadCanvas({
     onViewportChange,
     onPointerChange,
     onSelectionChange,
-    cursors = null,
+    presence = null,
     ref,
 }: CadCanvasProps) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -101,9 +103,12 @@ export function CadCanvas({
     const ucsIconRef = useRef<UcsIcon | null>(null);
     const compassRef = useRef<ViewCompass | null>(null);
     const remoteCursorsRef = useRef<RemoteCursors | null>(null);
-    const cursorsRef = useRef(cursors);
-    /** Tells the others where the crosshair shows now; set while a document is loaded. */
-    const shareCursorRef = useRef<(() => void) | null>(null);
+    const presenceRef = useRef(presence);
+    /** Tells the others where the crosshair shows now and what is selected; set while a document is loaded. */
+    const sharePresenceRef = useRef<(() => void) | null>(null);
+    /** Locks, fades and names what the others selected; set while a document is loaded. */
+    const showSelectionsRef = useRef<(() => void) | null>(null);
+    const remoteSelectionsRef = useRef<RemoteSelections | null>(null);
     const themeRef = useRef(theme);
     const settingsRef = useRef(settings);
     const snapSettingsRef = useRef(snapSettings);
@@ -133,6 +138,7 @@ export function CadCanvas({
         gridRef.current?.setViewport(viewport);
         ucsIconRef.current?.setViewport(viewport);
         remoteCursorsRef.current?.setViewport(viewport);
+        remoteSelectionsRef.current?.setViewport(viewport);
         refreshOverlayRef.current?.();
         onViewportChangeRef.current?.(viewport);
     };
@@ -181,6 +187,9 @@ export function CadCanvas({
         const remoteCursors = new RemoteCursors(container);
         remoteCursors.setViewport(viewportRef.current);
         remoteCursorsRef.current = remoteCursors;
+        const remoteSelections = new RemoteSelections(container);
+        remoteSelections.setViewport(viewportRef.current);
+        remoteSelectionsRef.current = remoteSelections;
         const history = new DocumentHistory(document);
         // Subscribed before the editor, so the paths are up to date when its overlay redraws
         const unsubscribeHistory = history.subscribe(({ document, changedElementIds }) =>
@@ -217,14 +226,46 @@ export function CadCanvas({
         let crosshairAt: Point | null = null;
         /**
          * The others see the crosshair where it shows (snap point and all), in model coordinates, and
-         * nothing while it is hidden. The channel throttles and drops what nobody would hear.
+         * nothing while it is hidden or while elements are selected or edited here: their name on
+         * those elements says where this user is. The channel throttles and drops what nobody would hear.
          */
         const shareCursor = () => {
-            cursorsRef.current?.sendCursor(
-                crosshairAt && viewportRef.current.viewToModel(cursorAt(crosshairAt)),
+            const busy = editor.snapshot.highlighted.size > 0;
+            presenceRef.current?.sendCursor(
+                crosshairAt && !busy ? viewportRef.current.viewToModel(cursorAt(crosshairAt)) : null,
             );
         };
-        shareCursorRef.current = shareCursor;
+        /** What the room last got as the selection here, to skip the same set. */
+        let shared: { to: PresenceChannel; ids: ReadonlySet<string> } | null = null;
+        /** The others are told what is selected or edited here: the highlighted elements. */
+        const shareSelection = () => {
+            const to = presenceRef.current;
+            const ids = editor.snapshot.highlighted;
+            if (to && (shared?.to !== to || shared.ids !== ids)) {
+                shared = { to, ids };
+                to.sendSelection(ids);
+            }
+        };
+        sharePresenceRef.current = () => {
+            shareSelection();
+            shareCursor();
+        };
+        /** The names over what the others selected, where those elements are now. */
+        const nameSelections = () => {
+            remoteSelections.set(
+                selectionLabels(presenceRef.current?.getSelections() ?? [], (id) => renderer.getElementBounds(id)),
+            );
+        };
+        /** What the others selected cannot be picked here, shows faintly and under their name. */
+        const showSelections = () => {
+            const ids = new Set((presenceRef.current?.getSelections() ?? []).flatMap((selection) => selection.ids));
+            editor.setSelectedByOthers(ids);
+            renderer.setSelectedByOthers(ids);
+            nameSelections();
+        };
+        showSelectionsRef.current = showSelections;
+        // After the renderer, whose paths give the places of the names
+        const unsubscribeNames = history.subscribe(nameSelections);
         /**
          * Dynamic Input next to the crosshair: the prompt (or a typed command name) with the
          * prompts on, the fields at the crosshair or, for distance and angle from the prompt's
@@ -317,6 +358,8 @@ export function CadCanvas({
             snapMarker.showTracking(tracking);
             snapMarker.showAcquired(acquired.map(({ point }) => view(point)));
             crosshair.setMode(cursor);
+            crosshair.setBlocked(editor.snapshot.blocked);
+            shareSelection();
             if (crosshairAt) {
                 crosshair.moveTo(cursorAt(crosshairAt));
                 shareCursor();
@@ -390,7 +433,11 @@ export function CadCanvas({
             compassRef.current = null;
             remoteCursors.dispose();
             remoteCursorsRef.current = null;
-            shareCursorRef.current = null;
+            unsubscribeNames();
+            remoteSelections.dispose();
+            remoteSelectionsRef.current = null;
+            sharePresenceRef.current = null;
+            showSelectionsRef.current = null;
             i18n.off('languageChanged', refreshTexts);
             unsubscribe();
             editor.dispose();
@@ -409,21 +456,28 @@ export function CadCanvas({
 
     // After the effect above, so that the layer of the loaded document exists
     useEffect(() => {
-        cursorsRef.current = cursors;
+        presenceRef.current = presence;
         const layer = remoteCursorsRef.current;
-        if (!cursors || !layer) {
+        if (!presence || !layer) {
             return;
         }
-        const show = () => layer.set(cursors.getCursors());
+        const show = () => layer.set(presence.getCursors());
+        const showSelections = () => showSelectionsRef.current?.();
         show();
-        // The pointer may be over the drawing already: tell the room where
-        shareCursorRef.current?.();
-        const unsubscribe = cursors.subscribeCursors(show);
+        showSelections();
+        // The pointer may be over the drawing already, and elements selected: tell the room
+        sharePresenceRef.current?.();
+        const unsubscribe = presence.subscribeCursors(show);
+        const unsubscribeSelections = presence.subscribeSelections(showSelections);
         return () => {
             unsubscribe();
+            unsubscribeSelections();
             layer.set([]);
+            // Nobody holds anything any more; nothing to do if the document went as well
+            presenceRef.current = null;
+            showSelectionsRef.current?.();
         };
-    }, [cursors, document]);
+    }, [presence, document]);
 
     useEffect(() => {
         snapSettingsRef.current = snapSettings;

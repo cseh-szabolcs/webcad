@@ -79,6 +79,7 @@ const LASSO_STEP_PX = 4;
 const NO_POINTS: readonly SnapPoint[] = [];
 const NO_ACQUIRED: readonly AcquiredPoint[] = [];
 const NO_GRIPS: readonly Grip[] = [];
+const NO_IDS: ReadonlySet<Id> = new Set();
 const NO_FRAMES: SelectionSnapshot['controlFrames'] = [];
 
 export type { EditorCommand };
@@ -149,6 +150,11 @@ export interface SelectionSnapshot {
     /** Selection rectangle or lasso in progress, or null. */
     area: SelectionArea | null;
     cursor: CursorMode;
+    /**
+     * The cursor is on an element somebody else has selected (see setSelectedByOthers) and on
+     * nothing a click would pick; never at a point prompt, where nothing is picked.
+     */
+    blocked: boolean;
     /** Snap point under the cursor during a point prompt, or null. */
     snap: SnapResult | null;
     /**
@@ -361,6 +367,10 @@ export class SelectionEditor {
     private previousSelection: ReadonlySet<Id> = new Set();
     /** Element under the cursor, whether selected or not. */
     private underCursor: Id | null = null;
+    /** Elements another collaborator has selected: not to be picked here (see setSelectedByOthers). */
+    private selectedByOthers: ReadonlySet<Id> = NO_IDS;
+    /** The cursor is on one of them, and on nothing else. */
+    private blockedUnderCursor = false;
     /** Grips and control frames of the selection they were last built for (see selectionGrips). */
     private gripCache: {
         selection: ReadonlySet<Id>;
@@ -469,6 +479,29 @@ export class SelectionEditor {
     subscribe(listener: () => void): () => void {
         this.listeners.add(listener);
         return () => this.listeners.delete(listener);
+    }
+
+    /**
+     * The elements the other collaborators have selected or are editing. They cannot be picked
+     * here, by a click or by an area, and leave the selection if they are in it (two picked the
+     * same element at once and this editor lost it); they still snap. Display only otherwise:
+     * the document knows nothing of it.
+     */
+    setSelectedByOthers(ids: ReadonlySet<Id>): void {
+        if (sameIds(ids, this.selectedByOthers)) {
+            return;
+        }
+        this.selectedByOthers = ids.size === 0 ? NO_IDS : new Set(ids);
+        const state = this.state;
+        const free = (selection: ReadonlySet<Id>) =>
+            [...selection].some((id) => ids.has(id)) ? new Set(this.free([...selection])) : selection;
+        this.state =
+            state.kind === 'idle' ? { kind: 'idle', pickfirst: free(state.pickfirst) } : { ...state, selection: free(state.selection) };
+        this.areaPreview = null;
+        if (this.pointPrompt() === null) {
+            this.hoverAt(this.lastPointer);
+        }
+        this.changed();
     }
 
     /** Reverts the last command; only with no command running. Returns true if something was undone. */
@@ -790,6 +823,7 @@ export class SelectionEditor {
 
     pointerLeave(): void {
         this.underCursor = null;
+        this.blockedUnderCursor = false;
         this.gripUnderCursor = null;
         // An open grip menu stays: the pointer may be on its way to it
         this.watchGrip(false);
@@ -1390,6 +1424,7 @@ export class SelectionEditor {
             shapes.map((shape) => shape.id),
         );
         this.underCursor = null;
+        this.blockedUnderCursor = false;
         this.gripUnderCursor = null;
         this.areaPreview = null;
         const exists = (ids: ReadonlySet<Id>) => new Set([...ids].filter((id) => this.units.has(id)));
@@ -1548,7 +1583,7 @@ export class SelectionEditor {
      * included) on the command line like AutoCAD.
      */
     private applyPicked(hits: readonly Id[], remove: boolean): void {
-        const picked = expandToUnits(hits, this.units);
+        const picked = this.free(expandToUnits(hits, this.units));
         const state = this.state;
         if (state.kind !== 'idle' && !this.selecting()) {
             return;
@@ -1580,7 +1615,19 @@ export class SelectionEditor {
     }
 
     private pick(event: EditorPointerEvent): Id | null {
-        return pickAt(this.shapes, event.modelPoint, this.pickboxSize * event.pixelSize);
+        const others = this.selectedByOthers;
+        return pickAt(
+            this.shapes,
+            event.modelPoint,
+            this.pickboxSize * event.pixelSize,
+            others.size > 0 ? (id) => !others.has(id) : undefined,
+        );
+    }
+
+    /** `ids` without the elements somebody else has selected. */
+    private free(ids: Id[]): Id[] {
+        const others = this.selectedByOthers;
+        return others.size > 0 ? ids.filter((id) => !others.has(id)) : ids;
     }
 
     /** The grip of the pickfirst selection the pick box touches, or null. */
@@ -1608,6 +1655,13 @@ export class SelectionEditor {
         const free = this.state.kind === 'idle' && this.area === null && this.press === null;
         this.gripUnderCursor = event !== null && free ? this.gripAt(event) : null;
         this.underCursor = event !== null && this.gripUnderCursor === null ? this.pick(event) : null;
+        const others = this.selectedByOthers;
+        this.blockedUnderCursor =
+            event !== null &&
+            others.size > 0 &&
+            this.gripUnderCursor === null &&
+            this.underCursor === null &&
+            pickAt(this.shapes, event.modelPoint, this.pickboxSize * event.pixelSize, (id) => others.has(id)) !== null;
         this.watchGrip(event !== null);
     }
 
@@ -1733,14 +1787,14 @@ export class SelectionEditor {
         if (area !== null) {
             // Instead of the rollover, like AutoCAD's selection preview for windows
             if (this.areaPreview?.area !== area) {
-                this.areaPreview = { area, ids: expandToUnits(this.areaHits(area), this.units) };
+                this.areaPreview = { area, ids: this.free(expandToUnits(this.areaHits(area), this.units)) };
             }
             previewed = this.areaPreview.ids;
         } else {
             this.areaPreview = null;
             // No rollover at point prompts, like AutoCAD
             if (this.underCursor !== null && !pointPrompt) {
-                previewed = expandToUnits([this.underCursor], this.units);
+                previewed = this.free(expandToUnits([this.underCursor], this.units));
             }
         }
         const hovered = new Set(previewed.filter((id) => !highlighted.has(id)));
@@ -1752,6 +1806,7 @@ export class SelectionEditor {
         // Still shown as under the cursor while the pointer is on its menu; while a grip is edited, the grip the point snaps to
         const hoveredGrip = this.gripUnderCursor ?? gripMenu?.grip ?? (pointPrompt ? this.gripSnap : null);
         const hotGrips = state.kind === 'command' ? (state.gripEdit?.hot ?? NO_GRIPS) : this.hotPicked;
+        const blocked = this.blockedUnderCursor && !pointPrompt && area === null;
         if (
             previous !== null &&
             sameDocument &&
@@ -1765,6 +1820,7 @@ export class SelectionEditor {
             message === previous.message &&
             input === previous.input &&
             area === previous.area &&
+            blocked === previous.blocked &&
             sameIds(hovered, previous.hovered) &&
             sameSnap(snap, previous.snap) &&
             sameCycle(snapCycle, previous.snapCycle) &&
@@ -1798,6 +1854,7 @@ export class SelectionEditor {
             controlFrames,
             area,
             cursor: pointPrompt ? 'point' : selecting ? 'select' : 'command',
+            blocked,
             snap,
             snapCycle,
             snapPreview,
