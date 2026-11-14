@@ -55,7 +55,7 @@ docker compose exec -T php vendor/bin/mate tools:list # AI Mate diagnostics; alw
 |------------|---------------------------------------------------------------------|
 | App        | http://localhost:8080 (nginx → php-fpm, document root `public/`; `/` redirects to `/de`) |
 | Editor dev | http://localhost:8081 (Vite; the `editor` container runs `npm run dev:init`) |
-| Collaboration | internal `collaboration:8081` (Socket.IO; the browser reaches it through the editor's Vite proxy `/socket.io`) |
+| Collaboration | internal `collaboration:8081` (Socket.IO; the browser reaches it same-origin on `/socket.io`: Vite proxy on :8081, nginx on :8080) |
 | API docs   | http://localhost:8080/_doc (Stoplight UI), `/_doc.json` (OpenAPI); dev and test only |
 | Mailpit    | http://localhost:8025 (SMTP on 1025)                                 |
 | phpMyAdmin | http://localhost:8210                                               |

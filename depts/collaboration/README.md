@@ -19,7 +19,7 @@ npm test           # node --test, real sockets over socket.io-client
 |---|---|
 | `COLLAB_AUTH_TOKEN` | secret shared with the backend, which signs the tokens (required) |
 | `COLLAB_MAX_CLIENTS_PER_ROOM` | sockets one room admits, default 5 |
-| `COLLAB_ALLOWED_ORIGIN` | only for a browser on another origin; the dev proxy needs none |
+| `COLLAB_ALLOWED_ORIGIN` | only for a browser on another origin; the Vite proxy and nginx (`/socket.io`) need none |
 | `PORT` | default 8081 |
 
 | Event | Direction | Carries |

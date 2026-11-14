@@ -40,15 +40,27 @@ codegen, no shared package.
 How the browser reaches it
 --------------------------
 
-The server is only exposed inside the compose network (`collaboration:8081`). The editor's Vite dev
-server proxies `/socket.io` to it (`ws: true`, `COLLAB_PROXY_TARGET` on the host), so the socket is
-same-origin like `/api` and needs no CORS (`COLLAB_ALLOWED_ORIGIN` is for a browser on another origin).
-When the built editor is embedded in the Twig pages, the web server has to forward `/socket.io` too
-(not done yet).
+The server is only exposed inside the compose network (`collaboration:8081`). The browser always
+connects **same-origin**, to `/socket.io` of the page it is on, so there is no CORS and no second
+host, port or certificate (`COLLAB_ALLOWED_ORIGIN` is only for a browser on another origin):
+
+- the editor's Vite dev server (`:8081`) proxies `/socket.io` (`ws: true`, `COLLAB_PROXY_TARGET` on the
+  host);
+- nginx (`:8080`, `docker/map/nginx.default.conf`) does the same for the pages of the app, i.e.
+  for the built editor once it is embedded in Twig: `location /socket.io/` with the WebSocket
+  upgrade headers, a long `proxy_read_timeout` (Socket.IO pings every 25 s) and the upstream as a
+  variable, so nginx also starts while the collaboration container is down.
+
+nginx only passes the bytes of the connection through; the work per message (parsing, finding the room,
+sending it on) is done by the Node server, which is where load would show up first. If it ever does,
+the editor needs no change: put a web server of its own in front of `/socket.io`, or let the backend
+send the server's URL in `CollaborationAccessDto`.
 
 Still to come
 -------------
 
 Relaying the editor's commands (`app:interaction`) with the rule that a received command changes
 only the receiving store (no undo entry, no save); presence in the drawing; announcing a
-publish or discard; a push from the backend; the web server's `/socket.io` route.
+publish or discard; a push from the backend. For the cursor: throttle it (one position per frame),
+send it only while somebody else is in the room and as `volatile` in a message of its own, never in
+the packet of a command (a `volatile` packet queued behind a reliable one is dropped).
