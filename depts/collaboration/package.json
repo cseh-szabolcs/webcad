@@ -1,0 +1,25 @@
+{
+  "name": "collaboration",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "license": "proprietary",
+  "description": "Presence relay of the CAD editor: one namespace per tenant, one room per project.",
+  "scripts": {
+    "build": "tsc --build",
+    "typecheck": "tsc --noEmit",
+    "start": "NODE_ENV=production node ./dist/index.js",
+    "start:dev": "NODE_ENV=development node --watch src/index.ts",
+    "start:dev-docker": "npm install && npm run start:dev",
+    "test": "node --test 'src/**/*.test.ts'"
+  },
+  "dependencies": {
+    "nanoid": "^5.1.6",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "socket.io-client": "^4.8.1",
+    "typescript": "^5.9.3"
+  }
+}
