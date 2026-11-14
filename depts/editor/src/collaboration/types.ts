@@ -57,7 +57,15 @@ export const EVENTS = {
      * stores nothing.
      */
     selection: 'app:selection',
+    /**
+     * A change of the document (see `DocumentPatch`). To the server `(patch)`, from it
+     * `(userId, patch)`: the server says who made it, never the client. Reliable and in order.
+     */
+    change: 'app:change',
 } as const;
+
+/** The most vertices, elements and groups one `app:change` may name; the server's `CHANGE_LIMIT`. */
+export const CHANGE_LIMIT = 20000;
 
 /** The most element ids one `app:selection` may carry; the server's `SELECTION_LIMIT`. */
 export const SELECTION_LIMIT = 5000;

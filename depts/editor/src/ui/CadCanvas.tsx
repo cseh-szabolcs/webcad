@@ -1,5 +1,6 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import { DocumentHistory } from 'app/cad/editor/commands/DocumentHistory';
+import { applyDocumentPatch, diffDocuments, type DocumentPatch } from 'app/cad/editor/commands/DocumentPatch';
 import { SelectionOverlay } from 'app/cad/editor/overlays/SelectionOverlay';
 import { SelectionEditor, type EditorCommand, type SelectionSnapshot } from 'app/cad/editor/SelectionEditor';
 import type { CommandMethod } from 'app/cad/editor/tools/CommandMethod';
@@ -109,6 +110,8 @@ export function CadCanvas({
     /** Locks, fades and names what the others selected; set while a document is loaded. */
     const showSelectionsRef = useRef<(() => void) | null>(null);
     const remoteSelectionsRef = useRef<RemoteSelections | null>(null);
+    /** Takes over a change another collaborator made; set while a document is loaded. */
+    const applyChangeRef = useRef<((patch: DocumentPatch, userId: string) => void) | null>(null);
     const themeRef = useRef(theme);
     const settingsRef = useRef(settings);
     const snapSettingsRef = useRef(snapSettings);
@@ -266,6 +269,26 @@ export function CadCanvas({
         showSelectionsRef.current = showSelections;
         // After the renderer, whose paths give the places of the names
         const unsubscribeNames = history.subscribe(nameSelections);
+        // What is done here (commands, undo, redo) goes to the others; what came from them does not go back
+        const unsubscribeChanges = history.subscribe(({ before, document, changedElementIds, origin }) => {
+            const to = presenceRef.current;
+            if (origin !== null || !to) {
+                return;
+            }
+            const patch = diffDocuments(before, document, changedElementIds);
+            if (patch) {
+                to.sendChange(patch);
+            }
+        });
+        // A change of somebody else: no undo step here, and nothing if it does not fit this document
+        applyChangeRef.current = (patch, userId) => {
+            const change = applyDocumentPatch(history.document, patch);
+            if (change) {
+                history.applyRemote(change, userId);
+            } else if (patch.planId === history.document.id) {
+                console.warn('[collaboration] A change of another collaborator does not fit this drawing and was left out.');
+            }
+        };
         /**
          * Dynamic Input next to the crosshair: the prompt (or a typed command name) with the
          * prompts on, the fields at the crosshair or, for distance and angle from the prompt's
@@ -434,6 +457,8 @@ export function CadCanvas({
             remoteCursors.dispose();
             remoteCursorsRef.current = null;
             unsubscribeNames();
+            unsubscribeChanges();
+            applyChangeRef.current = null;
             remoteSelections.dispose();
             remoteSelectionsRef.current = null;
             sharePresenceRef.current = null;
@@ -469,9 +494,11 @@ export function CadCanvas({
         sharePresenceRef.current?.();
         const unsubscribe = presence.subscribeCursors(show);
         const unsubscribeSelections = presence.subscribeSelections(showSelections);
+        const unsubscribeChanges = presence.subscribeChanges((patch, userId) => applyChangeRef.current?.(patch, userId));
         return () => {
             unsubscribe();
             unsubscribeSelections();
+            unsubscribeChanges();
             layer.set([]);
             // Nobody holds anything any more; nothing to do if the document went as well
             presenceRef.current = null;

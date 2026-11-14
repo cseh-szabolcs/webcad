@@ -15,7 +15,7 @@ coordinates and undo/redo, DIFFERENZ and VEREINIG (AutoCAD SUBTRACT and UNION on
 ROTATE, SCALE, MIRROR with their options Base point, Copy, Undo, Reference, eXit; several hot
 grips; a menu of further actions per grip).
 Changes are not saved to the backend yet. Once the plan is shown, the editor logs in to the
-collaboration server (presence, pointers and selections so far, see "Collaboration").
+collaboration server, which passes pointers, selections and document changes between the editors (see "Collaboration").
 
 **How it behaves for the user is in `docs/bedienung.md`** (German, every mouse and keyboard
 action, per command and mode). Read it before changing an interaction; it is the reference for
@@ -240,7 +240,7 @@ All pure TS and unit-tested unless noted.
   the copies of the highlighted elements).
 - `cad/editor/commands/`: `DocumentCommand` (`execute`/`undo` on immutable documents, returning
   the new document and the changed element ids), `DocumentHistory` (current document, undo/redo
-  stacks, listeners, `revertLast`, `combineLast`), `MoveCommand`, `AddLineCommand`,
+  stacks, listeners that get a `HistoryChange` (with the document `before` and the `origin`), `revertLast`, `combineLast`, `applyRemote`), `MoveCommand`, `AddLineCommand`,
   `AddPolylineCommand` (its `label` names the command), `AddCircleCommand`, `AddArcCommand`, `AddEllipseCommand`,
   `SubtractCommand` (the first command that removes elements: with them the vertices no other element uses and groups left empty; `undo` puts the document's arrays back),
   `CompositeCommand`. `CadCanvas` keeps the history of the loaded document; the editor and the
@@ -343,7 +343,15 @@ the element or the document: `SelectionEditor.setSelectedByOthers` keeps those e
 (`CrosshairCursor.setBlocked`), `PaperRenderer.setSelectedByOthers` draws them faintly
 (`SELECTED_BY_OTHERS_OPACITY`), `ui/RemoteSelections.ts` puts the name over each (`selectionLabels`, pure).
 While something is selected here the pointer is not sent. An element two picked at once stays with the
-smaller collaborator id (`createCollaboration`: `refreshSelections`). Commands are not relayed yet.
+smaller collaborator id (`createCollaboration`: `refreshSelections`). **Changes:** every change of the
+`DocumentHistory` made here (a command, undo, redo, `revertLast`) goes to the others as a `DocumentPatch`
+(`commands/DocumentPatch.ts`, pure: `diffDocuments`, `applyDocumentPatch`), never as the command object;
+`CadCanvas` is the one place that sends and applies (`ChangeChannel`). A received one comes in through
+`DocumentHistory.applyRemote`: no undo step, and its `HistoryChange.origin` is the collaborator id (null
+for what was done here), which is how a history listener tells the two apart. **A new command needs
+nothing for this** as long as it changes only vertices, elements and groups; one that changes layers or
+styles needs them in the patch. A patch that does not fit (another plan, an element left without a
+vertex) is left out with a console warning; what can still drift apart is in `docs/architecture/collaboration.md`.
 
 ## Settings
 

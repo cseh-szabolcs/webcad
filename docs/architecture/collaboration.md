@@ -3,10 +3,10 @@ Collaboration: server, room and login
 
 Several people can have the same project open. The collaboration server (`depts/collaboration/`,
 Socket.IO on Node, compose service `collaboration`) is the meeting point; later the editor's commands
-travel over it from one tab to the others. **So far it knows who is there** (login, `app:joined`,
-`app:left`, a room limit, a colour per collaborator) **and passes the pointers and the selections on**; no command is relayed,
-and nothing is stored or applied. It has no database and no session,
-and it never looks inside what a client sends.
+travel over it from one tab to the others. **It knows who is there** (login, `app:joined`,
+`app:left`, a room limit, a colour per collaborator) **and passes on the pointers, the selections and
+the changes of the document**; nothing is stored or applied there. It has no database and no session,
+and of what a client sends it only checks the outline (types, sizes), never the meaning.
 
 | Part | Is |
 |---|---|
@@ -118,11 +118,66 @@ snapshot's `blocked` while the cursor is on one) and to `PaperRenderer.setSelect
 faintly), and `ui/RemoteSelections.ts` puts the collaborator's name over each element. **It is editor
 state by element id, not a field of the element:** the element types are the API schema, and the
 document, its history and what is saved later must not know who looks at it. Undo and redo do not
-ask the lock yet; that comes with relaying the commands.
+ask the lock yet.
+
+Changes
+-------
+
+What one editor does to the document, the others get. **Not the command travels but its effect**, a
+`DocumentPatch` (`depts/editor/src/cad/editor/commands/DocumentPatch.ts`): the vertices, elements
+and groups that are new or changed, as they are afterwards, the ids of those removed, and the
+elements to draw anew. A command object holds functions and what it found on its first run, and
+replaying it would need the same document on both sides to the last digit; a patch only needs the
+things it names. It also makes an undo, a redo and LINIE's "Zurück" travel like anything else: each
+is just another change of the document.
+
+| Event | Direction | Carries |
+|---|---|---|
+| `app:change` | client → server | `patch` |
+| `app:change` | server → room (not the sender) | `userId, patch` |
+
+The rules this follows:
+
+- **The server says who it was.** The author is the collaborator id the server knows for the socket;
+  anything a client writes about the author is not looked at. In the editor it arrives as the
+  `origin` of the `HistoryChange` (`null`: done here), which is how every listener tells an own
+  action from somebody else's.
+- **A received change is no step here.** `DocumentHistory.applyRemote` replaces the document and
+  tells the listeners, and touches neither the undo nor the redo stack: undo only ever takes back
+  what was done here. Only changes with `origin` null are sent, so nothing echoes.
+- **One place sends, one applies.** `CadCanvas` subscribes to the history (`diffDocuments` of the
+  document before and after) and hands incoming patches to it (`applyDocumentPatch`); no command and
+  no tool knows about the collaboration.
+- **Ids come from the author.** New vertices and elements carry the ids the author's command made,
+  so both sides name the same thing; nothing is renumbered.
+- **Checked before applied.** A patch for another plan (the room is the project, `planId` says which
+  plan) is passed over. One after which an element would use a vertex or a group that is not there is
+  left out as a whole with a warning in the console: the documents have drifted apart, and a document
+  the renderer cannot draw would be worse. The shape of the things in a patch is trusted: they come
+  from the same editor code, behind the login.
+- **Reliable and in order.** Unlike the pointers: Socket.IO delivers the changes of one connection in
+  the order sent, and the server passes them on as they come.
+- **Bounded.** A patch may name `CHANGE_LIMIT` things (the same number on both sides); the editor does
+  not send a larger one and warns, the server would ignore it. The server takes messages up to
+  `MAX_MESSAGE_BYTES`.
+- **The order of elements** is kept: a new element says which one it follows (`after`). Layers and
+  styles are not in a patch, as no command changes them yet.
+
+**What this does not solve yet** (the editors can drift apart, and nothing repairs it):
+
+- *Joining late or reconnecting.* Changes are not saved to the backend and the server keeps none, so
+  somebody who opens the plan later, or was offline for a moment, loads the stored plan without what
+  the others did meanwhile. Later patches that build on that are left out there (see above). This
+  ends with saving: a joiner then loads the current draft, and a revision number per plan lets a
+  client see that it missed something and load anew.
+- *Undo across people.* A local undo restores what the command remembered; if somebody else changed
+  the same things since, their change is lost on both sides (`SubtractCommand` puts whole lists back).
+  The selection lock keeps this rare while both are there, but an undo reaches back further.
+- *A command in progress.* A tool keeps the document it started with for what it has selected; the
+  lock keeps the others off those elements, but a neighbour that shared a vertex may have left it.
 
 Still to come
 -------------
 
-Relaying the editor's commands (`app:interaction`) with the rule that a received command changes
-only the receiving store (no undo entry, no save); presence in the drawing; announcing a
-publish or discard; a push from the backend.
+Saving and with it the repair of drift (revision per plan, loading anew); undo across people;
+announcing a publish or discard; a push from the backend.

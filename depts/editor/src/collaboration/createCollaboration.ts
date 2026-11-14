@@ -1,7 +1,8 @@
 import { io } from 'socket.io-client';
 import type { ApiSchema } from 'app/api/types';
+import { patchSize, type DocumentPatch } from 'app/cad/editor/commands/DocumentPatch';
 import type { Point } from 'app/cad/model/Point';
-import { EVENTS, SELECTION_LIMIT } from './types';
+import { CHANGE_LIMIT, EVENTS, SELECTION_LIMIT } from './types';
 import type { Collaborator, JoinAck, JoinedMessage, LeftMessage, RoomFull } from './types';
 
 export type CollaborationAccess = ApiSchema['CollaborationAccess'];
@@ -100,8 +101,21 @@ export interface SelectionChannel {
     subscribeSelections(listener: () => void): () => void;
 }
 
+/**
+ * The changes of the document: what was done here goes to the others, what they did comes in with
+ * the id of who did it (given by the server). Events, not state: each is applied once.
+ */
+export interface ChangeChannel {
+    /**
+     * Sends a change made here, unless nobody else is in the room. One that names more than
+     * CHANGE_LIMIT things is not sent (and a warning logged): the server would refuse it.
+     */
+    sendChange(patch: DocumentPatch): void;
+    subscribeChanges(listener: (patch: DocumentPatch, userId: string) => void): () => void;
+}
+
 /** What the canvas shares with the room and shows of it. */
-export type PresenceChannel = CursorChannel & SelectionChannel;
+export type PresenceChannel = CursorChannel & SelectionChannel & ChangeChannel;
 
 export interface Collaboration extends PresenceChannel {
     getState(): CollaborationState;
@@ -152,6 +166,7 @@ export function createCollaboration(
     let sentAt = 0;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const selectionListeners = new Set<() => void>();
+    const changeListeners = new Set<(patch: DocumentPatch, userId: string) => void>();
     /** What each of the others says it selected, by collaborator id. */
     const claims = new Map<string, readonly string[]>();
     let selections: readonly RemoteSelection[] = [];
@@ -282,6 +297,12 @@ export function createCollaboration(
         setPointers(new Map(pointers).set(userId, { x, y }));
     }) as never);
     socket.on(EVENTS.cursorGone, ((userId: string) => withoutPointer(userId)) as never);
+    socket.on(EVENTS.change, ((userId: string, patch: DocumentPatch) => {
+        // The server never sends a change back to who made it; this only makes sure of it
+        if (userId !== state.me?.id) {
+            changeListeners.forEach((listener) => listener(patch, userId));
+        }
+    }) as never);
     socket.on('connect_error', ((error: Error & { data?: RoomFull }) => {
         if (error.data?.code === 'room-full' && !answered) {
             answered = true;
@@ -329,7 +350,22 @@ export function createCollaboration(
             selectionListeners.add(listener);
             return () => selectionListeners.delete(listener);
         },
+        sendChange: (patch) => {
+            if (!listening()) {
+                return;
+            }
+            if (patchSize(patch) > CHANGE_LIMIT) {
+                console.warn('[collaboration] A change was too large to send; the others no longer see this drawing as it is.');
+                return;
+            }
+            socket.emit(EVENTS.change, patch);
+        },
+        subscribeChanges: (listener) => {
+            changeListeners.add(listener);
+            return () => changeListeners.delete(listener);
+        },
         close: () => {
+            changeListeners.clear();
             listeners.clear();
             cursorListeners.clear();
             selectionListeners.clear();

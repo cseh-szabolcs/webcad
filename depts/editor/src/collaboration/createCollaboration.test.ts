@@ -5,6 +5,7 @@ import {
     type CollaborationAccess,
     type CollaborationSocket,
 } from './createCollaboration';
+import { CHANGE_LIMIT } from './types';
 import type { Collaborator, JoinAck } from './types';
 
 const ACCESS: CollaborationAccess = { namespace: 'tenant', room: 'project', userName: 'Erika', token: 'token' };
@@ -318,5 +319,33 @@ describe('pointers', () => {
         zoe.collaboration.sendSelection(['a']);
         zoe.trigger('app:selection', 'm1', ['a']);
         expect(zoe.collaboration.getSelections().map(({ ids }) => ids)).toEqual([['a']]);
+    });
+
+    it('sends a change reliably while somebody is there, and none that is too large', () => {
+        const patch = { planId: 'plan', vertices: [], removedVertexIds: [], elements: [], removedElementIds: ['e'], groups: [], removedGroupIds: [], changedElementIds: ['e'] };
+        const alone = joined(true);
+        alone.collaboration.sendChange(patch);
+        expect(alone.emit.mock.calls.filter(([event]) => event === 'app:change')).toEqual([]);
+
+        const { collaboration, emit } = joined();
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        collaboration.sendChange(patch);
+        collaboration.sendChange({ ...patch, removedElementIds: Array.from({ length: CHANGE_LIMIT + 1 }, () => 'e') });
+
+        expect(emit.mock.calls.filter(([event]) => event === 'app:change')).toEqual([['app:change', patch]]);
+        expect(warn).toHaveBeenCalledTimes(1);
+        warn.mockRestore();
+    });
+
+    it('hands the changes of the others on with who made them, never its own', () => {
+        const { collaboration, trigger } = joined();
+        const listener = vi.fn();
+        collaboration.subscribeChanges(listener);
+        const patch = { planId: 'plan' };
+
+        trigger('app:change', 'm1', patch);
+        trigger('app:change', 'e1', patch);
+
+        expect(listener.mock.calls).toEqual([[patch, 'm1']]);
     });
 });

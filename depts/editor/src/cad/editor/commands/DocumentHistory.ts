@@ -3,6 +3,17 @@ import type { CommandLabel } from '../commandNames';
 import { CompositeCommand } from './CompositeCommand';
 import type { DocumentChange, DocumentCommand } from './DocumentCommand';
 
+/** What the listeners of a history hear. */
+export interface HistoryChange extends DocumentChange {
+    /** The document before the change. */
+    before: CadDocument;
+    /**
+     * Who made it: null for a change made here (a command, its undo or redo), the id of the
+     * collaborator for one that came from somebody else (see applyRemote).
+     */
+    origin: string | null;
+}
+
 /**
  * The current document with undo and redo. Every persistent model change runs through
  * `execute`; listeners hear about each new document with the elements that changed.
@@ -11,7 +22,7 @@ export class DocumentHistory {
     private current: CadDocument;
     private readonly done: DocumentCommand[] = [];
     private readonly undone: DocumentCommand[] = [];
-    private readonly listeners = new Set<(change: DocumentChange) => void>();
+    private readonly listeners = new Set<(change: HistoryChange) => void>();
 
     constructor(doc: CadDocument) {
         this.current = doc;
@@ -32,7 +43,7 @@ export class DocumentHistory {
     }
 
     /** Listeners are called in the order they subscribed. */
-    subscribe(listener: (change: DocumentChange) => void): () => void {
+    subscribe(listener: (change: HistoryChange) => void): () => void {
         this.listeners.add(listener);
         return () => this.listeners.delete(listener);
     }
@@ -90,8 +101,17 @@ export class DocumentHistory {
         this.done.push(new CompositeCommand(label, this.done.splice(-count)));
     }
 
-    private apply(change: DocumentChange): void {
+    /**
+     * Takes over a change another collaborator made (`origin`: their id). It is no step of this
+     * history: undo and redo here only ever revert what was done here.
+     */
+    applyRemote(change: DocumentChange, origin: string): void {
+        this.apply(change, origin);
+    }
+
+    private apply(change: DocumentChange, origin: string | null = null): void {
+        const event: HistoryChange = { ...change, before: this.current, origin };
         this.current = change.document;
-        this.listeners.forEach((listener) => listener(change));
+        this.listeners.forEach((listener) => listener(event));
     }
 }

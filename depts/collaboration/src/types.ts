@@ -64,7 +64,26 @@ export const EVENTS = {
    * everybody sends theirs again when somebody joins.
    */
   selection: 'app:selection',
+  /**
+   * A change of the document, as the editor's `DocumentPatch`. Client → server: `(patch)`; server
+   * → room: `(userId, patch)`, so who made it is said by the server. Reliable, in order, not stored.
+   */
+  change: 'app:change',
 } as const
+
+/** The lists of a patch; together they may name {@link CHANGE_LIMIT} things. */
+export const CHANGE_LISTS = [
+  'vertices',
+  'removedVertexIds',
+  'elements',
+  'removedElementIds',
+  'groups',
+  'removedGroupIds',
+] as const
+/** The most vertices, elements and groups one `app:change` may name; a larger one is ignored. */
+export const CHANGE_LIMIT = 20000
+/** The largest message taken, in bytes: room for a change at the limit (Socket.IO's default is 1 MB). */
+export const MAX_MESSAGE_BYTES = 16 * 1024 * 1024
 
 /** The most element ids one `app:selection` may carry; a longer list is ignored. */
 export const SELECTION_LIMIT = 5000

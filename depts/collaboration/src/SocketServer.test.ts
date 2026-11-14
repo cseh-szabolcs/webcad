@@ -4,7 +4,7 @@ import { io } from 'socket.io-client'
 import type { Socket } from 'socket.io-client'
 import SocketServer from './SocketServer.ts'
 import { sign } from './testSupport.ts'
-import { SELECTION_ID_LENGTH, SELECTION_LIMIT } from './types.ts'
+import { CHANGE_LIMIT, SELECTION_ID_LENGTH, SELECTION_LIMIT } from './types.ts'
 import type { JoinAck } from './types.ts'
 
 const SECRET = 'test-secret'
@@ -234,6 +234,61 @@ test('what is no list of ids, or too long a one, is dropped', async () => {
   first.emit('app:selection', [''])
   first.emit('app:selection', ['x'.repeat(SELECTION_ID_LENGTH + 1)])
   first.emit('app:selection', Array.from({ length: SELECTION_LIMIT + 1 }, (_, index) => `e${index}`))
+
+  assert.equal((await own).length, 0)
+  assert.equal((await others).length, 1)
+})
+
+const PATCH = {
+  planId: 'plan',
+  vertices: [{ id: 'v', x: 1, y: 2 }],
+  removedVertexIds: [],
+  elements: [],
+  removedElementIds: ['e'],
+  groups: [],
+  removedGroupIds: [],
+  changedElementIds: ['e'],
+}
+
+test('a change reaches the others as it was sent, with the author the server knows', async () => {
+  const { first, second, firstAck } = await pair('019b0000-0000-7000-8000-0000000000b9')
+
+  const heard = new Promise<unknown[]>(resolve => second.once('app:change', (...args: unknown[]) => resolve(args)))
+  // An author named by the client counts for nothing
+  first.emit('app:change', { ...PATCH, userId: 'somebody-else' })
+  const [userId, patch] = await heard
+
+  assert.equal(userId, firstAck.user.id)
+  assert.deepEqual(patch, { ...PATCH, userId: 'somebody-else' })
+})
+
+test('changes arrive in the order they were sent', async () => {
+  const { first, second } = await pair('019b0000-0000-7000-8000-0000000000ba')
+  const plans: string[] = []
+  const done = new Promise<void>(resolve =>
+    second.on('app:change', (_userId: string, patch: { planId: string }) => {
+      plans.push(patch.planId)
+      if (plans.length === 3) resolve()
+    }),
+  )
+
+  for (const planId of ['1', '2', '3']) first.emit('app:change', { ...PATCH, planId })
+  await done
+
+  assert.deepEqual(plans, ['1', '2', '3'])
+})
+
+test('what is no patch, or too large a one, is dropped, and the sender hears nothing of its own', async () => {
+  const { first, second } = await pair('019b0000-0000-7000-8000-0000000000bb')
+  const own = silence(first, 'app:change')
+  const others = silence(second, 'app:change')
+
+  first.emit('app:change', PATCH)
+  first.emit('app:change', 'patch')
+  first.emit('app:change', [PATCH])
+  first.emit('app:change', { ...PATCH, planId: 1 })
+  first.emit('app:change', { ...PATCH, vertices: undefined })
+  first.emit('app:change', { ...PATCH, removedElementIds: Array.from({ length: CHANGE_LIMIT }, () => 'e') })
 
   assert.equal((await own).length, 0)
   assert.equal((await others).length, 1)

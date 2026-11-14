@@ -29,8 +29,14 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   meldet sich der Editor im Raum des Projekts an. Ein grüner Punkt mit **n online** zeigt, wie
   viele Personen (Tabs eingerechnet) das Projekt gerade geöffnet haben; der Tooltip nennt ihre
   Namen. Grau: keine Verbindung (der Editor bleibt voll nutzbar), orange: der Raum ist voll
-  (Einstellung der Obergrenze am Server, `COLLAB_MAX_CLIENTS_PER_ROOM`). Änderungen werden noch
-  nicht an die anderen weitergegeben.
+  (Einstellung der Obergrenze am Server, `COLLAB_MAX_CLIENTS_PER_ROOM`).
+  **Änderungen der anderen:** Was jemand zeichnet oder ändert, erscheint sofort bei allen, die
+  denselben Plan offen haben, ebenso sein Rückgängig und Wiederherstellen. **Rückgängig nimmt nur
+  eigene Schritte zurück**, nie die der anderen. Noch nicht gelöst: Gespeichert wird noch nichts,
+  wer den Plan später öffnet oder kurz offline war, sieht also die Änderungen der anderen aus
+  der Zwischenzeit nicht; und ein Rückgängig kann überschreiben, was jemand anderes seither am
+  selben Objekt geändert hat. Eine Änderung mit mehr als `CHANGE_LIMIT` Punkten, Objekten und
+  Gruppen (`src/collaboration/types.ts`) wird nicht übertragen.
   **Mauszeiger der anderen:** Hat eine andere Person das Projekt offen, sieht man ihren Zeiger in
   der Zeichnung als kleines gestricheltes Kreuz mit ihrem Namen rechts oberhalb, schwach
   gezeichnet und ohne Eingabe: Er liegt unter dem eigenen Fadenkreuz und verdeckt nichts, Klicks

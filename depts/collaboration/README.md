@@ -28,6 +28,7 @@ npm test           # node --test, real sockets over socket.io-client
 | `app:joined` / `app:left` | server → room | who arrived or went, and how many are there |
 | `app:cursor` | client → server → room | `x, y` (model coordinates) → `userId, x, y`, `volatile`, not to the sender |
 | `app:cursor-gone` | client → server → room | nothing → `userId`, reliable |
+| `app:change` | client → server → room | `patch` (the editor's `DocumentPatch`; a plan id and lists naming at most `CHANGE_LIMIT` things) → `userId, patch`, reliable, in order, not stored, not to the sender |
 | `app:selection` | client → server → room | `ids` (all selected elements, at most `SELECTION_LIMIT`) → `userId, ids`, reliable, not stored, not to the sender |
 
 Every collaborator has a `color` (0–4): the lowest one nobody in the room has.

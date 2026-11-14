@@ -4,7 +4,15 @@ import { Server } from 'socket.io'
 import type { Namespace, Socket } from 'socket.io'
 import { nanoid } from 'nanoid'
 import { isGranted } from './isGranted.ts'
-import { COLLABORATOR_COLORS, EVENTS, SELECTION_ID_LENGTH, SELECTION_LIMIT } from './types.ts'
+import {
+  CHANGE_LIMIT,
+  CHANGE_LISTS,
+  COLLABORATOR_COLORS,
+  EVENTS,
+  MAX_MESSAGE_BYTES,
+  SELECTION_ID_LENGTH,
+  SELECTION_LIMIT,
+} from './types.ts'
 import type { Collaborator, JoinAck, RoomFull } from './types.ts'
 
 export interface SocketServerOptions {
@@ -32,8 +40,8 @@ interface SocketState {
 const TENANT_NAMESPACE = /^\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
- * One namespace per tenant, one room per project, and nothing in it but presence, the pointers and
- * the selections for now.
+ * One namespace per tenant, one room per project; it knows who is there and passes on the pointers,
+ * the selections and the changes of the document.
  *
  * The server is stateless about the document: it never applies, stores or validates an edit.
  * Two things are decided here rather than by a client: the collaborator id (`nanoid`), so nobody
@@ -57,6 +65,7 @@ export default class SocketServer {
     this.http = createServer()
     this.io = new Server(this.http, {
       cors: allowedOrigin ? { origin: allowedOrigin, credentials: false } : undefined,
+      maxHttpBufferSize: MAX_MESSAGE_BYTES,
     })
     this.http.listen(port)
   }
@@ -122,6 +131,7 @@ export default class SocketServer {
     socket.on(EVENTS.cursor, (x: unknown, y: unknown) => this.relayCursor(socket, x, y))
     socket.on(EVENTS.cursorGone, () => this.relayCursorGone(socket))
     socket.on(EVENTS.selection, (ids: unknown) => this.relaySelection(socket, ids))
+    socket.on(EVENTS.change, (patch: unknown) => this.relayChange(socket, patch))
     // Fires while the socket is still in its rooms, which is what lets the room be told how many
     // are left rather than how many there were.
     socket.on('disconnecting', () => this.leave(socket))
@@ -189,6 +199,18 @@ export default class SocketServer {
     socket.to(state.room).emit(EVENTS.selection, state.user.id, ids)
   }
 
+  /**
+   * Passes a change of the document on, in the order it came, with the author the server knows:
+   * a client cannot make a change look like somebody else's. The patch is only checked for its
+   * outline (a plan id and lists within the limit); what it says is the editors' business.
+   */
+  private relayChange(socket: Socket, patch: unknown): void {
+    const state = this.state.get(key(socket))
+    if (!state?.joined || !isChange(patch)) return
+
+    socket.to(state.room).emit(EVENTS.change, state.user.id, patch)
+  }
+
   private leave(socket: Socket): void {
     const state = this.state.get(key(socket))
     this.state.delete(key(socket))
@@ -243,6 +265,20 @@ function isIdList(value: unknown): value is string[] {
     value.length <= SELECTION_LIMIT &&
     value.every(id => typeof id === 'string' && id.length > 0 && id.length <= SELECTION_ID_LENGTH)
   )
+}
+
+function isChange(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const patch = value as Record<string, unknown>
+  if (typeof patch['planId'] !== 'string') return false
+
+  let size = 0
+  for (const name of CHANGE_LISTS) {
+    const list = patch[name]
+    if (!Array.isArray(list)) return false
+    size += list.length
+  }
+  return size <= CHANGE_LIMIT
 }
 
 /** Socket ids are only unique within a namespace. */
