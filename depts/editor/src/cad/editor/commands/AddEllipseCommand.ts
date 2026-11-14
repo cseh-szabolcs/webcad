@@ -5,16 +5,18 @@ import type { Id } from '../../model/Point';
 import type { DocumentChange, DocumentCommand } from './DocumentCommand';
 
 /**
- * An ellipse drawn by ELLIPSE (AutoCAD ELLIPSE), with a centre vertex of its own and no layer,
- * group or style yet. The ids are fixed on construction, so redo repeats them.
+ * An ellipse drawn by ELLIPSE (AutoCAD ELLIPSE), with a centre vertex of its own, on
+ * layer `layerId` and without group or style. The ids are fixed on construction, so redo repeats them.
  */
 export class AddEllipseCommand implements DocumentCommand {
     readonly label = 'ELLIPSE';
+    readonly layerId: Id;
     readonly ellipseId: Id;
     readonly ellipse: EllipseShape;
     private readonly centerVertexId: Id;
 
-    constructor(ellipse: EllipseShape, newId: () => Id = () => crypto.randomUUID()) {
+    constructor(layerId: Id, ellipse: EllipseShape, newId: () => Id = () => crypto.randomUUID()) {
+        this.layerId = layerId;
         this.ellipse = ellipse;
         this.centerVertexId = newId();
         this.ellipseId = newId();
@@ -26,7 +28,7 @@ export class AddEllipseCommand implements DocumentCommand {
             id: this.ellipseId,
             type: 'ellipse',
             name: null,
-            layerId: null,
+            layerId: this.layerId,
             groupId: null,
             styleId: null,
             centerVertexId: this.centerVertexId,

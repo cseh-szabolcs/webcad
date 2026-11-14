@@ -4,17 +4,19 @@ import type { Id, Point } from '../../model/Point';
 import type { DocumentChange, DocumentCommand } from './DocumentCommand';
 
 /**
- * A circle drawn by KREIS (AutoCAD CIRCLE), with a centre vertex of its own and no layer, group
- * or style yet. The ids are fixed on construction, so redo repeats them.
+ * A circle drawn by KREIS (AutoCAD CIRCLE), with a centre vertex of its own, on layer
+ * `layerId` and without group or style. The ids are fixed on construction, so redo repeats them.
  */
 export class AddCircleCommand implements DocumentCommand {
     readonly label = 'CIRCLE';
+    readonly layerId: Id;
     readonly circleId: Id;
     readonly center: Point;
     readonly radius: number;
     private readonly centerVertexId: Id;
 
-    constructor(center: Point, radius: number, newId: () => Id = () => crypto.randomUUID()) {
+    constructor(layerId: Id, center: Point, radius: number, newId: () => Id = () => crypto.randomUUID()) {
+        this.layerId = layerId;
         this.center = center;
         this.radius = radius;
         this.centerVertexId = newId();
@@ -26,7 +28,7 @@ export class AddCircleCommand implements DocumentCommand {
             id: this.circleId,
             type: 'circle',
             name: null,
-            layerId: null,
+            layerId: this.layerId,
             groupId: null,
             styleId: null,
             centerVertexId: this.centerVertexId,

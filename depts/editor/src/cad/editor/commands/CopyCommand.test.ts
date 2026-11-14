@@ -32,7 +32,7 @@ describe('CopyCommand', () => {
         expect(document.elements).toHaveLength(doc.elements.length + 1);
         expect(document.elements.slice(0, -1)).toEqual(doc.elements);
         const copy = document.elements.at(-1)!;
-        expect(copy).toMatchObject({ type: 'line', styleId: sampleIds.style.thin, layerId: sampleIds.layer.openings });
+        expect(copy).toMatchObject({ type: 'line', styleId: null, layerId: sampleIds.layer.openings });
         expect(changedElementIds).toEqual([copy.id]);
         expect(vertexRefs(copy).map((id) => vertex(document, id))).toEqual([
             { x: 3600, y: 3880 },

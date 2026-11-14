@@ -5,10 +5,11 @@ import type { DocumentChange, DocumentCommand } from './DocumentCommand';
 
 /**
  * An arc drawn by BOGEN (AutoCAD ARC) around `center` from `start` to `end`, with vertices of
- * its own and no layer, group or style yet. The ids are fixed on construction, so redo repeats them.
+ * its own, on layer `layerId` and without group or style. The ids are fixed on construction, so redo repeats them.
  */
 export class AddArcCommand implements DocumentCommand {
     readonly label = 'ARC';
+    readonly layerId: Id;
     readonly arcId: Id;
     readonly center: Point;
     readonly start: Point;
@@ -16,7 +17,8 @@ export class AddArcCommand implements DocumentCommand {
     readonly clockwise: boolean;
     private readonly vertexIds: readonly [center: Id, start: Id, end: Id];
 
-    constructor(center: Point, start: Point, end: Point, clockwise: boolean, newId: () => Id = () => crypto.randomUUID()) {
+    constructor(layerId: Id, center: Point, start: Point, end: Point, clockwise: boolean, newId: () => Id = () => crypto.randomUUID()) {
+        this.layerId = layerId;
         this.center = center;
         this.start = start;
         this.end = end;
@@ -31,7 +33,7 @@ export class AddArcCommand implements DocumentCommand {
             id: this.arcId,
             type: 'arc',
             name: null,
-            layerId: null,
+            layerId: this.layerId,
             groupId: null,
             styleId: null,
             centerVertexId,

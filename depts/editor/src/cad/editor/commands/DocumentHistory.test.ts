@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { parseDocument } from '../../persistence/CadSerializer';
 import samplePlan from '../../__fixtures__/sample-plan.json';
+import { sampleIds } from '../../__fixtures__/sampleIds';
 import { AddLineCommand } from './AddLineCommand';
 import { DocumentHistory } from './DocumentHistory';
 
 const doc = parseDocument(samplePlan);
+const LAYER = sampleIds.layer['0'];
 /** Deterministic ids. */
 const ids = (prefix: string) => {
     let n = 0;
@@ -13,7 +15,7 @@ const ids = (prefix: string) => {
 
 describe('AddLineCommand', () => {
     it('adds a line with two vertices of its own, and undo removes them exactly', () => {
-        const command = new AddLineCommand({ x: 1, y: 2 }, { x: 3, y: 4 }, ids('a'));
+        const command = new AddLineCommand(LAYER, { x: 1, y: 2 }, { x: 3, y: 4 }, ids('a'));
         const { document, changedElementIds } = command.execute(doc);
         expect(changedElementIds).toEqual([command.lineId]);
         expect(document.vertices.slice(-2)).toEqual([
@@ -24,7 +26,7 @@ describe('AddLineCommand', () => {
             id: 'a-3',
             type: 'line',
             name: null,
-            layerId: null,
+            layerId: LAYER,
             groupId: null,
             styleId: null,
             startVertexId: 'a-1',
@@ -41,7 +43,7 @@ describe('DocumentHistory', () => {
         const history = new DocumentHistory(doc);
         const listener = vi.fn();
         history.subscribe(listener);
-        history.execute(new AddLineCommand({ x: 0, y: 0 }, { x: 1, y: 0 }, ids('a')));
+        history.execute(new AddLineCommand(LAYER, { x: 0, y: 0 }, { x: 1, y: 0 }, ids('a')));
         expect(history.revertLast()).not.toBeNull();
         expect(history.document).toEqual(doc);
         expect(history.undoCommand).toBeNull();
@@ -52,9 +54,9 @@ describe('DocumentHistory', () => {
 
     it('combines the last steps into one, without changing the document', () => {
         const history = new DocumentHistory(doc);
-        history.execute(new AddLineCommand({ x: 0, y: 0 }, { x: 1, y: 0 }, ids('a')));
-        history.execute(new AddLineCommand({ x: 1, y: 0 }, { x: 1, y: 1 }, ids('b')));
-        history.execute(new AddLineCommand({ x: 1, y: 1 }, { x: 0, y: 0 }, ids('c')));
+        history.execute(new AddLineCommand(LAYER, { x: 0, y: 0 }, { x: 1, y: 0 }, ids('a')));
+        history.execute(new AddLineCommand(LAYER, { x: 1, y: 0 }, { x: 1, y: 1 }, ids('b')));
+        history.execute(new AddLineCommand(LAYER, { x: 1, y: 1 }, { x: 0, y: 0 }, ids('c')));
         const after = history.document;
         const listener = vi.fn();
         history.subscribe(listener);

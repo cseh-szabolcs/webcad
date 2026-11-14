@@ -5,18 +5,20 @@ import type { DocumentChange, DocumentCommand } from './DocumentCommand';
 
 /**
  * A segment drawn by LINIE (AutoCAD LINE): a new line from `start` to `end` with two vertices of
- * its own, so it shares none with its neighbours, like AutoCAD's separate line objects. It has
- * no layer, group or style yet. The ids are fixed on construction, so redo repeats them.
+ * its own, so it shares none with its neighbours, like AutoCAD's separate line objects. It lies
+ * on layer `layerId` and has no group or style. The ids are fixed on construction, so redo repeats them.
  */
 export class AddLineCommand implements DocumentCommand {
     readonly label = 'LINE';
+    readonly layerId: Id;
     readonly lineId: Id;
     readonly start: Point;
     readonly end: Point;
     private readonly startVertexId: Id;
     private readonly endVertexId: Id;
 
-    constructor(start: Point, end: Point, newId: () => Id = () => crypto.randomUUID()) {
+    constructor(layerId: Id, start: Point, end: Point, newId: () => Id = () => crypto.randomUUID()) {
+        this.layerId = layerId;
         this.start = start;
         this.end = end;
         this.startVertexId = newId();
@@ -29,7 +31,7 @@ export class AddLineCommand implements DocumentCommand {
             id: this.lineId,
             type: 'line',
             name: null,
-            layerId: null,
+            layerId: this.layerId,
             groupId: null,
             styleId: null,
             startVertexId: this.startVertexId,
