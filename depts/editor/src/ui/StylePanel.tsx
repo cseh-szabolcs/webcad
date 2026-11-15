@@ -38,105 +38,107 @@ export function StylePanel({ history, busy, theme, onAdd, onUpdate, onRemove }: 
     const withByLayer = (options: readonly { value: string; label: string }[]) => [{ value: '', label: byLayer }, ...options];
 
     return (
-        <section className="panel-section style-tab" aria-label={t('styles.title')}>
-            <ul className="layer-list" aria-label={t('styles.list')}>
-                {document.styles.map((style) => {
-                    const shown = style.color ? displayStrokeColor(style.color, theme) : style.fillColor ? displayFillColor(style.fillColor, theme) : null;
-                    return (
-                        <li key={style.id} className="layer-row" data-current={style.id === editedId}>
-                            <button
-                                type="button"
-                                className="layer-row-main"
-                                aria-current={style.id === editedId ? 'true' : undefined}
-                                title={t('styles.edit', { name: style.name })}
-                                onClick={() => setEditedId(style.id === editedId ? null : style.id)}
-                            >
-                                <span className="layer-swatch" data-empty={shown === null} style={shown === null ? undefined : { background: shown }} />
-                                <span className="layer-row-name">{style.name}</span>
-                                <span className="layer-row-count">{counts.get(style.id) ?? 0}</span>
-                            </button>
-                            <RowButton icon="trash" label={t('styles.remove', { name: style.name })} disabled={busy} blocked={null} onClick={() => onRemove(style.id)} />
-                        </li>
-                    );
-                })}
-                <AddRow
-                    label={t('styles.add')}
-                    disabled={busy}
-                    onClick={() => {
-                        const id = onAdd();
-                        if (id !== null) {
-                            setEditedId(id);
-                        }
-                    }}
-                />
-            </ul>
-            {edited && (
-                <div className="panel-fields" role="group" aria-label={t('styles.selected', { name: edited.name })}>
-                    <TextField
-                        key={`name:${edited.id}:${edited.name}`}
-                        label={t('layers.name')}
-                        value={edited.name}
+        <div className="panel-tab">
+            <div className="panel-tab-main">
+                <ul className="layer-list" aria-label={t('styles.list')}>
+                    {document.styles.map((style) => {
+                        const shown = style.color ? displayStrokeColor(style.color, theme) : style.fillColor ? displayFillColor(style.fillColor, theme) : null;
+                        return (
+                            <li key={style.id} className="layer-row" data-current={style.id === editedId}>
+                                <button
+                                    type="button"
+                                    className="layer-row-main"
+                                    aria-current={style.id === editedId ? 'true' : undefined}
+                                    title={t('styles.edit', { name: style.name })}
+                                    onClick={() => setEditedId(style.id === editedId ? null : style.id)}
+                                >
+                                    <span className="layer-swatch" data-empty={shown === null} style={shown === null ? undefined : { background: shown }} />
+                                    <span className="layer-row-name">{style.name}</span>
+                                    <span className="layer-row-count">{counts.get(style.id) ?? 0}</span>
+                                </button>
+                                <RowButton icon="trash" label={t('styles.remove', { name: style.name })} disabled={busy} blocked={null} onClick={() => onRemove(style.id)} />
+                            </li>
+                        );
+                    })}
+                    <AddRow
+                        label={t('styles.add')}
                         disabled={busy}
-                        maxLength={MAX_STYLE_NAME_LENGTH}
-                        problem={(name) => {
-                            const error = styleNameError(document, name, edited.id);
-                            return error === null ? null : t(`styles.nameError.${error}`, { max: MAX_STYLE_NAME_LENGTH });
-                        }}
-                        onCommit={(name) => onUpdate(edited.id, { name })}
-                    />
-                    <ColorField
-                        key={`color:${edited.id}:${edited.color}`}
-                        label={t('layers.color')}
-                        value={edited.color ?? '#000000'}
-                        shown={edited.color ? displayStrokeColor(edited.color, theme) : null}
-                        text={edited.color ?? byLayer}
-                        disabled={busy}
-                        onCommit={(color) => onUpdate(edited.id, { color })}
-                        reset={edited.color === null ? undefined : { label: t('properties.reset', { property: t('layers.color') }), onClick: () => onUpdate(edited.id, { color: null }) }}
-                    />
-                    <SelectField
-                        label={t('layers.linetype')}
-                        value={edited.linetype ?? ''}
-                        options={withByLayer(linetypes)}
-                        disabled={busy}
-                        onCommit={(linetype) => onUpdate(edited.id, { linetype: linetype === '' ? null : (linetype as Linetype) })}
-                    />
-                    <SelectField
-                        label={t('layers.lineweight')}
-                        value={edited.lineweight === null ? '' : String(edited.lineweight)}
-                        options={withByLayer(lineweights)}
-                        disabled={busy}
-                        onCommit={(lineweight) => onUpdate(edited.id, { lineweight: lineweight === '' ? null : (Number(lineweight) as Lineweight) })}
-                    />
-                    <TextField
-                        key={`transparency:${edited.id}:${edited.transparency}`}
-                        label={t('layers.transparency')}
-                        title={t('layers.transparencyTitle', { max: MAX_LAYER_TRANSPARENCY })}
-                        value={edited.transparency === null ? '' : String(edited.transparency)}
-                        placeholder={byLayer}
-                        disabled={busy}
-                        number={{ min: 0, max: MAX_LAYER_TRANSPARENCY }}
-                        onCommit={(text) => {
-                            const transparency = Number(text);
-                            if (text.trim() === '') {
-                                onUpdate(edited.id, { transparency: null });
-                            } else if (Number.isFinite(transparency)) {
-                                onUpdate(edited.id, { transparency });
+                        onClick={() => {
+                            const id = onAdd();
+                            if (id !== null) {
+                                setEditedId(id);
                             }
                         }}
                     />
-                    <ColorField
-                        key={`fill:${edited.id}:${edited.fillColor}`}
-                        label={t('styles.fill')}
-                        value={edited.fillColor ?? '#ffffff'}
-                        shown={edited.fillColor ? displayFillColor(edited.fillColor, theme) : null}
-                        text={edited.fillColor ?? t('styles.noFill')}
-                        disabled={busy}
-                        onCommit={(fillColor) => onUpdate(edited.id, { fillColor })}
-                        reset={edited.fillColor === null ? undefined : { label: t('styles.removeFill'), onClick: () => onUpdate(edited.id, { fillColor: null }) }}
-                    />
-                </div>
-            )}
-        </section>
+                </ul>
+                {edited && (
+                    <section className="panel-section" aria-label={t('styles.selected', { name: edited.name })}>
+                        <TextField
+                            key={`name:${edited.id}:${edited.name}`}
+                            label={t('layers.name')}
+                            value={edited.name}
+                            disabled={busy}
+                            maxLength={MAX_STYLE_NAME_LENGTH}
+                            problem={(name) => {
+                                const error = styleNameError(document, name, edited.id);
+                                return error === null ? null : t(`styles.nameError.${error}`, { max: MAX_STYLE_NAME_LENGTH });
+                            }}
+                            onCommit={(name) => onUpdate(edited.id, { name })}
+                        />
+                        <ColorField
+                            key={`color:${edited.id}:${edited.color}`}
+                            label={t('layers.color')}
+                            value={edited.color ?? '#000000'}
+                            shown={edited.color ? displayStrokeColor(edited.color, theme) : null}
+                            text={edited.color ?? byLayer}
+                            disabled={busy}
+                            onCommit={(color) => onUpdate(edited.id, { color })}
+                            reset={edited.color === null ? undefined : { label: t('properties.reset', { property: t('layers.color') }), onClick: () => onUpdate(edited.id, { color: null }) }}
+                        />
+                        <SelectField
+                            label={t('layers.linetype')}
+                            value={edited.linetype ?? ''}
+                            options={withByLayer(linetypes)}
+                            disabled={busy}
+                            onCommit={(linetype) => onUpdate(edited.id, { linetype: linetype === '' ? null : (linetype as Linetype) })}
+                        />
+                        <SelectField
+                            label={t('layers.lineweight')}
+                            value={edited.lineweight === null ? '' : String(edited.lineweight)}
+                            options={withByLayer(lineweights)}
+                            disabled={busy}
+                            onCommit={(lineweight) => onUpdate(edited.id, { lineweight: lineweight === '' ? null : (Number(lineweight) as Lineweight) })}
+                        />
+                        <TextField
+                            key={`transparency:${edited.id}:${edited.transparency}`}
+                            label={t('layers.transparency')}
+                            title={t('layers.transparencyTitle', { max: MAX_LAYER_TRANSPARENCY })}
+                            value={edited.transparency === null ? '' : String(edited.transparency)}
+                            placeholder={byLayer}
+                            disabled={busy}
+                            number={{ min: 0, max: MAX_LAYER_TRANSPARENCY }}
+                            onCommit={(text) => {
+                                const transparency = Number(text);
+                                if (text.trim() === '') {
+                                    onUpdate(edited.id, { transparency: null });
+                                } else if (Number.isFinite(transparency)) {
+                                    onUpdate(edited.id, { transparency });
+                                }
+                            }}
+                        />
+                        <ColorField
+                            key={`fill:${edited.id}:${edited.fillColor}`}
+                            label={t('styles.fill')}
+                            value={edited.fillColor ?? '#ffffff'}
+                            shown={edited.fillColor ? displayFillColor(edited.fillColor, theme) : null}
+                            text={edited.fillColor ?? t('styles.noFill')}
+                            disabled={busy}
+                            onCommit={(fillColor) => onUpdate(edited.id, { fillColor })}
+                            reset={edited.fillColor === null ? undefined : { label: t('styles.removeFill'), onClick: () => onUpdate(edited.id, { fillColor: null }) }}
+                        />
+                    </section>
+                )}
+            </div>
+        </div>
     );
 }

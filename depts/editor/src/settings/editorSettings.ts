@@ -135,16 +135,16 @@ export const DEFAULT_EDITOR_SETTINGS: Readonly<EditorSettings> = {
         light: { x: '#e0525a', y: '#3fa55b' },
         dark: { x: '#c2474e', y: '#3c9454' },
     },
-    compassSize: 64,
-    compassOpacity: 0.55,
+    compassSize: 54,
+    compassOpacity: 0.3,
     ucsIcon: true,
     ucsIconAtOrigin: true,
     ucsIconSize: 80,
     ucsIconLabelSize: 16,
     ucsIconOpacity: 0.7,
     layerPanelWidth: 280,
-    layerPanelMinWidth: 220,
-    layerPanelMaxWidth: 520,
+    layerPanelMinWidth: 280,
+    layerPanelMaxWidth: 640,
 };
 
 /** The tabs of the layer panel; the first is the default. */

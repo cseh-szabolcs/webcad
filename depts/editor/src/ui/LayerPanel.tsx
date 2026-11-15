@@ -93,8 +93,8 @@ export function LayerPanel({
     const layers = floorId === undefined ? [] : floorLayers(document, floorId);
 
     return (
-        <div className="layer-tab">
-            <div className="layer-tab-layers">
+        <div className="panel-tab">
+            <div className="panel-tab-main">
                 <ul className="layer-list" aria-label={t('layers.list')}>
                     {layers.map((layer) => (
                         <LayerRow
@@ -178,9 +178,11 @@ export function LayerPanel({
                 )}
             </div>
             {selected.length > 0 && (
-                <section className="panel-section layer-tab-selection" aria-label={t('properties.title')}>
-                    <h3>{t('properties.title')}</h3>
-                    <p className="panel-note">{t('properties.count', { count: selected.length })}</p>
+                <section className="panel-section panel-tab-footer" aria-label={t('properties.title')}>
+                    <div className="panel-element-title">
+                        <h3>{t('properties.title')}</h3>
+                        <p className="panel-note">{t('properties.count', { count: selected.length })}</p>
+                    </div>
                     <SelectField
                         label={t('properties.style')}
                         value={chosen(commonStyle)}
