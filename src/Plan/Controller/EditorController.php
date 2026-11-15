@@ -12,7 +12,8 @@ use Symfony\Component\Uid\Uuid;
 /**
  * The CAD editor for one plan: a bare page that loads the built editor from public/editor
  * (`npm run build` in depts/editor); the editor loads the plan itself through the API on
- * EDITOR_BACKEND_HOST (empty: the page's own origin).
+ * EDITOR_BACKEND_HOST (empty: the page's own origin); EDITOR_LOADING_DELAY_MS keeps its loading
+ * skeleton that much longer.
  */
 final class EditorController extends BaseController
 {
@@ -21,10 +22,13 @@ final class EditorController extends BaseController
         Uuid $id,
         #[Autowire(env: 'EDITOR_BACKEND_HOST')]
         string $backendHost,
+        #[Autowire(env: 'int:EDITOR_LOADING_DELAY_MS')]
+        int $loadingDelay,
     ): Response {
         return $this->render('page/plan/editor.html.twig', [
             'planId' => $id->toRfc4122(),
             'backendHost' => $backendHost,
+            'loadingDelay' => $loadingDelay,
         ]);
     }
 }

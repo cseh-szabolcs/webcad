@@ -7,6 +7,8 @@ import { currentLanguage, LANGUAGES, setLanguage } from 'app/i18n/i18n';
 import type { Point } from 'app/cad/model/Point';
 import { CadApiClient } from 'app/cad/persistence/CadApiClient';
 import { backendHost, exitUrl } from 'app/backendHost';
+import { loadingDelay } from 'app/loadingDelay';
+import { LoadingSkeleton } from 'app/ui/LoadingSkeleton';
 import { useCollaboration } from 'app/collaboration/useCollaboration';
 import {
     DEFAULT_EDITOR_SETTINGS,
@@ -183,22 +185,34 @@ function App() {
             };
         }
         const controller = new AbortController();
+        let timer: number | undefined;
         api.loadPlanDocument(planId, controller.signal).then(
-            ({ document }) => setState({ status: 'loaded', document }),
+            // The skeleton stays the configured extra time (loadingDelay)
+            ({ document }) => {
+                timer = window.setTimeout(() => setState({ status: 'loaded', document }), loadingDelay());
+            },
             (error: Error) => {
                 if (!controller.signal.aborted) {
                     setState({ status: 'error', message: error.message });
                 }
             },
         );
-        return () => controller.abort();
+        return () => {
+            controller.abort();
+            window.clearTimeout(timer);
+        };
     }, [planId, stressCount]);
 
     if (planId === null) {
         return <p className="app-message">{t('app.noPlan')}</p>;
     }
     if (state.status === 'loading') {
-        return <p className="app-message">{t('app.loading')}</p>;
+        return (
+            <LoadingSkeleton
+                label={t('app.loading')}
+                sidePanelWidth={layerPanel.open ? layerPanelWidth(layerPanel, DEFAULT_EDITOR_SETTINGS) : null}
+            />
+        );
     }
     if (state.status === 'error') {
         return <p className="app-message app-message-error">{t('app.loadFailed', { reason: state.message })}</p>;

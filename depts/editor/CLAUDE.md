@@ -46,7 +46,10 @@ nothing to `~/.npm`; never install packages globally.
 
 The backend (API and `/socket.io`) is `backendHost()` (`src/backendHost.ts`): `data-backend-host` on
 `#root` (the Symfony page, from `EDITOR_BACKEND_HOST`), else `VITE_BACKEND_HOST` (`.env`), else the
-editor's own origin. Vite proxies `/api` to `http://nginx` (same origin, no CORS); for `npm run dev` on the host set
+editor's own origin. While the plan loads, `LoadingSkeleton` shows the frame as shimmering blocks
+(tokens `--skeleton-*` in `index.css`, light and dark); `loadingDelay()` (`src/loadingDelay.ts`:
+`data-loading-delay` from `EDITOR_LOADING_DELAY_MS`, else `VITE_LOADING_DELAY_MS`, else 0) keeps it that
+many ms longer. Vite proxies `/api` to `http://nginx` (same origin, no CORS); for `npm run dev` on the host set
 `API_PROXY_TARGET=http://localhost:8080`. In dev the editor loads the plan
 `01994f4e-6f3a-7c2d-9b1e-5a3c2d1e0f42` when the URL names none (`DEV_PLAN_ID` in `App.tsx`,
 `?plan=<id>` names another; on the Symfony page (`/{_locale}/plans/{id}/editor`) `data-plan-id` on `#root` names it; `?stress=<count>` shows a generated plan of that many elements

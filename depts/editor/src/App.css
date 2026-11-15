@@ -229,6 +229,31 @@
     background: var(--canvas-bg);
 }
 
+/* After the loading skeleton: a cover in the canvas colour fades out once, so the drawing appears
+   softly; it lies above the overlays and lets every click through */
+.cad-canvas::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    background: var(--canvas-bg);
+    pointer-events: none;
+    animation: canvas-reveal 300ms ease-out forwards;
+}
+
+@keyframes canvas-reveal {
+    to {
+        opacity: 0;
+        visibility: hidden;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cad-canvas::after {
+        animation-duration: 1ms;
+    }
+}
+
 .cad-canvas canvas {
     position: absolute;
     inset: 0;
@@ -1215,4 +1240,159 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* ---------- Loading skeleton (LoadingSkeleton) ---------- */
+
+/* The rows reuse .toolbar, .tool-panel and .statusbar for their background and borders */
+.skeleton-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.skeleton-end {
+    margin-left: auto;
+}
+
+/* One shimmer sweeps over all blocks at once: the gradient is fixed to the window */
+.skeleton-block {
+    display: block;
+    flex: none;
+    border-radius: 5px;
+    background: linear-gradient(100deg, var(--skeleton-base) 40%, var(--skeleton-shine) 50%, var(--skeleton-base) 60%)
+        fixed;
+    background-size: 200vw 100%;
+    animation: skeleton-shimmer 1.6s linear infinite;
+}
+
+.skeleton-round {
+    border-radius: 999px;
+}
+
+@keyframes skeleton-shimmer {
+    from {
+        background-position: 100vw 0;
+    }
+    to {
+        background-position: -100vw 0;
+    }
+}
+
+.skeleton-canvas {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    background: var(--canvas-bg);
+}
+
+/* The plan fills the canvas (keeping its proportions); the lines keep their width at any size */
+.skeleton-plan {
+    position: absolute;
+    inset: 6%;
+    width: 88%;
+    height: 88%;
+    fill: none;
+    stroke: var(--skeleton-line);
+    stroke-width: 2;
+    stroke-linecap: round;
+    animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+.skeleton-plan * {
+    vector-effect: non-scaling-stroke;
+}
+
+.skeleton-wall {
+    stroke-width: 6;
+}
+
+.skeleton-door {
+    stroke-width: 1.5;
+    stroke-dasharray: 5 5;
+}
+
+@keyframes skeleton-pulse {
+    50% {
+        opacity: 0.45;
+    }
+}
+
+/* Text and bar in the middle, over the plan, on a little of the canvas colour */
+.skeleton-status {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 22px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--canvas-bg) 85%, transparent);
+    transform: translate(-50%, -50%);
+}
+
+.skeleton-label {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+    letter-spacing: 0.01em;
+}
+
+/* Moves only, shows no real progress: a short segment glides through a thin track */
+.skeleton-progress {
+    position: relative;
+    width: 140px;
+    height: 3px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--skeleton-base);
+}
+
+.skeleton-progress span {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 35%;
+    border-radius: inherit;
+    background: var(--muted);
+    opacity: 0.7;
+    animation: skeleton-progress 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-progress {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(290%);
+    }
+}
+
+.skeleton-side {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    gap: 14px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    box-sizing: border-box;
+}
+
+.skeleton-side-tabs {
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+}
+
+.skeleton-side-row .skeleton-block:last-child {
+    flex: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .skeleton-block,
+    .skeleton-plan,
+    .skeleton-progress span {
+        animation: none;
+    }
 }

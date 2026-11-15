@@ -31,6 +31,10 @@
     --dyn-live-fg: #4b5563;
     --dyn-focus: #2563eb;
     --dyn-dimension: #6b7280;
+    /* Loading skeleton (LoadingSkeleton): blocks, their shimmer, the lines of the plan */
+    --skeleton-base: #e1e4e9;
+    --skeleton-shine: #f1f2f5;
+    --skeleton-line: #d3d7de;
     color-scheme: light;
 
     font: 14px/1.4 system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -69,6 +73,9 @@
     --dyn-focus: #60a5fa;
     --dyn-dimension: #9ca3af;
     color-scheme: dark;
+    --skeleton-base: #272d37;
+    --skeleton-shine: #323a46;
+    --skeleton-line: #3b4352;
 }
 
 * {
