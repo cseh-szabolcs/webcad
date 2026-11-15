@@ -825,12 +825,58 @@
 
 .side-panel-header {
     display: flex;
-    align-items: center;
+    flex: none;
+    align-items: stretch;
     justify-content: space-between;
-    padding: 6px 6px 6px 12px;
+    padding: 0 6px 0 4px;
+    border-bottom: 1px solid var(--border);
 }
 
-.side-panel-header h2,
+.side-panel-header > .panel-icon-button {
+    align-self: center;
+}
+
+/* Tabs like those of VS Code's panels: uppercase labels, the active one bright and underlined */
+.side-panel-tabs {
+    display: flex;
+    min-width: 0;
+}
+
+.side-panel-tab {
+    position: relative;
+    padding: 9px 8px 8px;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.side-panel-tab:hover,
+.side-panel-tab[aria-selected='true'] {
+    color: var(--text);
+}
+
+.side-panel-tab[aria-selected='true']::after {
+    content: '';
+    position: absolute;
+    right: 8px;
+    bottom: -1px;
+    left: 8px;
+    height: 1px;
+    background: var(--text);
+}
+
+.side-panel-tab:focus-visible {
+    outline: 1px solid var(--dyn-focus);
+    outline-offset: -1px;
+}
+
 .panel-section h3 {
     margin: 0;
     font-size: 11px;
@@ -841,9 +887,42 @@
 }
 
 .side-panel-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: auto;
+    padding-top: 6px;
+}
+
+.side-panel-body[hidden] {
+    display: none;
+}
+
+/* The layer tab: the layers take the room and scroll on their own, the selection stays below them */
+.layer-tab {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.layer-tab-layers {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    padding-bottom: 12px;
+}
+
+.layer-tab-selection {
+    flex: none;
+    max-height: 60%;
+    overflow-y: auto;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+}
+
+.style-tab {
     padding-bottom: 12px;
 }
 
@@ -869,6 +948,11 @@
     outline: none;
 }
 
+/* A state that should catch the eye, e.g. a locked layer's lock */
+.panel-icon-button[data-alert='true'] {
+    color: var(--cursor-blocked);
+}
+
 /* Unavailable; with aria-disabled it still shows its tooltip with the reason */
 .panel-icon-button:disabled,
 .panel-icon-button[aria-disabled='true'] {
@@ -887,30 +971,30 @@
     margin-bottom: 2px;
 }
 
-/* A section below a list: set off by a line */
-.panel-section-divided {
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid var(--border);
-}
-
 /* A list within a section goes from edge to edge, without a line of its own */
 .panel-section .layer-list {
     margin: 0 -12px;
-    padding: 0;
-    border-top: 0;
 }
 
-.panel-section .panel-add-button {
-    align-self: flex-start;
-    margin: 0;
-}
-
-/* The fields of the item chosen in a section's list */
+/* The fields of the item chosen in a section's list, set off from the add button above them */
 .panel-fields {
     display: flex;
     flex-direction: column;
     gap: 6px;
+}
+
+/* 15px below the line closing the list: the section's gap and this */
+.layer-list + .panel-fields {
+    margin-top: 9px;
+}
+
+/* The layer tab's list stands outside a section: 15px to the current layer's heading below */
+.layer-tab-layers > .layer-list {
+    margin-bottom: 15px;
+}
+
+.layer-tab-layers > .layer-list + .panel-section {
+    padding-top: 0;
 }
 
 /* How many objects have a style, at the end of its row */
@@ -1036,28 +1120,43 @@
     background: linear-gradient(to top right, transparent calc(50% - 1px), var(--muted) calc(50% - 1px), var(--muted) calc(50% + 1px), transparent calc(50% + 1px));
 }
 
-.panel-add-button {
+/* The last row of a list, "+ … hinzufügen": a line of the list, quieter than the items */
+.layer-row-add .layer-row-main {
+    color: var(--muted);
+}
+
+.layer-row-add .layer-row-main:hover:not(:disabled) {
+    color: var(--text);
+}
+
+.layer-row-add .layer-row-main:disabled {
+    opacity: 0.5;
+}
+
+.layer-row-add-icon {
     display: flex;
-    align-items: center;
-    gap: 6px;
-    margin: 0 12px 10px;
-    padding: 3px 10px 3px 6px;
-    font: inherit;
-    font-size: 12px;
+    flex: none;
+    justify-content: center;
+    width: 14px;
 }
 
 .layer-list {
     margin: 0;
-    padding: 6px 0 0;
-    border-top: 1px solid var(--border);
+    padding: 0;
     list-style: none;
 }
 
+/* Rows set off by a faint line, the list closed by a line like the dividers */
 .layer-row {
     display: flex;
     align-items: center;
     gap: 2px;
-    padding: 0 8px 0 4px;
+    padding: 0 8px;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+}
+
+.layer-row:last-child {
+    border-bottom-color: var(--border);
 }
 
 .layer-row:hover {
@@ -1068,9 +1167,21 @@
     background: color-mix(in srgb, var(--text) 12%, transparent);
 }
 
-/* A layer that selected objects are on: a bar on its left, like the selection colour */
+/* A layer that selected objects are on: a faint bar on its left */
 .layer-row[data-selection='true'] {
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--dyn-focus) 40%, transparent);
+}
+
+/* The current layer, the chosen style: a bright bar on its left */
+.layer-row[data-current='true'] {
     box-shadow: inset 3px 0 0 var(--dyn-focus);
+}
+
+/* Both: the faint bar right beside the bright one */
+.layer-row[data-current='true'][data-selection='true'] {
+    box-shadow:
+        inset 3px 0 0 var(--dyn-focus),
+        inset 6px 0 0 color-mix(in srgb, var(--dyn-focus) 40%, transparent);
 }
 
 /* The layer itself: its marker, colour and name; a click makes it the current one */
@@ -1107,12 +1218,6 @@
 .layer-row[data-hidden='true'] .layer-row-name,
 .layer-row[data-hidden='true'] .layer-swatch {
     opacity: 0.5;
-}
-
-.layer-row-marker {
-    display: flex;
-    flex: none;
-    width: 14px;
 }
 
 .layer-row-name {

@@ -99,14 +99,15 @@ interface ToolPanelProps {
 interface LayerButtonProps {
     /** Whether the layer panel is open; its button at the right end shows pressed then. */
     layersOpen: boolean;
-    onLayersOpenChange: (open: boolean) => void;
+    /** Opens the panel on its layer tab, or closes it when that tab shows. */
+    onLayersToggle: () => void;
 }
 
 /**
  * Horizontal tool bar above the drawing: one icon button per command, its name in the tooltip,
  * and at its right end the button that opens and closes the layer panel.
  */
-export function ToolPanel({ command, onStart, layersOpen, onLayersOpenChange }: ToolPanelProps & LayerButtonProps) {
+export function ToolPanel({ command, onStart, layersOpen, onLayersToggle }: ToolPanelProps & LayerButtonProps) {
     const { t } = useTranslation();
     return (
         <div className="tool-panel" role="toolbar" aria-label={t('toolbar.tools')}>
@@ -128,7 +129,7 @@ export function ToolPanel({ command, onStart, layersOpen, onLayersOpenChange }: 
                     aria-pressed={layersOpen}
                     aria-label={t('toolbar.layersTitle')}
                     title={t('toolbar.layersTitle')}
-                    onClick={() => onLayersOpenChange(!layersOpen)}
+                    onClick={onLayersToggle}
                 >
                     <PanelIcon name="layers" size={20} />
                 </button>

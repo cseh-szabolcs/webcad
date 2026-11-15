@@ -13,6 +13,7 @@ import {
     type GridSettings,
     type LayerPanelState,
     layerPanelWidth,
+    toggleLayerTab,
     type ObjectTrackingSettings,
     type SnapSettings,
     type TrackingModes,
@@ -28,6 +29,7 @@ import { FullscreenIcon } from 'app/ui/FullscreenIcon';
 import { useFullscreen } from 'app/ui/fullscreen';
 import { LayerPanel } from 'app/ui/LayerPanel';
 import { SidePanel } from 'app/ui/SidePanel';
+import { StylePanel } from 'app/ui/StylePanel';
 import { StatusBar } from 'app/ui/StatusBar';
 import { ThemeIcon } from 'app/ui/ThemeIcon';
 import { ToolbarSelect } from 'app/ui/ToolbarSelect';
@@ -205,6 +207,7 @@ function App() {
     }
     const settings = DEFAULT_EDITOR_SETTINGS;
     const setLayersOpen = (open: boolean) => setLayerPanel((panel) => ({ ...panel, open }));
+    const busy = selection?.command != null;
 
     return (
         <div className="app">
@@ -275,7 +278,7 @@ function App() {
                 command={selection?.command ?? null}
                 onStart={(command, method) => canvasRef.current?.startCommand(command, method)}
                 layersOpen={layerPanel.open}
-                onLayersOpenChange={setLayersOpen}
+                onLayersToggle={() => setLayerPanel(toggleLayerTab)}
             />
             <div className="workspace">
                 <CadCanvas
@@ -295,7 +298,44 @@ function App() {
                     presence={presence}
                 />
                 <SidePanel
-                    title={t('layers.title')}
+                    tabs={[
+                        {
+                            id: 'layers',
+                            label: t('layers.title'),
+                            content: (
+                                <LayerPanel
+                                    history={history}
+                                    currentLayerId={selection?.currentLayerId ?? null}
+                                    busy={busy}
+                                    selection={selection?.command === null ? selection.highlighted : NO_SELECTION}
+                                    theme={theme}
+                                    onSetCurrent={(id) => canvasRef.current?.setCurrentLayer(id)}
+                                    onAdd={() => canvasRef.current?.addLayer()}
+                                    onUpdate={(id, changes) => canvasRef.current?.updateLayer(id, changes)}
+                                    onRemove={(id) => canvasRef.current?.removeLayer(id)}
+                                    onMoveSelection={(id) => canvasRef.current?.moveSelectionToLayer(id)}
+                                    onSetAppearance={(changes) => canvasRef.current?.setSelectionAppearance(changes)}
+                                    onSetStyle={(styleId) => canvasRef.current?.setSelectionStyle(styleId)}
+                                />
+                            ),
+                        },
+                        {
+                            id: 'styles',
+                            label: t('styles.title'),
+                            content: (
+                                <StylePanel
+                                    history={history}
+                                    busy={busy}
+                                    theme={theme}
+                                    onAdd={() => canvasRef.current?.addStyle() ?? null}
+                                    onUpdate={(id, changes) => canvasRef.current?.updateStyle(id, changes)}
+                                    onRemove={(id) => canvasRef.current?.removeStyle(id)}
+                                />
+                            ),
+                        },
+                    ]}
+                    tab={layerPanel.tab}
+                    onTabChange={(tab) => setLayerPanel((panel) => ({ ...panel, tab }))}
                     open={layerPanel.open}
                     width={layerPanelWidth(layerPanel, settings)}
                     minWidth={settings.layerPanelMinWidth}
@@ -304,25 +344,7 @@ function App() {
                     onOpenChange={setLayersOpen}
                     onWidthChange={(width) => setLayerPanel((panel) => ({ ...panel, width }))}
                     texts={{ panel: t('layers.panel'), open: t('layers.open'), close: t('layers.close'), resize: t('layers.resize') }}
-                >
-                    <LayerPanel
-                        history={history}
-                        currentLayerId={selection?.currentLayerId ?? null}
-                        busy={selection?.command != null}
-                        selection={selection?.command === null ? selection.highlighted : NO_SELECTION}
-                        theme={theme}
-                        onSetCurrent={(id) => canvasRef.current?.setCurrentLayer(id)}
-                        onAdd={() => canvasRef.current?.addLayer()}
-                        onUpdate={(id, changes) => canvasRef.current?.updateLayer(id, changes)}
-                        onRemove={(id) => canvasRef.current?.removeLayer(id)}
-                        onMoveSelection={(id) => canvasRef.current?.moveSelectionToLayer(id)}
-                        onSetAppearance={(changes) => canvasRef.current?.setSelectionAppearance(changes)}
-                        onSetStyle={(styleId) => canvasRef.current?.setSelectionStyle(styleId)}
-                        onAddStyle={() => canvasRef.current?.addStyle() ?? null}
-                        onUpdateStyle={(id, changes) => canvasRef.current?.updateStyle(id, changes)}
-                        onRemoveStyle={(id) => canvasRef.current?.removeStyle(id)}
-                    />
-                </SidePanel>
+                />
             </div>
             {selection && (
                 <CommandLine

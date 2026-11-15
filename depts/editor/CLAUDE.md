@@ -260,7 +260,8 @@ Spec in `docs/specs/Layer_System_Spezifikation.md`, what is left in `docs/todo/L
   `AssignStyleCommand`; they report the elements that have the style as changed, so the renderer
   needs nothing of its own). `SelectionEditor.addStyle`, `updateStyle`, `removeStyle` and
   `setSelectionStyle` decide by `cad/editor/styles.ts` (names unique in the plan whatever the
-  case); `ui/StylePanel.tsx` is the section, `ui/PanelFields.tsx` has the fields both sections use.
+  case); `ui/StylePanel.tsx` is the style tab, `ui/PanelFields.tsx` has the fields both tabs use,
+  `ui/panelHooks.ts` the document (`usePlanDocument`) and the linetype/lineweight choices.
 - **The editor core decides** (`SelectionEditor.addLayer`, `updateLayer`, `removeLayer`), by the
   pure rules of `cad/editor/layers.ts` (`layerNameError`, `nextLayerName`, `removeLayerBlocker`):
   names unique per floor whatever the case, layer `0` keeps its name, layer `0`, the current
@@ -269,12 +270,14 @@ Spec in `docs/specs/Layer_System_Spezifikation.md`, what is left in `docs/todo/L
   (`combineLast`). Switching the current layer among the shown ones is allowed at any time.
 - **Panel:** `ui/SidePanel.tsx` is the frame (docked right in `.workspace`, slides in by a width
   transition, its left edge dragged within `layerPanelMinWidth`/`layerPanelMaxWidth`, a toggle
-  on that edge), `ui/LayerPanel.tsx` the content. `App` makes the `DocumentHistory` and hands it
+  on that edge, tabs in its head in the style of VS Code, all kept mounted), with the tabs
+  `ui/LayerPanel.tsx` (layers on top, `flex: 1` and scrolling, the selection below) and
+  `ui/StylePanel.tsx`. The toolbar's layer button always shows the layer tab (`toggleLayerTab`). `App` makes the `DocumentHistory` and hands it
   to `CadCanvas` and the panel, which reads the layers with `useSyncExternalStore`: **no copy of
   the document in React state or Redux**. The panel only asks (`CadCanvasHandle.addLayer` …) and
   disables what the rules above refuse; its fields are uncontrolled and keyed by the stored value,
   so they commit once (blur, Enter; the colour on the native `change`) and follow undo and remote
-  changes. Open/width are in `storedSwitches` (`LayerPanelState`).
+  changes. Open/width/tab are in `storedSwitches` (`LayerPanelState`).
 - Paper.js layers carry no name: it refuses names of digits only, like `0`.
 
 ## Structure

@@ -92,8 +92,9 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   - **Ellipse**: **Mittelpunkt**, **Achse, Ende** (siehe [ELLIPSE](#befehl-ellipse)).
 - **Zeichenfläche** in der Mitte, mit dem [BKS-Symbol](#bks-symbol) am Nullpunkt bzw.
   unten links.
-- **Layer-Panel** rechts neben der Zeichenfläche, zum Ein- und Ausschieben: der aktuelle Layer
-  mit seinen Einstellungen und die Layer des Stockwerks (siehe [Layer](#layer)). Geöffnet wird
+- **Layer-Panel** rechts neben der Zeichenfläche, zum Ein- und Ausschieben, mit den Tabs
+  **Layer** (die Layer des Stockwerks, der aktuelle Layer mit seinen Einstellungen und darunter
+  die gewählten Objekte, siehe [Layer](#layer)) und **Stile** (siehe [Stile](#stile)). Geöffnet wird
   es mit dem Button **Layer** ganz rechts in der Werkzeugleiste oder mit dem kleinen Button am
   rechten Rand der Zeichenfläche.
 - **Kommandozeile** unter der Zeichenfläche: oben in Grau die letzte Meldung (z. B.
@@ -1148,25 +1149,31 @@ dabei schmaler (ihr Ausschnitt bleibt links oben stehen).
 
 | Eingabe                                              | Wirkung                                             |
 |------------------------------------------------------|-----------------------------------------------------|
-| Button **Layer** (Stapel-Symbol) rechts in der Werkzeugleiste | Panel öffnen bzw. schließen                 |
+| Button **Layer** (Stapel-Symbol) rechts in der Werkzeugleiste | Panel mit dem Tab **Layer** öffnen; zeigt es schon den Tab Layer, schließen, sonst auf den Tab Layer wechseln |
+| Tab **Layer** / **Stile** im Kopf des Panels (oder **←** / **→**, **Pos1** / **Ende** auf einem Tab) | Tab wechseln |
 | Kleiner Button mit Pfeil mittig am rechten Rand der Zeichenfläche (bei offenem Panel an dessen linkem Rand) | Panel öffnen bzw. schließen, immer erreichbar |
 | **×** im Kopf des Panels                             | Panel schließen                                     |
 | Linken Rand des Panels **ziehen**                    | Breite ändern, zwischen `layerPanelMinWidth` und `layerPanelMaxWidth` |
 | **Doppelklick** auf den linken Rand                  | Breite zurück auf `layerPanelWidth`                 |
 | Rand mit Tab anwählen, **←** / **→**                 | breiter / schmaler in Schritten von `KEY_STEP_PX` (`src/ui/SidePanel.tsx`) |
 
-Ob das Panel offen ist und wie breit, merkt sich der Browser. Es zeigt von oben nach unten:
+Ob das Panel offen ist, welcher Tab gewählt ist und wie breit das Panel ist, merkt sich der
+Browser; ohne gemerkten Tab ist es **Layer**. Der Tab **Stile** zeigt die Stile des Plans (siehe
+[Stile](#stile)). Der Tab **Layer** ist zweigeteilt: Oben stehen die Layer, die den Platz
+ausfüllen und für sich scrollen, unten, durch eine Linie abgesetzt, die gewählten Objekte. Von
+oben nach unten:
 
-1. **Auswahl**, nur solange Objekte gewählt sind und kein Befehl läuft: was die gewählten Objekte
-   selbst festlegen (siehe [Eigenschaften der Auswahl](#eigenschaften-der-auswahl)).
-2. **Aktueller Layer** mit seinen Einstellungen (siehe unten).
-3. Button **+ Layer hinzufügen**.
-4. Die **Liste der Layer** des Stockwerks in Zeichenreihenfolge (der unterste zuerst, ein neuer
-   Layer kommt ans Ende und liegt damit obenauf). Je Zeile: Haken beim aktuellen Layer, Farbe,
-   Name, und rechts **Auge** (ein-/ausblenden), **Schloss** (sperren/entsperren) und
-   **Papierkorb** (löschen). Ein farbiger Balken links markiert die Layer, auf denen gewählte
-   Objekte liegen.
-5. **Stile**: die Stile des Plans (siehe [Stile](#stile)).
+1. Die **Liste der Layer** des Stockwerks in Zeichenreihenfolge (der unterste zuerst, ein neuer
+   Layer kommt ans Ende und liegt damit obenauf). Je Zeile: Farbe, Name, und rechts **Auge**
+   (ein-/ausblenden), **Schloss** (sperren/entsperren; rot, solange der Layer gesperrt ist) und
+   **Papierkorb** (löschen). Der aktuelle Layer ist hinterlegt und links mit einem blauen Balken
+   markiert (wie der gewählte Stil im Tab Stile); ein blasser Balken markiert die Layer, auf
+   denen gewählte Objekte liegen, beim aktuellen Layer direkt neben dem blauen.
+2. **+ Layer hinzufügen** als letzte Zeile der Liste.
+3. **Aktueller Layer** mit seinen Einstellungen (siehe unten).
+4. **Auswahl** (unterer Teil), nur solange Objekte gewählt sind und kein Befehl läuft, sonst
+   leer: was die gewählten Objekte selbst festlegen (siehe
+   [Eigenschaften der Auswahl](#eigenschaften-der-auswahl)).
 
 ### Aktueller Layer
 
@@ -1223,7 +1230,7 @@ Im Abschnitt „Aktueller Layer“; jede Änderung ist **ein** Schritt für Rüc
 
 Wie in AutoCADs Eigenschaften: Ein Objekt kann Farbe, Linientyp, Linienstärke und Transparenz
 selbst festlegen, statt sie vom Layer zu nehmen. Sind Objekte gewählt (ohne laufenden Befehl),
-zeigt das Panel oben den Abschnitt **Auswahl** mit der Zahl der gewählten Objekte und diesen
+zeigt der Tab **Layer** unten den Abschnitt **Auswahl** mit der Zahl der gewählten Objekte und diesen
 Feldern:
 
 | Feld             | Auswahl                                                                        |
@@ -1253,9 +1260,9 @@ die man einem oder mehreren Objekten zuweist; ändert man den Stil, ändern sich
 ihn haben. Das gibt es in AutoCAD für Linien nicht. Stile gelten für den ganzen Plan, nicht je
 Stockwerk.
 
-- Der Abschnitt **Stile** unten im Panel listet die Stile mit ihrer Farbe, ihrem Namen und der
+- Der Tab **Stile** des Panels listet die Stile mit ihrer Farbe, ihrem Namen und der
   Zahl der Objekte, die sie haben, und rechts dem **Papierkorb**.
-- **+ Stil hinzufügen** legt einen Stil mit dem nächsten freien Namen `Stil1`, `Stil2` … an, der
+- **+ Stil hinzufügen** (letzte Zeile der Liste) legt einen Stil mit dem nächsten freien Namen `Stil1`, `Stil2` … an, der
   noch nichts festlegt, und zeigt gleich seine Einstellungen.
 - **Ein Klick auf einen Stil** zeigt seine Einstellungen unter der Liste (ein weiterer Klick
   blendet sie wieder aus): **Name** (im Plan eindeutig, Groß- und Kleinschreibung zählt dabei

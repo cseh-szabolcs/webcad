@@ -11,11 +11,14 @@ export function RowButton({
     pressed,
     disabled,
     blocked,
+    alert,
     onClick,
 }: {
     icon: PanelIconName;
     label: string;
     pressed?: boolean;
+    /** Shown in red, for a state that should catch the eye (a locked layer). */
+    alert?: boolean;
     disabled: boolean;
     blocked: string | null;
     onClick: () => void;
@@ -27,12 +30,30 @@ export function RowButton({
             aria-label={label}
             aria-pressed={pressed}
             aria-disabled={blocked !== null}
+            data-alert={alert || undefined}
             disabled={disabled}
             title={blocked ?? label}
             onClick={() => blocked === null && onClick()}
         >
             <PanelIcon name={icon} />
         </button>
+    );
+}
+
+/**
+ * The last row of a panel's list: "+ … hinzufügen" as a line of the list rather than a button,
+ * the plus under the swatches.
+ */
+export function AddRow({ label, disabled, onClick }: { label: string; disabled: boolean; onClick: () => void }) {
+    return (
+        <li className="layer-row layer-row-add">
+            <button type="button" className="layer-row-main" disabled={disabled} onClick={onClick}>
+                <span className="layer-row-add-icon">
+                    <PanelIcon name="plus" size={14} />
+                </span>
+                <span className="layer-row-name">{label}</span>
+            </button>
+        </li>
     );
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_EDITOR_SETTINGS, DEFAULT_SNAP_SETTINGS, DEFAULT_TRACKING_MODES, layerPanelWidth, withOrtho, withPolar } from './editorSettings';
+import { DEFAULT_EDITOR_SETTINGS, DEFAULT_SNAP_SETTINGS, DEFAULT_TRACKING_MODES, layerPanelWidth, toggleLayerTab, withOrtho, withPolar } from './editorSettings';
 
 describe('Ortho and polar tracking', () => {
     it('switches polar tracking off when Ortho goes on, keeping its angles', () => {
@@ -32,18 +32,26 @@ describe('Layer panel width', () => {
     const limits = { layerPanelWidth: 280, layerPanelMinWidth: 220, layerPanelMaxWidth: 520 };
 
     it('is the setting until the panel was dragged', () => {
-        expect(layerPanelWidth({ open: true, width: null }, limits)).toBe(280);
-        expect(layerPanelWidth({ open: true, width: 400 }, limits)).toBe(400);
+        expect(layerPanelWidth({ open: true, width: null, tab: 'layers' }, limits)).toBe(280);
+        expect(layerPanelWidth({ open: true, width: 400, tab: 'layers' }, limits)).toBe(400);
     });
 
     it('stays within the limits of the settings', () => {
-        expect(layerPanelWidth({ open: true, width: 100 }, limits)).toBe(220);
-        expect(layerPanelWidth({ open: true, width: 9000 }, limits)).toBe(520);
+        expect(layerPanelWidth({ open: true, width: 100, tab: 'layers' }, limits)).toBe(220);
+        expect(layerPanelWidth({ open: true, width: 9000, tab: 'layers' }, limits)).toBe(520);
     });
 
     it('has a default between its limits', () => {
         const { layerPanelWidth: width, layerPanelMinWidth: min, layerPanelMaxWidth: max } = DEFAULT_EDITOR_SETTINGS;
         expect(min).toBeLessThanOrEqual(width);
         expect(width).toBeLessThanOrEqual(max);
+    });
+});
+
+describe('Layer button', () => {
+    it('opens the panel on its layer tab and closes it only from there', () => {
+        expect(toggleLayerTab({ open: false, width: 300, tab: 'styles' })).toEqual({ open: true, width: 300, tab: 'layers' });
+        expect(toggleLayerTab({ open: true, width: 300, tab: 'styles' })).toEqual({ open: true, width: 300, tab: 'layers' });
+        expect(toggleLayerTab({ open: true, width: 300, tab: 'layers' })).toEqual({ open: false, width: 300, tab: 'layers' });
     });
 });

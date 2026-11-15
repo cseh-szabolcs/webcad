@@ -7,7 +7,7 @@ const CHANGED: EditorSwitches = {
     objectTracking: { enabled: true, allPolarAngles: true },
     grid: { enabled: false, spacing: 2.5, majorEvery: 4, axes: false, compass: false },
     dynamicInput: { enabled: false, pointerInput: false, dimensionInput: true, prompts: false },
-    layerPanel: { open: true, width: 333 },
+    layerPanel: { open: true, width: 333, tab: 'styles' },
 };
 
 describe('stored switches', () => {
@@ -38,9 +38,9 @@ describe('stored switches', () => {
         expect(parsed.objectTracking).toEqual(DEFAULT_EDITOR_SWITCHES.objectTracking);
     });
 
-    it('keep the layer panel closed and at the width of the settings unless stored otherwise', () => {
-        expect(parseSwitches(JSON.stringify({ layerPanel: { open: 'yes', width: -5 } })).layerPanel).toEqual({ open: false, width: null });
-        expect(parseSwitches(JSON.stringify({ layerPanel: { open: true, width: 'wide' } })).layerPanel).toEqual({ open: true, width: null });
+    it('keep the layer panel closed, on its layer tab and at the width of the settings unless stored otherwise', () => {
+        expect(parseSwitches(JSON.stringify({ layerPanel: { open: 'yes', width: -5, tab: 'nope' } })).layerPanel).toEqual({ open: false, width: null, tab: 'layers' });
+        expect(parseSwitches(JSON.stringify({ layerPanel: { open: true, width: 'wide' } })).layerPanel).toEqual({ open: true, width: null, tab: 'layers' });
     });
 
     it('never has Ortho and polar tracking on together', () => {

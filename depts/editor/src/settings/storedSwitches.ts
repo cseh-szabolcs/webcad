@@ -8,6 +8,7 @@ import {
     DEFAULT_OBJECT_TRACKING_SETTINGS,
     DEFAULT_SNAP_SETTINGS,
     DEFAULT_TRACKING_MODES,
+    LAYER_PANEL_TABS,
     POLAR_INCREMENTS,
     withOrtho,
     type DynamicInputSettings,
@@ -102,6 +103,7 @@ export function parseSwitches(json: string | null): EditorSwitches {
             open: flag(layerPanel.open, d.layerPanel.open),
             // The limits are the settings', applied where it is shown (layerPanelWidth)
             width: typeof layerPanel.width === 'number' && Number.isFinite(layerPanel.width) && layerPanel.width > 0 ? layerPanel.width : null,
+            tab: LAYER_PANEL_TABS.find((tab) => tab === layerPanel.tab) ?? d.layerPanel.tab,
         },
     };
 }

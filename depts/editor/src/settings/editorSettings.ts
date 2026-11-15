@@ -147,14 +147,24 @@ export const DEFAULT_EDITOR_SETTINGS: Readonly<EditorSettings> = {
     layerPanelMaxWidth: 520,
 };
 
+/** The tabs of the layer panel; the first is the default. */
+export const LAYER_PANEL_TABS = ['layers', 'styles'] as const;
+export type LayerPanelTab = (typeof LAYER_PANEL_TABS)[number];
+
 /** The layer panel, as left in this browser. */
 export interface LayerPanelState {
     open: boolean;
     /** Width in screen px as dragged, null for the setting `layerPanelWidth`. */
     width: number | null;
+    tab: LayerPanelTab;
 }
 
-export const DEFAULT_LAYER_PANEL_STATE: Readonly<LayerPanelState> = { open: false, width: null };
+export const DEFAULT_LAYER_PANEL_STATE: Readonly<LayerPanelState> = { open: false, width: null, tab: 'layers' };
+
+/** The toolbar's layer button: opens the panel on its layer tab, closes it only from there. */
+export function toggleLayerTab(state: LayerPanelState): LayerPanelState {
+    return state.open && state.tab === 'layers' ? { ...state, open: false } : { ...state, open: true, tab: 'layers' };
+}
 
 /** The width the layer panel shows with: the dragged one within the limits of the settings. */
 export function layerPanelWidth(

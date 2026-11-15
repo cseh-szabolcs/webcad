@@ -1,27 +1,22 @@
-import { useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DocumentHistory } from 'app/cad/editor/commands/DocumentHistory';
 import type { AppearanceChanges } from 'app/cad/editor/commands/ElementAppearanceCommand';
 import type { LayerChanges } from 'app/cad/editor/commands/LayerCommands';
-import type { StyleChanges } from 'app/cad/editor/commands/StyleCommands';
 import { floorLayers, layerElementCounts, layerNameError, MAX_LAYER_NAME_LENGTH, removeLayerBlocker } from 'app/cad/editor/layers';
 import { commonAppearance } from 'app/cad/model/ElementAppearance';
 import {
     isDefaultLayer,
-    LINETYPES,
-    LINEWEIGHTS,
     MAX_LAYER_DESCRIPTION_LENGTH,
     MAX_LAYER_TRANSPARENCY,
     type Layer,
     type Linetype,
     type Lineweight,
 } from 'app/cad/model/Layer';
-import { currentLanguage } from 'app/i18n/i18n';
 import type { Id } from 'app/cad/model/Point';
 import { displayStrokeColor, type DisplayTheme } from 'app/cad/renderer/displayColor';
-import { ColorField, RowButton, SelectField, TextField } from './PanelFields';
-import { PanelIcon } from './PanelIcon';
-import { StyleSection } from './StylePanel';
+import { AddRow, ColorField, RowButton, SelectField, TextField } from './PanelFields';
+import { useAppearanceOptions, usePlanDocument } from './panelHooks';
 
 interface LayerPanelProps {
     /** The document with its changes: the panel shows the layers it holds now. */
@@ -43,10 +38,6 @@ interface LayerPanelProps {
     onSetAppearance: (changes: AppearanceChanges) => void;
     /** Gives the selected objects a style, or none with null. */
     onSetStyle: (styleId: Id | null) => void;
-    /** Adds a style and returns its id, or null where it could not. */
-    onAddStyle: () => Id | null;
-    onUpdateStyle: (id: Id, changes: StyleChanges) => void;
-    onRemoveStyle: (id: Id) => void;
 }
 
 /** Value of the choice that stands for differing values; it cannot be chosen. */
@@ -55,9 +46,9 @@ const VARIES = '*';
 const NO_LAYERS: ReadonlySet<Id> = new Set();
 
 /**
- * Content of the layer panel: what the selected objects override (while there are any), the
- * properties of the current layer, the button that adds a layer,
- * the layers of the floor to go through, and the styles of the plan. A click on one makes it current, or, while objects
+ * The layer tab of the panel: on top the layers of the floor ending in the row that adds one, and
+ * the properties of the current layer (scrolling on their own), below them what the selected objects
+ * override (while there are any). A click on a layer makes it current, or, while objects
  * are selected, puts them on it like AutoCAD's layer list (the layers they are on are marked).
  * It only shows the document and asks for changes; the editor decides and makes them (one undo
  * step each).
@@ -75,19 +66,11 @@ export function LayerPanel({
     onMoveSelection,
     onSetAppearance,
     onSetStyle,
-    onAddStyle,
-    onUpdateStyle,
-    onRemoveStyle,
 }: LayerPanelProps) {
     const { t } = useTranslation();
-    const document = useSyncExternalStore(
-        useCallback((listener: () => void) => history.subscribe(listener), [history]),
-        () => history.document,
-    );
+    const document = usePlanDocument(history);
     const counts = useMemo(() => layerElementCounts(document), [document]);
-    // Lineweights as AutoCAD lists them: 0.25 mm, in German 0,25 mm
-    const language = currentLanguage();
-    const millimetres = useMemo(() => new Intl.NumberFormat(language, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), [language]);
+    const { linetypes, lineweights } = useAppearanceOptions();
     const selected = useMemo(
         () => (selection.size === 0 ? [] : document.elements.filter((element) => selection.has(element.id))),
         [document, selection],
@@ -105,19 +88,97 @@ export function LayerPanel({
         ...options,
     ];
     const chosen = (value: string | number | null | undefined) => (value === undefined ? VARIES : value === null ? '' : String(value));
-    const linetypes = LINETYPES.map((linetype) => ({ value: linetype as string, label: t(`layers.linetypes.${linetype}`) }));
-    const lineweights = LINEWEIGHTS.map((lineweight) => ({
-        value: String(lineweight),
-        label: t('layers.lineweightValue', { value: millimetres.format(lineweight / 100) }),
-    }));
     const current = document.layers.find((layer) => layer.id === currentLayerId);
     const floorId = current?.floorId ?? document.floors[0]?.id;
     const layers = floorId === undefined ? [] : floorLayers(document, floorId);
 
     return (
-        <>
+        <div className="layer-tab">
+            <div className="layer-tab-layers">
+                <ul className="layer-list" aria-label={t('layers.list')}>
+                    {layers.map((layer) => (
+                        <LayerRow
+                            key={layer.id}
+                            layer={layer}
+                            current={layer.id === currentLayerId}
+                            busy={busy}
+                            moving={selection.size > 0}
+                            holdsSelection={selectionLayers.has(layer.id)}
+                            color={displayStrokeColor(layer.color, theme)}
+                            removeBlocker={removeLayerBlocker(document, layer.id, currentLayerId, counts)}
+                            onSetCurrent={onSetCurrent}
+                            onUpdate={onUpdate}
+                            onRemove={onRemove}
+                            onMoveSelection={onMoveSelection}
+                        />
+                    ))}
+                    <AddRow label={t('layers.add')} disabled={busy} onClick={onAdd} />
+                </ul>
+                {current && (
+                    <section className="panel-section" aria-label={t('layers.current')}>
+                        <h3>{t('layers.current')}</h3>
+                        <TextField
+                            key={`name:${current.id}:${current.name}`}
+                            label={t('layers.name')}
+                            value={current.name}
+                            disabled={busy || isDefaultLayer(current)}
+                            maxLength={MAX_LAYER_NAME_LENGTH}
+                            problem={(name) => {
+                                const error = layerNameError(document, current.floorId, name, current.id);
+                                return error === null ? null : t(`layers.nameError.${error}`, { max: MAX_LAYER_NAME_LENGTH });
+                            }}
+                            onCommit={(name) => onUpdate(current.id, { name })}
+                        />
+                        <ColorField
+                            key={`color:${current.id}:${current.color}`}
+                            label={t('layers.color')}
+                            value={current.color}
+                            shown={displayStrokeColor(current.color, theme)}
+                            text={current.color}
+                            disabled={busy}
+                            onCommit={(color) => onUpdate(current.id, { color })}
+                        />
+                        <SelectField
+                            label={t('layers.linetype')}
+                            value={current.linetype}
+                            options={linetypes}
+                            disabled={busy}
+                            onCommit={(linetype) => onUpdate(current.id, { linetype: linetype as Linetype })}
+                        />
+                        <SelectField
+                            label={t('layers.lineweight')}
+                            value={String(current.lineweight)}
+                            options={lineweights}
+                            disabled={busy}
+                            onCommit={(lineweight) => onUpdate(current.id, { lineweight: Number(lineweight) as Lineweight })}
+                        />
+                        <TextField
+                            key={`transparency:${current.id}:${current.transparency}`}
+                            label={t('layers.transparency')}
+                            title={t('layers.transparencyTitle', { max: MAX_LAYER_TRANSPARENCY })}
+                            value={String(current.transparency)}
+                            disabled={busy}
+                            number={{ min: 0, max: MAX_LAYER_TRANSPARENCY }}
+                            onCommit={(text) => {
+                                const transparency = Number(text);
+                                if (text.trim() !== '' && Number.isFinite(transparency)) {
+                                    onUpdate(current.id, { transparency });
+                                }
+                            }}
+                        />
+                        <TextField
+                            key={`description:${current.id}:${current.description}`}
+                            label={t('layers.description')}
+                            value={current.description}
+                            disabled={busy}
+                            maxLength={MAX_LAYER_DESCRIPTION_LENGTH}
+                            onCommit={(description) => onUpdate(current.id, { description })}
+                        />
+                    </section>
+                )}
+            </div>
             {selected.length > 0 && (
-                <section className="panel-section" aria-label={t('properties.title')}>
+                <section className="panel-section layer-tab-selection" aria-label={t('properties.title')}>
                     <h3>{t('properties.title')}</h3>
                     <p className="panel-note">{t('properties.count', { count: selected.length })}</p>
                     <SelectField
@@ -174,101 +235,7 @@ export function LayerPanel({
                     />
                 </section>
             )}
-            {current && (
-                <section className="panel-section" aria-label={t('layers.current')}>
-                    <h3>{t('layers.current')}</h3>
-                    <TextField
-                        key={`name:${current.id}:${current.name}`}
-                        label={t('layers.name')}
-                        value={current.name}
-                        disabled={busy || isDefaultLayer(current)}
-                        maxLength={MAX_LAYER_NAME_LENGTH}
-                        problem={(name) => {
-                            const error = layerNameError(document, current.floorId, name, current.id);
-                            return error === null ? null : t(`layers.nameError.${error}`, { max: MAX_LAYER_NAME_LENGTH });
-                        }}
-                        onCommit={(name) => onUpdate(current.id, { name })}
-                    />
-                    <ColorField
-                        key={`color:${current.id}:${current.color}`}
-                        label={t('layers.color')}
-                        value={current.color}
-                        shown={displayStrokeColor(current.color, theme)}
-                        text={current.color}
-                        disabled={busy}
-                        onCommit={(color) => onUpdate(current.id, { color })}
-                    />
-                    <SelectField
-                        label={t('layers.linetype')}
-                        value={current.linetype}
-                        options={linetypes}
-                        disabled={busy}
-                        onCommit={(linetype) => onUpdate(current.id, { linetype: linetype as Linetype })}
-                    />
-                    <SelectField
-                        label={t('layers.lineweight')}
-                        value={String(current.lineweight)}
-                        options={lineweights}
-                        disabled={busy}
-                        onCommit={(lineweight) => onUpdate(current.id, { lineweight: Number(lineweight) as Lineweight })}
-                    />
-                    <TextField
-                        key={`transparency:${current.id}:${current.transparency}`}
-                        label={t('layers.transparency')}
-                        title={t('layers.transparencyTitle', { max: MAX_LAYER_TRANSPARENCY })}
-                        value={String(current.transparency)}
-                        disabled={busy}
-                        number={{ min: 0, max: MAX_LAYER_TRANSPARENCY }}
-                        onCommit={(text) => {
-                            const transparency = Number(text);
-                            if (text.trim() !== '' && Number.isFinite(transparency)) {
-                                onUpdate(current.id, { transparency });
-                            }
-                        }}
-                    />
-                    <TextField
-                        key={`description:${current.id}:${current.description}`}
-                        label={t('layers.description')}
-                        value={current.description}
-                        disabled={busy}
-                        maxLength={MAX_LAYER_DESCRIPTION_LENGTH}
-                        onCommit={(description) => onUpdate(current.id, { description })}
-                    />
-                </section>
-            )}
-            <button type="button" className="panel-add-button" disabled={busy} onClick={onAdd}>
-                <PanelIcon name="plus" />
-                {t('layers.add')}
-            </button>
-            <ul className="layer-list" aria-label={t('layers.list')}>
-                {layers.map((layer) => (
-                    <LayerRow
-                        key={layer.id}
-                        layer={layer}
-                        current={layer.id === currentLayerId}
-                        busy={busy}
-                        moving={selection.size > 0}
-                        holdsSelection={selectionLayers.has(layer.id)}
-                        color={displayStrokeColor(layer.color, theme)}
-                        removeBlocker={removeLayerBlocker(document, layer.id, currentLayerId, counts)}
-                        onSetCurrent={onSetCurrent}
-                        onUpdate={onUpdate}
-                        onRemove={onRemove}
-                        onMoveSelection={onMoveSelection}
-                    />
-                ))}
-            </ul>
-            <StyleSection
-                document={document}
-                busy={busy}
-                theme={theme}
-                linetypes={linetypes}
-                lineweights={lineweights}
-                onAdd={onAddStyle}
-                onUpdate={onUpdateStyle}
-                onRemove={onRemoveStyle}
-            />
-        </>
+        </div>
     );
 }
 
@@ -307,7 +274,6 @@ function LayerRow({ layer, current, busy, moving, holdsSelection, color, removeB
                 title={t(moving ? 'layers.moveSelection' : 'layers.makeCurrent', { name })}
                 onClick={() => (moving ? onMoveSelection(id) : onSetCurrent(id))}
             >
-                <span className="layer-row-marker">{current && <PanelIcon name="check" size={14} />}</span>
                 <span className="layer-swatch" style={{ background: color }} />
                 <span className="layer-row-name">{name}</span>
             </button>
@@ -323,6 +289,7 @@ function LayerRow({ layer, current, busy, moving, holdsSelection, color, removeB
                 icon={layer.locked ? 'lock' : 'unlock'}
                 label={t(layer.locked ? 'layers.unlock' : 'layers.lock', { name })}
                 pressed={layer.locked}
+                alert={layer.locked}
                 disabled={busy}
                 blocked={null}
                 onClick={() => onUpdate(id, { locked: !layer.locked })}
