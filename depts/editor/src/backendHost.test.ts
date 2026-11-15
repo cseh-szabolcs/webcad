@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { backendHost } from './backendHost';
+import { backendHost, exitUrl } from './backendHost';
 
-function root(host?: string): HTMLElement {
-    return { dataset: host === undefined ? {} : { backendHost: host } } as unknown as HTMLElement;
+function root(host?: string, exitPath?: string): HTMLElement {
+    const dataset: Record<string, string> = {};
+    if (host !== undefined) dataset.backendHost = host;
+    if (exitPath !== undefined) dataset.exitPath = exitPath;
+    return { dataset } as unknown as HTMLElement;
 }
 
 describe('backendHost', () => {
@@ -22,5 +25,19 @@ describe('backendHost', () => {
         vi.stubEnv('VITE_BACKEND_HOST', 'http://localhost:8080');
         expect(backendHost(root())).toBe('http://localhost:8080');
         expect(backendHost(null)).toBe('http://localhost:8080');
+    });
+});
+
+describe('exitUrl', () => {
+    afterEach(() => vi.unstubAllEnvs());
+
+    it('leads to the path the page names on the backend host', () => {
+        expect(exitUrl(root('http://localhost:8080/', '/en/plans'))).toBe('http://localhost:8080/en/plans');
+    });
+
+    it('falls back to the German plan list', () => {
+        vi.stubEnv('VITE_BACKEND_HOST', '');
+        expect(exitUrl(root())).toBe('/de/plans');
+        expect(exitUrl(null)).toBe('/de/plans');
     });
 });

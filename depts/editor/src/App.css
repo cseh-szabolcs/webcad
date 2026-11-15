@@ -88,6 +88,13 @@
     stroke-linejoin: round;
 }
 
+/* Exit: back to the plan list, the icon before the word like the theme select */
+.toolbar-exit {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
 /* Icon-only toolbar buttons (fullscreen), with the icon centred */
 .toolbar-icon-button {
     display: flex;

@@ -17,6 +17,9 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   Sonne, Mond bzw. Bildschirm als Symbol) und **Sprache** (DE / EN). Jede ist ein Button
   mit dem gewählten Wert und **▾**, ihr Name steht nur im Tooltip. Ein Klick öffnet ein
   Menü nach unten; die Wahl dort schließt es, ebenso **Esc** oder ein Klick daneben.
+  Danach der Button **Exit** (davor ein Pfeil, der aus einem Rahmen nach rechts zeigt): verlässt den Editor und führt zurück zur
+  Planliste (`/de/plans`). Nicht gespeicherte Änderungen gehen dabei verloren (Speichern
+  gibt es noch nicht).
   Ganz rechts der Button **Vollbild** (Symbol mit vier Ecken): zeigt den Editor im
   Vollbild des Browsers. Im Vollbild wechselt er zu **Vollbild beenden** (Ecken nach
   innen); verlassen lässt es sich auch, indem man **Esc gedrückt hält**, oder über den

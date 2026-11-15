@@ -83,6 +83,8 @@ export const de = {
         themeSystem: 'System',
         themeSystemTitle: 'Wie die Systemeinstellung',
         language: 'Sprache',
+        exit: 'Exit',
+        exitTitle: 'Editor verlassen, zurück zur Planliste',
         fullscreen: 'Vollbild',
         fullscreenExit: 'Vollbild beenden',
         fullscreenUnsupported: 'Vollbild – von diesem Browser nicht vollständig unterstützt (Esc würde es beenden)',

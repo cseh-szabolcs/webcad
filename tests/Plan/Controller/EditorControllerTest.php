@@ -30,6 +30,7 @@ final class EditorControllerTest extends WebTestCase
         self::assertSelectorExists('#root[data-plan-id="'.self::PLAN_ID.'"]');
         // EDITOR_BACKEND_HOST of .env.test
         self::assertSelectorExists('#root[data-backend-host="http://backend.test"]');
+        self::assertSelectorExists('#root[data-exit-path="/de/plans"]');
         self::assertSelectorExists('script[type="module"][src="/editor/index.js"]');
         self::assertSelectorExists('link[rel="stylesheet"][href="/editor/index.css"]');
     }

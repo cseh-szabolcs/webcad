@@ -6,7 +6,7 @@ import type { CadDocument } from 'app/cad/model/CadDocument';
 import { currentLanguage, LANGUAGES, setLanguage } from 'app/i18n/i18n';
 import type { Point } from 'app/cad/model/Point';
 import { CadApiClient } from 'app/cad/persistence/CadApiClient';
-import { backendHost } from 'app/backendHost';
+import { backendHost, exitUrl } from 'app/backendHost';
 import { useCollaboration } from 'app/collaboration/useCollaboration';
 import {
     DEFAULT_EDITOR_SETTINGS,
@@ -261,6 +261,18 @@ function App() {
                         }))}
                         onChange={setLanguage}
                     />
+                    <button
+                        type="button"
+                        className="toolbar-exit"
+                        onClick={() => window.location.assign(exitUrl())}
+                        title={t('toolbar.exitTitle')}
+                    >
+                        {/* Leaving a frame: open box on the left, rounded arrow out to the right */}
+                        <svg className="theme-icon" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9" />
+                        </svg>
+                        {t('toolbar.exit')}
+                    </button>
                     {fullscreen.supported && (
                         // aria-disabled instead of disabled, so the tooltip with the reason still shows
                         <button

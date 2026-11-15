@@ -82,6 +82,8 @@ export const en: Translations = {
         themeSystem: 'System',
         themeSystemTitle: 'Like the system setting',
         language: 'Language',
+        exit: 'Exit',
+        exitTitle: 'Leave the editor, back to the plan list',
         fullscreen: 'Full screen',
         fullscreenExit: 'Exit full screen',
         fullscreenUnsupported: 'Full screen – not fully supported by this browser (Esc would end it)',

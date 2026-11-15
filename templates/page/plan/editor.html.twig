@@ -1,7 +1,8 @@
 {#
  # The CAD editor (App\Plan\Controller\EditorController): a bare document without the app layout,
  # the editor takes the whole window. It reads the plan id from data-plan-id and the origin of the
- # API and /socket.io from data-backend-host (EDITOR_BACKEND_HOST; empty: this page's origin).
+ # API and /socket.io from data-backend-host (EDITOR_BACKEND_HOST; empty: this page's origin), and
+ # where its Exit button leads from data-exit-path (on that host).
  #}
 <!DOCTYPE html>
 <html lang="{{ app.request.locale }}">
@@ -14,6 +15,6 @@
         <script type="module" src="{{ asset('editor/index.js') }}"></script>
     </head>
     <body>
-        <div id="root" data-plan-id="{{ planId }}" data-backend-host="{{ backendHost }}"></div>
+        <div id="root" data-plan-id="{{ planId }}" data-backend-host="{{ backendHost }}" data-exit-path="{{ path('plan_list_index') }}"></div>
     </body>
 </html>
