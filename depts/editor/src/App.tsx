@@ -7,6 +7,7 @@ import { currentLanguage, LANGUAGES, setLanguage } from 'app/i18n/i18n';
 import type { Point } from 'app/cad/model/Point';
 import { CadApiClient } from 'app/cad/persistence/CadApiClient';
 import { backendHost, exitUrl } from 'app/backendHost';
+import { defaultTheme } from 'app/defaultTheme';
 import { loadingDelay } from 'app/loadingDelay';
 import { LoadingSkeleton } from 'app/ui/LoadingSkeleton';
 import { useCollaboration } from 'app/collaboration/useCollaboration';
@@ -89,7 +90,7 @@ function App() {
     useEffect(() => {
         saveSwitches({ snap: snapSettings, tracking, objectTracking, grid: gridSettings, dynamicInput, layerPanel });
     }, [snapSettings, tracking, objectTracking, gridSettings, dynamicInput, layerPanel]);
-    const { preference, setPreference, theme } = useTheme();
+    const { preference, setPreference, theme } = useTheme(defaultTheme());
     const fullscreen = useFullscreen();
     const fullscreenTitle = !fullscreen.lockable
         ? 'toolbar.fullscreenUnsupported'

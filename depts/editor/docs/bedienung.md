@@ -1632,11 +1632,14 @@ gibt es noch nicht, das Quadrat ist also immer da.
 
 Rechts in der Toolbar in der Auswahl **Darstellung**:
 
-- **System** (Standard): folgt der Hell-/Dunkel-Einstellung des Betriebssystems, auch
+- **System**: folgt der Hell-/Dunkel-Einstellung des Betriebssystems, auch
   wenn sie sich während der Arbeit ändert.
 - **Hell** bzw. **Dunkel**: feste Wahl, unabhängig vom System.
 
-Der Browser merkt sich die Wahl. Im dunklen Modus werden die Farben des Plans nur für die
+Der Browser merkt sich die Wahl. Solange er keine gemerkt hat, gilt die
+[Einstellung](#einstellungen) `theme` (`'light'` oder `'dark'`), die der Server mit
+`EDITOR_THEME` in der Symfony-`.env` (`light`, `dark`) vorgeben kann; ist beides leer
+(Standard), gilt **System**. Im dunklen Modus werden die Farben des Plans nur für die
 Anzeige angepasst: Dunkle Linien erscheinen hell, helle Füllungen als dezente dunkle
 Töne. Die gespeicherten Farben im Plan ändern sich nicht.
 
@@ -1665,6 +1668,7 @@ und BKS-Symbol, gelesen beim Laden eines Plans:
 
 | Einstellung        | Bedeutung                                                     | AutoCAD      |
 |--------------------|---------------------------------------------------------------|--------------|
+| `theme`            | Darstellung Hell (`'light'`) oder Dunkel (`'dark'`), solange der Browser keine Wahl gemerkt hat; `null` = System | |
 | `crosshairSize`    | Länge der Fadenkreuzlinien in % der größeren Seite der Zeichenfläche; 100 = über die ganze Fläche | CURSORSIZE |
 | `pickboxSize`      | Halbe Kantenlänge der Pickbox in px, zugleich der Trefferbereich | PICKBOX   |
 | `showPickbox`      | Pickbox im Fadenkreuz anzeigen                                |              |

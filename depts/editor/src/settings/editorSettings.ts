@@ -7,6 +7,11 @@ import type { DisplayTheme } from '../cad/renderer/displayColor';
  */
 export interface EditorSettings {
     /**
+     * Light or dark mode while this browser has no choice of its own (toolbar "Display"); null
+     * follows the operating system. EDITOR_THEME (Symfony page) or VITE_THEME override it (see defaultTheme).
+     */
+    theme: DisplayTheme | null;
+    /**
      * Length of the crosshair lines as a percentage of the drawing area's larger side, like
      * AutoCAD's CURSORSIZE (1–100). At 100 the lines run across the whole drawing area.
      */
@@ -105,6 +110,7 @@ export interface EditorSettings {
 }
 
 export const DEFAULT_EDITOR_SETTINGS: Readonly<EditorSettings> = {
+    theme: null,
     crosshairSize: 5,
     pickboxSize: 5,
     showPickbox: true,

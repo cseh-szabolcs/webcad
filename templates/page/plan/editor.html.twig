@@ -3,7 +3,8 @@
  # the editor takes the whole window. It reads the plan id from data-plan-id and the origin of the
  # API and /socket.io from data-backend-host (EDITOR_BACKEND_HOST; empty: this page's origin), and
  # where its Exit button leads from data-exit-path (on that host), and how much longer it shows its
- # loading skeleton from data-loading-delay (ms).
+ # loading skeleton from data-loading-delay (ms), and its light/dark mode from data-default-theme
+ # (EDITOR_THEME; empty: the system's), until the browser remembers a choice.
  #}
 <!DOCTYPE html>
 <html lang="{{ app.request.locale }}">
@@ -16,6 +17,6 @@
         <script type="module" src="{{ asset('editor/index.js') }}"></script>
     </head>
     <body>
-        <div id="root" data-plan-id="{{ planId }}" data-backend-host="{{ backendHost }}" data-exit-path="{{ path('plan_list_index') }}" data-loading-delay="{{ loadingDelay }}"></div>
+        <div id="root" data-plan-id="{{ planId }}" data-backend-host="{{ backendHost }}" data-exit-path="{{ path('plan_list_index') }}" data-loading-delay="{{ loadingDelay }}" data-default-theme="{{ theme }}"></div>
     </body>
 </html>

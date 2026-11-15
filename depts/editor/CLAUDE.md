@@ -458,7 +458,7 @@ last; a new switch or value needs its line in `parseSwitches`.
   name (the command id, `EditorCommand`) to its aliases, the first being the German name
   (`commandNames.ts`: `commandName`, `findCommand`; a name wins over an alias); prompts take it
   as `{{command}}`. Tests run in German (`src/i18n/testSetup.ts`).
-- Light/dark mode: `ui/theme.ts` (`system`/`light`/`dark`, `data-theme` on `<html>` for the CSS
+- Light/dark mode: `ui/theme.ts` (`system`/`light`/`dark`; only a choice made in the toolbar is stored, until then `defaultTheme()` applies (`src/defaultTheme.ts`: `data-default-theme` from `EDITOR_THEME`, else `VITE_THEME`, else the setting `theme`; `null` = system); `data-theme` on `<html>` for the CSS
   tokens in `index.css`). Drawing colours are adapted for display only in
   `cad/renderer/displayColor.ts`; the stored document is never changed. `DARK_CANVAS_BG` there
   must match `--canvas-bg` in `index.css`. Overlay colours are tokens (`--crosshair`,

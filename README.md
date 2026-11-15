@@ -95,6 +95,8 @@ The editor talks to the backend (API under `/api`, collaboration under `/socket.
 | `VITE_BACKEND_HOST`                     | `depts/editor/.env` (`.env.local`, `.env.production`) | at build time, when the page names no host |
 | `EDITOR_LOADING_DELAY_MS`               | Symfony `.env`, `.env.<env>`   | at runtime (`data-loading-delay`): extra ms the loading skeleton stays after the plan arrived |
 | `VITE_LOADING_DELAY_MS`                 | `depts/editor/.env`            | at build time, when the page names no delay (e.g. the Vite dev server) |
+| `EDITOR_THEME`                          | Symfony `.env`, `.env.<env>`   | at runtime (`data-default-theme`): `light` or `dark` until the browser remembers a choice; empty = the system's |
+| `VITE_THEME`                            | `depts/editor/.env`            | at build time, when the page names no theme; empty = the setting `theme` (`DEFAULT_EDITOR_SETTINGS`) |
 
 Empty means the page's own origin (the default in `.env`; dev sets `http://localhost:8080`).
 `EDITOR_BACKEND_HOST` is read on every request, so changing it needs no new build. The web server
