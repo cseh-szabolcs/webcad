@@ -5,11 +5,11 @@ Die Layer sind umgesetzt (siehe `docs/bedienung.md`, „Layer“, und
 
 ## Eigenschaften
 
-- **Linienstärke** (AutoCAD: Lineweight) je Layer: ein Feld `lineweight` am Layer (Backend
-  `Layer`, `LayerDto`, Schema neu), in `layerDisplay` (`src/cad/renderer/elementDisplay.ts`)
-  statt `LAYER_STROKE_WIDTH`. Vorher zu klären: Bildschirmpixel wie bei den Stilen oder mm auf
-  dem Papier.
-- **Überschreibung je Eigenschaft** wie in AutoCAD (Farbe, Linientyp, Transparenz einzeln
+- **Linienstärke ein-/ausblenden** (AutoCAD: Schalter LST, LWDISPLAY) und ihr Anzeigemaßstab
+  (LWSCALE): Sie wird immer gezeichnet, mit `LINEWEIGHT_PX_PER_MM`
+  (`src/cad/renderer/elementDisplay.ts`). Auch „Vorgabe“ (LWDEFAULT) als eigener Wert fehlt: Ein
+  neuer Layer bekommt fest `DEFAULT_LINEWEIGHT`.
+- **Überschreibung je Eigenschaft** wie in AutoCAD (Farbe, Linientyp, Linienstärke, Transparenz einzeln
   VonLayer oder eigen): Heute überschreibt ein `ElementStyle` den Layer als Ganzes
   (`elementDisplay`). Dazu gehört ein Eigenschaften-Panel für die Auswahl und „aktuelle“ Werte
   für neue Objekte (AutoCAD: CECOLOR, CELTYPE).
@@ -22,10 +22,9 @@ Die Layer sind umgesetzt (siehe `docs/bedienung.md`, „Layer“, und
 
 ## Bedienung
 
-- **Objekte auf einen anderen Layer legen** (AutoCAD: Layer-Auswahl bei gewählten Objekten,
-  LAYMCUR, „Layer anpassen“): ein Befehl, der `layerId` der gewählten Elemente setzt
-  (`changedElementIds` = diese Elemente; der Renderer baut dann neu auf, weil sie die
-  Paper.js-Ebene wechseln).
+- **Layer eines anderen Objekts übernehmen** (AutoCAD: LAYMCH „Layer anpassen“, LAYMCUR „Layer
+  des Objekts aktuell machen“): Objekte kommen bisher nur über die Layer-Liste auf einen anderen
+  Layer (`SelectionEditor.moveSelectionToLayer`, `ChangeElementLayerCommand`).
 - **Löschen mit Verschieben:** Ein Layer mit Objekten lässt sich nicht löschen; AutoCADs LAYMRG
   (Objekte auf einen anderen Layer legen, dann löschen) fehlt.
 - **Reihenfolge** der Layer ändern (Ziehen in der Liste) und **Sortieren/Filtern** nach Name: Die
@@ -38,7 +37,7 @@ Die Layer sind umgesetzt (siehe `docs/bedienung.md`, „Layer“, und
   werden Layer nur im Leerlauf, weil LINIE seine Schritte mit `combineLast` zählt
   (`SelectionEditor.layersBusy`).
 - **Mehrere Layer zugleich** wählen und ändern, alle ein-/ausblenden, „Layer isolieren“
-  (LAYISO), „Layer des Objekts aktuell machen“ (LAYMCUR).
+  (LAYISO).
 - **Objekte in der Liste:** Unter jedem Layer seine Objekte zum Anwählen, als Accordion, anfangs
   aufgeklappt.
 - **Aktueller Layer je Plan merken:** Er beginnt nach jedem Laden bei `0`.

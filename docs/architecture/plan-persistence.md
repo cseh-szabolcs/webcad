@@ -17,7 +17,8 @@ Decisions
   to a floor and every `Element` to a layer (both not null). Every floor has a layer `0`, and layer
   names are unique within a floor whatever the case; the editor's `CadSerializer` checks that,
   the backend only that the references exist (`PlanFactory`). A layer carries what its elements
-  are drawn with while they have no style (`color`, `linetype`, `transparency`), a `description`,
+  are drawn with while they have no style (`color`, `linetype`, `lineweight` in 1/100 mm,
+  `transparency`), a `description`,
   and `visible`/`locked`. `Floor` has a UUID key like the other contents, not an integer id.
 - **Versioned:** the contents belong to a `PlanVersion`. A plan always has a **draft**, which the
   editor works on, and after the first publish a **head**. Publishing (the action comes later) is

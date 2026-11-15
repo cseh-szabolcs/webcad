@@ -6,7 +6,7 @@ import type { DocumentChange, DocumentCommand } from './DocumentCommand';
 /** What of a layer can change; its id and its floor stay. */
 export type LayerChanges = Partial<Omit<Layer, 'id' | 'floorId'>>;
 
-/** No element changes itself with its layer: the renderer follows the layer list. */
+/** No element changes itself with a change of its layer's properties: the renderer follows the layer list. */
 const NO_ELEMENTS: readonly Id[] = [];
 
 /** Adds a layer on top of the others. */
@@ -94,5 +94,55 @@ export class RemoveLayerCommand implements DocumentCommand {
             return { document: doc, changedElementIds: NO_ELEMENTS };
         }
         return { document: { ...doc, layers: doc.layers.toSpliced(removed.index, 0, removed.layer) }, changedElementIds: NO_ELEMENTS };
+    }
+}
+
+/**
+ * Puts elements on another layer, like choosing a layer in AutoCAD while objects are selected.
+ * Those already there or gone stay as they are, and so does everything if the layer is gone.
+ * `undo` puts each back on the layer it came from, where that still exists.
+ */
+export class ChangeElementLayerCommand implements DocumentCommand {
+    readonly label = 'LAYER';
+    readonly layerId: Id;
+    private readonly elementIds: ReadonlySet<Id>;
+    /** The layer each moved element was on before the last run. */
+    private previous: ReadonlyMap<Id, Id> = new Map();
+
+    constructor(elementIds: Iterable<Id>, layerId: Id) {
+        this.elementIds = new Set(elementIds);
+        this.layerId = layerId;
+    }
+
+    execute(doc: CadDocument): DocumentChange {
+        const previous = new Map<Id, Id>();
+        this.previous = previous;
+        if (!doc.layers.some((layer) => layer.id === this.layerId)) {
+            return { document: doc, changedElementIds: NO_ELEMENTS };
+        }
+        const elements = doc.elements.map((element) => {
+            if (!this.elementIds.has(element.id) || element.layerId === this.layerId) {
+                return element;
+            }
+            previous.set(element.id, element.layerId);
+            return { ...element, layerId: this.layerId };
+        });
+        return previous.size === 0
+            ? { document: doc, changedElementIds: NO_ELEMENTS }
+            : { document: { ...doc, elements }, changedElementIds: [...previous.keys()] };
+    }
+
+    undo(doc: CadDocument): DocumentChange {
+        const layerIds = new Set(doc.layers.map((layer) => layer.id));
+        const back: Id[] = [];
+        const elements = doc.elements.map((element) => {
+            const layerId = this.previous.get(element.id);
+            if (layerId === undefined || element.layerId !== this.layerId || !layerIds.has(layerId)) {
+                return element;
+            }
+            back.push(element.id);
+            return { ...element, layerId };
+        });
+        return back.length === 0 ? { document: doc, changedElementIds: NO_ELEMENTS } : { document: { ...doc, elements }, changedElementIds: back };
     }
 }

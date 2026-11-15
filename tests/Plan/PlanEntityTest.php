@@ -42,7 +42,7 @@ final class PlanEntityTest extends KernelTestCase
         $draft = $plan->getDraft();
         $floor = new Floor(Uuid::v7(), $draft, 0, 'Erdgeschoss');
         $walls = new Layer(Uuid::v7(), $draft, $floor, 0, 'Walls');
-        $hidden = new Layer(Uuid::v7(), $draft, $floor, 1, 'Hidden', visible: false, locked: true, color: '#dc2626', linetype: Linetype::DashDot, transparency: 40, description: 'Hilfslinien');
+        $hidden = new Layer(Uuid::v7(), $draft, $floor, 1, 'Hidden', visible: false, locked: true, color: '#dc2626', linetype: Linetype::DashDot, transparency: 40, lineweight: 50, description: 'Hilfslinien');
         $door = new Group(Uuid::v7(), $draft, 'Door D1');
         $dashed = new ElementStyle(Uuid::v7(), $draft, 'Dashed', '#374151', 1.0, [8.0, 4.0], '#f3f4f6');
         $a = new Vertex(Uuid::v7(), $draft, 0.0, 0.0);
@@ -88,7 +88,7 @@ final class PlanEntityTest extends KernelTestCase
         self::assertSame('Walls', $polyline->getLayer()->getName());
         self::assertSame('Erdgeschoss', $polyline->getLayer()->getFloor()->getName());
         // A layer starts with the defaults of a new one
-        self::assertSame(['#000000', Linetype::Continuous, 0, ''], [$polyline->getLayer()->getColor(), $polyline->getLayer()->getLinetype(), $polyline->getLayer()->getTransparency(), $polyline->getLayer()->getDescription()]);
+        self::assertSame(['#000000', Linetype::Continuous, 0, 25, ''], [$polyline->getLayer()->getColor(), $polyline->getLayer()->getLinetype(), $polyline->getLayer()->getTransparency(), $polyline->getLayer()->getLineweight(), $polyline->getLayer()->getDescription()]);
         self::assertFalse($polyline->isClosed());
         self::assertSame([0.0, 0.5, -1.0, 0.0], $polyline->getBulges());
 
@@ -101,7 +101,7 @@ final class PlanEntityTest extends KernelTestCase
         self::assertSame('Door D1', $arc->getGroup()->getName());
         self::assertFalse($arc->getLayer()->isVisible());
         self::assertTrue($arc->getLayer()->isLocked());
-        self::assertSame(['#dc2626', Linetype::DashDot, 40, 'Hilfslinien'], [$arc->getLayer()->getColor(), $arc->getLayer()->getLinetype(), $arc->getLayer()->getTransparency(), $arc->getLayer()->getDescription()]);
+        self::assertSame(['#dc2626', Linetype::DashDot, 40, 50, 'Hilfslinien'], [$arc->getLayer()->getColor(), $arc->getLayer()->getLinetype(), $arc->getLayer()->getTransparency(), $arc->getLayer()->getLineweight(), $arc->getLayer()->getDescription()]);
 
         self::assertSame(600.0, $circle->getRadius());
         self::assertSame([1000.0, 700.0, 0.5], [$ellipse->getRadiusX(), $ellipse->getRadiusY(), $ellipse->getRotation()]);

@@ -76,7 +76,7 @@ final readonly class PlanFactory
         $layers = [];
         foreach ($document->layers as $position => $layer) {
             $floor = $floors[$layer->floorId] ?? throw new \InvalidArgumentException(\sprintf('Layer "%s" refers to unknown floor "%s".', $layer->id, $layer->floorId));
-            $layers[$layer->id] = $this->persist(new Entity\Layer(Uuid::v7(), $version, $floor, $position, $layer->name, $layer->visible, $layer->locked, $layer->color, $layer->linetype, $layer->transparency, $layer->description));
+            $layers[$layer->id] = $this->persist(new Entity\Layer(Uuid::v7(), $version, $floor, $position, $layer->name, $layer->visible, $layer->locked, $layer->color, $layer->linetype, $layer->transparency, $layer->lineweight, $layer->description));
         }
 
         $groups = [];

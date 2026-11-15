@@ -43,6 +43,8 @@ const DEV_PLAN_ID = '01994f4e-6f3a-7c2d-9b1e-5a3c2d1e0f42';
 
 const api = new CadApiClient();
 
+const NO_SELECTION: ReadonlySet<string> = new Set();
+
 const THEME_OPTIONS = [
     { value: 'light', label: 'toolbar.themeLight', title: 'toolbar.themeLightTitle' },
     { value: 'dark', label: 'toolbar.themeDark', title: 'toolbar.themeDarkTitle' },
@@ -307,11 +309,13 @@ function App() {
                         history={history}
                         currentLayerId={selection?.currentLayerId ?? null}
                         busy={selection?.command != null}
+                        selection={selection?.command === null ? selection.highlighted : NO_SELECTION}
                         theme={theme}
                         onSetCurrent={(id) => canvasRef.current?.setCurrentLayer(id)}
                         onAdd={() => canvasRef.current?.addLayer()}
                         onUpdate={(id, changes) => canvasRef.current?.updateLayer(id, changes)}
                         onRemove={(id) => canvasRef.current?.removeLayer(id)}
+                        onMoveSelection={(id) => canvasRef.current?.moveSelectionToLayer(id)}
                     />
                 </SidePanel>
             </div>

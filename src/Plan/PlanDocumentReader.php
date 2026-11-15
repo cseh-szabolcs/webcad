@@ -69,6 +69,7 @@ final readonly class PlanDocumentReader
                     $l->getColor(),
                     $l->getLinetype(),
                     $l->getTransparency(),
+                    $l->getLineweight(),
                     $l->getDescription(),
                 ),
                 $this->layers->findByPlanVersion($version),

@@ -13,15 +13,26 @@ export const LINETYPE_DASHES: Readonly<Record<Linetype, readonly number[]>> = {
     dashDot: [12, 4, 1, 4],
 };
 
-/** Stroke width in screen px of what is drawn by its layer, which has no lineweight yet. */
-const LAYER_STROKE_WIDTH = 1;
+/**
+ * Screen px per mm of lineweight: like AutoCAD's model space, a lineweight shows in pixels in
+ * proportion to its value, whatever the zoom. The default 0.25 mm is one pixel.
+ */
+export const LINEWEIGHT_PX_PER_MM = 4;
+
+/** The thinnest a line is drawn, in screen px: lineweights below 0.25 mm show like it. */
+const MIN_STROKE_WIDTH = 1;
+
+/** Stroke width in screen px of a lineweight (in 1/100 mm, see LINEWEIGHTS). */
+export function lineweightStroke(lineweight: number): number {
+    return Math.max(MIN_STROKE_WIDTH, (lineweight / 100) * LINEWEIGHT_PX_PER_MM);
+}
 
 /** For elements of a layer the document does not know. */
 export const DEFAULT_STYLE: ElementStyle = {
     id: '__default',
     name: 'Default',
     strokeColor: '#000000',
-    strokeWidth: LAYER_STROKE_WIDTH,
+    strokeWidth: MIN_STROKE_WIDTH,
     dashPattern: [],
     fillColor: null,
 };
@@ -33,8 +44,8 @@ export interface ElementDisplay {
 }
 
 /**
- * How `layer` draws what has no style of its own (AutoCAD's ByLayer): in its colour and linetype,
- * without a fill, see-through by its transparency.
+ * How `layer` draws what has no style of its own (AutoCAD's ByLayer): in its colour, linetype and
+ * lineweight, without a fill, see-through by its transparency.
  */
 export function layerDisplay(layer: Layer | undefined): ElementDisplay {
     if (!layer) {
@@ -45,7 +56,7 @@ export function layerDisplay(layer: Layer | undefined): ElementDisplay {
             id: layer.id,
             name: layer.name,
             strokeColor: layer.color,
-            strokeWidth: LAYER_STROKE_WIDTH,
+            strokeWidth: lineweightStroke(layer.lineweight),
             dashPattern: [...LINETYPE_DASHES[layer.linetype]],
             fillColor: null,
         },

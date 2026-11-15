@@ -278,6 +278,8 @@ export const en: Translations = {
         name: 'Name',
         color: 'Color',
         linetype: 'Linetype',
+        lineweight: 'Lineweight',
+        lineweightValue: '{{value}} mm',
         transparency: 'Transparency',
         transparencyTitle: 'Transparency in percent, from 0 (opaque) to {{max}}',
         description: 'Description',
@@ -289,6 +291,9 @@ export const en: Translations = {
         hide: 'Hide layer "{{name}}"',
         lock: 'Lock layer "{{name}}"',
         unlock: 'Unlock layer "{{name}}"',
+        moveSelection: 'Move the selection to layer "{{name}}"',
+        moved: '{{count}} moved to layer "{{name}}".',
+        movedHidden: '{{count}} moved to the hidden layer "{{name}}".',
         newName: 'Layer',
         linetypes: {
             continuous: 'Continuous',

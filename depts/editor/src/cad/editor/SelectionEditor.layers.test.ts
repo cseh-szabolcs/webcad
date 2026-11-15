@@ -112,6 +112,7 @@ describe('SelectionEditor layer changes', () => {
             color: '#000000',
             linetype: 'continuous',
             transparency: 0,
+            lineweight: 25,
             description: '',
         });
         expect(editor.snapshot.currentLayerId).toBe(id);
@@ -125,10 +126,11 @@ describe('SelectionEditor layer changes', () => {
 
     it('changes properties as one undo step, tidied', () => {
         const { editor, history } = setup();
-        expect(editor.updateLayer(L.walls, { name: '  Wände ', color: '#FF0000', linetype: 'dashDot', transparency: 120.4, description: 'tragend' })).toBe(true);
-        expect(layerOf(history, L.walls)).toMatchObject({ name: 'Wände', color: '#ff0000', linetype: 'dashDot', transparency: 90, description: 'tragend' });
+        const changes = { name: '  Wände ', color: '#FF0000', linetype: 'dashDot', transparency: 120.4, lineweight: 100, description: 'tragend' } as const;
+        expect(editor.updateLayer(L.walls, changes)).toBe(true);
+        expect(layerOf(history, L.walls)).toMatchObject({ name: 'Wände', color: '#ff0000', linetype: 'dashDot', transparency: 90, lineweight: 100, description: 'tragend' });
         expect(editor.undo()).toBe(true);
-        expect(layerOf(history, L.walls)).toMatchObject({ name: 'Walls', color: '#1f2937', linetype: 'continuous', transparency: 0, description: '' });
+        expect(layerOf(history, L.walls)).toMatchObject({ name: 'Walls', color: '#1f2937', linetype: 'continuous', transparency: 0, lineweight: 50, description: '' });
         expect(editor.snapshot.canUndo).toBe(false);
     });
 
@@ -192,6 +194,59 @@ describe('SelectionEditor layer changes', () => {
         expect(editor.updateLayer(L.walls, { visible: false })).toBe(false);
         expect(editor.removeLayer(L.walls)).toBe(false);
         expect(editor.snapshot.message).toBe(BUSY);
+        expect(history.document).toBe(before);
+    });
+});
+
+describe('SelectionEditor: the selection on another layer', () => {
+    /** On the sofa's outline, away from its corners; on the window, a line. */
+    const SOFA = { x: 1600, y: 2600 };
+    const WINDOW = { x: 4250, y: 3880 };
+    const elementLayer = (history: DocumentHistory, id: string) => history.document.elements.find((element) => element.id === id)!.layerId;
+    const pick = (editor: SelectionEditor, point: Point) => {
+        editor.pointerMove(at(point));
+        editor.pointerDown(at(point));
+        editor.pointerUp(at(point));
+    };
+
+    it('puts the selected objects on the layer as one undo step, and keeps them selected and the current layer', () => {
+        const { editor, history } = setup();
+        pick(editor, SOFA);
+        pick(editor, WINDOW);
+        expect(editor.moveSelectionToLayer(L.walls)).toBe(true);
+        expect([sampleIds.element.sofa, sampleIds.element.window].map((id) => elementLayer(history, id))).toEqual([L.walls, L.walls]);
+        expect(editor.snapshot).toMatchObject({ currentLayerId: L['0'], message: '2 auf den Layer „Walls“ gelegt.' });
+        expect(editor.snapshot.highlighted).toEqual(new Set([sampleIds.element.sofa, sampleIds.element.window]));
+        expect(editor.undo()).toBe(true);
+        expect(history.document).toEqual(parseDocument(samplePlan));
+        expect(editor.snapshot.canUndo).toBe(false);
+    });
+
+    it('makes no step where the objects are on the layer already', () => {
+        const { editor } = setup();
+        pick(editor, SOFA);
+        expect(editor.moveSelectionToLayer(L.furniture)).toBe(true);
+        expect(editor.snapshot).toMatchObject({ canUndo: false, message: '0 auf den Layer „Furniture“ gelegt.' });
+    });
+
+    it('says so when the layer is hidden, where the objects cannot stay selected', () => {
+        const { editor, history } = setup();
+        editor.updateLayer(L.walls, { visible: false });
+        pick(editor, SOFA);
+        expect(editor.moveSelectionToLayer(L.walls)).toBe(true);
+        expect(elementLayer(history, sampleIds.element.sofa)).toBe(L.walls);
+        expect(editor.snapshot.message).toBe('1 auf den ausgeblendeten Layer „Walls“ gelegt.');
+        expect(editor.snapshot.highlighted.size).toBe(0);
+    });
+
+    it('does nothing without a selection, for an unknown layer or while a command runs', () => {
+        const { editor, history } = setup();
+        const before = history.document;
+        expect(editor.moveSelectionToLayer(L.walls)).toBe(false);
+        pick(editor, SOFA);
+        expect(editor.moveSelectionToLayer('nope')).toBe(false);
+        editor.startCommand('MOVE');
+        expect(editor.moveSelectionToLayer(L.walls)).toBe(false);
         expect(history.document).toBe(before);
     });
 });

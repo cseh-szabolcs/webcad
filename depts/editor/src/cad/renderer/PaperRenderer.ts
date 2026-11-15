@@ -89,8 +89,7 @@ export class PaperRenderer {
      * Follows a document change that touched the given elements: replaces their items in place,
      * removes those of elements that are gone and adds new ones at their place in the drawing
      * order; the other items stay. Changed layers are followed first (see updateLayers). Falls
-     * back to setDocument() if that cannot be done, an element changed its layer or the ids do not
-     * cover the change.
+     * back to setDocument() if that cannot be done or the ids do not cover the change.
      */
     updateElements(doc: CadDocument, ids: Iterable<Id>): void {
         this.scope.activate();
@@ -99,7 +98,17 @@ export class PaperRenderer {
             this.setDocument(doc);
             return;
         }
-        const steps = planSceneUpdate(doc, index, this.items, ids);
+        // An element put on another layer goes, and comes back as a new one at its place there
+        const changed = [...ids];
+        for (const id of changed) {
+            const item = this.items.get(id);
+            const element = index.elements.get(id);
+            if (item && element && item.parent !== this.layerFor(element.layerId)) {
+                item.remove();
+                this.items.delete(id);
+            }
+        }
+        const steps = planSceneUpdate(doc, index, this.items, changed);
         if (steps === 'rebuild') {
             this.setDocument(doc);
             return;

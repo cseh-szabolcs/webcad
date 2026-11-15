@@ -44,6 +44,9 @@ class Layer
         /** In percent, 0 (opaque) to 90. */
         #[ORM\Column(type: Types::SMALLINT)]
         private int $transparency = 0,
+        /** In 1/100 mm, one of AutoCAD's lineweights (LayerDto::LINEWEIGHTS). */
+        #[ORM\Column(type: Types::SMALLINT)]
+        private int $lineweight = 25,
         #[ORM\Column(length: 255)]
         private string $description = '',
     ) {
@@ -97,6 +100,11 @@ class Layer
     public function getTransparency(): int
     {
         return $this->transparency;
+    }
+
+    public function getLineweight(): int
+    {
+        return $this->lineweight;
     }
 
     public function getDescription(): string

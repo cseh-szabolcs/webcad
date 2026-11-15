@@ -44,6 +44,8 @@ export interface CadCanvasHandle {
     addLayer(): void;
     updateLayer(id: Id, changes: LayerChanges): void;
     removeLayer(id: Id): void;
+    /** Puts the selection on that layer. */
+    moveSelectionToLayer(id: Id): void;
 }
 
 interface CadCanvasProps {
@@ -174,6 +176,7 @@ export function CadCanvas({
         addLayer: () => editorRef.current?.addLayer(),
         updateLayer: (id, changes) => editorRef.current?.updateLayer(id, changes),
         removeLayer: (id) => editorRef.current?.removeLayer(id),
+        moveSelectionToLayer: (id) => editorRef.current?.moveSelectionToLayer(id),
     }));
 
     useEffect(() => {

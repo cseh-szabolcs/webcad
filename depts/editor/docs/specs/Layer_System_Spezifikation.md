@@ -32,6 +32,7 @@ interface Layer {
   color: string;          // "#rrggbb"
   linetype: 'continuous' | 'dashed' | 'hidden' | 'center' | 'dot' | 'dashDot';
   transparency: number;   // 0 (deckend) bis 90, in Prozent
+  lineweight: number;     // in 1/100 mm wie DXF, einer der Werte von AutoCAD
   description: string;    // freier Text, leer für keinen
 }
 ```
@@ -42,7 +43,7 @@ obenauf. (AutoCAD kennt keine Reihenfolge der Layer; sie stammt aus dem bisherig
 ### Werte eines neuen Layers
 
 `visible: true`, `locked: false`, `color: "#000000"`, `linetype: "continuous"`,
-`transparency: 0`, `description: ""`. Schwarz wird auf dunklem Hintergrund hell gezeichnet, wie
+`transparency: 0`, `lineweight: 25` (0,25 mm, AutoCADs Vorgabe), `description: ""`. Schwarz wird auf dunklem Hintergrund hell gezeichnet, wie
 AutoCADs Farbe 7 (Weiß/Schwarz je nach Hintergrund). Der Name ist der nächste freie aus
 `Layer1`, `Layer2`, …
 
@@ -93,15 +94,20 @@ Objekte lassen sich darauf zeichnen, wie in AutoCAD.
 Ein Objekt hat einen optionalen Stil (`styleId`, ein `ElementStyle` mit Strichfarbe,
 Strichstärke, Strichmuster und Füllung).
 
-- **Ohne Stil** (`styleId: null`) zeichnet das Objekt VonLayer: mit Farbe, Linientyp und
-  Transparenz seines Layers, Strichstärke 1 px, ohne Füllung. Neue Objekte haben keinen Stil.
+- **Ohne Stil** (`styleId: null`) zeichnet das Objekt VonLayer: mit Farbe, Linientyp,
+  Linienstärke und Transparenz seines Layers, ohne Füllung. Neue Objekte haben keinen Stil.
 - **Mit Stil** zeichnet es ganz nach dem Stil; der Layer wirkt dann nicht auf sein Aussehen.
 
-AutoCAD überschreibt je Eigenschaft (Farbe, Linientyp, Transparenz einzeln VonLayer oder
+AutoCAD überschreibt je Eigenschaft (Farbe, Linientyp, Linienstärke, Transparenz einzeln VonLayer oder
 eigen); das ist hier noch nicht möglich.
 
 - **Linientyp:** Strichmuster in Bildschirmpixeln, unabhängig vom Zoom (wie die Strichmuster der
   Stile): durchgezogen, gestrichelt, verdeckt, Mitte, Punkt, Strichpunkt.
+- **Linienstärke:** AutoCADs feste Werte 0,00 / 0,05 / 0,09 / 0,13 / 0,15 / 0,18 / 0,20 / 0,25 /
+  0,30 / 0,35 / 0,40 / 0,50 / 0,53 / 0,60 / 0,70 / 0,80 / 0,90 / 1,00 / 1,06 / 1,20 / 1,40 / 1,58 /
+  2,00 / 2,11 mm, gespeichert in 1/100 mm. Wie in AutoCADs Modellbereich wird sie in
+  Bildschirmpixeln im Verhältnis zum Wert gezeichnet, unabhängig vom Zoom (0,25 mm = 1 px, nie
+  dünner); die mm zählen beim Plotten. Sie wird immer angezeigt (AutoCAD: Schalter LST).
 - **Transparenz:** Deckkraft `1 − transparency / 100`.
 - **Farbe:** `#rrggbb`. ACI-Farben (AutoCAD Color Index) kommen mit dem DXF-Import.
 
@@ -114,8 +120,11 @@ Ein Panel rechts neben der Zeichenfläche, wie die Seitenleiste von Visual Studi
 - Seine Breite lässt sich am linken Rand ziehen, zwischen den Einstellungen
   `layerPanelMinWidth` und `layerPanelMaxWidth`; Startbreite `layerPanelWidth`.
 - Inhalt: oben der aktuelle Layer mit seinen Einstellungen (Name, Farbe, Linientyp,
-  Transparenz, Beschreibung), darunter **+ Layer hinzufügen**, darunter die Layer des Stockwerks
-  (ein Klick macht einen aktuell; je Zeile Sichtbar, Gesperrt, Löschen).
+  Linienstärke, Transparenz, Beschreibung), darunter **+ Layer hinzufügen**, darunter die Layer
+  des Stockwerks (ein Klick macht einen aktuell; je Zeile Sichtbar, Gesperrt, Löschen).
+- **Objekte auf einen anderen Layer legen** wie in AutoCADs Layer-Liste: Sind Objekte gewählt,
+  legt der Klick auf einen Layer die Auswahl dorthin statt ihn aktuell zu machen; der aktuelle
+  Layer und die Auswahl bleiben. Die Liste markiert die Layer der gewählten Objekte.
 
 Später zeigt die Liste unter jedem Layer seine Objekte zum Anwählen (Accordion, anfangs
 aufgeklappt).
@@ -137,8 +146,9 @@ aufgeklappt).
 - Modell und Regeln: `src/cad/model/Layer.ts`, `src/cad/model/Floor.ts`,
   `src/cad/editor/layers.ts` (Namen, Löschen, aktueller Layer; pur und getestet).
 - Befehle: `src/cad/editor/commands/LayerCommands.ts` (`AddLayerCommand`,
-  `UpdateLayerCommand`, `RemoveLayerCommand`); der Editor-Kern prüft die Regeln
-  (`SelectionEditor.addLayer`, `updateLayer`, `removeLayer`, `setCurrentLayer`).
+  `UpdateLayerCommand`, `RemoveLayerCommand`, `ChangeElementLayerCommand`); der Editor-Kern prüft
+  die Regeln (`SelectionEditor.addLayer`, `updateLayer`, `removeLayer`, `setCurrentLayer`,
+  `moveSelectionToLayer`).
 - Darstellung: `src/cad/renderer/elementDisplay.ts` (VonLayer), `PaperRenderer.updateLayers`.
 - Panel: `src/ui/SidePanel.tsx`, `src/ui/LayerPanel.tsx`.
 - Backend: `src/Plan/Entity/Floor.php`, `Layer.php`, die DTOs in `src/Plan/Dto`.

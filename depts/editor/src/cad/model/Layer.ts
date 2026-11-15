@@ -14,6 +14,22 @@ export const DEFAULT_LAYER_NAME = '0';
 /** A layer's transparency goes from 0 (opaque) up to this, in percent, like AutoCAD's. */
 export const MAX_LAYER_TRANSPARENCY = 90;
 
+/** A lineweight in 1/100 mm like DXF: one of AutoCAD's. */
+export type Lineweight = Layer['lineweight'];
+
+/** AutoCAD's lineweights, thinnest first. */
+export const LINEWEIGHTS = [
+    0, 5, 9, 13, 15, 18, 20, 25, 30, 35, 40, 50, 53, 60, 70, 80, 90, 100, 106, 120, 140, 158, 200, 211,
+] as const satisfies readonly Lineweight[];
+
+/** The lineweight of a new layer: 0.25 mm, AutoCAD's default (LWDEFAULT). */
+export const DEFAULT_LINEWEIGHT: Lineweight = 25;
+
+/** Whether `value` (1/100 mm) is one of AutoCAD's lineweights. */
+export function isLineweight(value: number): value is Lineweight {
+    return (LINEWEIGHTS as readonly number[]).includes(value);
+}
+
 /** Longest description of a layer. */
 export const MAX_LAYER_DESCRIPTION_LENGTH = 255;
 
@@ -26,7 +42,7 @@ export const HEX_COLOR = /^#[0-9a-f]{6}$/i;
  */
 export const DEFAULT_LAYER_COLOR = '#000000';
 
-/** A layer as AutoCAD makes a new one: shown, unlocked, continuous lines, opaque. */
+/** A layer as AutoCAD makes a new one: shown, unlocked, continuous lines of the default weight, opaque. */
 export function newLayer(id: Id, floorId: Id, name: string): Layer {
     return {
         id,
@@ -37,6 +53,7 @@ export function newLayer(id: Id, floorId: Id, name: string): Layer {
         color: DEFAULT_LAYER_COLOR,
         linetype: 'continuous',
         transparency: 0,
+        lineweight: DEFAULT_LINEWEIGHT,
         description: '',
     };
 }

@@ -72,7 +72,7 @@ function sceneLayer(element: CadElement, index: DocumentIndex): Id | null {
 /**
  * One change to the layers of the rendered scene: an empty layer goes; a new one goes below
  * `belowId`, or on top of all for null; a layer is shown or hidden; or its elements are drawn
- * anew, as its colour, linetype or transparency changed.
+ * anew, as its colour, linetype, lineweight or transparency changed.
  */
 export type LayerStep =
     | { kind: 'remove'; id: Id }
@@ -120,7 +120,12 @@ export function planLayerUpdate(
         if (layer.visible !== previous.visible) {
             steps.push({ kind: 'show', id: layer.id, visible: layer.visible });
         }
-        if (layer.color !== previous.color || layer.linetype !== previous.linetype || layer.transparency !== previous.transparency) {
+        if (
+            layer.color !== previous.color ||
+            layer.linetype !== previous.linetype ||
+            layer.lineweight !== previous.lineweight ||
+            layer.transparency !== previous.transparency
+        ) {
             steps.push({ kind: 'restyle', id: layer.id });
         }
     }

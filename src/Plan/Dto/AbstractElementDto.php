@@ -26,7 +26,7 @@ abstract readonly class AbstractElementDto implements ElementDtoInterface
         public string $layerId,
         #[OA\Property(description: 'Group of the element; null for none.', format: 'uuid')]
         public ?string $groupId,
-        #[OA\Property(description: 'Style of the element; null to draw it with the colour, linetype and transparency of its layer.', format: 'uuid')]
+        #[OA\Property(description: 'Style of the element; null to draw it with the colour, linetype, lineweight and transparency of its layer.', format: 'uuid')]
         public ?string $styleId,
         #[OA\Property(description: 'Optional display name; the id stays the identity.', example: 'Door swing')]
         public ?string $name = null,

@@ -3,7 +3,7 @@ import { indexDocument } from '../model/DocumentIndex';
 import { parseDocument } from '../persistence/CadSerializer';
 import samplePlan from '../__fixtures__/sample-plan.json';
 import { sampleIds } from '../__fixtures__/sampleIds';
-import { DEFAULT_STYLE, elementDisplay, layerDisplay, LINETYPE_DASHES } from './elementDisplay';
+import { DEFAULT_STYLE, elementDisplay, layerDisplay, lineweightStroke, LINETYPE_DASHES } from './elementDisplay';
 
 const { element: E, layer: L, style: S } = sampleIds;
 const doc = parseDocument(samplePlan);
@@ -26,6 +26,16 @@ describe('elementDisplay', () => {
         const display = elementDisplay(element(E.window), changed);
         expect(display.style.dashPattern).toEqual(LINETYPE_DASHES.center);
         expect(display.opacity).toBeCloseTo(0.6);
+    });
+
+    it('draws the lineweight of the layer in pixels, whatever the zoom', () => {
+        const changed = indexDocument({
+            ...doc,
+            layers: doc.layers.map((layer) => (layer.id === L.openings ? { ...layer, lineweight: 100 } : layer)),
+        });
+        expect(elementDisplay(element(E.window), changed).style.strokeWidth).toBe(4);
+        // The default is one pixel, and nothing is thinner
+        expect([0, 13, 25, 50, 211].map(lineweightStroke)).toEqual([1, 1, 1, 2, 8.44]);
     });
 
     it('lets the style of an element override its layer as a whole', () => {

@@ -76,6 +76,7 @@ final class PlanFactoryTest extends KernelTestCase
         $layers = $this->entitiesOf(Entity\Layer::class, $plan, ['position' => 'ASC']);
         self::assertSame(['0', 'Walls', 'Doors & windows', 'Furniture'], array_map(static fn (Entity\Layer $l): string => $l->getName(), $layers));
         self::assertSame(['#000000', '#1f2937', '#374151', '#2563eb'], array_map(static fn (Entity\Layer $l): string => $l->getColor(), $layers));
+        self::assertSame([25, 50, 25, 25], array_map(static fn (Entity\Layer $l): int => $l->getLineweight(), $layers));
 
         $floors = $this->entitiesOf(Entity\Floor::class, $plan, ['position' => 'ASC']);
         self::assertSame(['Ground floor'], array_map(static fn (Entity\Floor $f): string => $f->getName(), $floors));

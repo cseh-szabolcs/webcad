@@ -93,7 +93,7 @@ describe('planLayerUpdate', () => {
     });
 
     it('shows or hides a layer and draws the elements of a changed one anew', () => {
-        const after = [{ ...zero, visible: false }, { ...walls, color: '#ff0000' }, { ...furniture, visible: false, transparency: 50 }];
+        const after = [{ ...zero, visible: false }, { ...walls, lineweight: 50 as const }, { ...furniture, visible: false, transparency: 50 }];
         expect(planLayerUpdate(LAYERS, after, () => true)).toEqual([
             { kind: 'show', id: '0', visible: false },
             { kind: 'restyle', id: 'walls' },

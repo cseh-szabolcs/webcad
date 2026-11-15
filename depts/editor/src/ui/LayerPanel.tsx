@@ -3,7 +3,17 @@ import { useTranslation } from 'react-i18next';
 import type { DocumentHistory } from 'app/cad/editor/commands/DocumentHistory';
 import type { LayerChanges } from 'app/cad/editor/commands/LayerCommands';
 import { floorLayers, layerElementCounts, layerNameError, MAX_LAYER_NAME_LENGTH, removeLayerBlocker } from 'app/cad/editor/layers';
-import { isDefaultLayer, LINETYPES, MAX_LAYER_DESCRIPTION_LENGTH, MAX_LAYER_TRANSPARENCY, type Layer, type Linetype } from 'app/cad/model/Layer';
+import {
+    isDefaultLayer,
+    LINETYPES,
+    LINEWEIGHTS,
+    MAX_LAYER_DESCRIPTION_LENGTH,
+    MAX_LAYER_TRANSPARENCY,
+    type Layer,
+    type Linetype,
+    type Lineweight,
+} from 'app/cad/model/Layer';
+import { currentLanguage } from 'app/i18n/i18n';
 import type { Id } from 'app/cad/model/Point';
 import { displayStrokeColor, type DisplayTheme } from 'app/cad/renderer/displayColor';
 import { PanelIcon, type PanelIconName } from './PanelIcon';
@@ -15,26 +25,53 @@ interface LayerPanelProps {
     currentLayerId: Id | null;
     /** A command runs: the layers cannot change, only the current one among the shown layers. */
     busy: boolean;
+    /** The objects selected with no command running: a click on a layer puts them there. */
+    selection: ReadonlySet<Id>;
     /** The colour fields show the layer colours as the drawing does. */
     theme: DisplayTheme;
     onSetCurrent: (id: Id) => void;
     onAdd: () => void;
     onUpdate: (id: Id, changes: LayerChanges) => void;
     onRemove: (id: Id) => void;
+    onMoveSelection: (id: Id) => void;
 }
+
+const NO_LAYERS: ReadonlySet<Id> = new Set();
 
 /**
  * Content of the layer panel: the properties of the current layer, the button that adds a layer,
- * and the layers of the floor to go through (a click makes one current). It only shows the
- * document and asks for changes; the editor decides and makes them (one undo step each).
+ * and the layers of the floor to go through. A click on one makes it current, or, while objects
+ * are selected, puts them on it like AutoCAD's layer list (the layers they are on are marked).
+ * It only shows the document and asks for changes; the editor decides and makes them (one undo
+ * step each).
  */
-export function LayerPanel({ history, currentLayerId, busy, theme, onSetCurrent, onAdd, onUpdate, onRemove }: LayerPanelProps) {
+export function LayerPanel({
+    history,
+    currentLayerId,
+    busy,
+    selection,
+    theme,
+    onSetCurrent,
+    onAdd,
+    onUpdate,
+    onRemove,
+    onMoveSelection,
+}: LayerPanelProps) {
     const { t } = useTranslation();
     const document = useSyncExternalStore(
         useCallback((listener: () => void) => history.subscribe(listener), [history]),
         () => history.document,
     );
     const counts = useMemo(() => layerElementCounts(document), [document]);
+    // Lineweights as AutoCAD lists them: 0.25 mm, in German 0,25 mm
+    const language = currentLanguage();
+    const millimetres = useMemo(() => new Intl.NumberFormat(language, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), [language]);
+    const selectionLayers = useMemo(() => {
+        if (selection.size === 0) {
+            return NO_LAYERS;
+        }
+        return new Set(document.elements.filter((element) => selection.has(element.id)).map((element) => element.layerId));
+    }, [document, selection]);
     const current = document.layers.find((layer) => layer.id === currentLayerId);
     const floorId = current?.floorId ?? document.floors[0]?.id;
     const layers = floorId === undefined ? [] : floorLayers(document, floorId);
@@ -64,11 +101,22 @@ export function LayerPanel({ history, currentLayerId, busy, theme, onSetCurrent,
                         disabled={busy}
                         onCommit={(color) => onUpdate(current.id, { color })}
                     />
-                    <LinetypeField
+                    <SelectField
                         label={t('layers.linetype')}
                         value={current.linetype}
+                        options={LINETYPES.map((linetype) => ({ value: linetype, label: t(`layers.linetypes.${linetype}`) }))}
                         disabled={busy}
-                        onCommit={(linetype) => onUpdate(current.id, { linetype })}
+                        onCommit={(linetype) => onUpdate(current.id, { linetype: linetype as Linetype })}
+                    />
+                    <SelectField
+                        label={t('layers.lineweight')}
+                        value={String(current.lineweight)}
+                        options={LINEWEIGHTS.map((lineweight) => ({
+                            value: String(lineweight),
+                            label: t('layers.lineweightValue', { value: millimetres.format(lineweight / 100) }),
+                        }))}
+                        disabled={busy}
+                        onCommit={(lineweight) => onUpdate(current.id, { lineweight: Number(lineweight) as Lineweight })}
                     />
                     <TextField
                         key={`transparency:${current.id}:${current.transparency}`}
@@ -105,11 +153,14 @@ export function LayerPanel({ history, currentLayerId, busy, theme, onSetCurrent,
                         layer={layer}
                         current={layer.id === currentLayerId}
                         busy={busy}
+                        moving={selection.size > 0}
+                        holdsSelection={selectionLayers.has(layer.id)}
                         color={displayStrokeColor(layer.color, theme)}
                         removeBlocker={removeLayerBlocker(document, layer.id, currentLayerId, counts)}
                         onSetCurrent={onSetCurrent}
                         onUpdate={onUpdate}
                         onRemove={onRemove}
+                        onMoveSelection={onMoveSelection}
                     />
                 ))}
             </ul>
@@ -121,28 +172,36 @@ interface LayerRowProps {
     layer: Layer;
     current: boolean;
     busy: boolean;
+    /** Objects are selected: a click puts them on this layer instead of making it current. */
+    moving: boolean;
+    /** Selected objects are on this layer. */
+    holdsSelection: boolean;
     /** The layer colour as the drawing shows it. */
     color: string;
     removeBlocker: ReturnType<typeof removeLayerBlocker>;
     onSetCurrent: (id: Id) => void;
     onUpdate: (id: Id, changes: LayerChanges) => void;
     onRemove: (id: Id) => void;
+    onMoveSelection: (id: Id) => void;
 }
 
-/** A layer of the list: a click on it makes it current; beside it its switches and the delete button. */
-function LayerRow({ layer, current, busy, color, removeBlocker, onSetCurrent, onUpdate, onRemove }: LayerRowProps) {
+/**
+ * A layer of the list: a click on it makes it current, or puts the selected objects on it;
+ * beside it its switches and the delete button.
+ */
+function LayerRow({ layer, current, busy, moving, holdsSelection, color, removeBlocker, onSetCurrent, onUpdate, onRemove, onMoveSelection }: LayerRowProps) {
     const { t } = useTranslation();
     const { id, name } = layer;
     return (
-        <li className="layer-row" data-current={current} data-hidden={!layer.visible}>
+        <li className="layer-row" data-current={current} data-hidden={!layer.visible} data-selection={holdsSelection}>
             <button
                 type="button"
                 className="layer-row-main"
                 aria-current={current ? 'true' : undefined}
                 // Showing a hidden layer changes the document
                 disabled={busy && !layer.visible}
-                title={t('layers.makeCurrent', { name })}
-                onClick={() => onSetCurrent(id)}
+                title={t(moving ? 'layers.moveSelection' : 'layers.makeCurrent', { name })}
+                onClick={() => (moving ? onMoveSelection(id) : onSetCurrent(id))}
             >
                 <span className="layer-row-marker">{current && <PanelIcon name="check" size={14} />}</span>
                 <span className="layer-swatch" style={{ background: color }} />
@@ -318,8 +377,20 @@ function ColorField({
     );
 }
 
-function LinetypeField({ label, value, disabled, onCommit }: { label: string; value: Linetype; disabled: boolean; onCommit: (linetype: Linetype) => void }) {
-    const { t } = useTranslation();
+/** A choice that commits at once, as one change. */
+function SelectField({
+    label,
+    value,
+    options,
+    disabled,
+    onCommit,
+}: {
+    label: string;
+    value: string;
+    options: readonly { value: string; label: string }[];
+    disabled: boolean;
+    onCommit: (value: string) => void;
+}) {
     const id = useId();
     return (
         <div className="panel-field">
@@ -329,14 +400,14 @@ function LinetypeField({ label, value, disabled, onCommit }: { label: string; va
                 value={value}
                 disabled={disabled}
                 onChange={(event) => {
-                    onCommit(event.currentTarget.value as Linetype);
+                    onCommit(event.currentTarget.value);
                     // The keys go to the editor again
                     event.currentTarget.blur();
                 }}
             >
-                {LINETYPES.map((linetype) => (
-                    <option key={linetype} value={linetype}>
-                        {t(`layers.linetypes.${linetype}`)}
+                {options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                        {option.label}
                     </option>
                 ))}
             </select>

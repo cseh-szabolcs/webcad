@@ -1006,6 +1006,11 @@
     background: color-mix(in srgb, var(--text) 12%, transparent);
 }
 
+/* A layer that selected objects are on: a bar on its left, like the selection colour */
+.layer-row[data-selection='true'] {
+    box-shadow: inset 3px 0 0 var(--dyn-focus);
+}
+
 /* The layer itself: its marker, colour and name; a click makes it the current one */
 .layer-row-main {
     display: flex;

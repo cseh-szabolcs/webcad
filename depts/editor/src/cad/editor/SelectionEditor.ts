@@ -23,8 +23,8 @@ import { buildSelectionUnits, expandToUnits } from './selection/grouping';
 import { pickAt, pickCrossing, pickLasso, pickWindow } from './selection/picking';
 import { ShapeIndex } from './selection/ShapeIndex';
 import { layerNameError, MAX_LAYER_NAME_LENGTH, nextLayerName, removeLayerBlocker, resolveCurrentLayer } from './layers';
-import { AddLayerCommand, RemoveLayerCommand, UpdateLayerCommand, type LayerChanges } from './commands/LayerCommands';
-import { HEX_COLOR, isDefaultLayer, LINETYPES, MAX_LAYER_DESCRIPTION_LENGTH, MAX_LAYER_TRANSPARENCY, newLayer } from '../model/Layer';
+import { AddLayerCommand, ChangeElementLayerCommand, RemoveLayerCommand, UpdateLayerCommand, type LayerChanges } from './commands/LayerCommands';
+import { HEX_COLOR, isDefaultLayer, isLineweight, LINETYPES, MAX_LAYER_DESCRIPTION_LENGTH, MAX_LAYER_TRANSPARENCY, newLayer } from '../model/Layer';
 import { SnapEngine, SnapMemory, coincide, sameSnapPoint, type SnapResult } from './snapping/SnapEngine';
 import type { SnapPoint } from './snapping/SnapGeometry';
 import { orthoPoint } from './tracking/ortho';
@@ -717,6 +717,9 @@ export class SelectionEditor {
                 next.transparency = transparency;
             }
         }
+        if (changes.lineweight !== undefined && isLineweight(changes.lineweight) && changes.lineweight !== layer.lineweight) {
+            next.lineweight = changes.lineweight;
+        }
         if (changes.description !== undefined && changes.description !== layer.description) {
             next.description = changes.description.slice(0, MAX_LAYER_DESCRIPTION_LENGTH);
         }
@@ -743,6 +746,27 @@ export class SelectionEditor {
         }
         this.history.execute(new RemoveLayerCommand(id));
         this.message = null;
+        this.changed();
+        return true;
+    }
+
+    /**
+     * Puts the pickfirst selection on a layer of the shown floor as one undo step, like choosing a
+     * layer in AutoCAD while objects are selected; the current layer stays. The selection stays
+     * too, unless the layer is hidden or locked, where nothing can be selected. Returns false
+     * with nothing selected or while a command runs.
+     */
+    moveSelectionToLayer(id: Id): boolean {
+        const layer = this.index.layers.get(id);
+        if (!layer || layer.floorId !== this.floorId || this.layersBusy() || this.state.kind !== 'idle' || this.state.pickfirst.size === 0) {
+            return false;
+        }
+        const moved = [...this.state.pickfirst].filter((elementId) => this.index.elements.get(elementId)?.layerId !== id);
+        if (moved.length > 0) {
+            this.history.execute(new ChangeElementLayerCommand(moved, id));
+        }
+        const { name, visible } = layer;
+        this.message = () => t(visible ? 'layers.moved' : 'layers.movedHidden', { count: moved.length, name });
         this.changed();
         return true;
     }

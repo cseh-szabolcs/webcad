@@ -40,6 +40,7 @@ describe('CadSerializer', () => {
             color: '#000000',
             linetype: 'continuous',
             transparency: 0,
+            lineweight: 25,
             description: '',
         });
     });
@@ -91,6 +92,7 @@ describe('CadSerializer', () => {
         ['a layer colour that is no hex colour', (d: any) => { d.layers[1].color = 'red'; return d; }, '$.layers[1].color'],
         ['an unknown linetype', (d: any) => { d.layers[1].linetype = 'wavy'; return d; }, '$.layers[1].linetype'],
         ['a layer transparency over the limit', (d: any) => { d.layers[1].transparency = 91; return d; }, '$.layers[1].transparency'],
+        ['a lineweight AutoCAD does not have', (d: any) => { d.layers[1].lineweight = 26; return d; }, '$.layers[1].lineweight'],
         ['a layer without description', (d: any) => { delete d.layers[1].description; return d; }, '$.layers[1].description'],
         ['a duplicate vertex id', (d: any) => { d.vertices[1].id = d.vertices[0].id; return d; }, '$.vertices[1].id'],
         ['a duplicate element id', (d: any) => { d.elements[1].id = d.elements[0].id; return d; }, '$.elements[1].id'],

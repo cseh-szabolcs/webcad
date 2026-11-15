@@ -317,6 +317,8 @@ export const de = {
         name: 'Name',
         color: 'Farbe',
         linetype: 'Linientyp',
+        lineweight: 'Linienstärke',
+        lineweightValue: '{{value}} mm',
         transparency: 'Transparenz',
         transparencyTitle: 'Transparenz in Prozent, von 0 (deckend) bis {{max}}',
         description: 'Beschreibung',
@@ -328,6 +330,9 @@ export const de = {
         hide: 'Layer „{{name}}“ ausblenden',
         lock: 'Layer „{{name}}“ sperren',
         unlock: 'Layer „{{name}}“ entsperren',
+        moveSelection: 'Auswahl auf den Layer „{{name}}“ legen',
+        moved: '{{count}} auf den Layer „{{name}}“ gelegt.',
+        movedHidden: '{{count}} auf den ausgeblendeten Layer „{{name}}“ gelegt.',
         newName: 'Layer',
         linetypes: {
             continuous: 'Durchgezogen',

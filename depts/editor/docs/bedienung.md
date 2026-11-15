@@ -1162,13 +1162,16 @@ Ob das Panel offen ist und wie breit, merkt sich der Browser. Es zeigt von oben 
 3. Die **Liste der Layer** des Stockwerks in Zeichenreihenfolge (der unterste zuerst, ein neuer
    Layer kommt ans Ende und liegt damit obenauf). Je Zeile: Haken beim aktuellen Layer, Farbe,
    Name, und rechts **Auge** (ein-/ausblenden), **Schloss** (sperren/entsperren) und
-   **Papierkorb** (löschen).
+   **Papierkorb** (löschen). Ein farbiger Balken links markiert die Layer, auf denen gewählte
+   Objekte liegen.
 
 ### Aktueller Layer
 
 - Der **aktuelle Layer** nimmt auf, was die Zeichenbefehle neu anlegen. **Ein Klick auf einen
-  Layer der Liste** macht ihn zum aktuellen; das geht auch, während ein Befehl läuft: Was der
-  Befehl danach zeichnet (bei LINIE das nächste Segment), liegt auf dem neuen Layer.
+  Layer der Liste** macht ihn zum aktuellen, solange nichts gewählt ist (sonst legt der Klick
+  die Auswahl auf den Layer, siehe [Objekte auf einen anderen Layer legen](#objekte-auf-einen-anderen-layer-legen));
+  das geht auch, während ein Befehl läuft: Was der Befehl danach zeichnet (bei LINIE das nächste
+  Segment), liegt auf dem neuen Layer.
 - Er gilt **je Benutzer** und gehört nicht zur Zeichnung (AutoCAD speichert CLAYER in der
   Zeichnung; hier würden sich Mitzeichnende sonst gegenseitig umstellen). Beim Öffnen ist es der
   Layer `0`.
@@ -1188,6 +1191,7 @@ Im Abschnitt „Aktueller Layer“; jede Änderung ist **ein** Schritt für Rüc
 | **Name**         | Je Stockwerk eindeutig, Groß- und Kleinschreibung zählt dabei nicht; höchstens `MAX_LAYER_NAME_LENGTH` Zeichen (`src/cad/editor/layers.ts`); nicht erlaubt sind wie in AutoCAD die Zeichen `<` `>` `/` `\` `"` `:` `;` `?` `*` `\|` `,` `=` und der Gravis. Der Layer `0` lässt sich nicht umbenennen. |
 | **Farbe**        | Farbwähler des Browsers; die Farbe gilt, sobald er geschlossen wird. Neue Layer sind schwarz, was auf dunklem Hintergrund hell gezeichnet wird (wie AutoCADs Farbe 7); das Farbfeld zeigt die Farbe so, wie die Zeichnung sie zeigt. |
 | **Linientyp**    | Durchgezogen, Gestrichelt, Verdeckt, Mitte, Punkt, Strichpunkt; die Strichmuster stehen in `LINETYPE_DASHES` (`src/cad/renderer/elementDisplay.ts`). |
+| **Linienstärke** | Einer der Werte von AutoCAD von 0,00 bis 2,11 mm (`LINEWEIGHTS` in `src/cad/model/Layer.ts`), bei einem neuen Layer `DEFAULT_LINEWEIGHT`. Gezeichnet wird sie wie in AutoCADs Modellbereich in Bildschirmpixeln im Verhältnis zum Wert und unabhängig vom Zoom (`LINEWEIGHT_PX_PER_MM` in `src/cad/renderer/elementDisplay.ts`), nie dünner als ein Pixel; die mm zählen erst beim Plotten. Anders als in AutoCAD (Schalter LST) wird sie immer angezeigt. |
 | **Transparenz**  | Ganze Zahl in Prozent von 0 (deckend) bis `MAX_LAYER_TRANSPARENCY` (`src/cad/model/Layer.ts`), wie in AutoCAD; andere Werte werden auf diesen Bereich gebracht. |
 | **Beschreibung** | Freier Text ohne Wirkung auf die Zeichnung.                                    |
 
@@ -1196,8 +1200,8 @@ Im Abschnitt „Aktueller Layer“; jede Änderung ist **ein** Schritt für Rüc
   nicht an die Kommandozeile.
 - Ein Name, den ein Layer nicht haben kann, wird beim Tippen rot markiert, mit dem Grund darunter,
   und nicht übernommen.
-- **VonLayer** (AutoCAD: ByLayer): Farbe, Linientyp und Transparenz gelten für alle Objekte des
-  Layers **ohne eigenen Stil**; neue Objekte haben keinen. Ein Objekt mit Stil (im Beispielplan
+- **VonLayer** (AutoCAD: ByLayer): Farbe, Linientyp, Linienstärke und Transparenz gelten für alle
+  Objekte des Layers **ohne eigenen Stil**; neue Objekte haben keinen. Ein Objekt mit Stil (im Beispielplan
   Wände und Möbel) zeichnet ganz nach seinem Stil, der Layer wirkt dann nicht auf sein Aussehen.
 
 ### Ein-/Ausblenden und Sperren
@@ -1210,10 +1214,28 @@ Im Abschnitt „Aktueller Layer“; jede Änderung ist **ein** Schritt für Rüc
   nicht wählen. Auf ihm lässt sich weiter zeichnen, wie in AutoCAD.
 - Sichtbarkeit und Sperre gehören zur Zeichnung und gelten damit für alle, die sie offen haben.
 
+### Objekte auf einen anderen Layer legen
+
+Wie in AutoCADs Layer-Liste: Sind Objekte gewählt (ohne laufenden Befehl), legt **ein Klick auf
+einen Layer der Liste** die Auswahl auf diesen Layer.
+
+- Der aktuelle Layer bleibt, die Objekte bleiben gewählt. Die Kommandozeile meldet
+  `N auf den Layer „Name“ gelegt.`; Objekte, die schon dort lagen, zählen nicht mit.
+- Ein Objekt ohne eigenen Stil zeichnet danach mit Farbe, Linientyp, Linienstärke und
+  Transparenz des neuen Layers. Es wird mit den Objekten dieses Layers gezeichnet, also über
+  allem, was auf Layern weiter oben in der Liste liegt.
+- Auf einem **ausgeblendeten** Layer verschwinden die Objekte und fallen aus der Auswahl (die
+  Meldung sagt es), auf einem **gesperrten** bleiben sie sichtbar, sind aber nicht mehr gewählt.
+- Gruppen kommen als Ganzes mit, weil sie als Ganzes gewählt werden.
+- Es ist **ein** Schritt für Rückgängig (`Rückgängig: LAYER`).
+- Um bei gewählten Objekten den aktuellen Layer zu wechseln, zuerst mit **Esc** die Auswahl
+  aufheben.
+
 ### Anlegen und Löschen
 
 - **+ Layer hinzufügen** legt einen Layer mit dem nächsten freien Namen `Layer1`, `Layer2` … und
-  den Werten eines neuen Layers an (sichtbar, nicht gesperrt, schwarz, durchgezogen, deckend) und
+  den Werten eines neuen Layers an (sichtbar, nicht gesperrt, schwarz, durchgezogen, Linienstärke
+  `DEFAULT_LINEWEIGHT`, deckend) und
   macht ihn zum aktuellen, sodass er sich gleich benennen lässt.
 - **Papierkorb** löscht einen Layer. Wie in AutoCAD bleiben der Layer `0`, der aktuelle Layer und
   Layer, auf denen Objekte liegen; der Papierkorb ist dann blass und sein Tooltip nennt den Grund.
@@ -1222,7 +1244,8 @@ Im Abschnitt „Aktueller Layer“; jede Änderung ist **ein** Schritt für Rüc
 
 ### Während ein Befehl läuft
 
-Layer lassen sich nur **anlegen, ändern und löschen, solange kein Befehl läuft** (wie Rückgängig);
+Layer lassen sich nur **anlegen, ändern und löschen, solange kein Befehl läuft** (wie Rückgängig),
+ebenso Objekte auf einen anderen Layer legen;
 die Felder und Buttons sind sonst ausgegraut. Den aktuellen Layer zu wechseln geht immer, außer
 auf einen ausgeblendeten (das würde ihn einblenden).
 
@@ -1627,8 +1650,7 @@ seinen Startwert zurück). Die Startwerte, solange nichts gespeichert ist:
 
 ## Noch nicht umgesetzt
 
-- Bei den Layern: Linienstärke, Überschreibung einzelner Eigenschaften je Objekt, Objekte auf
-  einen anderen Layer legen, Reihenfolge ändern, der Befehl `LAYER` per Name, die Objekte eines
+- Bei den Layern: Überschreibung einzelner Eigenschaften je Objekt, Reihenfolge ändern, der Befehl `LAYER` per Name, die Objekte eines
   Layers in der Liste, die Tabs der Stockwerke; Details in `docs/todo/Layer_NotImplemented.md`.
 - Weitere temporäre Überschreibungstasten wie in AutoCAD (z. B. Shift+A für den Objektfang,
   Shift+X für die Polarspur, Shift+E nur Endpunkt); die Liste der geplanten Kürzel steht in

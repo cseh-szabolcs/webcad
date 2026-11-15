@@ -3,7 +3,7 @@ import { vertexRefs, type BaseElement, type CadElement } from '../model/CadEleme
 import type { ElementStyle } from '../model/ElementStyle';
 import type { Floor } from '../model/Floor';
 import type { Group } from '../model/Group';
-import { DEFAULT_LAYER_NAME, HEX_COLOR, LINETYPES, MAX_LAYER_TRANSPARENCY, type Layer, type Linetype } from '../model/Layer';
+import { DEFAULT_LAYER_NAME, HEX_COLOR, isLineweight, LINETYPES, MAX_LAYER_TRANSPARENCY, type Layer, type Linetype } from '../model/Layer';
 import type { Id, Unit, Vector2 } from '../model/Point';
 import type { Vertex } from '../model/Vertex';
 
@@ -93,6 +93,10 @@ function parseLayer(value: unknown, path: string): Layer {
     if (!Number.isInteger(transparency) || transparency < 0 || transparency > MAX_LAYER_TRANSPARENCY) {
         throw new CadDocumentError(`${path}.transparency`, `must be a whole number from 0 to ${MAX_LAYER_TRANSPARENCY}`);
     }
+    const lineweight = number(r.lineweight, `${path}.lineweight`);
+    if (!isLineweight(lineweight)) {
+        throw new CadDocumentError(`${path}.lineweight`, `unknown lineweight ${lineweight}`);
+    }
     return {
         id: uuid(r.id, `${path}.id`),
         floorId: string(r.floorId, `${path}.floorId`),
@@ -102,6 +106,7 @@ function parseLayer(value: unknown, path: string): Layer {
         color,
         linetype: linetype as Linetype,
         transparency,
+        lineweight,
         description: string(r.description, `${path}.description`),
     };
 }

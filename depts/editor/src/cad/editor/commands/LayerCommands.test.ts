@@ -4,9 +4,10 @@ import { parseDocument } from '../../persistence/CadSerializer';
 import samplePlan from '../../__fixtures__/sample-plan.json';
 import { sampleIds } from '../../__fixtures__/sampleIds';
 import { DocumentHistory } from './DocumentHistory';
-import { AddLayerCommand, RemoveLayerCommand, UpdateLayerCommand } from './LayerCommands';
+import { AddLayerCommand, ChangeElementLayerCommand, RemoveLayerCommand, UpdateLayerCommand } from './LayerCommands';
+import { applyDocumentPatch, diffDocuments } from './DocumentPatch';
 
-const { layer: L, floor: F } = sampleIds;
+const { layer: L, floor: F, element: E } = sampleIds;
 const doc = parseDocument(samplePlan);
 const names = (history: DocumentHistory) => history.document.layers.map((layer) => layer.name);
 const layer = (history: DocumentHistory, id: string) => history.document.layers.find((candidate) => candidate.id === id)!;
@@ -66,5 +67,50 @@ describe('RemoveLayerCommand', () => {
         const command = new RemoveLayerCommand(L.walls);
         expect(command.execute(doc).document).toBe(doc);
         expect(command.undo(doc).document).toBe(doc);
+    });
+});
+
+describe('ChangeElementLayerCommand', () => {
+    const layerOf = (history: DocumentHistory, id: string) => history.document.elements.find((element) => element.id === id)!.layerId;
+
+    it('puts the elements on the layer and reports those it moved', () => {
+        const command = new ChangeElementLayerCommand([E.sofa, E.window, E.table], L.furniture);
+        const { document, changedElementIds } = command.execute(doc);
+        // The sofa and the table are there already
+        expect(changedElementIds).toEqual([E.window]);
+        expect(document.elements.find((element) => element.id === E.window)).toMatchObject({ layerId: L.furniture, styleId: null });
+        expect(document.elements.map(({ id }) => id)).toEqual(doc.elements.map(({ id }) => id));
+        expect(command.undo(document)).toEqual({ document: doc, changedElementIds: [E.window] });
+    });
+
+    it('puts each element back on the layer it came from', () => {
+        const history = new DocumentHistory(doc);
+        history.execute(new ChangeElementLayerCommand([E.sofa, E.window, E['wall-outer']], L['0']));
+        expect([E.sofa, E.window, E['wall-outer']].map((id) => layerOf(history, id))).toEqual([L['0'], L['0'], L['0']]);
+        history.undo();
+        expect(history.document).toEqual(doc);
+        history.redo();
+        expect(layerOf(history, E.sofa)).toBe(L['0']);
+    });
+
+    it('leaves on undo what somebody else has moved on meanwhile', () => {
+        const history = new DocumentHistory(doc);
+        history.execute(new ChangeElementLayerCommand([E.sofa, E.window], L['0']));
+        history.applyRemote(new ChangeElementLayerCommand([E.sofa], L.walls).execute(history.document), 'somebody');
+        history.undo();
+        expect(layerOf(history, E.sofa)).toBe(L.walls);
+        expect(layerOf(history, E.window)).toBe(L.openings);
+    });
+
+    it('changes nothing for a layer that is gone or elements that are there already', () => {
+        expect(new ChangeElementLayerCommand([E.sofa], 'gone').execute(doc).document).toBe(doc);
+        expect(new ChangeElementLayerCommand([E.sofa, 'gone'], L.furniture).execute(doc).document).toBe(doc);
+    });
+
+    it('travels as a patch of the moved elements', () => {
+        const { document, changedElementIds } = new ChangeElementLayerCommand([E.window], L.walls).execute(doc);
+        const patch = diffDocuments(doc, document, changedElementIds)!;
+        expect(patch).toMatchObject({ elements: [{ element: { id: E.window, layerId: L.walls } }], layers: [], changedElementIds: [E.window] });
+        expect(applyDocumentPatch(doc, patch)!.document).toEqual(document);
     });
 });

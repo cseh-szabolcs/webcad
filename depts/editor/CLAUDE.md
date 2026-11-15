@@ -219,9 +219,11 @@ lacks is in `docs/todo/*_NotImplemented.md` (PLINE arcs with a proposed `bulges`
 
 Spec in `docs/specs/Layer_System_Spezifikation.md`, what is left in `docs/todo/Layer_NotImplemented.md`.
 
-- **ByLayer is `styleId: null`:** an element without a style is drawn with the colour, linetype
-  and transparency of its layer; an `ElementStyle` overrides the layer as a whole
+- **ByLayer is `styleId: null`:** an element without a style is drawn with the colour, linetype,
+  lineweight and transparency of its layer; an `ElementStyle` overrides the layer as a whole
   (`cad/renderer/elementDisplay.ts`: `elementDisplay`, `layerDisplay`, `LINETYPE_DASHES`; pure).
+  The lineweight is one of AutoCAD's, in 1/100 mm like DXF (`LINEWEIGHTS`, typed by the API
+  schema), and shows in screen px in proportion to it whatever the zoom (`lineweightStroke`).
   `ElementRenderer.applyDisplay` sets style and opacity; `PaperRenderer.restyle` multiplies the
   opacity while somebody else has the element selected.
 - **One visibility switch** (`visible`) instead of AutoCAD's On/Off and Freeze, with the effect
@@ -241,6 +243,11 @@ Spec in `docs/specs/Layer_System_Spezifikation.md`, what is left in `docs/todo/L
   (`PaperRenderer.updateLayers` by the pure `sceneUpdate.planLayerUpdate`: layers come and go,
   are shown or hidden, the elements of a restyled one are drawn anew; a rebuild only where the
   order of the layers changed).
+- **Elements go to another layer** by `ChangeElementLayerCommand` (same file and label): undo
+  puts each back where it came from. `SelectionEditor.moveSelectionToLayer` runs it on the
+  pickfirst selection, which the panel asks for where a click on a layer would else make it
+  current (AutoCAD's layer list). It reports the moved elements as changed; `PaperRenderer`
+  takes the item of such an element out first, so it comes back at its place on the new layer.
 - **The editor core decides** (`SelectionEditor.addLayer`, `updateLayer`, `removeLayer`), by the
   pure rules of `cad/editor/layers.ts` (`layerNameError`, `nextLayerName`, `removeLayerBlocker`):
   names unique per floor whatever the case, layer `0` keeps its name, layer `0`, the current
