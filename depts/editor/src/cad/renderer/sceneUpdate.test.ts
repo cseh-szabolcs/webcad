@@ -3,7 +3,7 @@ import type { CadDocument } from '../model/CadDocument';
 import type { CadElement } from '../model/CadElement';
 import { indexDocument } from '../model/DocumentIndex';
 import { newLayer } from '../model/Layer';
-import { planSceneUpdate } from './sceneUpdate';
+import { planLayerUpdate, planSceneUpdate } from './sceneUpdate';
 
 const LAYERS = [newLayer('0', 'floor', '0'), newLayer('walls', 'floor', 'Walls'), newLayer('furniture', 'floor', 'Furniture')];
 
@@ -81,5 +81,47 @@ describe('planSceneUpdate', () => {
     it('asks for a rebuild where the changed ids do not cover the difference', () => {
         expect(plan(drawing('1', '2', '3'), ['1'], ['2'])).toBe('rebuild');
         expect(plan(drawing('1'), ['1', '2'], [])).toBe('rebuild');
+    });
+});
+
+describe('planLayerUpdate', () => {
+    const [zero, walls, furniture] = LAYERS;
+    const empty = () => false;
+
+    it('has nothing to do for layers that only changed what is not drawn', () => {
+        expect(planLayerUpdate(LAYERS, [zero, { ...walls, name: 'Wände', locked: true, description: 'x' }, furniture], empty)).toEqual([]);
+    });
+
+    it('shows or hides a layer and draws the elements of a changed one anew', () => {
+        const after = [{ ...zero, visible: false }, { ...walls, color: '#ff0000' }, { ...furniture, visible: false, transparency: 50 }];
+        expect(planLayerUpdate(LAYERS, after, () => true)).toEqual([
+            { kind: 'show', id: '0', visible: false },
+            { kind: 'restyle', id: 'walls' },
+            { kind: 'show', id: 'furniture', visible: false },
+            { kind: 'restyle', id: 'furniture' },
+        ]);
+    });
+
+    it('adds a new layer on top, or below the layer that follows it', () => {
+        const added = newLayer('new', 'floor', 'Layer1');
+        expect(planLayerUpdate(LAYERS, [...LAYERS, added], empty)).toEqual([{ kind: 'add', id: 'new', belowId: null }]);
+        expect(planLayerUpdate(LAYERS, [zero, added, walls, furniture], empty)).toEqual([{ kind: 'add', id: 'new', belowId: 'walls' }]);
+    });
+
+    it('adds several layers from the top down', () => {
+        const [a, b] = [newLayer('a', 'floor', 'A'), newLayer('b', 'floor', 'B')];
+        expect(planLayerUpdate([zero], [zero, a, b], empty)).toEqual([
+            { kind: 'add', id: 'b', belowId: null },
+            { kind: 'add', id: 'a', belowId: 'b' },
+        ]);
+    });
+
+    it('removes a layer without elements', () => {
+        expect(planLayerUpdate(LAYERS, [zero, furniture], empty)).toEqual([{ kind: 'remove', id: 'walls' }]);
+    });
+
+    it('rebuilds when a layer with elements goes or the order changes', () => {
+        expect(planLayerUpdate(LAYERS, [zero, furniture], (id) => id === 'walls')).toBe('rebuild');
+        expect(planLayerUpdate(LAYERS, [zero, furniture, walls], empty)).toBe('rebuild');
     });
 });

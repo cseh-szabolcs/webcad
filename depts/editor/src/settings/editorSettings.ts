@@ -97,6 +97,11 @@ export interface EditorSettings {
     ucsIconLabelSize: number;
     /** Opacity of the whole UCS icon (0–1), so it reads as a marker rather than a drawn line. */
     ucsIconOpacity: number;
+    /** Width of the layer panel in screen px until the user drags it. */
+    layerPanelWidth: number;
+    /** Narrowest and widest the user can drag the layer panel, in screen px. */
+    layerPanelMinWidth: number;
+    layerPanelMaxWidth: number;
 }
 
 export const DEFAULT_EDITOR_SETTINGS: Readonly<EditorSettings> = {
@@ -137,7 +142,27 @@ export const DEFAULT_EDITOR_SETTINGS: Readonly<EditorSettings> = {
     ucsIconSize: 80,
     ucsIconLabelSize: 16,
     ucsIconOpacity: 0.7,
+    layerPanelWidth: 280,
+    layerPanelMinWidth: 220,
+    layerPanelMaxWidth: 520,
 };
+
+/** The layer panel, as left in this browser. */
+export interface LayerPanelState {
+    open: boolean;
+    /** Width in screen px as dragged, null for the setting `layerPanelWidth`. */
+    width: number | null;
+}
+
+export const DEFAULT_LAYER_PANEL_STATE: Readonly<LayerPanelState> = { open: false, width: null };
+
+/** The width the layer panel shows with: the dragged one within the limits of the settings. */
+export function layerPanelWidth(
+    state: LayerPanelState,
+    settings: Pick<EditorSettings, 'layerPanelWidth' | 'layerPanelMinWidth' | 'layerPanelMaxWidth'>,
+): number {
+    return Math.min(settings.layerPanelMaxWidth, Math.max(settings.layerPanelMinWidth, state.width ?? settings.layerPanelWidth));
+}
 
 /**
  * Grid display, switched while the editor runs (status bar, F7), like AutoCAD's GRIDMODE. The

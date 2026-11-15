@@ -13,7 +13,7 @@ object snap, polar tracking, Ortho, object snap tracking, Dynamic Input, the com
 PLINIE (straight segments only), KREIS, BOGEN (three points; around a centre given before or after the start, ending by a point, an angle or a chord length; or over start and end by an angle, a start direction or a radius), ELLIPSE, RECHTECK, SCHIEBEN and SPIEGELN with preview, typed
 coordinates and undo/redo, LÖSCHEN, DIFFERENZ and VEREINIG (AutoCAD SUBTRACT and UNION on closed polylines and circles), and grips that edit the selection (the grip modes STRETCH, MOVE,
 ROTATE, SCALE, MIRROR with their options Base point, Copy, Undo, Reference, eXit; several hot
-grips; a menu of further actions per grip).
+grips; a menu of further actions per grip), and layers with a panel on the right (see "Layers").
 Changes are not saved to the backend yet. Once the plan is shown, the editor logs in to the
 collaboration server, which passes pointers, selections and document changes between the editors (see "Collaboration").
 
@@ -217,8 +217,7 @@ lacks is in `docs/todo/*_NotImplemented.md` (PLINE arcs with a proposed `bulges`
 
 ## Layers
 
-The controls (panel, layer commands, layers in the collaboration patch) are still to come; the
-spec is `Layer_System_Specification.md` in the repository root for now.
+Spec in `docs/specs/Layer_System_Spezifikation.md`, what is left in `docs/todo/Layer_NotImplemented.md`.
 
 - **ByLayer is `styleId: null`:** an element without a style is drawn with the colour, linetype
   and transparency of its layer; an `ElementStyle` overrides the layer as a whole
@@ -233,7 +232,29 @@ spec is `Layer_System_Specification.md` in the repository root for now.
   `resolveCurrentLayer` (`cad/editor/layers.ts`: a shown layer of the floor, else layer `0`). The
   drawing tools get it as a getter (`layerForNew`), so each `Add…Command` takes the layer current
   when it is made, also within one LINIE run; the previews of new elements are drawn by it
-  (`PaperRenderer.applyLayerStyle`). Copies keep the layer of their original.
+  (`PaperRenderer.applyLayerStyle`). Copies keep the layer of their original. It always shows:
+  it cannot be hidden, and making a hidden layer current shows it (one step).
+- **Layer changes are commands** (`commands/LayerCommands.ts`: `AddLayerCommand`,
+  `UpdateLayerCommand`, which puts back only the properties it changed, `RemoveLayerCommand`, only
+  for a layer without elements; all with the label `LAYER`, a `LayerLabel` that no name starts
+  yet). They report no changed elements: the renderer follows the layer list
+  (`PaperRenderer.updateLayers` by the pure `sceneUpdate.planLayerUpdate`: layers come and go,
+  are shown or hidden, the elements of a restyled one are drawn anew; a rebuild only where the
+  order of the layers changed).
+- **The editor core decides** (`SelectionEditor.addLayer`, `updateLayer`, `removeLayer`), by the
+  pure rules of `cad/editor/layers.ts` (`layerNameError`, `nextLayerName`, `removeLayerBlocker`):
+  names unique per floor whatever the case, layer `0` keeps its name, layer `0`, the current
+  layer and layers with elements stay. A refusal shows on the command line. **Only with no
+  command running** (`layersBusy`), like undo: a command counts its own history steps
+  (`combineLast`). Switching the current layer among the shown ones is allowed at any time.
+- **Panel:** `ui/SidePanel.tsx` is the frame (docked right in `.workspace`, slides in by a width
+  transition, its left edge dragged within `layerPanelMinWidth`/`layerPanelMaxWidth`, a toggle
+  on that edge), `ui/LayerPanel.tsx` the content. `App` makes the `DocumentHistory` and hands it
+  to `CadCanvas` and the panel, which reads the layers with `useSyncExternalStore`: **no copy of
+  the document in React state or Redux**. The panel only asks (`CadCanvasHandle.addLayer` …) and
+  disables what the rules above refuse; its fields are uncontrolled and keyed by the stored value,
+  so they commit once (blur, Enter; the colour on the native `change`) and follow undo and remote
+  changes. Open/width are in `storedSwitches` (`LayerPanelState`).
 - Paper.js layers carry no name: it refuses names of digits only, like `0`.
 
 ## Structure
@@ -374,8 +395,8 @@ smaller collaborator id (`createCollaboration`: `refreshSelections`). **Changes:
 `CadCanvas` is the one place that sends and applies (`ChangeChannel`). A received one comes in through
 `DocumentHistory.applyRemote`: no undo step, and its `HistoryChange.origin` is the collaborator id (null
 for what was done here), which is how a history listener tells the two apart. **A new command needs
-nothing for this** as long as it changes only vertices, elements and groups; one that changes layers or
-styles needs them in the patch. A patch that does not fit (another plan, an element left without a
+nothing for this** as long as it changes only vertices, elements, groups and layers; one that changes
+floors or styles needs them in the patch. A patch that does not fit (another plan, an element left without a
 vertex) is left out with a console warning; what can still drift apart is in `docs/architecture/collaboration.md`.
 
 ## Settings
@@ -387,13 +408,14 @@ hover/click tolerance, `apertureSize` ~ APERTURE, `showApertureBox` ~ APBOX, `sn
 OTRACK), `trackingAcquireDelay`, `snapPreview`, `previewColor`, `gridColor` and `gridAxisColor` per theme,
 `gripSize` ~ GRIPSIZE, `gripColor` ~ GRIPCOLOR/GRIPHOVER/GRIPHOT, `gripMenu` ~
 GRIPMULTIFUNCTIONAL, `gripMenuDelay`, `gripObjectLimit` ~ GRIPOBJLIMIT,
-`gridMinSpacing`, `ucsIcon…` ~ UCSICON, `compassSize`/`compassOpacity` ~ the ViewCube). Code receives the object (App → `CadCanvas` → editor
+`gridMinSpacing`, `ucsIcon…` ~ UCSICON, `compassSize`/`compassOpacity` ~ the ViewCube,
+`layerPanelWidth`/`layerPanelMinWidth`/`layerPanelMaxWidth`). Code receives the object (App → `CadCanvas` → editor
 and crosshair) rather than importing the defaults, so the user can change them later; for now
 they are read when a document is loaded. The switches live in App state and may change at any
 time: `SnapSettings` (F3, OSMODE), `TrackingModes` (Ortho F8, `PolarSettings` F10),
 `ObjectTrackingSettings` (F11), `DynamicInputSettings` (F12), `GridSettings` (F7). They are
 remembered per browser (`settings/storedSwitches.ts`: `localStorage`, every value validated and
-falling back to its default), like the theme, the language and the method a `ToolFlyout` used
+falling back to its default; also whether the layer panel is open and how wide), like the theme, the language and the method a `ToolFlyout` used
 last; a new switch or value needs its line in `parseSwitches`.
 
 ## Translations, theme

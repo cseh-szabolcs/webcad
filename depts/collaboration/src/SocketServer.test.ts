@@ -247,6 +247,8 @@ const PATCH = {
   removedElementIds: ['e'],
   groups: [],
   removedGroupIds: [],
+  layers: [],
+  removedLayerIds: [],
   changedElementIds: ['e'],
 }
 

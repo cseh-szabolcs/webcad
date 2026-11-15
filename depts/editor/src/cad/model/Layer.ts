@@ -14,6 +14,12 @@ export const DEFAULT_LAYER_NAME = '0';
 /** A layer's transparency goes from 0 (opaque) up to this, in percent, like AutoCAD's. */
 export const MAX_LAYER_TRANSPARENCY = 90;
 
+/** Longest description of a layer. */
+export const MAX_LAYER_DESCRIPTION_LENGTH = 255;
+
+/** A layer's colour, as `#rrggbb`. */
+export const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+
 /**
  * Black, which the display turns light on a dark background (see displayColor.ts), like
  * AutoCAD's colour 7.

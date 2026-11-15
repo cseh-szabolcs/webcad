@@ -1,11 +1,11 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
-import { DocumentHistory } from 'app/cad/editor/commands/DocumentHistory';
+import type { DocumentHistory } from 'app/cad/editor/commands/DocumentHistory';
 import { applyDocumentPatch, diffDocuments, type DocumentPatch } from 'app/cad/editor/commands/DocumentPatch';
 import { SelectionOverlay } from 'app/cad/editor/overlays/SelectionOverlay';
 import { SelectionEditor, type EditorCommand, type SelectionSnapshot } from 'app/cad/editor/SelectionEditor';
 import type { CommandMethod } from 'app/cad/editor/tools/CommandMethod';
-import type { CadDocument } from 'app/cad/model/CadDocument';
-import type { Point } from 'app/cad/model/Point';
+import type { LayerChanges } from 'app/cad/editor/commands/LayerCommands';
+import type { Id, Point } from 'app/cad/model/Point';
 import type { DisplayTheme } from 'app/cad/renderer/displayColor';
 import type { PresenceChannel } from 'app/collaboration/createCollaboration';
 import { i18n } from 'app/i18n/i18n';
@@ -39,11 +39,16 @@ export interface CadCanvasHandle {
     /** Undo and redo of document changes; ignored while a command runs. */
     undo(): void;
     redo(): void;
+    /** The layers of the shown floor (see SelectionEditor): a refusal shows on the command line. */
+    setCurrentLayer(id: Id): void;
+    addLayer(): void;
+    updateLayer(id: Id, changes: LayerChanges): void;
+    removeLayer(id: Id): void;
 }
 
 interface CadCanvasProps {
-    /** Loaded document; the canvas keeps its own history of changes to it. */
-    document: CadDocument;
+    /** The loaded document with its changes; the canvas shows and edits what it holds. */
+    history: DocumentHistory;
     /** Background the drawing is shown on; drawing and overlay colours follow it. */
     theme: DisplayTheme;
     /** Crosshair, pick box, aperture, snap display, preview colour and UCS icon; read when the document is loaded. */
@@ -78,7 +83,7 @@ interface CadCanvasProps {
 }
 
 export function CadCanvas({
-    document,
+    history,
     theme,
     settings,
     snapSettings,
@@ -165,6 +170,10 @@ export function CadCanvas({
         startCommand: (command, method) => editorRef.current?.startCommand(command, method),
         undo: () => editorRef.current?.undo(),
         redo: () => editorRef.current?.redo(),
+        setCurrentLayer: (id) => editorRef.current?.setCurrentLayer(id),
+        addLayer: () => editorRef.current?.addLayer(),
+        updateLayer: (id, changes) => editorRef.current?.updateLayer(id, changes),
+        removeLayer: (id) => editorRef.current?.removeLayer(id),
     }));
 
     useEffect(() => {
@@ -174,7 +183,7 @@ export function CadCanvas({
         rendererRef.current = renderer;
         renderer.setViewport(viewportRef.current);
         renderer.setTheme(themeRef.current);
-        renderer.setDocument(document);
+        renderer.setDocument(history.document);
         const grid = new GridLayer(container, settingsRef.current, themeRef.current, gridSettingsRef.current);
         grid.setViewport(viewportRef.current);
         gridRef.current = grid;
@@ -193,7 +202,6 @@ export function CadCanvas({
         const remoteSelections = new RemoteSelections(container);
         remoteSelections.setViewport(viewportRef.current);
         remoteSelectionsRef.current = remoteSelections;
-        const history = new DocumentHistory(document);
         // Subscribed before the editor, so the paths are up to date when its overlay redraws
         const unsubscribeHistory = history.subscribe(({ document, changedElementIds }) =>
             renderer.updateElements(document, changedElementIds),
@@ -477,7 +485,7 @@ export function CadCanvas({
             needsFitRef.current = true;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- callbacks read refs
-    }, [document]);
+    }, [history]);
 
     // After the effect above, so that the layer of the loaded document exists
     useEffect(() => {
@@ -504,7 +512,7 @@ export function CadCanvas({
             presenceRef.current = null;
             showSelectionsRef.current?.();
         };
-    }, [presence, document]);
+    }, [presence, history]);
 
     useEffect(() => {
         snapSettingsRef.current = snapSettings;

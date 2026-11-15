@@ -7,6 +7,7 @@ import type { CircleMethod } from 'app/cad/editor/tools/CircleTool';
 import type { CommandMethod } from 'app/cad/editor/tools/CommandMethod';
 import type { EllipseMethod } from 'app/cad/editor/tools/EllipseTool';
 import type { ToolId } from 'app/cad/editor/tools/EditorTool';
+import { PanelIcon } from './PanelIcon';
 import { ToolIcon } from './ToolIcon';
 import { useMenu } from './useMenu';
 
@@ -95,8 +96,17 @@ interface ToolPanelProps {
     onStart: (command: EditorCommand, method?: CommandMethod) => void;
 }
 
-/** Horizontal tool bar above the drawing: one icon button per command, its name in the tooltip. */
-export function ToolPanel({ command, onStart }: ToolPanelProps) {
+interface LayerButtonProps {
+    /** Whether the layer panel is open; its button at the right end shows pressed then. */
+    layersOpen: boolean;
+    onLayersOpenChange: (open: boolean) => void;
+}
+
+/**
+ * Horizontal tool bar above the drawing: one icon button per command, its name in the tooltip,
+ * and at its right end the button that opens and closes the layer panel.
+ */
+export function ToolPanel({ command, onStart, layersOpen, onLayersOpenChange }: ToolPanelProps & LayerButtonProps) {
     const { t } = useTranslation();
     return (
         <div className="tool-panel" role="toolbar" aria-label={t('toolbar.tools')}>
@@ -111,6 +121,18 @@ export function ToolPanel({ command, onStart }: ToolPanelProps) {
                     )}
                 </div>
             ))}
+            <div className="tool-panel-group tool-panel-end" role="group" aria-label={t('toolbar.layers')}>
+                <button
+                    type="button"
+                    className="tool-button"
+                    aria-pressed={layersOpen}
+                    aria-label={t('toolbar.layersTitle')}
+                    title={t('toolbar.layersTitle')}
+                    onClick={() => onLayersOpenChange(!layersOpen)}
+                >
+                    <PanelIcon name="layers" size={20} />
+                </button>
+            </div>
         </div>
     );
 }

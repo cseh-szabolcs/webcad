@@ -64,7 +64,7 @@ export const EVENTS = {
     change: 'app:change',
 } as const;
 
-/** The most vertices, elements and groups one `app:change` may name; the server's `CHANGE_LIMIT`. */
+/** The most vertices, elements, groups and layers one `app:change` may name; the server's `CHANGE_LIMIT`. */
 export const CHANGE_LIMIT = 20000;
 
 /** The most element ids one `app:selection` may carry; the server's `SELECTION_LIMIT`. */

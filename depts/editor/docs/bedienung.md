@@ -35,8 +35,8 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   eigene Schritte zurück**, nie die der anderen. Noch nicht gelöst: Gespeichert wird noch nichts,
   wer den Plan später öffnet oder kurz offline war, sieht also die Änderungen der anderen aus
   der Zwischenzeit nicht; und ein Rückgängig kann überschreiben, was jemand anderes seither am
-  selben Objekt geändert hat. Eine Änderung mit mehr als `CHANGE_LIMIT` Punkten, Objekten und
-  Gruppen (`src/collaboration/types.ts`) wird nicht übertragen.
+  selben Objekt geändert hat. Eine Änderung mit mehr als `CHANGE_LIMIT` Punkten, Objekten,
+  Gruppen und Layern (`src/collaboration/types.ts`) wird nicht übertragen.
   **Mauszeiger der anderen:** Hat eine andere Person das Projekt offen, sieht man ihren Zeiger in
   der Zeichnung als kleines gestricheltes Kreuz mit ihrem Namen rechts oberhalb, schwach
   gezeichnet und ohne Eingabe: Er liegt unter dem eigenen Fadenkreuz und verdeckt nichts, Klicks
@@ -92,6 +92,10 @@ sonst noch fehlt, steht am Ende unter [Noch nicht umgesetzt](#noch-nicht-umgeset
   - **Ellipse**: **Mittelpunkt**, **Achse, Ende** (siehe [ELLIPSE](#befehl-ellipse)).
 - **Zeichenfläche** in der Mitte, mit dem [BKS-Symbol](#bks-symbol) am Nullpunkt bzw.
   unten links.
+- **Layer-Panel** rechts neben der Zeichenfläche, zum Ein- und Ausschieben: der aktuelle Layer
+  mit seinen Einstellungen und die Layer des Stockwerks (siehe [Layer](#layer)). Geöffnet wird
+  es mit dem Button **Layer** ganz rechts in der Werkzeugleiste oder mit dem kleinen Button am
+  rechten Rand der Zeichenfläche.
 - **Kommandozeile** unter der Zeichenfläche: oben in Grau die letzte Meldung (z. B.
   `1 gefunden, 2 gesamt`), darunter die aktuelle Aufforderung (z. B. `Befehl:` oder
   `Basispunkt angeben oder [Verschiebung] <Verschiebung>:`). Bei Punkt-Aufforderungen
@@ -1133,30 +1137,105 @@ Rotation=…`.
 
 ## Layer
 
-Die Bedienung der Layer (Panel, Anlegen, Ändern, Löschen) ist noch nicht umgesetzt; was davon
-schon gilt:
+Layer ordnen die Zeichnung wie in AutoCAD: Jedes Objekt liegt auf einem **Layer**, jeder Layer
+in einem **Stockwerk** (das Stockwerk gibt es in AutoCAD nicht; seine Bedienung kommt noch, bis
+dahin zeigt der Editor das erste). Jedes Stockwerk hat den Layer `0`.
 
-- Jedes Objekt liegt auf einem **Layer**, jeder Layer in einem **Stockwerk**. Jedes Stockwerk hat
-  den Layer `0` (AutoCAD: Layer 0); Layernamen sind je Stockwerk eindeutig, Groß- und
-  Kleinschreibung zählt dabei nicht.
-- Der **aktuelle Layer** nimmt auf, was die Zeichenbefehle neu anlegen. Er gilt je Benutzer und
-  gehört nicht zur Zeichnung (AutoCAD speichert CLAYER in der Zeichnung; hier würden sich
-  Mitzeichnende sonst gegenseitig umstellen). Solange er sich nicht wählen lässt, ist es der
-  Layer `0`; ist der ausgeblendet, der erste sichtbare Layer des Stockwerks.
-- **VonLayer** (AutoCAD: ByLayer): Ein Objekt ohne eigenen Stil zeichnet mit Farbe, Linientyp und
-  Transparenz seines Layers; neue Objekte haben keinen Stil. Ein Objekt mit Stil (im Beispielplan
+### Layer-Panel
+
+Das Panel steht rechts neben der Zeichenfläche und schiebt sich ein, die Zeichenfläche wird
+dabei schmaler (ihr Ausschnitt bleibt links oben stehen).
+
+| Eingabe                                              | Wirkung                                             |
+|------------------------------------------------------|-----------------------------------------------------|
+| Button **Layer** (Stapel-Symbol) rechts in der Werkzeugleiste | Panel öffnen bzw. schließen                 |
+| Kleiner Button mit Pfeil mittig am rechten Rand der Zeichenfläche (bei offenem Panel an dessen linkem Rand) | Panel öffnen bzw. schließen, immer erreichbar |
+| **×** im Kopf des Panels                             | Panel schließen                                     |
+| Linken Rand des Panels **ziehen**                    | Breite ändern, zwischen `layerPanelMinWidth` und `layerPanelMaxWidth` |
+| **Doppelklick** auf den linken Rand                  | Breite zurück auf `layerPanelWidth`                 |
+| Rand mit Tab anwählen, **←** / **→**                 | breiter / schmaler in Schritten von `KEY_STEP_PX` (`src/ui/SidePanel.tsx`) |
+
+Ob das Panel offen ist und wie breit, merkt sich der Browser. Es zeigt von oben nach unten:
+
+1. **Aktueller Layer** mit seinen Einstellungen (siehe unten).
+2. Button **+ Layer hinzufügen**.
+3. Die **Liste der Layer** des Stockwerks in Zeichenreihenfolge (der unterste zuerst, ein neuer
+   Layer kommt ans Ende und liegt damit obenauf). Je Zeile: Haken beim aktuellen Layer, Farbe,
+   Name, und rechts **Auge** (ein-/ausblenden), **Schloss** (sperren/entsperren) und
+   **Papierkorb** (löschen).
+
+### Aktueller Layer
+
+- Der **aktuelle Layer** nimmt auf, was die Zeichenbefehle neu anlegen. **Ein Klick auf einen
+  Layer der Liste** macht ihn zum aktuellen; das geht auch, während ein Befehl läuft: Was der
+  Befehl danach zeichnet (bei LINIE das nächste Segment), liegt auf dem neuen Layer.
+- Er gilt **je Benutzer** und gehört nicht zur Zeichnung (AutoCAD speichert CLAYER in der
+  Zeichnung; hier würden sich Mitzeichnende sonst gegenseitig umstellen). Beim Öffnen ist es der
+  Layer `0`.
+- Der aktuelle Layer ist **immer sichtbar**: Sein Auge ist ohne Funktion (der Tooltip nennt den
+  Grund), und ein ausgeblendeter Layer, der aktuell gemacht wird, wird dabei eingeblendet (ein
+  Schritt für Rückgängig). Verschwindet der aktuelle Layer oder wird er ausgeblendet (durch
+  Rückgängig oder durch Mitzeichnende), gilt wieder der Layer `0`, ist auch der ausgeblendet, der
+  erste sichtbare.
+
+### Einstellungen eines Layers
+
+Im Abschnitt „Aktueller Layer“; jede Änderung ist **ein** Schritt für Rückgängig
+(`Rückgängig: LAYER`) und wirkt sofort auf die Zeichnung.
+
+| Feld             | Bedeutung                                                                     |
+|------------------|-------------------------------------------------------------------------------|
+| **Name**         | Je Stockwerk eindeutig, Groß- und Kleinschreibung zählt dabei nicht; höchstens `MAX_LAYER_NAME_LENGTH` Zeichen (`src/cad/editor/layers.ts`); nicht erlaubt sind wie in AutoCAD die Zeichen `<` `>` `/` `\` `"` `:` `;` `?` `*` `\|` `,` `=` und der Gravis. Der Layer `0` lässt sich nicht umbenennen. |
+| **Farbe**        | Farbwähler des Browsers; die Farbe gilt, sobald er geschlossen wird. Neue Layer sind schwarz, was auf dunklem Hintergrund hell gezeichnet wird (wie AutoCADs Farbe 7); das Farbfeld zeigt die Farbe so, wie die Zeichnung sie zeigt. |
+| **Linientyp**    | Durchgezogen, Gestrichelt, Verdeckt, Mitte, Punkt, Strichpunkt; die Strichmuster stehen in `LINETYPE_DASHES` (`src/cad/renderer/elementDisplay.ts`). |
+| **Transparenz**  | Ganze Zahl in Prozent von 0 (deckend) bis `MAX_LAYER_TRANSPARENCY` (`src/cad/model/Layer.ts`), wie in AutoCAD; andere Werte werden auf diesen Bereich gebracht. |
+| **Beschreibung** | Freier Text ohne Wirkung auf die Zeichnung.                                    |
+
+- Textfelder übernehmen die Eingabe mit **Enter** oder beim **Verlassen** des Felds; **Esc** stellt
+  den alten Wert wieder her. Solange ein Feld den Fokus hat, gehen die Tasten an das Feld und
+  nicht an die Kommandozeile.
+- Ein Name, den ein Layer nicht haben kann, wird beim Tippen rot markiert, mit dem Grund darunter,
+  und nicht übernommen.
+- **VonLayer** (AutoCAD: ByLayer): Farbe, Linientyp und Transparenz gelten für alle Objekte des
+  Layers **ohne eigenen Stil**; neue Objekte haben keinen. Ein Objekt mit Stil (im Beispielplan
   Wände und Möbel) zeichnet ganz nach seinem Stil, der Layer wirkt dann nicht auf sein Aussehen.
-  Die Strichmuster der Linientypen stehen in `LINETYPE_DASHES`
-  (`src/cad/renderer/elementDisplay.ts`), die größte Transparenz in `MAX_LAYER_TRANSPARENCY`
-  (`src/cad/model/Layer.ts`).
-- Die Standardfarbe eines Layers ist Schwarz, das auf dunklem Hintergrund hell gezeichnet wird
-  (wie AutoCADs Farbe 7).
-- Ein **ausgeblendeter** Layer wird nicht gezeichnet, nicht gefangen, lässt sich nicht wählen
-  und zählt nicht für „Zoom Grenzen“. Das ist **ein** Schalter statt AutoCADs „Ein/Aus“ und
-  „Frieren“ (eine bewusste Abweichung: ohne Regenerierung gibt es zwischen beiden keinen
-  Unterschied in der Leistung). Ein **gesperrter** Layer wird gezeichnet und gefangen, seine
-  Objekte lassen sich aber nicht wählen.
-- Kopien (Grip-Option „Kopieren“, SPIEGELN) bleiben auf dem Layer ihres Originals.
+
+### Ein-/Ausblenden und Sperren
+
+- **Auge:** Ein ausgeblendeter Layer wird nicht gezeichnet, nicht gefangen, lässt sich nicht
+  wählen (eine Auswahl darauf geht verloren) und zählt nicht für „Zoom Grenzen“. Das ist **ein**
+  Schalter statt AutoCADs „Ein/Aus“ und „Frieren“, mit der Wirkung von Frieren: eine bewusste
+  Abweichung, ohne Regenerierung gibt es zwischen beiden keinen Unterschied in der Leistung.
+- **Schloss:** Ein gesperrter Layer wird gezeichnet und gefangen, seine Objekte lassen sich aber
+  nicht wählen. Auf ihm lässt sich weiter zeichnen, wie in AutoCAD.
+- Sichtbarkeit und Sperre gehören zur Zeichnung und gelten damit für alle, die sie offen haben.
+
+### Anlegen und Löschen
+
+- **+ Layer hinzufügen** legt einen Layer mit dem nächsten freien Namen `Layer1`, `Layer2` … und
+  den Werten eines neuen Layers an (sichtbar, nicht gesperrt, schwarz, durchgezogen, deckend) und
+  macht ihn zum aktuellen, sodass er sich gleich benennen lässt.
+- **Papierkorb** löscht einen Layer. Wie in AutoCAD bleiben der Layer `0`, der aktuelle Layer und
+  Layer, auf denen Objekte liegen; der Papierkorb ist dann blass und sein Tooltip nennt den Grund.
+- **Rückgängig** und **Wiederherstellen** gelten für alle Layer-Änderungen; ein zurückgeholter
+  Layer steht wieder an seiner Stelle in der Liste.
+
+### Während ein Befehl läuft
+
+Layer lassen sich nur **anlegen, ändern und löschen, solange kein Befehl läuft** (wie Rückgängig);
+die Felder und Buttons sind sonst ausgegraut. Den aktuellen Layer zu wechseln geht immer, außer
+auf einen ausgeblendeten (das würde ihn einblenden).
+
+### Was sonst gilt
+
+- Kopien (Grip-Option „Kopieren“, SPIEGELN) bleiben auf dem Layer ihres Originals; das Ergebnis
+  von DIFFERENZ und VEREINIG liegt auf dem Layer des ersten Objekts.
+- Layer-Änderungen erscheinen sofort bei allen, die den Plan offen haben (siehe
+  „Zusammenarbeit“ unter [Oberfläche](#oberfläche)).
+- Gespeichert wird noch nichts: Nach dem Neuladen sind die Layer wieder die des gespeicherten Plans.
+
+Was noch fehlt, steht in `docs/todo/Layer_NotImplemented.md`, die Spezifikation in
+`docs/specs/Layer_System_Spezifikation.md`.
 
 ## Objektfang (OFANG)
 
@@ -1525,6 +1604,9 @@ und BKS-Symbol, gelesen beim Laden eines Plans:
 | `ucsIconSize`      | Länge der Achsen des BKS-Symbols in px                         | UCSICON Eigenschaften |
 | `ucsIconLabelSize` | Schriftgröße der Achsenbeschriftung „X“/„Y“ in px              | UCSICON Eigenschaften |
 | `ucsIconOpacity`   | Deckkraft des BKS-Symbols (0–1), damit es sich von gezeichneten Linien abhebt |  |
+| `layerPanelWidth`  | Breite des [Layer-Panels](#layer-panel) in px, solange sie nicht gezogen wurde |  |
+| `layerPanelMinWidth` | Kleinste Breite, auf die sich das Layer-Panel ziehen lässt, in px |  |
+| `layerPanelMaxWidth` | Größte Breite, auf die sich das Layer-Panel ziehen lässt, in px |  |
 
 Was in der Statuszeile und ihren Menüs geändert wird (OFANG, Fangmodi, POLAR mit
 Winkelschritt und Zusatzwinkeln, ORTHO, OTRACK, RASTER mit Abstand und Hauptlinien, DYN mit
@@ -1545,6 +1627,9 @@ seinen Startwert zurück). Die Startwerte, solange nichts gespeichert ist:
 
 ## Noch nicht umgesetzt
 
+- Bei den Layern: Linienstärke, Überschreibung einzelner Eigenschaften je Objekt, Objekte auf
+  einen anderen Layer legen, Reihenfolge ändern, der Befehl `LAYER` per Name, die Objekte eines
+  Layers in der Liste, die Tabs der Stockwerke; Details in `docs/todo/Layer_NotImplemented.md`.
 - Weitere temporäre Überschreibungstasten wie in AutoCAD (z. B. Shift+A für den Objektfang,
   Shift+X für die Polarspur, Shift+E nur Endpunkt); die Liste der geplanten Kürzel steht in
   `docs/todo/Zeichnen_Tastenkuerzel.md`.

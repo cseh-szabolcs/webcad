@@ -4,6 +4,7 @@ import { MAX_MAJOR_EVERY } from '../cad/renderer/grid';
 import {
     DEFAULT_DYNAMIC_INPUT_SETTINGS,
     DEFAULT_GRID_SETTINGS,
+    DEFAULT_LAYER_PANEL_STATE,
     DEFAULT_OBJECT_TRACKING_SETTINGS,
     DEFAULT_SNAP_SETTINGS,
     DEFAULT_TRACKING_MODES,
@@ -11,18 +12,20 @@ import {
     withOrtho,
     type DynamicInputSettings,
     type GridSettings,
+    type LayerPanelState,
     type ObjectTrackingSettings,
     type SnapSettings,
     type TrackingModes,
 } from './editorSettings';
 
-/** What the status bar switches and their menus set, remembered per browser. */
+/** What the status bar switches and their menus set and how the layer panel was left, remembered per browser. */
 export interface EditorSwitches {
     snap: SnapSettings;
     tracking: TrackingModes;
     objectTracking: ObjectTrackingSettings;
     grid: GridSettings;
     dynamicInput: DynamicInputSettings;
+    layerPanel: LayerPanelState;
 }
 
 export const DEFAULT_EDITOR_SWITCHES: EditorSwitches = {
@@ -31,6 +34,7 @@ export const DEFAULT_EDITOR_SWITCHES: EditorSwitches = {
     objectTracking: DEFAULT_OBJECT_TRACKING_SETTINGS,
     grid: DEFAULT_GRID_SETTINGS,
     dynamicInput: DEFAULT_DYNAMIC_INPUT_SETTINGS,
+    layerPanel: DEFAULT_LAYER_PANEL_STATE,
 };
 
 const STORAGE_KEY = 'webcad.editor.switches';
@@ -58,6 +62,7 @@ export function parseSwitches(json: string | null): EditorSwitches {
     const objectTracking = record(field(stored, 'objectTracking'));
     const grid = record(field(stored, 'grid'));
     const dynamicInput = record(field(stored, 'dynamicInput'));
+    const layerPanel = record(field(stored, 'layerPanel'));
     const modes = Array.isArray(snap.modes) ? SNAP_MODES.filter((mode) => (snap.modes as unknown[]).includes(mode)) : null;
     const angles = Array.isArray(polar.additionalAngles) ? polar.additionalAngles : null;
     const polarSettings = {
@@ -92,6 +97,11 @@ export function parseSwitches(json: string | null): EditorSwitches {
             pointerInput: flag(dynamicInput.pointerInput, d.dynamicInput.pointerInput),
             dimensionInput: flag(dynamicInput.dimensionInput, d.dynamicInput.dimensionInput),
             prompts: flag(dynamicInput.prompts, d.dynamicInput.prompts),
+        },
+        layerPanel: {
+            open: flag(layerPanel.open, d.layerPanel.open),
+            // The limits are the settings', applied where it is shown (layerPanelWidth)
+            width: typeof layerPanel.width === 'number' && Number.isFinite(layerPanel.width) && layerPanel.width > 0 ? layerPanel.width : null,
         },
     };
 }

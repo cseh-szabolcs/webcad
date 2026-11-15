@@ -22,7 +22,9 @@ import { gripAt, selectionControlFrames, selectionGrips, type Grip } from './sel
 import { buildSelectionUnits, expandToUnits } from './selection/grouping';
 import { pickAt, pickCrossing, pickLasso, pickWindow } from './selection/picking';
 import { ShapeIndex } from './selection/ShapeIndex';
-import { resolveCurrentLayer } from './layers';
+import { layerNameError, MAX_LAYER_NAME_LENGTH, nextLayerName, removeLayerBlocker, resolveCurrentLayer } from './layers';
+import { AddLayerCommand, RemoveLayerCommand, UpdateLayerCommand, type LayerChanges } from './commands/LayerCommands';
+import { HEX_COLOR, isDefaultLayer, LINETYPES, MAX_LAYER_DESCRIPTION_LENGTH, MAX_LAYER_TRANSPARENCY, newLayer } from '../model/Layer';
 import { SnapEngine, SnapMemory, coincide, sameSnapPoint, type SnapResult } from './snapping/SnapEngine';
 import type { SnapPoint } from './snapping/SnapGeometry';
 import { orthoPoint } from './tracking/ortho';
@@ -631,19 +633,137 @@ export class SelectionEditor {
     }
 
     /**
-     * Makes a shown layer of the floor the current one, also while a command runs (what it draws
-     * next goes there). Returns false for any other layer, which changes nothing.
+     * Makes a layer of the shown floor the current one, also while a command runs (what it draws
+     * next goes there). A hidden one is shown with it, as the current layer always shows; that
+     * changes the document, so not while a command runs. Returns false if it did not become current.
      */
     setCurrentLayer(id: Id): boolean {
-        const { document } = this.history;
-        if (this.floorId === null || resolveCurrentLayer(document, this.floorId, id) !== id) {
+        const layer = this.index.layers.get(id);
+        if (!layer || layer.floorId !== this.floorId) {
             return false;
+        }
+        if (!layer.visible) {
+            if (this.layersBusy()) {
+                return false;
+            }
+            this.history.execute(new UpdateLayerCommand(id, { visible: true }));
+            this.message = null;
         }
         if (id !== this.currentLayerId) {
             this.currentLayerId = id;
-            this.changed();
         }
+        this.changed();
         return true;
+    }
+
+    /**
+     * Adds a layer to the shown floor, with the next free name and the values of a new layer, and
+     * makes it the current one. Returns its id, or null while a command runs.
+     */
+    addLayer(newId: () => Id = () => crypto.randomUUID()): Id | null {
+        if (this.floorId === null || this.layersBusy()) {
+            return null;
+        }
+        const name = nextLayerName(this.history.document, this.floorId, t('layers.newName'));
+        const layer = newLayer(newId(), this.floorId, name);
+        this.history.execute(new AddLayerCommand(layer));
+        this.currentLayerId = layer.id;
+        this.message = null;
+        this.changed();
+        return layer.id;
+    }
+
+    /**
+     * Changes properties of a layer of the shown floor as one undo step. Refused, with the reason
+     * on the command line: while a command runs, a name no layer can have (see layerNameError) or
+     * another one for layer 0, and hiding the current layer. Values are tidied (the name trimmed,
+     * the transparency a whole number within its limits); what stays the same is no step.
+     */
+    updateLayer(id: Id, changes: LayerChanges): boolean {
+        const layer = this.index.layers.get(id);
+        if (!layer || layer.floorId !== this.floorId || this.layersBusy()) {
+            return false;
+        }
+        const next: LayerChanges = {};
+        if (changes.name !== undefined && changes.name.trim() !== layer.name) {
+            const name = changes.name.trim();
+            if (isDefaultLayer(layer)) {
+                return this.refuse(() => t('layers.defaultKeepsName'));
+            }
+            const error = layerNameError(this.history.document, layer.floorId, name, id);
+            if (error !== null) {
+                return this.refuse(() => t(`layers.nameError.${error}`, { max: MAX_LAYER_NAME_LENGTH }));
+            }
+            next.name = name;
+        }
+        if (changes.visible !== undefined && changes.visible !== layer.visible) {
+            if (!changes.visible && id === this.currentLayerId) {
+                return this.refuse(() => t('layers.currentStaysVisible'));
+            }
+            next.visible = changes.visible;
+        }
+        if (changes.locked !== undefined && changes.locked !== layer.locked) {
+            next.locked = changes.locked;
+        }
+        if (changes.color !== undefined && HEX_COLOR.test(changes.color) && changes.color.toLowerCase() !== layer.color) {
+            next.color = changes.color.toLowerCase();
+        }
+        if (changes.linetype !== undefined && LINETYPES.includes(changes.linetype) && changes.linetype !== layer.linetype) {
+            next.linetype = changes.linetype;
+        }
+        if (changes.transparency !== undefined && Number.isFinite(changes.transparency)) {
+            const transparency = Math.min(MAX_LAYER_TRANSPARENCY, Math.max(0, Math.round(changes.transparency)));
+            if (transparency !== layer.transparency) {
+                next.transparency = transparency;
+            }
+        }
+        if (changes.description !== undefined && changes.description !== layer.description) {
+            next.description = changes.description.slice(0, MAX_LAYER_DESCRIPTION_LENGTH);
+        }
+        if (Object.keys(next).length > 0) {
+            this.history.execute(new UpdateLayerCommand(id, next));
+        }
+        this.message = null;
+        this.changed();
+        return true;
+    }
+
+    /**
+     * Removes a layer of the shown floor as one undo step. Refused, with the reason on the command
+     * line, while a command runs and for layer 0, the current layer and a layer with objects.
+     */
+    removeLayer(id: Id): boolean {
+        const layer = this.index.layers.get(id);
+        if (!layer || layer.floorId !== this.floorId || this.layersBusy()) {
+            return false;
+        }
+        const blocker = removeLayerBlocker(this.history.document, id, this.currentLayerId);
+        if (blocker !== null) {
+            return this.refuse(() => t(`layers.removeBlocked.${blocker}`));
+        }
+        this.history.execute(new RemoveLayerCommand(id));
+        this.message = null;
+        this.changed();
+        return true;
+    }
+
+    /**
+     * Whether the layers cannot change now, which the command line then says: only with no command
+     * running, like undo, as a command counts its own steps of the history (LINIE's `combineLast`).
+     */
+    private layersBusy(): boolean {
+        const busy = this.state.kind !== 'idle' || this.area !== null;
+        if (busy) {
+            this.refuse(() => t('layers.busy'));
+        }
+        return busy;
+    }
+
+    /** Says on the command line why something was not done; returns false. */
+    private refuse(message: Message): false {
+        this.message = message;
+        this.changed();
+        return false;
     }
 
     /** Publishes the texts again after a language change. */

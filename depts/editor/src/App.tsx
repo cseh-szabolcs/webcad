@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DocumentHistory } from 'app/cad/editor/commands/DocumentHistory';
 import type { SelectionSnapshot } from 'app/cad/editor/SelectionEditor';
 import type { CadDocument } from 'app/cad/model/CadDocument';
 import { currentLanguage, LANGUAGES, setLanguage } from 'app/i18n/i18n';
@@ -10,6 +11,8 @@ import {
     DEFAULT_EDITOR_SETTINGS,
     type DynamicInputSettings,
     type GridSettings,
+    type LayerPanelState,
+    layerPanelWidth,
     type ObjectTrackingSettings,
     type SnapSettings,
     type TrackingModes,
@@ -23,6 +26,8 @@ import { CollaborationStatus } from 'app/ui/CollaborationStatus';
 import { CommandLine } from 'app/ui/CommandLine';
 import { FullscreenIcon } from 'app/ui/FullscreenIcon';
 import { useFullscreen } from 'app/ui/fullscreen';
+import { LayerPanel } from 'app/ui/LayerPanel';
+import { SidePanel } from 'app/ui/SidePanel';
 import { StatusBar } from 'app/ui/StatusBar';
 import { ThemeIcon } from 'app/ui/ThemeIcon';
 import { ToolbarSelect } from 'app/ui/ToolbarSelect';
@@ -61,6 +66,8 @@ function App() {
     const [pointer, setPointer] = useState<Point | null>(null);
     const [selection, setSelection] = useState<SelectionSnapshot | null>(null);
     const [state, setState] = useState<LoadState>({ status: 'loading' });
+    // The loaded document with its changes: the canvas edits it, the layer panel shows its layers
+    const history = useMemo(() => (state.status === 'loaded' ? new DocumentHistory(state.document) : null), [state]);
     // Joined once the plan is shown; a generated stress plan belongs to no project
     const { state: collaboration, presence } = useCollaboration(api, state.status === 'loaded' && stressCount === 0 ? planId : null);
     // The switches of the status bar start as they were left in this browser
@@ -70,9 +77,10 @@ function App() {
     const [objectTracking, setObjectTracking] = useState<ObjectTrackingSettings>(stored.objectTracking);
     const [gridSettings, setGridSettings] = useState<GridSettings>(stored.grid);
     const [dynamicInput, setDynamicInput] = useState<DynamicInputSettings>(stored.dynamicInput);
+    const [layerPanel, setLayerPanel] = useState<LayerPanelState>(stored.layerPanel);
     useEffect(() => {
-        saveSwitches({ snap: snapSettings, tracking, objectTracking, grid: gridSettings, dynamicInput });
-    }, [snapSettings, tracking, objectTracking, gridSettings, dynamicInput]);
+        saveSwitches({ snap: snapSettings, tracking, objectTracking, grid: gridSettings, dynamicInput, layerPanel });
+    }, [snapSettings, tracking, objectTracking, gridSettings, dynamicInput, layerPanel]);
     const { preference, setPreference, theme } = useTheme();
     const fullscreen = useFullscreen();
     const fullscreenTitle = !fullscreen.lockable
@@ -189,6 +197,12 @@ function App() {
     if (state.status === 'error') {
         return <p className="app-message app-message-error">{t('app.loadFailed', { reason: state.message })}</p>;
     }
+    // Loaded, so there is a history
+    if (history === null) {
+        return null;
+    }
+    const settings = DEFAULT_EDITOR_SETTINGS;
+    const setLayersOpen = (open: boolean) => setLayerPanel((panel) => ({ ...panel, open }));
 
     return (
         <div className="app">
@@ -258,23 +272,49 @@ function App() {
             <ToolPanel
                 command={selection?.command ?? null}
                 onStart={(command, method) => canvasRef.current?.startCommand(command, method)}
+                layersOpen={layerPanel.open}
+                onLayersOpenChange={setLayersOpen}
             />
-            <CadCanvas
-                ref={canvasRef}
-                document={state.document}
-                theme={theme}
-                settings={DEFAULT_EDITOR_SETTINGS}
-                snapSettings={snapSettings}
-                polarSettings={tracking.polar}
-                ortho={tracking.ortho}
-                objectTrackingSettings={objectTracking}
-                gridSettings={gridSettings}
-                dynamicInputSettings={dynamicInput}
-                onViewportChange={setViewport}
-                onPointerChange={setPointer}
-                onSelectionChange={setSelection}
-                presence={presence}
-            />
+            <div className="workspace">
+                <CadCanvas
+                    ref={canvasRef}
+                    history={history}
+                    theme={theme}
+                    settings={settings}
+                    snapSettings={snapSettings}
+                    polarSettings={tracking.polar}
+                    ortho={tracking.ortho}
+                    objectTrackingSettings={objectTracking}
+                    gridSettings={gridSettings}
+                    dynamicInputSettings={dynamicInput}
+                    onViewportChange={setViewport}
+                    onPointerChange={setPointer}
+                    onSelectionChange={setSelection}
+                    presence={presence}
+                />
+                <SidePanel
+                    title={t('layers.title')}
+                    open={layerPanel.open}
+                    width={layerPanelWidth(layerPanel, settings)}
+                    minWidth={settings.layerPanelMinWidth}
+                    maxWidth={settings.layerPanelMaxWidth}
+                    defaultWidth={settings.layerPanelWidth}
+                    onOpenChange={setLayersOpen}
+                    onWidthChange={(width) => setLayerPanel((panel) => ({ ...panel, width }))}
+                    texts={{ panel: t('layers.panel'), open: t('layers.open'), close: t('layers.close'), resize: t('layers.resize') }}
+                >
+                    <LayerPanel
+                        history={history}
+                        currentLayerId={selection?.currentLayerId ?? null}
+                        busy={selection?.command != null}
+                        theme={theme}
+                        onSetCurrent={(id) => canvasRef.current?.setCurrentLayer(id)}
+                        onAdd={() => canvasRef.current?.addLayer()}
+                        onUpdate={(id, changes) => canvasRef.current?.updateLayer(id, changes)}
+                        onRemove={(id) => canvasRef.current?.removeLayer(id)}
+                    />
+                </SidePanel>
+            </div>
             {selection && (
                 <CommandLine
                     prompt={selection.prompt}

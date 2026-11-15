@@ -45,10 +45,16 @@ const GRIP_LABELS = {
 
 export type GripLabel = keyof typeof GRIP_LABELS;
 
-/** What names an undo step: a command, or a grip mode. */
-export type CommandLabel = EditorCommand | GripLabel;
+/** A change made in the layer panel: AutoCAD's LAYER, which no name starts here yet. */
+export type LayerLabel = 'LAYER';
+
+/** What names an undo step: a command, a grip mode, or a change of the layers. */
+export type CommandLabel = EditorCommand | GripLabel | LayerLabel;
 
 /** Name of an undo step on the command line, in the current language. */
 export function labelName(label: CommandLabel): string {
+    if (label === 'LAYER') {
+        return t('layers.command');
+    }
     return label in GRIP_LABELS ? t(GRIP_LABELS[label as GripLabel]) : commandName(label as EditorCommand);
 }

@@ -5,7 +5,7 @@ import type { Id } from '../model/Point';
 import type { DisplayTheme } from './displayColor';
 import { applyDisplay, createItem } from './ElementRenderer';
 import { elementDisplay, layerDisplay } from './elementDisplay';
-import { planSceneUpdate } from './sceneUpdate';
+import { planLayerUpdate, planSceneUpdate } from './sceneUpdate';
 import type { Rect, Size, Viewport } from './Viewport';
 
 /** For elements of a layer the document does not know, below all others. */
@@ -88,13 +88,18 @@ export class PaperRenderer {
     /**
      * Follows a document change that touched the given elements: replaces their items in place,
      * removes those of elements that are gone and adds new ones at their place in the drawing
-     * order; the other items stay. Falls back to setDocument() if the layers changed, an element
-     * changed its layer or the ids do not cover the change.
+     * order; the other items stay. Changed layers are followed first (see updateLayers). Falls
+     * back to setDocument() if that cannot be done, an element changed its layer or the ids do not
+     * cover the change.
      */
     updateElements(doc: CadDocument, ids: Iterable<Id>): void {
         this.scope.activate();
         const index = indexDocument(doc);
-        const steps = doc.layers === this.documentLayers ? planSceneUpdate(doc, index, this.items, ids) : 'rebuild';
+        if (doc.layers !== this.documentLayers && !this.updateLayers(doc, index)) {
+            this.setDocument(doc);
+            return;
+        }
+        const steps = planSceneUpdate(doc, index, this.items, ids);
         if (steps === 'rebuild') {
             this.setDocument(doc);
             return;
@@ -129,6 +134,41 @@ export class PaperRenderer {
                 this.restyle(step.id);
             }
         }
+    }
+
+    /**
+     * Follows a change of the layer list without touching the elements (see planLayerUpdate):
+     * layers come and go, are shown or hidden, and the elements of a layer whose colour, linetype
+     * or transparency changed are drawn anew. Returns false where only a rebuild helps.
+     */
+    private updateLayers(doc: CadDocument, index: DocumentIndex): boolean {
+        const steps = planLayerUpdate(this.documentLayers ?? [], doc.layers, (id) => !(this.layers.get(id)?.isEmpty() ?? true));
+        if (steps === 'rebuild') {
+            return false;
+        }
+        this.index = index;
+        this.documentLayers = doc.layers;
+        for (const step of steps) {
+            const layer = this.layers.get(step.id);
+            if (step.kind === 'add') {
+                const added = new this.scope.Layer({ visible: index.layers.get(step.id)!.visible });
+                const below = step.belowId !== null ? this.layers.get(step.belowId) : undefined;
+                if (below) {
+                    added.insertBelow(below);
+                }
+                this.layers.set(step.id, added);
+            } else if (step.kind === 'remove') {
+                layer?.remove();
+                this.layers.delete(step.id);
+            } else if (step.kind === 'show') {
+                layer!.visible = step.visible;
+            } else {
+                for (const item of layer!.children) {
+                    this.restyle(item.data.elementId);
+                }
+            }
+        }
+        return true;
     }
 
     /**

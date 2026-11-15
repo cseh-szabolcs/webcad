@@ -3,7 +3,7 @@ import { vertexRefs, type BaseElement, type CadElement } from '../model/CadEleme
 import type { ElementStyle } from '../model/ElementStyle';
 import type { Floor } from '../model/Floor';
 import type { Group } from '../model/Group';
-import { DEFAULT_LAYER_NAME, LINETYPES, MAX_LAYER_TRANSPARENCY, type Layer, type Linetype } from '../model/Layer';
+import { DEFAULT_LAYER_NAME, HEX_COLOR, LINETYPES, MAX_LAYER_TRANSPARENCY, type Layer, type Linetype } from '../model/Layer';
 import type { Id, Unit, Vector2 } from '../model/Point';
 import type { Vertex } from '../model/Vertex';
 
@@ -19,7 +19,6 @@ export class CadDocumentError extends Error {
 
 const UNITS: readonly Unit[] = ['mm', 'cm', 'm'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 
 export function serializeDocument(doc: CadDocument): string {
     return JSON.stringify(doc);

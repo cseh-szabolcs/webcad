@@ -160,8 +160,11 @@ The rules this follows:
 - **Bounded.** A patch may name `CHANGE_LIMIT` things (the same number on both sides); the editor does
   not send a larger one and warns, the server would ignore it. The server takes messages up to
   `MAX_MESSAGE_BYTES`.
-- **The order of elements** is kept: a new element says which one it follows (`after`). Layers and
-  styles are not in a patch, as no command changes them yet.
+- **The order of elements and of layers** is kept: a new one says which one it follows (`after`).
+  Layers are in a patch (`layers`, `removedLayerIds`); one after which an element would be on a
+  layer that is not there, or a layer on a floor that is not there, is left out like the others.
+  Floors and styles are not in a patch, as no command changes them yet. The current layer is
+  editor state per user and never sent.
 
 **What this does not solve yet** (the editors can drift apart, and nothing repairs it):
 
