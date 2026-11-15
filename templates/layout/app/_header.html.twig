@@ -4,7 +4,7 @@
  #}
 {% set nav_items = [
     {label: 'app.nav.dashboard', href: path('app_dashboard'), route: 'app_dashboard'},
-    {label: 'app.nav.plans', href: '#', route: null},
+    {label: 'app.nav.plans', href: path('plan_list_index'), route: 'plan_list_index', section: 'plan_'},
     {label: 'app.nav.customers', href: path('customer_list_index'), route: 'customer_list_index', section: 'customer_'},
     {label: 'app.nav.administration', href: '#', route: null},
 ] %}

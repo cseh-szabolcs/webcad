@@ -17,7 +17,11 @@ apps in one repo:
   (`/{_locale}/login`, with the office = tenant name; logout `/{_locale}/logout`), the registration
   form (`/{_locale}/register`, only displays and validates; registering comes later), a
   dummy dashboard for logged-in users (`/{_locale}/app`), to which home, login and
-  registration redirect them, and the customer area with its tabs: the lists of the
+  registration redirect them, the plan gallery (`/{_locale}/plans`, three dummy plans with
+  made-up editor screenshots as inline SVG, all linked to the editor with the sample plan), the editor page
+  (`/{_locale}/plans/{id}/editor`, `Plan\Controller\EditorController`: a bare page that loads the
+  built editor from `public/editor/`, after `npm run build` in `depts/editor/`, and names the
+  backend for API and `/socket.io` from `EDITOR_BACKEND_HOST`, empty = same origin), and the customer area with its tabs: the lists of the
   customers (`/{_locale}/customers`, with toolbar and detail panel), companies (`…/customers/companies`) and tags
   (`…/customers/tags`), for now static markup with dummy rows and no JavaScript (their `data`
   routes already return the items); their create and edit pages come later.
@@ -194,8 +198,9 @@ Rules that apply everywhere:
   `assets/styles/app-layout.css`; the theme is the cookie `theme`, set by the Stimulus `theme`
   controller and rendered as `<html data-theme>`). The pages of an area are linked by tabs on the
   page itself (`.segmented--tabs`, e.g. `templates/page/customer/_tabs.html.twig`).
-- The editor build writes `editor/[name].js` without hashes, because Symfony (AssetMapper) is
-  meant to handle cache-busting. Integration of the built editor into Twig is not wired up yet.
+- The editor build writes `editor/[name].js` without hashes (copied to `public/editor/`, served as `/editor/index.js`), because Symfony (AssetMapper) is
+  meant to handle cache-busting. `templates/page/plan/editor.html.twig` loads them and names the
+  plan as `data-plan-id` on `#root`.
 
 Work in small, well-scoped increments that follow existing conventions (e.g. "build a
 `CircleEditor` like the `LineEditor`, mutating the model only via commands").

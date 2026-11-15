@@ -1,0 +1,19 @@
+{#
+ # The CAD editor (App\Plan\Controller\EditorController): a bare document without the app layout,
+ # the editor takes the whole window. It reads the plan id from data-plan-id and the origin of the
+ # API and /socket.io from data-backend-host (EDITOR_BACKEND_HOST; empty: this page's origin).
+ #}
+<!DOCTYPE html>
+<html lang="{{ app.request.locale }}">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>{{ 'plan.editor.title'|trans }} – {{ 'layout.brand'|trans }}</title>
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><g fill=%22none%22 stroke=%22%235b4fc4%22 stroke-width=%223%22><rect x=%227.5%22 y=%227.5%22 width=%2217%22 height=%2217%22/><path d=%22M4 7.5h7M21 7.5h7M4 24.5h7M21 24.5h7%22 stroke-width=%227%22/></g></svg>">
+        <link rel="stylesheet" href="{{ asset('editor/index.css') }}">
+        <script type="module" src="{{ asset('editor/index.js') }}"></script>
+    </head>
+    <body>
+        <div id="root" data-plan-id="{{ planId }}" data-backend-host="{{ backendHost }}"></div>
+    </body>
+</html>

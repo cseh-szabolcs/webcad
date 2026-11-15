@@ -2,6 +2,7 @@
 /.idea
 /local
 /public/local
+/public/editor/
 /todo
 ###< symfony/framework-bundle ###
 

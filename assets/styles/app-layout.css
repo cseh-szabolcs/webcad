@@ -1098,3 +1098,89 @@
     color: var(--ink-muted);
     text-align: center;
 }
+
+/* ---------- Plan gallery ---------- */
+
+.plan-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+    gap: 20px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.plan-card__link {
+    display: grid;
+    height: 100%;
+    overflow: hidden;
+    border: 1px solid var(--card-line);
+    border-radius: var(--radius-lg);
+    background: var(--paper-raised);
+    color: inherit;
+    text-decoration: none;
+    transition: box-shadow 0.15s, transform 0.15s, border-color 0.15s;
+}
+
+.plan-card__link:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-2px);
+}
+
+/* The thumbnail is a screenshot of the editor, so it keeps its dark colors in both modes */
+.plan-card__media {
+    display: block;
+    aspect-ratio: 16 / 10;
+    border-bottom: 1px solid var(--card-line);
+    background: #161a22;
+}
+
+.plan-thumb {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.plan-card__body {
+    display: grid;
+    gap: 4px;
+    padding: 14px 16px 16px;
+}
+
+.plan-card__title {
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.plan-card__project {
+    color: var(--ink-muted);
+    font-size: 0.875rem;
+}
+
+.plan-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    margin-top: 8px;
+    color: var(--ink-muted);
+    font-size: 0.8125rem;
+}
+
+.plan-card__status {
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.plan-card__status--draft {
+    background: var(--tone-orange-bg);
+    color: var(--tone-orange-ink);
+}
+
+.plan-card__status--published {
+    background: var(--tone-green-bg);
+    color: var(--tone-green-ink);
+}

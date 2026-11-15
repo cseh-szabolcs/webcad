@@ -1,0 +1,89 @@
+{#
+ # A made-up screenshot of the editor for the plan gallery: toolbar, tool strip, layer panel and a
+ # drawing on the canvas. `id` keeps the grid pattern unique, `drawing` is one of eg, og, section.
+ #}
+<svg class="plan-thumb" viewBox="0 0 320 200" role="img" aria-hidden="true" preserveAspectRatio="xMidYMid slice">
+    <defs>
+        <pattern id="plan-grid-{{ id }}" width="10" height="10" patternUnits="userSpaceOnUse">
+            <path d="M10 0H0V10" fill="none" stroke="#2a3140" stroke-width="0.5"/>
+        </pattern>
+    </defs>
+
+    {# Canvas with grid #}
+    <rect width="320" height="200" fill="#161a22"/>
+    <rect x="18" y="14" width="236" height="186" fill="url(#plan-grid-{{ id }})"/>
+
+    <g fill="none" stroke-linecap="square">
+        {% if drawing == 'eg' %}
+            <path d="M50 40H220V170H50Z" stroke="#e8ebf0" stroke-width="4"/>
+            <path d="M50 102H118M120 40V82M120 98V132M122 132H150M166 132H220M176 134V170" stroke="#e8ebf0" stroke-width="2.4"/>
+            <path d="M120 82A16 16 0 0 1 136 98M150 132A16 16 0 0 0 166 116" stroke="#8b95a5" stroke-width="0.8"/>
+            <path d="M80 38V42M95 38V42M168 38V42M196 38V42M218 70H222M218 92H222" stroke="#5fb4d8" stroke-width="2"/>
+            <rect x="148" y="62" width="40" height="24" rx="2" stroke="#8b95a5" stroke-width="0.8"/>
+            <circle cx="72" cy="140" r="9" stroke="#8b95a5" stroke-width="0.8"/>
+            <path d="M184 142h26v20h-26z" stroke="#8b95a5" stroke-width="0.8"/>
+            {# selected wall with grips #}
+            <path d="M120 98V132" stroke="#a69df1" stroke-width="2.4" stroke-dasharray="4 2"/>
+            <g fill="#a69df1" stroke="none"><rect x="117" y="95" width="6" height="6"/><rect x="117" y="112" width="6" height="6"/><rect x="117" y="129" width="6" height="6"/></g>
+            <path d="M50 184H220M50 180V188M220 180V188" stroke="#5fb4d8" stroke-width="0.8"/>
+            <text x="135" y="181" fill="#5fb4d8" font-size="7" font-family="ui-monospace, monospace" text-anchor="middle" stroke="none">11,49</text>
+        {% elseif drawing == 'og' %}
+            <path d="M58 36H206V104H236V176H58Z" stroke="#e8ebf0" stroke-width="4"/>
+            <path d="M58 96H96M112 96H150V176M150 36V70M150 86V96M184 104H206V176" stroke="#e8ebf0" stroke-width="2.4"/>
+            <path d="M96 96A16 16 0 0 1 112 80M150 70A16 16 0 0 1 166 86" stroke="#8b95a5" stroke-width="0.8"/>
+            <path d="M84 34V38M120 34V38M176 34V38M234 128V132M234 150V154" stroke="#5fb4d8" stroke-width="2"/>
+            {# stairs #}
+            <path d="M160 112h20v56h-20zM160 120h20M160 128h20M160 136h20M160 144h20M160 152h20M160 160h20M170 166V116l-3 4M170 116l3 4" stroke="#8b95a5" stroke-width="0.8"/>
+            <rect x="72" y="118" width="44" height="34" rx="2" stroke="#8b95a5" stroke-width="0.8"/>
+            <path d="M66 48h28v20h-28z" stroke="#8b95a5" stroke-width="0.8"/>
+            {# hatched bathroom and tracking line #}
+            <path d="M196 42l8 8M188 42l16 16M180 42l24 24M172 42l26 26M164 42l20 20M158 44l12 12" stroke="#4a5566" stroke-width="0.6"/>
+            <path d="M18 104H254" stroke="#a69df1" stroke-width="0.6" stroke-dasharray="2 3"/>
+            <path d="M236 98v12M230 104h12" stroke="#a69df1" stroke-width="1"/>
+            <path d="M58 188H236M58 184V192M236 184V192" stroke="#5fb4d8" stroke-width="0.8"/>
+            <text x="147" y="185" fill="#5fb4d8" font-size="7" font-family="ui-monospace, monospace" text-anchor="middle" stroke="none">12,24</text>
+        {% else %}
+            <path d="M28 168H248" stroke="#8b95a5" stroke-width="1.2"/>
+            <path d="M28 172l6-4M40 172l6-4M52 172l6-4M64 172l6-4M76 172l6-4M88 172l6-4M100 172l6-4M112 172l6-4M124 172l6-4M136 172l6-4M148 172l6-4M160 172l6-4M172 172l6-4M184 172l6-4M196 172l6-4M208 172l6-4M220 172l6-4M232 172l6-4" stroke="#4a5566" stroke-width="0.6"/>
+            <path d="M70 168V92M206 168V92M70 130H206M70 94H206" stroke="#e8ebf0" stroke-width="3.2"/>
+            <path d="M58 100L138 42L218 100" stroke="#e8ebf0" stroke-width="3.2" stroke-linejoin="round"/>
+            {# stairs between the floors #}
+            <path d="M120 168v-6h8v-6h8v-6h8v-6h8v-6h8v-6h8v-4" stroke="#8b95a5" stroke-width="1"/>
+            <path d="M86 146h18v14h-18zM172 104h18v16h-18z" stroke="#5fb4d8" stroke-width="1"/>
+            {# selected roof with grips #}
+            <path d="M138 42L218 100" stroke="#a69df1" stroke-width="3.2" stroke-dasharray="5 3"/>
+            <g fill="#a69df1" stroke="none"><rect x="135" y="39" width="6" height="6"/><rect x="175" y="68" width="6" height="6"/><rect x="215" y="97" width="6" height="6"/></g>
+            <path d="M234 168V42M230 168h8M230 130h8M230 94h8M230 42h8" stroke="#5fb4d8" stroke-width="0.8"/>
+            <text x="244" y="152" fill="#5fb4d8" font-size="7" font-family="ui-monospace, monospace" stroke="none" transform="rotate(-90 244 152)">±0,00</text>
+        {% endif %}
+    </g>
+
+    {# Crosshair cursor #}
+    <path d="M196 120h-14M210 120h14M203 113v-14M203 127v14" stroke="#e8ebf0" stroke-width="0.8"/>
+    <rect x="200" y="117" width="6" height="6" fill="none" stroke="#e8ebf0" stroke-width="0.8"/>
+
+    {# Toolbar #}
+    <rect width="320" height="14" fill="#232935"/>
+    <g fill="#3b4454"><rect x="6" y="4" width="18" height="6" rx="1"/><rect x="30" y="4" width="18" height="6" rx="1"/><rect x="54" y="4" width="18" height="6" rx="1"/><rect x="84" y="4" width="34" height="6" rx="1"/></g>
+    <rect x="124" y="4" width="18" height="6" rx="1" fill="#8f84ec"/>
+
+    {# Tool strip #}
+    <rect y="14" width="18" height="186" fill="#1e232d"/>
+    <g fill="#3b4454"><rect x="5" y="22" width="8" height="8" rx="1"/><rect x="5" y="36" width="8" height="8" rx="1"/><rect x="5" y="64" width="8" height="8" rx="1"/><rect x="5" y="78" width="8" height="8" rx="1"/><rect x="5" y="92" width="8" height="8" rx="1"/></g>
+    <rect x="5" y="50" width="8" height="8" rx="1" fill="#8f84ec"/>
+
+    {# Layer panel #}
+    <rect x="254" y="14" width="66" height="186" fill="#1e232d"/>
+    <path d="M254 14V200" stroke="#2c3440"/>
+    <rect x="260" y="22" width="34" height="5" rx="1" fill="#4a5566"/>
+    <g fill="#3b4454">
+        <rect x="260" y="36" width="54" height="10" rx="1.5"/>
+        <rect x="260" y="50" width="54" height="10" rx="1.5"/>
+        <rect x="260" y="64" width="54" height="10" rx="1.5"/>
+        <rect x="260" y="78" width="54" height="10" rx="1.5"/>
+    </g>
+    <rect x="260" y="36" width="54" height="10" rx="1.5" fill="#8f84ec" fill-opacity="0.35"/>
+    <g><circle cx="266" cy="41" r="2" fill="#e8ebf0"/><circle cx="266" cy="55" r="2" fill="#5fb4d8"/><circle cx="266" cy="69" r="2" fill="#8b95a5"/><circle cx="266" cy="83" r="2" fill="#4a5566"/></g>
+    <rect x="260" y="104" width="34" height="5" rx="1" fill="#4a5566"/>
+    <rect x="260" y="116" width="54" height="30" rx="1.5" fill="#262d38"/>
+</svg>

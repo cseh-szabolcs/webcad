@@ -1,0 +1,50 @@
+{#
+ # The plan gallery (App\Plan\Controller\ListController): static, with three dummy plans and a
+ # made-up editor screenshot each. Only the sample plan of app:fixture:create exists, so all three
+ # open it in the editor.
+ #}
+{% extends 'app.html.twig' %}
+
+{% block title %}{{ 'plan.list.title'|trans }} – {{ 'layout.brand'|trans }}{% endblock %}
+
+{% set sample_plan_id = '01994f4e-6f3a-7c2d-9b1e-5a3c2d1e0f42' %}
+{% set plans = [
+    {name: 'Erdgeschoss', project: 'Einfamilienhaus Weber', drawing: 'eg', status: 'draft', edited: '2026-11-12'},
+    {name: 'Obergeschoss', project: 'Einfamilienhaus Weber', drawing: 'og', status: 'published', edited: '2026-11-03'},
+    {name: 'Schnitt A–A', project: 'Doppelhaus Am Hang', drawing: 'section', status: 'draft', edited: '2026-10-27'},
+] %}
+
+{% block body %}
+    <div class="stack">
+        <header class="page-head page-head--action page-head--large">
+            <div class="page-head__text">
+                <h1 class="page-head__title">{{ 'plan.list.heading'|trans }}</h1>
+                <p class="page-head__lead">{{ 'plan.list.lead'|trans }}</p>
+            </div>
+            <a class="btn btn--primary page-head__action" href="#">
+                <svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                {{ 'plan.list.create'|trans }}
+            </a>
+        </header>
+
+        <ul class="plan-gallery">
+            {% for plan in plans %}
+                <li class="plan-card">
+                    <a class="plan-card__link" href="{{ path('plan_editor', {id: sample_plan_id}) }}" aria-label="{{ 'plan.list.open'|trans({'%name%': plan.name}) }}">
+                        <span class="plan-card__media">
+                            {{ include('page/plan/_thumbnail.html.twig', {id: loop.index, drawing: plan.drawing}) }}
+                        </span>
+                        <span class="plan-card__body">
+                            <span class="plan-card__title">{{ plan.name }}</span>
+                            <span class="plan-card__project">{{ plan.project }}</span>
+                            <span class="plan-card__meta">
+                                <span class="plan-card__status plan-card__status--{{ plan.status }}">{{ ('plan.status.' ~ plan.status)|trans }}</span>
+                                <span>{{ 'plan.list.edited'|trans({'%date%': plan.edited|date('d.m.Y')}) }}</span>
+                            </span>
+                        </span>
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+{% endblock %}

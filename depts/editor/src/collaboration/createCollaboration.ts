@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import { backendHost } from 'app/backendHost';
 import type { ApiSchema } from 'app/api/types';
 import { patchSize, type DocumentPatch } from 'app/cad/editor/commands/DocumentPatch';
 import type { Point } from 'app/cad/model/Point';
@@ -40,13 +41,13 @@ export type RefreshToken = () => Promise<string>;
 export type Connect = (access: CollaborationAccess, refreshToken: RefreshToken) => CollaborationSocket;
 
 /**
- * Same origin as the editor: the dev server (and later the web server) forwards `/socket.io`.
+ * On the backend host (`backendHost`, '' = the editor's own origin), whose web server forwards `/socket.io`.
  * The namespace is the tenant, the token (signed by the backend) says which room. The token that
  * came with the access serves the first handshake; every reconnect asks for a fresh one.
  */
 export const connectSocket: Connect = (access, refreshToken) => {
     let first = true;
-    return io(`/${access.namespace}`, {
+    return io(`${backendHost()}/${access.namespace}`, {
         reconnection: true,
         auth: (callback) => {
             if (first) {

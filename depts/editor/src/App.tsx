@@ -6,6 +6,7 @@ import type { CadDocument } from 'app/cad/model/CadDocument';
 import { currentLanguage, LANGUAGES, setLanguage } from 'app/i18n/i18n';
 import type { Point } from 'app/cad/model/Point';
 import { CadApiClient } from 'app/cad/persistence/CadApiClient';
+import { backendHost } from 'app/backendHost';
 import { useCollaboration } from 'app/collaboration/useCollaboration';
 import {
     DEFAULT_EDITOR_SETTINGS,
@@ -43,7 +44,7 @@ import './App.css';
  */
 const DEV_PLAN_ID = '01994f4e-6f3a-7c2d-9b1e-5a3c2d1e0f42';
 
-const api = new CadApiClient();
+const api = new CadApiClient(`${backendHost()}/api`);
 
 const NO_SELECTION: ReadonlySet<string> = new Set();
 
@@ -62,7 +63,8 @@ function App() {
     const { t } = useTranslation();
     const language = currentLanguage();
     const query = new URLSearchParams(window.location.search);
-    const planId = query.get('plan') ?? (import.meta.env.DEV ? DEV_PLAN_ID : null);
+    // The Symfony page (EditorController) names the plan on #root, Vite dev takes `?plan=`
+    const planId = document.getElementById('root')?.dataset.planId ?? query.get('plan') ?? (import.meta.env.DEV ? DEV_PLAN_ID : null);
     // Dev only: `?stress=<count>` shows a generated plan of that many elements instead (see stressPlan)
     const stressCount = import.meta.env.DEV ? Number(query.get('stress')) || 0 : 0;
     const canvasRef = useRef<CadCanvasHandle>(null);

@@ -17,6 +17,18 @@ layout:
         terms: Nutzungsbedingungen
 
 plan:
+    list:
+        title: Pläne
+        heading: Pläne
+        lead: Alle Pläne Ihrer Projekte, mit Entwurf und veröffentlichten Ständen.
+        create: Plan erstellen
+        open: '%name% öffnen'
+        edited: 'Bearbeitet am %date%'
+    editor:
+        title: Editor
+    status:
+        draft: Entwurf
+        published: Veröffentlicht
     # Labels of the decorative floor plan
     living: Wohnen
     kitchen: Küche

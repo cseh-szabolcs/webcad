@@ -35,7 +35,7 @@ value; renaming or moving such a constant means updating the guide.
 ## Running it
 
 **Node tooling runs on the host**, inside `depts/editor/`: `npm run dev`, `npm run build`
-(`tsc -b && vite build`), `npm run lint` (oxlint), `npm test` (Vitest; `*.test.ts` next to the
+(`tsc -b && vite build`, then `build:publish` copies `dist/editor` to `public/editor`, git-ignored), `npm run lint` (oxlint), `npm test` (Vitest; `*.test.ts` next to the
 sources, pure code only, no canvas), `npm run generate:api` (see the root `CLAUDE.md`, "API
 documentation"). The `editor` container only serves Vite (http://localhost:8081, it runs
 `npm run dev:init`). It has its own named volume over `/app/node_modules`, because rolldown,
@@ -44,10 +44,12 @@ container): after a dependency change, run `npm install` on the host and
 `docker compose restart editor`. `.npmrc` sets `cache=node_modules/.npm-cache`, so npm writes
 nothing to `~/.npm`; never install packages globally.
 
-Vite proxies `/api` to `http://nginx` (same origin, no CORS); for `npm run dev` on the host set
+The backend (API and `/socket.io`) is `backendHost()` (`src/backendHost.ts`): `data-backend-host` on
+`#root` (the Symfony page, from `EDITOR_BACKEND_HOST`), else `VITE_BACKEND_HOST` (`.env`), else the
+editor's own origin. Vite proxies `/api` to `http://nginx` (same origin, no CORS); for `npm run dev` on the host set
 `API_PROXY_TARGET=http://localhost:8080`. In dev the editor loads the plan
 `01994f4e-6f3a-7c2d-9b1e-5a3c2d1e0f42` when the URL names none (`DEV_PLAN_ID` in `App.tsx`,
-`?plan=<id>` names another; `?stress=<count>` shows a generated plan of that many elements
+`?plan=<id>` names another; on the Symfony page (`/{_locale}/plans/{id}/editor`) `data-plan-id` on `#root` names it; `?stress=<count>` shows a generated plan of that many elements
 instead, dev only, to measure large drawings: `src/dev/stressPlan.ts`). `src/cad/__fixtures__/sample-plan.json` (unit tests) must stay
 byte-identical to the backend's `fixtures/plans/sample-plan.json`; readable names of its ids in
 `sampleIds.ts`. `app/*` is a Vite alias for `src/*`. Model coordinates are **mm with Y up**; the

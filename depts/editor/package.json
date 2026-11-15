@@ -6,7 +6,8 @@
   "scripts": {
     "dev:init": "npm install && npm run dev",
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && npm run build:publish",
+    "build:publish": "node -e \"const fs=require('fs');fs.rmSync('../../public/editor',{recursive:true,force:true});fs.cpSync('dist/editor','../../public/editor',{recursive:true})\"",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
