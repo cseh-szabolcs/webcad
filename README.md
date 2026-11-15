@@ -52,7 +52,8 @@ It asks first, then drops every table of the tenant (`demo`, or the one named wi
 `--tenant=<hash>`), builds the schema again from the entities, and creates the project
 "Beispielprojekt" with the plan from `fixtures/plans/sample-plan.json` and a user (role
 `ROLE_USER`). The plan gets the id the editor loads in dev when the URL names no plan, so
-afterwards http://localhost:8081 shows it (after logging in at :8080); the command also prints the link.
+afterwards http://localhost:8081 shows it (after logging in at :8080), as does the plan gallery at
+http://localhost:8080/de/plans.
 
 | Option                 | Meaning                                                            |
 |------------------------|--------------------------------------------------------------------|

@@ -18,7 +18,6 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\DependencyInjection\Attribute\When;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Serializer\SerializerInterface;
@@ -71,8 +70,6 @@ final readonly class FixtureCreateCommand
         private SerializerInterface $serializer,
         private UserPasswordHasherInterface $passwordHasher,
         private string $rootDir,
-        #[Autowire(env: 'default::EDITOR_URL')]
-        private ?string $editorUrl,
     ) {
     }
 
@@ -123,9 +120,6 @@ final readonly class FixtureCreateCommand
 
         $io->success(\sprintf('Plan "%s" (%s) created in project "%s" (%s).', $plan->getName(), $plan->getId()->toRfc4122(), $project->getName(), $project->getId()->toRfc4122()));
         $io->writeln(\sprintf('Log in with tenant "%s", user "%s".', $tenant->getName(), $user->getEmail()));
-        if (null !== $this->editorUrl && '' !== $this->editorUrl) {
-            $io->writeln(\sprintf('Open it in the editor: %s/?plan=%s', rtrim($this->editorUrl, '/'), $plan->getId()->toRfc4122()));
-        }
 
         return Command::SUCCESS;
     }
