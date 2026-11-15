@@ -163,7 +163,8 @@ The rules this follows:
 - **The order of elements and of layers** is kept: a new one says which one it follows (`after`).
   Layers are in a patch (`layers`, `removedLayerIds`); one after which an element would be on a
   layer that is not there, or a layer on a floor that is not there, is left out like the others.
-  Floors and styles are not in a patch, as no command changes them yet. The current layer is
+  Styles are in it too (`styles`, `removedStyleIds`, in no order), with the same check for an
+  element's style. Floors are not in a patch, as no command changes them yet. The current layer is
   editor state per user and never sent.
 
 **What this does not solve yet** (the editors can drift apart, and nothing repairs it):

@@ -9,10 +9,15 @@ Die Layer sind umgesetzt (siehe `docs/bedienung.md`, „Layer“, und
   (LWSCALE): Sie wird immer gezeichnet, mit `LINEWEIGHT_PX_PER_MM`
   (`src/cad/renderer/elementDisplay.ts`). Auch „Vorgabe“ (LWDEFAULT) als eigener Wert fehlt: Ein
   neuer Layer bekommt fest `DEFAULT_LINEWEIGHT`.
-- **Überschreibung je Eigenschaft** wie in AutoCAD (Farbe, Linientyp, Linienstärke, Transparenz einzeln
-  VonLayer oder eigen): Heute überschreibt ein `ElementStyle` den Layer als Ganzes
-  (`elementDisplay`). Dazu gehört ein Eigenschaften-Panel für die Auswahl und „aktuelle“ Werte
-  für neue Objekte (AutoCAD: CECOLOR, CELTYPE).
+- **Aktueller Stil für neue Objekte** und einen Stil per Klick in der Liste zuweisen: Zugewiesen
+  wird über das Feld „Stil“ der Auswahl (`SelectionEditor.setSelectionStyle`).
+- **Woher ein Wert kommt** (Objekt, Stil oder Layer) je Feld der Auswahl anzeigen: Bisher steht
+  nur `VonLayer` bzw. `VonStil/Layer`.
+- **Stile je Stockwerk oder aus einer Bibliothek** (planübergreifend), Stile kopieren.
+- **Strichstärke der Füllung, Schraffuren**: Ein Stil hat nur eine Füllfarbe.
+- **Aktuelle Werte für neue Objekte** (AutoCAD: CECOLOR, CELTYPE, CELWEIGHT, CETRANSPARENCY): Neue
+  Objekte legen nichts selbst fest (`BY_LAYER`).
+- **VonBlock** (ByBlock): erst mit den Blöcken.
 - **ACI-Farben** (AutoCAD Color Index 1–255): erst mit dem DXF-Import nötig; dann eine Tabelle
   ACI → `#rrggbb` und die Entscheidung, ob der Index gespeichert wird.
 - **Linientypen aus einer Tabelle** (eigene Muster, Maßstab LTSCALE): Heute sind es sechs feste

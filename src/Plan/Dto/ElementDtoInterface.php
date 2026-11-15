@@ -26,4 +26,12 @@ interface ElementDtoInterface
     public ?string $styleId { get; }
 
     public ?string $name { get; }
+
+    public ?string $color { get; }
+
+    public ?\App\Plan\Enum\Linetype $linetype { get; }
+
+    public ?int $lineweight { get; }
+
+    public ?int $transparency { get; }
 }

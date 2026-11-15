@@ -219,8 +219,11 @@ lacks is in `docs/todo/*_NotImplemented.md` (PLINE arcs with a proposed `bulges`
 
 Spec in `docs/specs/Layer_System_Spezifikation.md`, what is left in `docs/todo/Layer_NotImplemented.md`.
 
-- **ByLayer is `styleId: null`:** an element without a style is drawn with the colour, linetype,
-  lineweight and transparency of its layer; an `ElementStyle` overrides the layer as a whole
+- **Element, then style, then layer:** for each of colour, linetype and lineweight the first that
+  is set counts: the element's own (`color`, `linetype`, `lineweight`, `transparency`; null
+  overrides nothing, AutoCAD's ByLayer; `model/ElementAppearance.ts`, `BY_LAYER` for new
+  elements), else its `ElementStyle`'s (the same four, each optional, and a `fillColor`), else its
+  layer's; only a style fills
   (`cad/renderer/elementDisplay.ts`: `elementDisplay`, `layerDisplay`, `LINETYPE_DASHES`; pure).
   The lineweight is one of AutoCAD's, in 1/100 mm like DXF (`LINEWEIGHTS`, typed by the API
   schema), and shows in screen px in proportion to it whatever the zoom (`lineweightStroke`).
@@ -248,6 +251,16 @@ Spec in `docs/specs/Layer_System_Spezifikation.md`, what is left in `docs/todo/L
   pickfirst selection, which the panel asks for where a click on a layer would else make it
   current (AutoCAD's layer list). It reports the moved elements as changed; `PaperRenderer`
   takes the item of such an element out first, so it comes back at its place on the new layer.
+- **What the selection overrides** changes by `ElementAppearanceCommand` (label `PROPERTIES`; undo
+  puts back per element what is still as the command set it), run by
+  `SelectionEditor.setSelectionAppearance` on the pickfirst selection. The panel's section
+  "Auswahl" shows the common values (`commonAppearance`: undefined where the objects differ).
+- **Styles are the user's** (`commands/StyleCommands.ts`, label `STYLE`: `AddStyleCommand`,
+  `UpdateStyleCommand`, `RemoveStyleCommand`, which takes the style from its elements, and
+  `AssignStyleCommand`; they report the elements that have the style as changed, so the renderer
+  needs nothing of its own). `SelectionEditor.addStyle`, `updateStyle`, `removeStyle` and
+  `setSelectionStyle` decide by `cad/editor/styles.ts` (names unique in the plan whatever the
+  case); `ui/StylePanel.tsx` is the section, `ui/PanelFields.tsx` has the fields both sections use.
 - **The editor core decides** (`SelectionEditor.addLayer`, `updateLayer`, `removeLayer`), by the
   pure rules of `cad/editor/layers.ts` (`layerNameError`, `nextLayerName`, `removeLayerBlocker`):
   names unique per floor whatever the case, layer `0` keeps its name, layer `0`, the current
@@ -402,8 +415,8 @@ smaller collaborator id (`createCollaboration`: `refreshSelections`). **Changes:
 `CadCanvas` is the one place that sends and applies (`ChangeChannel`). A received one comes in through
 `DocumentHistory.applyRemote`: no undo step, and its `HistoryChange.origin` is the collaborator id (null
 for what was done here), which is how a history listener tells the two apart. **A new command needs
-nothing for this** as long as it changes only vertices, elements, groups and layers; one that changes
-floors or styles needs them in the patch. A patch that does not fit (another plan, an element left without a
+nothing for this** as long as it changes only vertices, elements, groups, layers and styles; one that
+changes floors needs them in the patch. A patch that does not fit (another plan, an element left without a
 vertex) is left out with a console warning; what can still drift apart is in `docs/architecture/collaboration.md`.
 
 ## Settings

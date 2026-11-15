@@ -2,6 +2,7 @@
 
 namespace App\Plan\Dto;
 
+use App\Plan\Enum\Linetype;
 use OpenApi\Attributes as OA;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -20,7 +21,11 @@ final readonly class CircleElementDto extends AbstractElementDto
         #[Assert\Positive]
         public float $radius,
         ?string $name = null,
+        ?string $color = null,
+        ?Linetype $linetype = null,
+        ?int $lineweight = null,
+        ?int $transparency = null,
     ) {
-        parent::__construct($id, $layerId, $groupId, $styleId, $name);
+        parent::__construct($id, $layerId, $groupId, $styleId, $name, $color, $linetype, $lineweight, $transparency);
     }
 }

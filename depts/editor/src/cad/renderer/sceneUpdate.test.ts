@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CadDocument } from '../model/CadDocument';
 import type { CadElement } from '../model/CadElement';
 import { indexDocument } from '../model/DocumentIndex';
+import { BY_LAYER } from '../model/ElementAppearance';
 import { newLayer } from '../model/Layer';
 import { planLayerUpdate, planSceneUpdate } from './sceneUpdate';
 
@@ -11,7 +12,7 @@ const LAYERS = [newLayer('0', 'floor', '0'), newLayer('walls', 'floor', 'Walls')
 function drawing(...lines: string[]): CadDocument {
     const elements = lines.map((line): CadElement => {
         const [id, layerId = '0'] = line.split('@');
-        return { id, type: 'line', name: null, layerId, groupId: null, styleId: null, startVertexId: 'a', endVertexId: 'b' };
+        return { id, type: 'line', name: null, layerId, groupId: null, styleId: null, ...BY_LAYER, startVertexId: 'a', endVertexId: 'b' };
     });
     return {
         id: 'plan',

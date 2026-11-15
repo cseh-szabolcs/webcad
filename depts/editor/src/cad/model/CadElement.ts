@@ -11,7 +11,7 @@ export type PolylineElement = ApiSchema['PolylineElement'];
 export type CadElement = ApiSchema['Element'];
 
 /** The properties every element type has. */
-export type BaseElement = Pick<CadElement, 'id' | 'name' | 'layerId' | 'groupId' | 'styleId'>;
+export type BaseElement = Pick<CadElement, 'id' | 'name' | 'layerId' | 'groupId' | 'styleId' | 'color' | 'linetype' | 'lineweight' | 'transparency'>;
 
 export type CadElementType = CadElement['type'];
 

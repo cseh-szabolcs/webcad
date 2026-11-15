@@ -22,6 +22,10 @@ import { gripAt, selectionControlFrames, selectionGrips, type Grip } from './sel
 import { buildSelectionUnits, expandToUnits } from './selection/grouping';
 import { pickAt, pickCrossing, pickLasso, pickWindow } from './selection/picking';
 import { ShapeIndex } from './selection/ShapeIndex';
+import { AddStyleCommand, AssignStyleCommand, RemoveStyleCommand, UpdateStyleCommand, type StyleChanges } from './commands/StyleCommands';
+import { MAX_STYLE_NAME_LENGTH, nextStyleName, styleNameError } from './styles';
+import { newStyle } from '../model/ElementStyle';
+import { ElementAppearanceCommand, type AppearanceChanges } from './commands/ElementAppearanceCommand';
 import { layerNameError, MAX_LAYER_NAME_LENGTH, nextLayerName, removeLayerBlocker, resolveCurrentLayer } from './layers';
 import { AddLayerCommand, ChangeElementLayerCommand, RemoveLayerCommand, UpdateLayerCommand, type LayerChanges } from './commands/LayerCommands';
 import { HEX_COLOR, isDefaultLayer, isLineweight, LINETYPES, MAX_LAYER_DESCRIPTION_LENGTH, MAX_LAYER_TRANSPARENCY, newLayer } from '../model/Layer';
@@ -772,7 +776,133 @@ export class SelectionEditor {
     }
 
     /**
-     * Whether the layers cannot change now, which the command line then says: only with no command
+     * Sets what the pickfirst selection overrides of colour, linetype, lineweight and transparency
+     * as one undo step; null takes the value of the style or the layer again (ByLayer). Values
+     * that are none are left out, the transparency is tidied like a layer's. The selection stays.
+     * Returns false with nothing selected or while a command runs.
+     */
+    setSelectionAppearance(changes: AppearanceChanges): boolean {
+        if (this.layersBusy() || this.state.kind !== 'idle' || this.state.pickfirst.size === 0) {
+            return false;
+        }
+        const next: AppearanceChanges = {};
+        const { color, linetype, lineweight, transparency } = changes;
+        if (color === null || (color !== undefined && HEX_COLOR.test(color))) {
+            next.color = color === null ? null : color.toLowerCase();
+        }
+        if (linetype === null || (linetype !== undefined && LINETYPES.includes(linetype))) {
+            next.linetype = linetype;
+        }
+        if (lineweight === null || (lineweight !== undefined && isLineweight(lineweight))) {
+            next.lineweight = lineweight;
+        }
+        if (transparency === null) {
+            next.transparency = null;
+        } else if (transparency !== undefined && Number.isFinite(transparency)) {
+            next.transparency = Math.min(MAX_LAYER_TRANSPARENCY, Math.max(0, Math.round(transparency)));
+        }
+        if (Object.keys(next).length > 0) {
+            const command = new ElementAppearanceCommand(this.state.pickfirst, next);
+            // Only a step if it changes something
+            if (command.execute(this.history.document).changedElementIds.length > 0) {
+                this.history.execute(command);
+            }
+        }
+        this.message = null;
+        this.changed();
+        return true;
+    }
+
+    /** Adds a style that sets nothing yet, with the next free name. Returns its id, or null while a command runs. */
+    addStyle(newId: () => Id = () => crypto.randomUUID()): Id | null {
+        if (this.layersBusy()) {
+            return null;
+        }
+        const style = newStyle(newId(), nextStyleName(this.history.document, t('styles.newName')));
+        this.history.execute(new AddStyleCommand(style));
+        this.message = null;
+        this.changed();
+        return style.id;
+    }
+
+    /**
+     * Changes properties of a style as one undo step; null leaves a value to the layer, resp. takes
+     * the fill away. Refused, with the reason on the command line: while a command runs and a name
+     * no style can have (see styleNameError). Values that are none are left out, what stays the
+     * same is no step.
+     */
+    updateStyle(id: Id, changes: StyleChanges): boolean {
+        const style = this.index.styles.get(id);
+        if (!style || this.layersBusy()) {
+            return false;
+        }
+        const next: StyleChanges = {};
+        if (changes.name !== undefined && changes.name.trim() !== style.name) {
+            const name = changes.name.trim();
+            const error = styleNameError(this.history.document, name, id);
+            if (error !== null) {
+                return this.refuse(() => t(`styles.nameError.${error}`, { max: MAX_STYLE_NAME_LENGTH }));
+            }
+            next.name = name;
+        }
+        for (const key of ['color', 'fillColor'] as const) {
+            const value = changes[key];
+            if (value === null || (value !== undefined && HEX_COLOR.test(value))) {
+                next[key] = value === null ? null : value.toLowerCase();
+            }
+        }
+        const { linetype, lineweight, transparency } = changes;
+        if (linetype === null || (linetype !== undefined && LINETYPES.includes(linetype))) {
+            next.linetype = linetype;
+        }
+        if (lineweight === null || (lineweight !== undefined && isLineweight(lineweight))) {
+            next.lineweight = lineweight;
+        }
+        if (transparency === null) {
+            next.transparency = null;
+        } else if (transparency !== undefined && Number.isFinite(transparency)) {
+            next.transparency = Math.min(MAX_LAYER_TRANSPARENCY, Math.max(0, Math.round(transparency)));
+        }
+        const changed = Object.fromEntries(Object.entries(next).filter(([key, value]) => style[key as keyof StyleChanges] !== value));
+        if (Object.keys(changed).length > 0) {
+            this.history.execute(new UpdateStyleCommand(id, changed));
+        }
+        this.message = null;
+        this.changed();
+        return true;
+    }
+
+    /** Removes a style as one undo step; the objects that had it have none then. Not while a command runs. */
+    removeStyle(id: Id): boolean {
+        if (!this.index.styles.has(id) || this.layersBusy()) {
+            return false;
+        }
+        this.history.execute(new RemoveStyleCommand(id));
+        this.message = null;
+        this.changed();
+        return true;
+    }
+
+    /**
+     * Gives the pickfirst selection a style as one undo step, or none with null. The selection
+     * stays. Returns false with nothing selected, for an unknown style or while a command runs.
+     */
+    setSelectionStyle(styleId: Id | null): boolean {
+        if ((styleId !== null && !this.index.styles.has(styleId)) || this.layersBusy() || this.state.kind !== 'idle' || this.state.pickfirst.size === 0) {
+            return false;
+        }
+        const command = new AssignStyleCommand(this.state.pickfirst, styleId);
+        // Only a step if it changes something
+        if (command.execute(this.history.document).changedElementIds.length > 0) {
+            this.history.execute(command);
+        }
+        this.message = null;
+        this.changed();
+        return true;
+    }
+
+    /**
+     * Whether layers, styles and what objects override cannot change now, which the command line then says: only with no command
      * running, like undo, as a command counts its own steps of the history (LINIE's `combineLast`).
      */
     private layersBusy(): boolean {

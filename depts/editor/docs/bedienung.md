@@ -1157,13 +1157,16 @@ dabei schmaler (ihr Ausschnitt bleibt links oben stehen).
 
 Ob das Panel offen ist und wie breit, merkt sich der Browser. Es zeigt von oben nach unten:
 
-1. **Aktueller Layer** mit seinen Einstellungen (siehe unten).
-2. Button **+ Layer hinzufügen**.
-3. Die **Liste der Layer** des Stockwerks in Zeichenreihenfolge (der unterste zuerst, ein neuer
+1. **Auswahl**, nur solange Objekte gewählt sind und kein Befehl läuft: was die gewählten Objekte
+   selbst festlegen (siehe [Eigenschaften der Auswahl](#eigenschaften-der-auswahl)).
+2. **Aktueller Layer** mit seinen Einstellungen (siehe unten).
+3. Button **+ Layer hinzufügen**.
+4. Die **Liste der Layer** des Stockwerks in Zeichenreihenfolge (der unterste zuerst, ein neuer
    Layer kommt ans Ende und liegt damit obenauf). Je Zeile: Haken beim aktuellen Layer, Farbe,
    Name, und rechts **Auge** (ein-/ausblenden), **Schloss** (sperren/entsperren) und
    **Papierkorb** (löschen). Ein farbiger Balken links markiert die Layer, auf denen gewählte
    Objekte liegen.
+5. **Stile**: die Stile des Plans (siehe [Stile](#stile)).
 
 ### Aktueller Layer
 
@@ -1200,9 +1203,11 @@ Im Abschnitt „Aktueller Layer“; jede Änderung ist **ein** Schritt für Rüc
   nicht an die Kommandozeile.
 - Ein Name, den ein Layer nicht haben kann, wird beim Tippen rot markiert, mit dem Grund darunter,
   und nicht übernommen.
-- **VonLayer** (AutoCAD: ByLayer): Farbe, Linientyp, Linienstärke und Transparenz gelten für alle
-  Objekte des Layers **ohne eigenen Stil**; neue Objekte haben keinen. Ein Objekt mit Stil (im Beispielplan
-  Wände und Möbel) zeichnet ganz nach seinem Stil, der Layer wirkt dann nicht auf sein Aussehen.
+- **VonLayer** (AutoCAD: ByLayer): Farbe, Linientyp, Linienstärke und Transparenz des Layers
+  gelten für jedes seiner Objekte, soweit es den Wert nicht selbst festlegt (siehe
+  [Eigenschaften der Auswahl](#eigenschaften-der-auswahl)) und keinen Stil hat; neue Objekte
+  legen nichts fest und haben keinen Stil. Ein Objekt mit Stil (im Beispielplan Wände und Möbel)
+  nimmt Farbe, Strichmuster und Strichstärke aus dem Stil statt vom Layer.
 
 ### Ein-/Ausblenden und Sperren
 
@@ -1214,6 +1219,57 @@ Im Abschnitt „Aktueller Layer“; jede Änderung ist **ein** Schritt für Rüc
   nicht wählen. Auf ihm lässt sich weiter zeichnen, wie in AutoCAD.
 - Sichtbarkeit und Sperre gehören zur Zeichnung und gelten damit für alle, die sie offen haben.
 
+### Eigenschaften der Auswahl
+
+Wie in AutoCADs Eigenschaften: Ein Objekt kann Farbe, Linientyp, Linienstärke und Transparenz
+selbst festlegen, statt sie vom Layer zu nehmen. Sind Objekte gewählt (ohne laufenden Befehl),
+zeigt das Panel oben den Abschnitt **Auswahl** mit der Zahl der gewählten Objekte und diesen
+Feldern:
+
+| Feld             | Auswahl                                                                        |
+|------------------|--------------------------------------------------------------------------------|
+| **Stil**         | `Kein Stil` oder einer der [Stile](#stile) des Plans; er gilt danach für alle gewählten Objekte. |
+| **Farbe**        | Farbwähler des Browsers; daneben der Farbcode, `VonLayer` oder `Verschieden`. Der Pfeil-Button rechts setzt die Farbe wieder auf VonLayer. |
+| **Linientyp**    | `VonLayer` oder einer der Linientypen eines Layers.                             |
+| **Linienstärke** | `VonLayer` oder einer der Werte eines Layers.                                   |
+| **Transparenz**  | Zahl von 0 bis `MAX_LAYER_TRANSPARENCY`; leer heißt VonLayer.                   |
+
+- Für jede Eigenschaft gilt der erste Wert, der gesetzt ist: der **eigene Wert des Objekts**,
+  sonst der seines **Stils**, sonst der des **Layers**. Die Füllung kommt nur aus einem Stil.
+- **`VonLayer`** heißt: Das Objekt legt den Wert nicht selbst fest. Hat eines der gewählten
+  Objekte einen Stil, steht dort **`VonStil/Layer`**: Der Wert kommt dann aus dem Stil, soweit der
+  ihn festlegt, sonst vom Layer.
+- **`Verschieden`** steht, wo die gewählten Objekte nicht denselben Wert haben; ein gewählter
+  Wert gilt danach für alle.
+- Jede Änderung gilt für **alle gewählten Objekte**, ist **ein** Schritt für Rückgängig
+  (`Rückgängig: EIGENSCHAFTEN`) und lässt die Objekte gewählt.
+- Geändert wird nur, solange kein Befehl läuft; die Felder sind sonst ausgegraut.
+- Im Beispielplan legt der Vorhang (`Curtain`) Farbe und Linienstärke selbst fest.
+
+### Stile
+
+Ein Stil ist eine benannte Vorlage für Farbe, Linientyp, Linienstärke, Transparenz und Füllung,
+die man einem oder mehreren Objekten zuweist; ändert man den Stil, ändern sich alle Objekte, die
+ihn haben. Das gibt es in AutoCAD für Linien nicht. Stile gelten für den ganzen Plan, nicht je
+Stockwerk.
+
+- Der Abschnitt **Stile** unten im Panel listet die Stile mit ihrer Farbe, ihrem Namen und der
+  Zahl der Objekte, die sie haben, und rechts dem **Papierkorb**.
+- **+ Stil hinzufügen** legt einen Stil mit dem nächsten freien Namen `Stil1`, `Stil2` … an, der
+  noch nichts festlegt, und zeigt gleich seine Einstellungen.
+- **Ein Klick auf einen Stil** zeigt seine Einstellungen unter der Liste (ein weiterer Klick
+  blendet sie wieder aus): **Name** (im Plan eindeutig, Groß- und Kleinschreibung zählt dabei
+  nicht, höchstens `MAX_STYLE_NAME_LENGTH` Zeichen, `src/cad/editor/styles.ts`), **Farbe**,
+  **Linientyp**, **Linienstärke**, **Transparenz** und **Füllung**.
+- Jeder Wert kann offen bleiben (**`VonLayer`**, bei der Füllung **`Keine`**): Dann gilt für die
+  Objekte des Stils der Wert ihres Layers. Der Pfeil-Button neben einer Farbe nimmt sie wieder weg.
+- **Zuweisen:** Objekte wählen und im Abschnitt **Auswahl** im Feld **Stil** den Stil wählen;
+  `Kein Stil` nimmt ihn wieder.
+- **Papierkorb** löscht einen Stil, auch wenn Objekte ihn haben: Sie haben danach keinen Stil
+  und zeichnen nach ihrem Layer. Rückgängig gibt ihnen den Stil zurück.
+- Jede Änderung ist **ein** Schritt für Rückgängig (`Rückgängig: STIL`), geht an alle, die den
+  Plan offen haben, und ist nur möglich, solange kein Befehl läuft.
+
 ### Objekte auf einen anderen Layer legen
 
 Wie in AutoCADs Layer-Liste: Sind Objekte gewählt (ohne laufenden Befehl), legt **ein Klick auf
@@ -1221,8 +1277,8 @@ einen Layer der Liste** die Auswahl auf diesen Layer.
 
 - Der aktuelle Layer bleibt, die Objekte bleiben gewählt. Die Kommandozeile meldet
   `N auf den Layer „Name“ gelegt.`; Objekte, die schon dort lagen, zählen nicht mit.
-- Ein Objekt ohne eigenen Stil zeichnet danach mit Farbe, Linientyp, Linienstärke und
-  Transparenz des neuen Layers. Es wird mit den Objekten dieses Layers gezeichnet, also über
+- Was ein Objekt nicht selbst festlegt und nicht aus einem Stil nimmt, zeichnet danach mit Farbe,
+  Linientyp, Linienstärke und Transparenz des neuen Layers. Es wird mit den Objekten dieses Layers gezeichnet, also über
   allem, was auf Layern weiter oben in der Liste liegt.
 - Auf einem **ausgeblendeten** Layer verschwinden die Objekte und fallen aus der Auswahl (die
   Meldung sagt es), auf einem **gesperrten** bleiben sie sichtbar, sind aber nicht mehr gewählt.
@@ -1650,7 +1706,7 @@ seinen Startwert zurück). Die Startwerte, solange nichts gespeichert ist:
 
 ## Noch nicht umgesetzt
 
-- Bei den Layern: Überschreibung einzelner Eigenschaften je Objekt, Reihenfolge ändern, der Befehl `LAYER` per Name, die Objekte eines
+- Bei den Layern und Stilen: aktueller Stil für neue Objekte, Reihenfolge ändern, der Befehl `LAYER` per Name, die Objekte eines
   Layers in der Liste, die Tabs der Stockwerke; Details in `docs/todo/Layer_NotImplemented.md`.
 - Weitere temporäre Überschreibungstasten wie in AutoCAD (z. B. Shift+A für den Objektfang,
   Shift+X für die Polarspur, Shift+E nur Endpunkt); die Liste der geplanten Kürzel steht in

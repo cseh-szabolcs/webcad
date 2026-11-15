@@ -250,3 +250,55 @@ describe('SelectionEditor: the selection on another layer', () => {
         expect(history.document).toBe(before);
     });
 });
+
+describe('SelectionEditor: what the selection overrides', () => {
+    const SOFA = { x: 1600, y: 2600 };
+    const WINDOW = { x: 4250, y: 3880 };
+    const element = (history: DocumentHistory, id: string) => history.document.elements.find((candidate) => candidate.id === id)!;
+    const pick = (editor: SelectionEditor, point: Point) => {
+        editor.pointerMove(at(point));
+        editor.pointerDown(at(point));
+        editor.pointerUp(at(point));
+    };
+
+    it('sets the values on the selected objects as one undo step, tidied, and keeps them selected', () => {
+        const { editor, history } = setup();
+        pick(editor, SOFA);
+        pick(editor, WINDOW);
+        expect(editor.setSelectionAppearance({ color: '#FF0000', lineweight: 100, transparency: 120.4 })).toBe(true);
+        for (const id of [sampleIds.element.sofa, sampleIds.element.window]) {
+            expect(element(history, id)).toMatchObject({ color: '#ff0000', linetype: null, lineweight: 100, transparency: 90 });
+        }
+        expect(editor.snapshot.highlighted.size).toBe(2);
+        expect(editor.undo()).toBe(true);
+        expect(editor.snapshot.message).toBe('Rückgängig: EIGENSCHAFTEN');
+        expect(history.document).toEqual(parseDocument(samplePlan));
+    });
+
+    it('takes the value of the layer again with null, and makes no step of what stays the same', () => {
+        const { editor, history } = setup();
+        pick(editor, WINDOW);
+        expect(editor.setSelectionAppearance({ color: null })).toBe(true);
+        expect(editor.snapshot.canUndo).toBe(false);
+        editor.setSelectionAppearance({ linetype: 'center' });
+        editor.setSelectionAppearance({ linetype: null });
+        expect(element(history, sampleIds.element.window).linetype).toBeNull();
+    });
+
+    it('leaves out values that are none', () => {
+        const { editor } = setup();
+        pick(editor, WINDOW);
+        expect(editor.setSelectionAppearance({ color: 'red', lineweight: 26 as never })).toBe(true);
+        expect(editor.snapshot.canUndo).toBe(false);
+    });
+
+    it('does nothing without a selection or while a command runs', () => {
+        const { editor, history } = setup();
+        const before = history.document;
+        expect(editor.setSelectionAppearance({ color: '#ff0000' })).toBe(false);
+        pick(editor, WINDOW);
+        editor.startCommand('MOVE');
+        expect(editor.setSelectionAppearance({ color: '#ff0000' })).toBe(false);
+        expect(history.document).toBe(before);
+    });
+});

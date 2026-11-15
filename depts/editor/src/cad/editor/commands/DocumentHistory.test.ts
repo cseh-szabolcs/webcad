@@ -29,6 +29,10 @@ describe('AddLineCommand', () => {
             layerId: LAYER,
             groupId: null,
             styleId: null,
+            color: null,
+            linetype: null,
+            lineweight: null,
+            transparency: null,
             startVertexId: 'a-1',
             endVertexId: 'a-2',
         });

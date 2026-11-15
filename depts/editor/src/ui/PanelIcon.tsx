@@ -11,6 +11,7 @@ const PATHS = {
     chevronLeft: 'M14.5 6l-6 6l6 6',
     chevronRight: 'M9.5 6l6 6l-6 6',
     check: 'M5 12.5l4.5 4.5L19 7.5',
+    reset: 'M4 9h10a5 5 0 0 1 0 10H9 M8 5L4 9l4 4',
 } as const;
 
 export type PanelIconName = keyof typeof PATHS;

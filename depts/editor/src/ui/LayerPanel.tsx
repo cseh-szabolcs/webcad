@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react';
+import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DocumentHistory } from 'app/cad/editor/commands/DocumentHistory';
+import type { AppearanceChanges } from 'app/cad/editor/commands/ElementAppearanceCommand';
 import type { LayerChanges } from 'app/cad/editor/commands/LayerCommands';
+import type { StyleChanges } from 'app/cad/editor/commands/StyleCommands';
 import { floorLayers, layerElementCounts, layerNameError, MAX_LAYER_NAME_LENGTH, removeLayerBlocker } from 'app/cad/editor/layers';
+import { commonAppearance } from 'app/cad/model/ElementAppearance';
 import {
     isDefaultLayer,
     LINETYPES,
@@ -16,7 +19,9 @@ import {
 import { currentLanguage } from 'app/i18n/i18n';
 import type { Id } from 'app/cad/model/Point';
 import { displayStrokeColor, type DisplayTheme } from 'app/cad/renderer/displayColor';
-import { PanelIcon, type PanelIconName } from './PanelIcon';
+import { ColorField, RowButton, SelectField, TextField } from './PanelFields';
+import { PanelIcon } from './PanelIcon';
+import { StyleSection } from './StylePanel';
 
 interface LayerPanelProps {
     /** The document with its changes: the panel shows the layers it holds now. */
@@ -34,13 +39,25 @@ interface LayerPanelProps {
     onUpdate: (id: Id, changes: LayerChanges) => void;
     onRemove: (id: Id) => void;
     onMoveSelection: (id: Id) => void;
+    /** Sets what the selected objects override; null for the value of their style or layer again. */
+    onSetAppearance: (changes: AppearanceChanges) => void;
+    /** Gives the selected objects a style, or none with null. */
+    onSetStyle: (styleId: Id | null) => void;
+    /** Adds a style and returns its id, or null where it could not. */
+    onAddStyle: () => Id | null;
+    onUpdateStyle: (id: Id, changes: StyleChanges) => void;
+    onRemoveStyle: (id: Id) => void;
 }
+
+/** Value of the choice that stands for differing values; it cannot be chosen. */
+const VARIES = '*';
 
 const NO_LAYERS: ReadonlySet<Id> = new Set();
 
 /**
- * Content of the layer panel: the properties of the current layer, the button that adds a layer,
- * and the layers of the floor to go through. A click on one makes it current, or, while objects
+ * Content of the layer panel: what the selected objects override (while there are any), the
+ * properties of the current layer, the button that adds a layer,
+ * the layers of the floor to go through, and the styles of the plan. A click on one makes it current, or, while objects
  * are selected, puts them on it like AutoCAD's layer list (the layers they are on are marked).
  * It only shows the document and asks for changes; the editor decides and makes them (one undo
  * step each).
@@ -56,6 +73,11 @@ export function LayerPanel({
     onUpdate,
     onRemove,
     onMoveSelection,
+    onSetAppearance,
+    onSetStyle,
+    onAddStyle,
+    onUpdateStyle,
+    onRemoveStyle,
 }: LayerPanelProps) {
     const { t } = useTranslation();
     const document = useSyncExternalStore(
@@ -66,18 +88,92 @@ export function LayerPanel({
     // Lineweights as AutoCAD lists them: 0.25 mm, in German 0,25 mm
     const language = currentLanguage();
     const millimetres = useMemo(() => new Intl.NumberFormat(language, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), [language]);
-    const selectionLayers = useMemo(() => {
-        if (selection.size === 0) {
-            return NO_LAYERS;
-        }
-        return new Set(document.elements.filter((element) => selection.has(element.id)).map((element) => element.layerId));
-    }, [document, selection]);
+    const selected = useMemo(
+        () => (selection.size === 0 ? [] : document.elements.filter((element) => selection.has(element.id))),
+        [document, selection],
+    );
+    const selectionLayers = useMemo(() => (selected.length === 0 ? NO_LAYERS : new Set(selected.map((element) => element.layerId))), [selected]);
+    const common = useMemo(() => commonAppearance(selected), [selected]);
+    const commonStyle = selected.every((element) => element.styleId === selected[0]?.styleId) ? (selected[0]?.styleId ?? null) : undefined;
+    // What an object does not set itself comes from its style first, where it has one
+    const byLayer = t(selected.every((element) => element.styleId === null) ? 'properties.byLayer' : 'properties.byStyle');
+    const varies = t('properties.varies');
+    /** The choices of a property of the selection: ByLayer first, and "varies" while the objects differ. */
+    const choices = (value: unknown, options: readonly { value: string; label: string }[]) => [
+        ...(value === undefined ? [{ value: VARIES, label: varies, disabled: true }] : []),
+        { value: '', label: byLayer },
+        ...options,
+    ];
+    const chosen = (value: string | number | null | undefined) => (value === undefined ? VARIES : value === null ? '' : String(value));
+    const linetypes = LINETYPES.map((linetype) => ({ value: linetype as string, label: t(`layers.linetypes.${linetype}`) }));
+    const lineweights = LINEWEIGHTS.map((lineweight) => ({
+        value: String(lineweight),
+        label: t('layers.lineweightValue', { value: millimetres.format(lineweight / 100) }),
+    }));
     const current = document.layers.find((layer) => layer.id === currentLayerId);
     const floorId = current?.floorId ?? document.floors[0]?.id;
     const layers = floorId === undefined ? [] : floorLayers(document, floorId);
 
     return (
         <>
+            {selected.length > 0 && (
+                <section className="panel-section" aria-label={t('properties.title')}>
+                    <h3>{t('properties.title')}</h3>
+                    <p className="panel-note">{t('properties.count', { count: selected.length })}</p>
+                    <SelectField
+                        label={t('properties.style')}
+                        value={chosen(commonStyle)}
+                        options={[
+                            ...(commonStyle === undefined ? [{ value: VARIES, label: varies, disabled: true }] : []),
+                            { value: '', label: t('styles.none') },
+                            ...document.styles.map((style) => ({ value: style.id, label: style.name })),
+                        ]}
+                        disabled={busy}
+                        onCommit={(styleId) => onSetStyle(styleId === '' ? null : styleId)}
+                    />
+                    <ColorField
+                        key={`selection-color:${common.color}`}
+                        label={t('layers.color')}
+                        value={common.color ?? '#000000'}
+                        shown={common.color ? displayStrokeColor(common.color, theme) : null}
+                        text={common.color === undefined ? varies : (common.color ?? byLayer)}
+                        disabled={busy}
+                        onCommit={(color) => onSetAppearance({ color })}
+                        reset={common.color === null ? undefined : { label: t('properties.reset', { property: t('layers.color') }), onClick: () => onSetAppearance({ color: null }) }}
+                    />
+                    <SelectField
+                        label={t('layers.linetype')}
+                        value={chosen(common.linetype)}
+                        options={choices(common.linetype, linetypes)}
+                        disabled={busy}
+                        onCommit={(linetype) => onSetAppearance({ linetype: linetype === '' ? null : (linetype as Linetype) })}
+                    />
+                    <SelectField
+                        label={t('layers.lineweight')}
+                        value={chosen(common.lineweight)}
+                        options={choices(common.lineweight, lineweights)}
+                        disabled={busy}
+                        onCommit={(lineweight) => onSetAppearance({ lineweight: lineweight === '' ? null : (Number(lineweight) as Lineweight) })}
+                    />
+                    <TextField
+                        key={`selection-transparency:${common.transparency}`}
+                        label={t('layers.transparency')}
+                        title={t('layers.transparencyTitle', { max: MAX_LAYER_TRANSPARENCY })}
+                        value={common.transparency == null ? '' : String(common.transparency)}
+                        placeholder={common.transparency === undefined ? varies : byLayer}
+                        disabled={busy}
+                        number={{ min: 0, max: MAX_LAYER_TRANSPARENCY }}
+                        onCommit={(text) => {
+                            const transparency = Number(text);
+                            if (text.trim() === '') {
+                                onSetAppearance({ transparency: null });
+                            } else if (Number.isFinite(transparency)) {
+                                onSetAppearance({ transparency });
+                            }
+                        }}
+                    />
+                </section>
+            )}
             {current && (
                 <section className="panel-section" aria-label={t('layers.current')}>
                     <h3>{t('layers.current')}</h3>
@@ -98,23 +194,21 @@ export function LayerPanel({
                         label={t('layers.color')}
                         value={current.color}
                         shown={displayStrokeColor(current.color, theme)}
+                        text={current.color}
                         disabled={busy}
                         onCommit={(color) => onUpdate(current.id, { color })}
                     />
                     <SelectField
                         label={t('layers.linetype')}
                         value={current.linetype}
-                        options={LINETYPES.map((linetype) => ({ value: linetype, label: t(`layers.linetypes.${linetype}`) }))}
+                        options={linetypes}
                         disabled={busy}
                         onCommit={(linetype) => onUpdate(current.id, { linetype: linetype as Linetype })}
                     />
                     <SelectField
                         label={t('layers.lineweight')}
                         value={String(current.lineweight)}
-                        options={LINEWEIGHTS.map((lineweight) => ({
-                            value: String(lineweight),
-                            label: t('layers.lineweightValue', { value: millimetres.format(lineweight / 100) }),
-                        }))}
+                        options={lineweights}
                         disabled={busy}
                         onCommit={(lineweight) => onUpdate(current.id, { lineweight: Number(lineweight) as Lineweight })}
                     />
@@ -164,6 +258,16 @@ export function LayerPanel({
                     />
                 ))}
             </ul>
+            <StyleSection
+                document={document}
+                busy={busy}
+                theme={theme}
+                linetypes={linetypes}
+                lineweights={lineweights}
+                onAdd={onAddStyle}
+                onUpdate={onUpdateStyle}
+                onRemove={onRemoveStyle}
+            />
         </>
     );
 }
@@ -231,186 +335,5 @@ function LayerRow({ layer, current, busy, moving, holdsSelection, color, removeB
                 onClick={() => onRemove(id)}
             />
         </li>
-    );
-}
-
-/**
- * An icon button of a layer row. With `blocked` (the reason) it does nothing but still shows its
- * tooltip, hence aria-disabled rather than disabled.
- */
-function RowButton({
-    icon,
-    label,
-    pressed,
-    disabled,
-    blocked,
-    onClick,
-}: {
-    icon: PanelIconName;
-    label: string;
-    pressed?: boolean;
-    disabled: boolean;
-    blocked: string | null;
-    onClick: () => void;
-}) {
-    return (
-        <button
-            type="button"
-            className="panel-icon-button"
-            aria-label={label}
-            aria-pressed={pressed}
-            aria-disabled={blocked !== null}
-            disabled={disabled}
-            title={blocked ?? label}
-            onClick={() => blocked === null && onClick()}
-        >
-            <PanelIcon name={icon} />
-        </button>
-    );
-}
-
-interface TextFieldProps {
-    label: string;
-    title?: string;
-    /** The value in the document; the field starts with it (give the field a key that changes with it). */
-    value: string;
-    disabled: boolean;
-    maxLength?: number;
-    /** A number field with these limits. */
-    number?: { min: number; max: number };
-    /** What is wrong with the typed text, shown below the field; such a text is never committed. */
-    problem?: (text: string) => string | null;
-    onCommit: (text: string) => void;
-}
-
-/**
- * A field that commits what was typed when it is left or on Enter, as one change, and puts the
- * value back on Esc. It then shows the value again: the new one arrives with the document.
- */
-function TextField({ label, title, value, disabled, maxLength, number, problem, onCommit }: TextFieldProps) {
-    const id = useId();
-    const [error, setError] = useState<string | null>(null);
-    const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-        if (event.key === 'Enter' && error === null) {
-            event.currentTarget.blur();
-        } else if (event.key === 'Escape') {
-            event.currentTarget.value = value;
-            setError(null);
-            event.currentTarget.blur();
-        }
-    };
-    return (
-        <div className="panel-field" title={title}>
-            <label htmlFor={id}>{label}</label>
-            <input
-                id={id}
-                type={number ? 'number' : 'text'}
-                min={number?.min}
-                max={number?.max}
-                step={number ? 1 : undefined}
-                defaultValue={value}
-                disabled={disabled}
-                maxLength={maxLength}
-                autoComplete="off"
-                spellCheck={false}
-                aria-invalid={error !== null}
-                aria-describedby={error !== null ? `${id}-error` : undefined}
-                onChange={(event) => setError(problem?.(event.currentTarget.value) ?? null)}
-                onKeyDown={onKeyDown}
-                onBlur={(event) => {
-                    const text = event.currentTarget.value;
-                    event.currentTarget.value = value;
-                    setError(null);
-                    if (text !== value && (problem?.(text) ?? null) === null) {
-                        onCommit(text);
-                    }
-                }}
-            />
-            {error !== null && (
-                <p id={`${id}-error`} className="panel-field-error" role="alert">
-                    {error}
-                </p>
-            )}
-        </div>
-    );
-}
-
-/**
- * The browser's colour picker. It commits when the picker closes (the native `change` event;
- * React's onChange fires for every colour passed over), so choosing a colour is one change.
- */
-function ColorField({
-    label,
-    value,
-    shown,
-    disabled,
-    onCommit,
-}: {
-    label: string;
-    value: string;
-    /** The colour as the drawing shows it, which differs from the stored one on a dark background. */
-    shown: string;
-    disabled: boolean;
-    onCommit: (color: string) => void;
-}) {
-    const id = useId();
-    const inputRef = useRef<HTMLInputElement>(null);
-    const commitRef = useRef(onCommit);
-    useEffect(() => {
-        commitRef.current = onCommit;
-    });
-    useEffect(() => {
-        const input = inputRef.current!;
-        const commit = () => commitRef.current(input.value);
-        input.addEventListener('change', commit);
-        return () => input.removeEventListener('change', commit);
-    }, []);
-    return (
-        <div className="panel-field">
-            <label htmlFor={id}>{label}</label>
-            <span className="panel-color">
-                <input ref={inputRef} id={id} type="color" defaultValue={value} disabled={disabled} />
-                <span className="layer-swatch" style={{ background: shown }} />
-                <code>{value}</code>
-            </span>
-        </div>
-    );
-}
-
-/** A choice that commits at once, as one change. */
-function SelectField({
-    label,
-    value,
-    options,
-    disabled,
-    onCommit,
-}: {
-    label: string;
-    value: string;
-    options: readonly { value: string; label: string }[];
-    disabled: boolean;
-    onCommit: (value: string) => void;
-}) {
-    const id = useId();
-    return (
-        <div className="panel-field">
-            <label htmlFor={id}>{label}</label>
-            <select
-                id={id}
-                value={value}
-                disabled={disabled}
-                onChange={(event) => {
-                    onCommit(event.currentTarget.value);
-                    // The keys go to the editor again
-                    event.currentTarget.blur();
-                }}
-            >
-                {options.map((option) => (
-                    <option key={option.value} value={option.value}>
-                        {option.label}
-                    </option>
-                ))}
-            </select>
-        </div>
     );
 }

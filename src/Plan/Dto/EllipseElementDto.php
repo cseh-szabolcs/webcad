@@ -2,6 +2,7 @@
 
 namespace App\Plan\Dto;
 
+use App\Plan\Enum\Linetype;
 use OpenApi\Attributes as OA;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -24,7 +25,11 @@ final readonly class EllipseElementDto extends AbstractElementDto
         #[OA\Property(description: 'Angle of the first axis in radians, counter-clockwise from +X (Y up); 0 is axis-aligned.')]
         public float $rotation = 0.0,
         ?string $name = null,
+        ?string $color = null,
+        ?Linetype $linetype = null,
+        ?int $lineweight = null,
+        ?int $transparency = null,
     ) {
-        parent::__construct($id, $layerId, $groupId, $styleId, $name);
+        parent::__construct($id, $layerId, $groupId, $styleId, $name, $color, $linetype, $lineweight, $transparency);
     }
 }

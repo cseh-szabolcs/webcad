@@ -82,10 +82,10 @@ final readonly class PlanDocumentReader
                 static fn (Entity\ElementStyle $s): ElementStyleDto => new ElementStyleDto(
                     $s->getId()->toRfc4122(),
                     $s->getName(),
-                    $s->getStrokeColor(),
-                    $s->getStrokeWidth(),
-                    // JSON gives whole numbers back as ints
-                    array_map(floatval(...), $s->getDashPattern()),
+                    $s->getColor(),
+                    $s->getLinetype(),
+                    $s->getLineweight(),
+                    $s->getTransparency(),
                     $s->getFillColor(),
                 ),
                 $this->styles->findByPlanVersion($version),
@@ -100,24 +100,26 @@ final readonly class PlanDocumentReader
         $groupId = $element->getGroup()?->getId()->toRfc4122();
         $styleId = $element->getStyle()?->getId()->toRfc4122();
         $vertex = static fn (Entity\Vertex $v): string => $v->getId()->toRfc4122();
+        // What the element overrides, for the named arguments of every Dto
+        $look = ['color' => $element->getColor(), 'linetype' => $element->getLinetype(), 'lineweight' => $element->getLineweight(), 'transparency' => $element->getTransparency()];
         $vector = static fn (Entity\Vector2 $v): Vector2Dto => new Vector2Dto($v->x, $v->y);
 
         return match (true) {
             $element instanceof Entity\LineElement => new LineElementDto(
-                $id, $layerId, $groupId, $styleId,
+                $id, $layerId, $groupId, $styleId, ...$look,
                 startVertexId: $vertex($element->getStartVertex()),
                 endVertexId: $vertex($element->getEndVertex()),
                 name: $element->getName(),
             ),
             $element instanceof Entity\PolylineElement => new PolylineElementDto(
-                $id, $layerId, $groupId, $styleId,
+                $id, $layerId, $groupId, $styleId, ...$look,
                 vertexIds: array_map($vertex, $element->getVertices()),
                 closed: $element->isClosed(),
                 bulges: $element->getBulges(),
                 name: $element->getName(),
             ),
             $element instanceof Entity\ArcElement => new ArcElementDto(
-                $id, $layerId, $groupId, $styleId,
+                $id, $layerId, $groupId, $styleId, ...$look,
                 centerVertexId: $vertex($element->getCenterVertex()),
                 startVertexId: $vertex($element->getStartVertex()),
                 endVertexId: $vertex($element->getEndVertex()),
@@ -125,13 +127,13 @@ final readonly class PlanDocumentReader
                 name: $element->getName(),
             ),
             $element instanceof Entity\CircleElement => new CircleElementDto(
-                $id, $layerId, $groupId, $styleId,
+                $id, $layerId, $groupId, $styleId, ...$look,
                 centerVertexId: $vertex($element->getCenterVertex()),
                 radius: $element->getRadius(),
                 name: $element->getName(),
             ),
             $element instanceof Entity\EllipseElement => new EllipseElementDto(
-                $id, $layerId, $groupId, $styleId,
+                $id, $layerId, $groupId, $styleId, ...$look,
                 centerVertexId: $vertex($element->getCenterVertex()),
                 radiusX: $element->getRadiusX(),
                 radiusY: $element->getRadiusY(),
@@ -139,7 +141,7 @@ final readonly class PlanDocumentReader
                 name: $element->getName(),
             ),
             $element instanceof Entity\BezierElement => new BezierElementDto(
-                $id, $layerId, $groupId, $styleId,
+                $id, $layerId, $groupId, $styleId, ...$look,
                 startVertexId: $vertex($element->getStartVertex()),
                 endVertexId: $vertex($element->getEndVertex()),
                 startControl: $vector($element->getStartControl()),

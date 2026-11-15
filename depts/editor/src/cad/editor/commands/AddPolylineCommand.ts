@@ -1,4 +1,5 @@
 import type { CadDocument } from '../../model/CadDocument';
+import { BY_LAYER } from '../../model/ElementAppearance';
 import type { PolylineElement } from '../../model/CadElement';
 import type { Id, Point } from '../../model/Point';
 import type { EditorCommand } from '../commandNames';
@@ -41,6 +42,7 @@ export class AddPolylineCommand implements DocumentCommand {
             layerId: this.layerId,
             groupId: null,
             styleId: null,
+            ...BY_LAYER,
             vertexIds: [...this.vertexIds],
             closed: this.closed,
             // Straight segments

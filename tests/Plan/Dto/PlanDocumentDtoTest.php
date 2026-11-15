@@ -35,6 +35,8 @@ final class PlanDocumentDtoTest extends KernelTestCase
             if (EllipseElementDto::TYPE === $element['type']) {
                 $expected['elements'][$i]['rotation'] ??= 0;
             }
+            // And what an element overrides, null where the sample leaves it out
+            $expected['elements'][$i] += ['color' => null, 'linetype' => null, 'lineweight' => null, 'transparency' => null];
         }
 
         $actual = json_decode($this->serializer()->serialize($document, 'json'), true, flags: \JSON_THROW_ON_ERROR);

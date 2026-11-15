@@ -138,6 +138,10 @@ export class SubtractCommand implements DocumentCommand {
                 layerId: first.layerId,
                 groupId: group?.id ?? first.groupId,
                 styleId: first.styleId,
+                color: first.color,
+                linetype: first.linetype,
+                lineweight: first.lineweight,
+                transparency: first.transparency,
             };
             const vertex = ({ x, y }: { x: number; y: number }): Id => {
                 const id = this.newId();

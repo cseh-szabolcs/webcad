@@ -2,7 +2,9 @@
 
 namespace App\Plan\Entity;
 
+use App\Plan\Enum\Linetype;
 use App\Plan\Repository\ElementRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -27,6 +29,22 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['plan_version_id', 'position'])]
 abstract class Element
 {
+    /**
+     * What the element is drawn with instead of its style's or its layer's value; null where it
+     * overrides nothing. The colour as #rrggbb, the lineweight in 1/100 mm, the transparency in percent.
+     */
+    #[ORM\Column(length: 32, nullable: true)]
+    private ?string $color = null;
+
+    #[ORM\Column(length: 16, nullable: true, enumType: Linetype::class)]
+    private ?Linetype $linetype = null;
+
+    #[ORM\Column(type: Types::SMALLINT, nullable: true)]
+    private ?int $lineweight = null;
+
+    #[ORM\Column(type: Types::SMALLINT, nullable: true)]
+    private ?int $transparency = null;
+
     public function __construct(
         #[ORM\Id]
         #[ORM\Column(type: UuidType::NAME, unique: true)]
@@ -85,5 +103,38 @@ abstract class Element
     public function getName(): ?string
     {
         return $this->name;
+    }
+
+    public function getColor(): ?string
+    {
+        return $this->color;
+    }
+
+    public function getLinetype(): ?Linetype
+    {
+        return $this->linetype;
+    }
+
+    public function getLineweight(): ?int
+    {
+        return $this->lineweight;
+    }
+
+    public function getTransparency(): ?int
+    {
+        return $this->transparency;
+    }
+
+    /**
+     * Sets what the element overrides; null for each value it takes from its style or its layer.
+     */
+    public function setAppearance(?string $color, ?Linetype $linetype, ?int $lineweight, ?int $transparency): static
+    {
+        $this->color = $color;
+        $this->linetype = $linetype;
+        $this->lineweight = $lineweight;
+        $this->transparency = $transparency;
+
+        return $this;
     }
 }

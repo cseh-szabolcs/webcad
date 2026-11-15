@@ -322,7 +322,7 @@ describe('pointers', () => {
     });
 
     it('sends a change reliably while somebody is there, and none that is too large', () => {
-        const patch = { planId: 'plan', vertices: [], removedVertexIds: [], elements: [], removedElementIds: ['e'], groups: [], removedGroupIds: [], layers: [], removedLayerIds: [], changedElementIds: ['e'] };
+        const patch = { planId: 'plan', vertices: [], removedVertexIds: [], elements: [], removedElementIds: ['e'], groups: [], removedGroupIds: [], layers: [], removedLayerIds: [], styles: [], removedStyleIds: [], changedElementIds: ['e'] };
         const alone = joined(true);
         alone.collaboration.sendChange(patch);
         expect(alone.emit.mock.calls.filter(([event]) => event === 'app:change')).toEqual([]);

@@ -1,5 +1,6 @@
 import type { EllipseShape } from '../../geometry/ellipse';
 import type { CadDocument } from '../../model/CadDocument';
+import { BY_LAYER } from '../../model/ElementAppearance';
 import type { EllipseElement } from '../../model/CadElement';
 import type { Id } from '../../model/Point';
 import type { DocumentChange, DocumentCommand } from './DocumentCommand';
@@ -31,6 +32,7 @@ export class AddEllipseCommand implements DocumentCommand {
             layerId: this.layerId,
             groupId: null,
             styleId: null,
+            ...BY_LAYER,
             centerVertexId: this.centerVertexId,
             radiusX,
             radiusY,

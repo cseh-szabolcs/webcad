@@ -1,5 +1,6 @@
 import { CURRENT_SCHEMA_VERSION, type CadDocument } from 'app/cad/model/CadDocument';
 import type { CadElement } from 'app/cad/model/CadElement';
+import { BY_LAYER } from 'app/cad/model/ElementAppearance';
 import { DEFAULT_LAYER_NAME, newLayer } from 'app/cad/model/Layer';
 
 /** Mean distance between the elements in mm, so the density stays the same for every count. */
@@ -26,7 +27,7 @@ export function stressPlan(count: number): CadDocument {
         return id;
     };
     for (let i = 0; i < count; i++) {
-        const base = { id: `e-${i}`, name: null, layerId: LAYER_ID, groupId: null, styleId: null };
+        const base = { id: `e-${i}`, name: null, layerId: LAYER_ID, groupId: null, styleId: null, ...BY_LAYER };
         const x = random() * side;
         const y = random() * side;
         const width = (random() - 0.5) * 2 * ELEMENT_SIZE_MM;

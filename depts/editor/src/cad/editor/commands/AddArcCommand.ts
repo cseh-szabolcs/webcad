@@ -1,4 +1,5 @@
 import type { CadDocument } from '../../model/CadDocument';
+import { BY_LAYER } from '../../model/ElementAppearance';
 import type { ArcElement } from '../../model/CadElement';
 import type { Id, Point } from '../../model/Point';
 import type { DocumentChange, DocumentCommand } from './DocumentCommand';
@@ -36,6 +37,7 @@ export class AddArcCommand implements DocumentCommand {
             layerId: this.layerId,
             groupId: null,
             styleId: null,
+            ...BY_LAYER,
             centerVertexId,
             startVertexId,
             endVertexId,

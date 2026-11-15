@@ -1,3 +1,4 @@
+import { BY_LAYER } from '../model/ElementAppearance';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CadDocument } from '../model/CadDocument';
 import type { Point } from '../model/Point';
@@ -825,7 +826,7 @@ describe('SelectionEditor SCHIEBEN: Tab cycling and hysteresis', () => {
             { id: 'a', x: 0, y: 0 },
             { id: 'b', x: 12, y: 0 },
         ],
-        elements: [{ id: 'line', type: 'line', name: null, layerId: sampleIds.layer['0'], groupId: null, styleId: null, startVertexId: 'a', endVertexId: 'b' }],
+        elements: [{ id: 'line', type: 'line', name: null, layerId: sampleIds.layer['0'], groupId: null, styleId: null, ...BY_LAYER, startVertexId: 'a', endVertexId: 'b' }],
         groups: [],
     };
     const START = { x: 0, y: 0 };

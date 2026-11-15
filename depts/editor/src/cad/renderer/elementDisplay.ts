@@ -1,9 +1,8 @@
 import type { CadElement } from '../model/CadElement';
 import type { DocumentIndex } from '../model/DocumentIndex';
-import type { ElementStyle } from '../model/ElementStyle';
 import type { Layer, Linetype } from '../model/Layer';
 
-/** Lengths of dashes and gaps in turn, in screen px like a style's dash pattern. */
+/** Lengths of dashes and gaps in turn, in screen px whatever the zoom. */
 export const LINETYPE_DASHES: Readonly<Record<Linetype, readonly number[]>> = {
     continuous: [],
     dashed: [12, 6],
@@ -27,45 +26,61 @@ export function lineweightStroke(lineweight: number): number {
     return Math.max(MIN_STROKE_WIDTH, (lineweight / 100) * LINEWEIGHT_PX_PER_MM);
 }
 
+/** What a path is drawn with: stroke colour, width and dashes in screen px, and a fill or none. */
+export interface DisplayStyle {
+    strokeColor: string;
+    strokeWidth: number;
+    dashPattern: number[];
+    fillColor: string | null;
+}
+
 /** For elements of a layer the document does not know. */
-export const DEFAULT_STYLE: ElementStyle = {
-    id: '__default',
-    name: 'Default',
-    strokeColor: '#000000',
-    strokeWidth: MIN_STROKE_WIDTH,
-    dashPattern: [],
-    fillColor: null,
-};
+export const DEFAULT_STYLE: DisplayStyle = { strokeColor: '#000000', strokeWidth: MIN_STROKE_WIDTH, dashPattern: [], fillColor: null };
 
 /** How an element is drawn: its strokes and fill, and how opaque it is as a whole (0–1). */
 export interface ElementDisplay {
-    style: ElementStyle;
+    style: DisplayStyle;
     opacity: number;
 }
 
-/**
- * How `layer` draws what has no style of its own (AutoCAD's ByLayer): in its colour, linetype and
- * lineweight, without a fill, see-through by its transparency.
- */
-export function layerDisplay(layer: Layer | undefined): ElementDisplay {
-    if (!layer) {
-        return { style: DEFAULT_STYLE, opacity: 1 };
-    }
+/** What draws an element where it sets nothing itself: the values of a layer, or those a style sets. */
+type Source = { color: string | null; linetype: Linetype | null; lineweight: number | null; transparency: number | null };
+
+/** The first value that is set. */
+function first<T>(...values: (T | null | undefined)[]): T | undefined {
+    return values.find((value): value is T => value !== null && value !== undefined);
+}
+
+function display(sources: readonly (Source | undefined)[], fillColor: string | null): ElementDisplay {
+    const color = first(...sources.map((source) => source?.color));
+    const linetype = first(...sources.map((source) => source?.linetype));
+    const lineweight = first(...sources.map((source) => source?.lineweight));
+    const transparency = first(...sources.map((source) => source?.transparency)) ?? 0;
     return {
         style: {
-            id: layer.id,
-            name: layer.name,
-            strokeColor: layer.color,
-            strokeWidth: lineweightStroke(layer.lineweight),
-            dashPattern: [...LINETYPE_DASHES[layer.linetype]],
-            fillColor: null,
+            strokeColor: color ?? DEFAULT_STYLE.strokeColor,
+            strokeWidth: lineweight === undefined ? DEFAULT_STYLE.strokeWidth : lineweightStroke(lineweight),
+            dashPattern: linetype === undefined ? [] : [...LINETYPE_DASHES[linetype]],
+            fillColor,
         },
-        opacity: 1 - layer.transparency / 100,
+        opacity: 1 - transparency / 100,
     };
 }
 
-/** An element's own style overrides its layer as a whole; without one the layer draws it. */
+/**
+ * How `layer` draws what sets nothing itself and has no style (AutoCAD's ByLayer): in its colour,
+ * linetype and lineweight, without a fill, see-through by its transparency.
+ */
+export function layerDisplay(layer: Layer | undefined): ElementDisplay {
+    return display([layer], null);
+}
+
+/**
+ * How an element is drawn. For each of colour, linetype, lineweight and transparency the first
+ * that is set counts: the element's own value, else its style's, else its layer's (AutoCAD's
+ * ByLayer). Only a style fills.
+ */
 export function elementDisplay(element: CadElement, index: DocumentIndex): ElementDisplay {
     const style = element.styleId !== null ? index.styles.get(element.styleId) : undefined;
-    return style ? { style, opacity: 1 } : layerDisplay(index.layers.get(element.layerId));
+    return display([element, style, index.layers.get(element.layerId)], style?.fillColor ?? null);
 }

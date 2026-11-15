@@ -887,6 +887,41 @@
     margin-bottom: 2px;
 }
 
+/* A section below a list: set off by a line */
+.panel-section-divided {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+}
+
+/* A list within a section goes from edge to edge, without a line of its own */
+.panel-section .layer-list {
+    margin: 0 -12px;
+    padding: 0;
+    border-top: 0;
+}
+
+.panel-section .panel-add-button {
+    align-self: flex-start;
+    margin: 0;
+}
+
+/* The fields of the item chosen in a section's list */
+.panel-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* How many objects have a style, at the end of its row */
+.layer-row-count {
+    margin-left: auto;
+    padding-left: 6px;
+    color: var(--muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+
 /* A label with its field beside it; an error goes below both */
 .panel-field {
     display: grid;
@@ -932,6 +967,25 @@
     color: var(--error);
 }
 
+/* A line of text in a section, e.g. how many objects are selected */
+.panel-note {
+    margin: 0;
+    font-size: 12px;
+}
+
+/* A field with a button beside it */
+.panel-field-value {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+
+.panel-field-value .panel-color {
+    flex: 1;
+    min-width: 0;
+}
+
 /* The colour picker lies invisibly over its swatch and the colour's code */
 .panel-color {
     position: relative;
@@ -962,7 +1016,10 @@
 }
 
 .panel-color code {
+    overflow: hidden;
     font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* A layer's colour as a small square */
@@ -972,6 +1029,11 @@
     height: 14px;
     border: 1px solid var(--border);
     border-radius: 2px;
+}
+
+/* No colour of its own: struck through */
+.layer-swatch[data-empty='true'] {
+    background: linear-gradient(to top right, transparent calc(50% - 1px), var(--muted) calc(50% - 1px), var(--muted) calc(50% + 1px), transparent calc(50% + 1px));
 }
 
 .panel-add-button {

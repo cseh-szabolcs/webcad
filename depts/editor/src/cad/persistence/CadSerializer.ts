@@ -3,7 +3,7 @@ import { vertexRefs, type BaseElement, type CadElement } from '../model/CadEleme
 import type { ElementStyle } from '../model/ElementStyle';
 import type { Floor } from '../model/Floor';
 import type { Group } from '../model/Group';
-import { DEFAULT_LAYER_NAME, HEX_COLOR, isLineweight, LINETYPES, MAX_LAYER_TRANSPARENCY, type Layer, type Linetype } from '../model/Layer';
+import { DEFAULT_LAYER_NAME, HEX_COLOR, isLineweight, LINETYPES, MAX_LAYER_TRANSPARENCY, type Layer, type Linetype, type Lineweight } from '../model/Layer';
 import type { Id, Unit, Vector2 } from '../model/Point';
 import type { Vertex } from '../model/Vertex';
 
@@ -81,32 +81,16 @@ function parseFloor(value: unknown, path: string): Floor {
 
 function parseLayer(value: unknown, path: string): Layer {
     const r = record(value, path);
-    const color = string(r.color, `${path}.color`);
-    if (!HEX_COLOR.test(color)) {
-        throw new CadDocumentError(`${path}.color`, `expected a colour like "#1f2937", got "${color}"`);
-    }
-    const linetype = string(r.linetype, `${path}.linetype`);
-    if (!LINETYPES.includes(linetype as Linetype)) {
-        throw new CadDocumentError(`${path}.linetype`, `unknown linetype "${linetype}"`);
-    }
-    const transparency = number(r.transparency, `${path}.transparency`);
-    if (!Number.isInteger(transparency) || transparency < 0 || transparency > MAX_LAYER_TRANSPARENCY) {
-        throw new CadDocumentError(`${path}.transparency`, `must be a whole number from 0 to ${MAX_LAYER_TRANSPARENCY}`);
-    }
-    const lineweight = number(r.lineweight, `${path}.lineweight`);
-    if (!isLineweight(lineweight)) {
-        throw new CadDocumentError(`${path}.lineweight`, `unknown lineweight ${lineweight}`);
-    }
     return {
         id: uuid(r.id, `${path}.id`),
         floorId: string(r.floorId, `${path}.floorId`),
         name: string(r.name, `${path}.name`),
         visible: boolean(r.visible, `${path}.visible`),
         locked: boolean(r.locked, `${path}.locked`),
-        color,
-        linetype: linetype as Linetype,
-        transparency,
-        lineweight,
+        color: color(r.color, `${path}.color`),
+        linetype: linetypeOf(r.linetype, `${path}.linetype`),
+        transparency: transparencyOf(r.transparency, `${path}.transparency`),
+        lineweight: lineweightOf(r.lineweight, `${path}.lineweight`),
         description: string(r.description, `${path}.description`),
     };
 }
@@ -121,10 +105,11 @@ function parseStyle(value: unknown, path: string): ElementStyle {
     return {
         id: uuid(r.id, `${path}.id`),
         name: string(r.name, `${path}.name`),
-        strokeColor: string(r.strokeColor, `${path}.strokeColor`),
-        strokeWidth: positive(r.strokeWidth, `${path}.strokeWidth`, true),
-        dashPattern: list(r.dashPattern, `${path}.dashPattern`, (v, p) => positive(v, p, true)),
-        fillColor: nullable(r.fillColor, `${path}.fillColor`, string),
+        color: optional(r.color, `${path}.color`, color),
+        linetype: optional(r.linetype, `${path}.linetype`, linetypeOf),
+        lineweight: optional(r.lineweight, `${path}.lineweight`, lineweightOf),
+        transparency: optional(r.transparency, `${path}.transparency`, transparencyOf),
+        fillColor: optional(r.fillColor, `${path}.fillColor`, color),
     };
 }
 
@@ -136,6 +121,11 @@ function parseElement(value: unknown, path: string): CadElement {
         layerId: string(r.layerId, `${path}.layerId`),
         groupId: nullable(r.groupId, `${path}.groupId`, string),
         styleId: nullable(r.styleId, `${path}.styleId`, string),
+        // What the element overrides; left out means nothing
+        color: optional(r.color, `${path}.color`, color),
+        linetype: optional(r.linetype, `${path}.linetype`, linetypeOf),
+        lineweight: optional(r.lineweight, `${path}.lineweight`, lineweightOf),
+        transparency: optional(r.transparency, `${path}.transparency`, transparencyOf),
     };
 
     const type = string(r.type, `${path}.type`);
@@ -223,6 +213,13 @@ function checkReferences(doc: CadDocument): void {
     });
     const groupIds = uniqueIds(doc.groups, '$.groups');
     const styleIds = uniqueIds(doc.styles, '$.styles');
+    const styleNames = new Set<string>();
+    doc.styles.forEach((style, i) => {
+        if (styleNames.has(style.name.toLowerCase())) {
+            throw new CadDocumentError(`$.styles[${i}].name`, `duplicate style name "${style.name}"`);
+        }
+        styleNames.add(style.name.toLowerCase());
+    });
     uniqueIds(doc.elements, '$.elements');
 
     doc.elements.forEach((element, i) => {
@@ -302,6 +299,43 @@ function boolean(value: unknown, path: string): boolean {
         throw new CadDocumentError(path, 'expected a boolean');
     }
     return value;
+}
+
+/** A value that may be left out or null, both read as null. */
+function optional<T>(value: unknown, path: string, item: (value: unknown, path: string) => T): T | null {
+    return value === undefined || value === null ? null : item(value, path);
+}
+
+function color(value: unknown, path: string): string {
+    const text = string(value, path);
+    if (!HEX_COLOR.test(text)) {
+        throw new CadDocumentError(path, `expected a colour like "#1f2937", got "${text}"`);
+    }
+    return text;
+}
+
+function linetypeOf(value: unknown, path: string): Linetype {
+    const text = string(value, path);
+    if (!LINETYPES.includes(text as Linetype)) {
+        throw new CadDocumentError(path, `unknown linetype "${text}"`);
+    }
+    return text as Linetype;
+}
+
+function lineweightOf(value: unknown, path: string): Lineweight {
+    const lineweight = number(value, path);
+    if (!isLineweight(lineweight)) {
+        throw new CadDocumentError(path, `unknown lineweight ${lineweight}`);
+    }
+    return lineweight;
+}
+
+function transparencyOf(value: unknown, path: string): number {
+    const transparency = number(value, path);
+    if (!Number.isInteger(transparency) || transparency < 0 || transparency > MAX_LAYER_TRANSPARENCY) {
+        throw new CadDocumentError(path, `must be a whole number from 0 to ${MAX_LAYER_TRANSPARENCY}`);
+    }
+    return transparency;
 }
 
 function vector(value: unknown, path: string): Vector2 {

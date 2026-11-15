@@ -1,4 +1,5 @@
 import type { CadDocument } from '../../model/CadDocument';
+import { BY_LAYER } from '../../model/ElementAppearance';
 import type { LineElement } from '../../model/CadElement';
 import type { Id, Point } from '../../model/Point';
 import type { DocumentChange, DocumentCommand } from './DocumentCommand';
@@ -34,6 +35,7 @@ export class AddLineCommand implements DocumentCommand {
             layerId: this.layerId,
             groupId: null,
             styleId: null,
+            ...BY_LAYER,
             startVertexId: this.startVertexId,
             endVertexId: this.endVertexId,
         };

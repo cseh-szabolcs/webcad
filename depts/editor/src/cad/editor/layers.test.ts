@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CadDocument } from '../model/CadDocument';
+import { BY_LAYER } from '../model/ElementAppearance';
 import { newLayer, type Layer } from '../model/Layer';
 import { floorLayers, layerElementCounts, layerNameError, nextLayerName, removeLayerBlocker, resolveCurrentLayer } from './layers';
 
@@ -103,7 +104,7 @@ describe('nextLayerName', () => {
 
 describe('layers and their elements', () => {
     const line = (id: string, layerId: string) =>
-        ({ id, type: 'line', name: null, layerId, groupId: null, styleId: null, startVertexId: 'a', endVertexId: 'b' }) as const;
+        ({ id, type: 'line', name: null, layerId, groupId: null, styleId: null, ...BY_LAYER, startVertexId: 'a', endVertexId: 'b' }) as const;
     const plan = { ...doc(zero, walls, newLayer('empty', 'ground', 'Empty')), elements: [line('1', 'walls'), line('2', 'walls'), line('3', 'zero')] };
 
     it('counts the elements per layer', () => {

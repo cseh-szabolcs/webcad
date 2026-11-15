@@ -316,6 +316,11 @@ function App() {
                         onUpdate={(id, changes) => canvasRef.current?.updateLayer(id, changes)}
                         onRemove={(id) => canvasRef.current?.removeLayer(id)}
                         onMoveSelection={(id) => canvasRef.current?.moveSelectionToLayer(id)}
+                        onSetAppearance={(changes) => canvasRef.current?.setSelectionAppearance(changes)}
+                        onSetStyle={(styleId) => canvasRef.current?.setSelectionStyle(styleId)}
+                        onAddStyle={() => canvasRef.current?.addStyle() ?? null}
+                        onUpdateStyle={(id, changes) => canvasRef.current?.updateStyle(id, changes)}
+                        onRemoveStyle={(id) => canvasRef.current?.removeStyle(id)}
                     />
                 </SidePanel>
             </div>

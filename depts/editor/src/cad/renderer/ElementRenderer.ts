@@ -1,8 +1,7 @@
 import type { CadElement } from '../model/CadElement';
 import type { DocumentIndex } from '../model/DocumentIndex';
-import type { ElementStyle } from '../model/ElementStyle';
 import { displayFillColor, displayStrokeColor, type DisplayTheme } from './displayColor';
-import { elementDisplay, type ElementDisplay } from './elementDisplay';
+import { elementDisplay, type DisplayStyle, type ElementDisplay } from './elementDisplay';
 import { buildPathSpec } from './PathSpec';
 
 export function createItem(
@@ -49,7 +48,7 @@ export function applyDisplay(scope: paper.PaperScope, path: paper.Path, display:
 }
 
 /** Colours are adapted to the background (see displayColor.ts); widths and dashes are not. */
-export function applyStyle(scope: paper.PaperScope, path: paper.Path, style: ElementStyle, theme: DisplayTheme): void {
+export function applyStyle(scope: paper.PaperScope, path: paper.Path, style: DisplayStyle, theme: DisplayTheme): void {
     path.strokeColor = new scope.Color(displayStrokeColor(style.strokeColor, theme));
     path.strokeWidth = style.strokeWidth;
     path.dashArray = style.dashPattern;

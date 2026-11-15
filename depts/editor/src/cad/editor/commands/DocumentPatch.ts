@@ -1,5 +1,6 @@
 import type { CadDocument } from '../../model/CadDocument';
 import { vertexRefs, type CadElement } from '../../model/CadElement';
+import type { ElementStyle } from '../../model/ElementStyle';
 import type { Group } from '../../model/Group';
 import type { Layer } from '../../model/Layer';
 import type { Id } from '../../model/Point';
@@ -10,8 +11,8 @@ import type { DocumentChange } from './DocumentCommand';
  * What a document change did, as data: the vertices, elements, groups and layers it added or
  * changed (as they are afterwards) and the ids of those it removed. It is how a change travels to
  * the other collaborators: commands are not sent, as they hold functions and what they found on
- * their first run; their effect is, which also covers undo and redo. Floors and styles are not in
- * it, as no command changes them yet.
+ * their first run; their effect is, which also covers undo and redo. Floors are not in it, as no
+ * command changes them yet.
  */
 export interface DocumentPatch {
     /** The plan the change belongs to: a room holds every plan of a project. */
@@ -24,6 +25,8 @@ export interface DocumentPatch {
     removedGroupIds: Id[];
     layers: PatchedLayer[];
     removedLayerIds: Id[];
+    styles: ElementStyle[];
+    removedStyleIds: Id[];
     /** The elements to draw anew: also those whose vertices moved while they stayed as they are. */
     changedElementIds: Id[];
 }
@@ -56,7 +59,9 @@ export function patchSize(patch: DocumentPatch): number {
         patch.groups.length +
         patch.removedGroupIds.length +
         patch.layers.length +
-        patch.removedLayerIds.length
+        patch.removedLayerIds.length +
+        patch.styles.length +
+        patch.removedStyleIds.length
     );
 }
 
@@ -66,6 +71,7 @@ export function diffDocuments(before: CadDocument, after: CadDocument, changedEl
     const groups = diffById(before.groups, after.groups, sameJson);
     const elements = diffOrdered(before.elements, after.elements);
     const layers = diffOrdered(before.layers, after.layers);
+    const styles = diffById(before.styles, after.styles, sameJson);
     const patch: DocumentPatch = {
         planId: after.id,
         vertices: vertices.changed,
@@ -76,6 +82,8 @@ export function diffDocuments(before: CadDocument, after: CadDocument, changedEl
         removedGroupIds: groups.removed,
         layers: layers.changed.map(({ item, after }) => (after === undefined ? { layer: item } : { layer: item, after })),
         removedLayerIds: layers.removed,
+        styles: styles.changed,
+        removedStyleIds: styles.removed,
         changedElementIds: [...changedElementIds],
     };
     return patchSize(patch) === 0 ? null : patch;
@@ -83,7 +91,7 @@ export function diffDocuments(before: CadDocument, after: CadDocument, changedEl
 
 /**
  * The document with the patch applied, or null where it does not fit: another plan, or a result in
- * which an element would use a vertex, a group or a layer that is not there, or a layer a floor
+ * which an element would use a vertex, a group, a layer or a style that is not there, or a layer a floor
  * that is not there (the documents have drifted
  * apart, e.g. the sender changed something before this editor joined). Never throws on what a peer
  * sent, and never returns a document the renderer could not draw.
@@ -107,17 +115,20 @@ export function applyDocumentPatch(doc: CadDocument, patch: DocumentPatch): Docu
     const vertexIds = new Set(vertices.map(({ id }) => id));
     const groupIds = new Set(groups.map(({ id }) => id));
     const layerIds = new Set(layers.map(({ id }) => id));
+    const styles = patchById(doc.styles, patch.styles, patch.removedStyleIds);
+    const styleIds = new Set(styles.map(({ id }) => id));
     const fits = (element: CadElement) =>
         vertexRefs(element).every((id) => vertexIds.has(id)) &&
         (element.groupId === null || groupIds.has(element.groupId)) &&
-        layerIds.has(element.layerId);
+        layerIds.has(element.layerId) &&
+        (element.styleId === null || styleIds.has(element.styleId));
     // Removing can orphan any element, adding and changing only those of the patch
-    const removes = patch.removedVertexIds.length > 0 || patch.removedGroupIds.length > 0 || patch.removedLayerIds.length > 0;
+    const removes = patch.removedVertexIds.length > 0 || patch.removedGroupIds.length > 0 || patch.removedLayerIds.length > 0 || patch.removedStyleIds.length > 0;
     const toCheck = removes ? elements : patch.elements.map(({ element }) => element);
     if (!toCheck.every(fits) || !patch.layers.every(({ layer }) => doc.floors.some((floor) => floor.id === layer.floorId))) {
         return null;
     }
-    return { document: { ...doc, vertices, elements, groups, layers }, changedElementIds: patch.changedElementIds };
+    return { document: { ...doc, vertices, elements, groups, layers, styles }, changedElementIds: patch.changedElementIds };
 }
 
 function sameJson(a: unknown, b: unknown): boolean {

@@ -44,7 +44,7 @@ final class PlanEntityTest extends KernelTestCase
         $walls = new Layer(Uuid::v7(), $draft, $floor, 0, 'Walls');
         $hidden = new Layer(Uuid::v7(), $draft, $floor, 1, 'Hidden', visible: false, locked: true, color: '#dc2626', linetype: Linetype::DashDot, transparency: 40, lineweight: 50, description: 'Hilfslinien');
         $door = new Group(Uuid::v7(), $draft, 'Door D1');
-        $dashed = new ElementStyle(Uuid::v7(), $draft, 'Dashed', '#374151', 1.0, [8.0, 4.0], '#f3f4f6');
+        $dashed = new ElementStyle(Uuid::v7(), $draft, 'Dashed', '#374151', Linetype::Dashed, 50, fillColor: '#f3f4f6');
         $a = new Vertex(Uuid::v7(), $draft, 0.0, 0.0);
         $b = new Vertex(Uuid::v7(), $draft, 6000.0, 0.0);
         $c = new Vertex(Uuid::v7(), $draft, 6000.0, 4000.5);
@@ -93,7 +93,7 @@ final class PlanEntityTest extends KernelTestCase
         self::assertSame([0.0, 0.5, -1.0, 0.0], $polyline->getBulges());
 
         self::assertSame($polyline->getLayer(), $line->getLayer());
-        self::assertSame([8.0, 4.0], $line->getStyle()->getDashPattern());
+        self::assertSame(['#374151', Linetype::Dashed, 50, null], [$line->getStyle()->getColor(), $line->getStyle()->getLinetype(), $line->getStyle()->getLineweight(), $line->getStyle()->getTransparency()]);
         self::assertSame('#f3f4f6', $line->getStyle()->getFillColor());
         self::assertSame(4000.5, $line->getEndVertex()->getY());
 

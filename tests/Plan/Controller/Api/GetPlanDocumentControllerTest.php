@@ -60,6 +60,8 @@ final class GetPlanDocumentControllerTest extends WebTestCase
             if (EllipseElementDto::TYPE === $element['type']) {
                 $expected['elements'][$i]['rotation'] ??= 0;
             }
+            // And what an element overrides, null where the sample leaves it out
+            $expected['elements'][$i] += ['color' => null, 'linetype' => null, 'lineweight' => null, 'transparency' => null];
         }
 
         // Same document as the sample, with every id replaced by a new one in the same order

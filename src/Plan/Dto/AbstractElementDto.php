@@ -2,6 +2,7 @@
 
 namespace App\Plan\Dto;
 
+use App\Plan\Enum\Linetype;
 use OpenApi\Attributes as OA;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -30,6 +31,17 @@ abstract readonly class AbstractElementDto implements ElementDtoInterface
         public ?string $styleId,
         #[OA\Property(description: 'Optional display name; the id stays the identity.', example: 'Door swing')]
         public ?string $name = null,
+        #[Assert\CssColor(Assert\CssColor::HEX_LONG)]
+        #[OA\Property(description: 'Colour of this element; null for that of its style or its layer.', example: '#b45309')]
+        public ?string $color = null,
+        #[OA\Property(description: 'Linetype of this element; null for that of its style or its layer.')]
+        public ?Linetype $linetype = null,
+        #[Assert\Choice(choices: LayerDto::LINEWEIGHTS)]
+        #[OA\Property(description: 'Lineweight of this element in 1/100 mm; null for that of its style or its layer.', example: 50)]
+        public ?int $lineweight = null,
+        #[Assert\Range(min: 0, max: 90)]
+        #[OA\Property(description: 'Transparency of this element in percent; null for that of its layer.')]
+        public ?int $transparency = null,
     ) {
     }
 }

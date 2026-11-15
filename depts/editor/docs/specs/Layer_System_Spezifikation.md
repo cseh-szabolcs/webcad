@@ -89,17 +89,23 @@ Objekte lassen sich darauf zeichnen, wie in AutoCAD.
   sichtbare Layer des Stockwerks.
 - Er lässt sich nicht löschen.
 
-## VonLayer (ByLayer)
+## VonLayer (ByLayer), Stile und eigene Werte
 
-Ein Objekt hat einen optionalen Stil (`styleId`, ein `ElementStyle` mit Strichfarbe,
-Strichstärke, Strichmuster und Füllung).
+Ein Objekt kann Farbe, Linientyp, Linienstärke und Transparenz selbst festlegen (`color`,
+`linetype`, `lineweight`, `transparency`; `null` = nicht festgelegt, AutoCADs ByLayer), und es
+hat einen optionalen **Stil** (`styleId`). Ein Stil (`ElementStyle`) ist eine benannte Vorlage
+mit denselben vier Werten, jeder optional, und einer Füllfarbe (`fillColor`); AutoCAD kennt das
+für Linien nicht. Stile gehören zum Plan, ihr Name ist dort eindeutig (ohne Groß/Klein). Für
+jede Eigenschaft gilt der erste Wert, der gesetzt ist:
 
-- **Ohne Stil** (`styleId: null`) zeichnet das Objekt VonLayer: mit Farbe, Linientyp,
-  Linienstärke und Transparenz seines Layers, ohne Füllung. Neue Objekte haben keinen Stil.
-- **Mit Stil** zeichnet es ganz nach dem Stil; der Layer wirkt dann nicht auf sein Aussehen.
+1. der eigene Wert des Objekts,
+2. sonst der seines Stils,
+3. sonst der seines Layers.
 
-AutoCAD überschreibt je Eigenschaft (Farbe, Linientyp, Linienstärke, Transparenz einzeln VonLayer oder
-eigen); das ist hier noch nicht möglich.
+Die Füllung kommt nur aus einem Stil. Neue Objekte legen nichts fest und haben keinen Stil.
+Die eigenen Werte und der Stil der gewählten Objekte werden im Panel im Abschnitt „Auswahl“
+gesetzt; Stile werden im Abschnitt „Stile“ angelegt, geändert und gelöscht. Ein gelöschter Stil
+fehlt seinen Objekten danach (sie zeichnen nach ihrem Layer).
 
 - **Linientyp:** Strichmuster in Bildschirmpixeln, unabhängig vom Zoom (wie die Strichmuster der
   Stile): durchgezogen, gestrichelt, verdeckt, Mitte, Punkt, Strichpunkt.
@@ -146,9 +152,10 @@ aufgeklappt).
 - Modell und Regeln: `src/cad/model/Layer.ts`, `src/cad/model/Floor.ts`,
   `src/cad/editor/layers.ts` (Namen, Löschen, aktueller Layer; pur und getestet).
 - Befehle: `src/cad/editor/commands/LayerCommands.ts` (`AddLayerCommand`,
-  `UpdateLayerCommand`, `RemoveLayerCommand`, `ChangeElementLayerCommand`); der Editor-Kern prüft
-  die Regeln (`SelectionEditor.addLayer`, `updateLayer`, `removeLayer`, `setCurrentLayer`,
-  `moveSelectionToLayer`).
+  `UpdateLayerCommand`, `RemoveLayerCommand`, `ChangeElementLayerCommand`),
+  `ElementAppearanceCommand.ts` und `StyleCommands.ts`; der Editor-Kern prüft die Regeln (`SelectionEditor.addLayer`,
+  `updateLayer`, `removeLayer`, `setCurrentLayer`, `moveSelectionToLayer`,
+  `setSelectionAppearance`).
 - Darstellung: `src/cad/renderer/elementDisplay.ts` (VonLayer), `PaperRenderer.updateLayers`.
 - Panel: `src/ui/SidePanel.tsx`, `src/ui/LayerPanel.tsx`.
 - Backend: `src/Plan/Entity/Floor.php`, `Layer.php`, die DTOs in `src/Plan/Dto`.

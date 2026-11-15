@@ -70,6 +70,8 @@ export interface components {
             /** Format: float */
             y: number;
         };
+        /** @enum {string} */
+        Linetype: "continuous" | "dashed" | "hidden" | "center" | "dot" | "dashDot";
         /**
          * LineElement
          * @description A straight line between two vertices.
@@ -107,6 +109,29 @@ export interface components {
              * @example Door swing
              */
             name: string | null;
+            /**
+             * @description Colour of this element; null for that of its style or its layer.
+             * @default null
+             * @example #b45309
+             */
+            color: string | null;
+            /**
+             * @description Linetype of this element; null for that of its style or its layer.
+             * @default null
+             */
+            linetype: components["schemas"]["Linetype"] | (never | null);
+            /**
+             * @description Lineweight of this element in 1/100 mm; null for that of its style or its layer.
+             * @default null
+             * @example 50
+             * @enum {integer|null}
+             */
+            lineweight: 0 | 5 | 9 | 13 | 15 | 18 | 20 | 25 | 30 | 35 | 40 | 50 | 53 | 60 | 70 | 80 | 90 | 100 | 106 | 120 | 140 | 158 | 200 | 211 | null;
+            /**
+             * @description Transparency of this element in percent; null for that of its layer.
+             * @default null
+             */
+            transparency: number | null;
         };
         /**
          * PolylineElement
@@ -153,6 +178,29 @@ export interface components {
              * @example Door swing
              */
             name: string | null;
+            /**
+             * @description Colour of this element; null for that of its style or its layer.
+             * @default null
+             * @example #b45309
+             */
+            color: string | null;
+            /**
+             * @description Linetype of this element; null for that of its style or its layer.
+             * @default null
+             */
+            linetype: components["schemas"]["Linetype"] | (never | null);
+            /**
+             * @description Lineweight of this element in 1/100 mm; null for that of its style or its layer.
+             * @default null
+             * @example 50
+             * @enum {integer|null}
+             */
+            lineweight: 0 | 5 | 9 | 13 | 15 | 18 | 20 | 25 | 30 | 35 | 40 | 50 | 53 | 60 | 70 | 80 | 90 | 100 | 106 | 120 | 140 | 158 | 200 | 211 | null;
+            /**
+             * @description Transparency of this element in percent; null for that of its layer.
+             * @default null
+             */
+            transparency: number | null;
         };
         /**
          * ArcElement
@@ -195,6 +243,29 @@ export interface components {
              * @example Door swing
              */
             name: string | null;
+            /**
+             * @description Colour of this element; null for that of its style or its layer.
+             * @default null
+             * @example #b45309
+             */
+            color: string | null;
+            /**
+             * @description Linetype of this element; null for that of its style or its layer.
+             * @default null
+             */
+            linetype: components["schemas"]["Linetype"] | (never | null);
+            /**
+             * @description Lineweight of this element in 1/100 mm; null for that of its style or its layer.
+             * @default null
+             * @example 50
+             * @enum {integer|null}
+             */
+            lineweight: 0 | 5 | 9 | 13 | 15 | 18 | 20 | 25 | 30 | 35 | 40 | 50 | 53 | 60 | 70 | 80 | 90 | 100 | 106 | 120 | 140 | 158 | 200 | 211 | null;
+            /**
+             * @description Transparency of this element in percent; null for that of its layer.
+             * @default null
+             */
+            transparency: number | null;
         };
         /**
          * CircleElement
@@ -233,6 +304,29 @@ export interface components {
              * @example Door swing
              */
             name: string | null;
+            /**
+             * @description Colour of this element; null for that of its style or its layer.
+             * @default null
+             * @example #b45309
+             */
+            color: string | null;
+            /**
+             * @description Linetype of this element; null for that of its style or its layer.
+             * @default null
+             */
+            linetype: components["schemas"]["Linetype"] | (never | null);
+            /**
+             * @description Lineweight of this element in 1/100 mm; null for that of its style or its layer.
+             * @default null
+             * @example 50
+             * @enum {integer|null}
+             */
+            lineweight: 0 | 5 | 9 | 13 | 15 | 18 | 20 | 25 | 30 | 35 | 40 | 50 | 53 | 60 | 70 | 80 | 90 | 100 | 106 | 120 | 140 | 158 | 200 | 211 | null;
+            /**
+             * @description Transparency of this element in percent; null for that of its layer.
+             * @default null
+             */
+            transparency: number | null;
         };
         /**
          * EllipseElement
@@ -279,6 +373,29 @@ export interface components {
              * @example Door swing
              */
             name: string | null;
+            /**
+             * @description Colour of this element; null for that of its style or its layer.
+             * @default null
+             * @example #b45309
+             */
+            color: string | null;
+            /**
+             * @description Linetype of this element; null for that of its style or its layer.
+             * @default null
+             */
+            linetype: components["schemas"]["Linetype"] | (never | null);
+            /**
+             * @description Lineweight of this element in 1/100 mm; null for that of its style or its layer.
+             * @default null
+             * @example 50
+             * @enum {integer|null}
+             */
+            lineweight: 0 | 5 | 9 | 13 | 15 | 18 | 20 | 25 | 30 | 35 | 40 | 50 | 53 | 60 | 70 | 80 | 90 | 100 | 106 | 120 | 140 | 158 | 200 | 211 | null;
+            /**
+             * @description Transparency of this element in percent; null for that of its layer.
+             * @default null
+             */
+            transparency: number | null;
         };
         /** @description A relative offset in model space (mm, Y up). */
         Vector2: {
@@ -326,6 +443,29 @@ export interface components {
              * @example Door swing
              */
             name: string | null;
+            /**
+             * @description Colour of this element; null for that of its style or its layer.
+             * @default null
+             * @example #b45309
+             */
+            color: string | null;
+            /**
+             * @description Linetype of this element; null for that of its style or its layer.
+             * @default null
+             */
+            linetype: components["schemas"]["Linetype"] | (never | null);
+            /**
+             * @description Lineweight of this element in 1/100 mm; null for that of its style or its layer.
+             * @default null
+             * @example 50
+             * @enum {integer|null}
+             */
+            lineweight: 0 | 5 | 9 | 13 | 15 | 18 | 20 | 25 | 30 | 35 | 40 | 50 | 53 | 60 | 70 | 80 | 90 | 100 | 106 | 120 | 140 | 158 | 200 | 211 | null;
+            /**
+             * @description Transparency of this element in percent; null for that of its layer.
+             * @default null
+             */
+            transparency: number | null;
         };
         /** @description A drawn object of the plan, told apart by its type. */
         Element: components["schemas"]["LineElement"] | components["schemas"]["PolylineElement"] | components["schemas"]["ArcElement"] | components["schemas"]["CircleElement"] | components["schemas"]["EllipseElement"] | components["schemas"]["BezierElement"];
@@ -336,8 +476,6 @@ export interface components {
             /** @example Ground floor */
             name: string;
         };
-        /** @enum {string} */
-        Linetype: "continuous" | "dashed" | "hidden" | "center" | "dot" | "dashDot";
         /** @description A layer of a floor. Elements on a hidden layer are neither drawn nor snapped to nor selectable; those on a locked one cannot be selected. An element without a style is drawn with the colour, linetype, lineweight and transparency of its layer. Every floor has a layer "0". */
         Layer: {
             /** Format: uuid */
@@ -378,19 +516,30 @@ export interface components {
             /** @example Door D1 */
             name: string;
         };
-        /** @description How an element is drawn. Stroke width and dash pattern are in screen pixels for now. */
+        /** @description A named set of values elements are drawn with instead of their layer's; each is null where the style leaves it to the layer. Only a style gives a fill. */
         ElementStyle: {
             /** Format: uuid */
             id: string;
-            /** @example Wall */
+            /**
+             * @description Unique within the plan, whatever the case.
+             * @example Wall
+             */
             name: string;
             /** @example #1f2937 */
-            strokeColor: string;
-            /** Format: float */
-            strokeWidth: number;
-            /** @description Lengths of dashes and gaps in turn; empty for a solid line. */
-            dashPattern: number[];
-            /** @description Fill colour of a closed element; null for none. */
+            color: string | null;
+            linetype: components["schemas"]["Linetype"] | (never | null);
+            /**
+             * @description In 1/100 mm, one of AutoCAD's lineweights.
+             * @example 50
+             * @enum {integer|null}
+             */
+            lineweight: 0 | 5 | 9 | 13 | 15 | 18 | 20 | 25 | 30 | 35 | 40 | 50 | 53 | 60 | 70 | 80 | 90 | 100 | 106 | 120 | 140 | 158 | 200 | 211 | null;
+            /** @description In percent: 0 is opaque, 90 the most see-through. */
+            transparency: number | null;
+            /**
+             * @description Fill colour of a closed element; null for none.
+             * @example #dbeafe
+             */
             fillColor: string | null;
         };
         /** @description The drawing of a plan, as the editor loads it: everything the user drew and the floors, layers, groups and styles it uses. Model coordinates are millimetres with Y up, whatever the display unit. */

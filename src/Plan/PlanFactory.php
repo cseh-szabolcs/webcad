@@ -86,7 +86,7 @@ final readonly class PlanFactory
 
         $styles = [];
         foreach ($document->styles as $style) {
-            $styles[$style->id] = $this->persist(new Entity\ElementStyle(Uuid::v7(), $version, $style->name, $style->strokeColor, $style->strokeWidth, $style->dashPattern, $style->fillColor));
+            $styles[$style->id] = $this->persist(new Entity\ElementStyle(Uuid::v7(), $version, $style->name, $style->color, $style->linetype, $style->lineweight, $style->transparency, $style->fillColor));
         }
 
         $vector = static fn (Vector2Dto $v): Entity\Vector2 => new Entity\Vector2($v->x, $v->y);
@@ -97,7 +97,7 @@ final readonly class PlanFactory
             $style = null === $element->styleId ? null : ($styles[$element->styleId] ?? throw self::unknown('style', $element->styleId, $element->id));
             $id = Uuid::v7();
 
-            $this->persist(match (true) {
+            $entity = match (true) {
                 $element instanceof LineElementDto => new Entity\LineElement($id, $version, $position, $vertex($element->startVertexId), $vertex($element->endVertexId), $layer, $group, $style, $element->name),
                 $element instanceof PolylineElementDto => new Entity\PolylineElement($id, $version, $position, array_map($vertex, $element->vertexIds), $element->closed, $layer, $group, $style, $element->name, array_map(floatval(...), $element->bulges)),
                 $element instanceof ArcElementDto => new Entity\ArcElement($id, $version, $position, $vertex($element->centerVertexId), $vertex($element->startVertexId), $vertex($element->endVertexId), $element->clockwise, $layer, $group, $style, $element->name),
@@ -105,7 +105,8 @@ final readonly class PlanFactory
                 $element instanceof EllipseElementDto => new Entity\EllipseElement($id, $version, $position, $vertex($element->centerVertexId), $element->radiusX, $element->radiusY, $element->rotation, $layer, $group, $style, $element->name),
                 $element instanceof BezierElementDto => new Entity\BezierElement($id, $version, $position, $vertex($element->startVertexId), $vertex($element->endVertexId), $vector($element->startControl), $vector($element->endControl), $layer, $group, $style, $element->name),
                 default => throw new \LogicException(\sprintf('No entity for element type %s.', $element::class)),
-            });
+            };
+            $this->persist($entity->setAppearance($element->color, $element->linetype, $element->lineweight, $element->transparency));
         }
     }
 

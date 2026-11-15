@@ -16,7 +16,10 @@ describe('CadSerializer', () => {
         // The sample plan leaves out the rug's rotation, which defaults to 0
         const expected = sample();
         expected.elements[8].rotation = 0;
+        // And what an element overrides, which is nothing where the sample leaves it out
+        expected.elements = expected.elements.map((element: object) => ({ color: null, linetype: null, lineweight: null, transparency: null, ...element }));
         expect(doc).toEqual(expected);
+        expect(doc.elements[9]).toMatchObject({ name: 'Curtain', color: '#b45309', linetype: null, lineweight: 50, transparency: null });
     });
 
     it('strips unknown properties', () => {
@@ -84,6 +87,10 @@ describe('CadSerializer', () => {
         ['a dangling style reference', (d: any) => { d.elements[0].styleId = 'nope'; return d; }, '$.elements[0].styleId'],
         ['a dangling layer reference', (d: any) => { d.elements[0].layerId = 'nope'; return d; }, '$.elements[0].layerId'],
         ['a dangling group reference', (d: any) => { d.elements[0].groupId = 'nope'; return d; }, '$.elements[0].groupId'],
+        ['an element colour that is no hex colour', (d: any) => { d.elements[0].color = 'red'; return d; }, '$.elements[0].color'],
+        ['an unknown linetype of an element', (d: any) => { d.elements[0].linetype = 'wavy'; return d; }, '$.elements[0].linetype'],
+        ['an element lineweight AutoCAD does not have', (d: any) => { d.elements[0].lineweight = 26; return d; }, '$.elements[0].lineweight'],
+        ['an element transparency over the limit', (d: any) => { d.elements[0].transparency = 91; return d; }, '$.elements[0].transparency'],
         ['an element without a layer', (d: any) => { d.elements[0].layerId = null; return d; }, '$.elements[0].layerId'],
         ['no floor', (d: any) => ({ ...d, floors: [], layers: [], elements: [] }), '$.floors'],
         ['a layer of an unknown floor', (d: any) => { d.layers[1].floorId = 'nope'; return d; }, '$.layers[1].floorId'],
@@ -93,6 +100,9 @@ describe('CadSerializer', () => {
         ['an unknown linetype', (d: any) => { d.layers[1].linetype = 'wavy'; return d; }, '$.layers[1].linetype'],
         ['a layer transparency over the limit', (d: any) => { d.layers[1].transparency = 91; return d; }, '$.layers[1].transparency'],
         ['a lineweight AutoCAD does not have', (d: any) => { d.layers[1].lineweight = 26; return d; }, '$.layers[1].lineweight'],
+        ['two styles with the same name', (d: any) => { d.styles[1].name = 'WALL'; return d; }, '$.styles[1].name'],
+        ['a style colour that is no hex colour', (d: any) => { d.styles[0].color = 'red'; return d; }, '$.styles[0].color'],
+        ['a style lineweight AutoCAD does not have', (d: any) => { d.styles[0].lineweight = 26; return d; }, '$.styles[0].lineweight'],
         ['a layer without description', (d: any) => { delete d.layers[1].description; return d; }, '$.layers[1].description'],
         ['a duplicate vertex id', (d: any) => { d.vertices[1].id = d.vertices[0].id; return d; }, '$.vertices[1].id'],
         ['a duplicate element id', (d: any) => { d.elements[1].id = d.elements[0].id; return d; }, '$.elements[1].id'],

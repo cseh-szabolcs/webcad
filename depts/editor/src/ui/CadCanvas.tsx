@@ -4,7 +4,9 @@ import { applyDocumentPatch, diffDocuments, type DocumentPatch } from 'app/cad/e
 import { SelectionOverlay } from 'app/cad/editor/overlays/SelectionOverlay';
 import { SelectionEditor, type EditorCommand, type SelectionSnapshot } from 'app/cad/editor/SelectionEditor';
 import type { CommandMethod } from 'app/cad/editor/tools/CommandMethod';
+import type { AppearanceChanges } from 'app/cad/editor/commands/ElementAppearanceCommand';
 import type { LayerChanges } from 'app/cad/editor/commands/LayerCommands';
+import type { StyleChanges } from 'app/cad/editor/commands/StyleCommands';
 import type { Id, Point } from 'app/cad/model/Point';
 import type { DisplayTheme } from 'app/cad/renderer/displayColor';
 import type { PresenceChannel } from 'app/collaboration/createCollaboration';
@@ -46,6 +48,14 @@ export interface CadCanvasHandle {
     removeLayer(id: Id): void;
     /** Puts the selection on that layer. */
     moveSelectionToLayer(id: Id): void;
+    /** Sets what the selection overrides of colour, linetype, lineweight and transparency. */
+    setSelectionAppearance(changes: AppearanceChanges): void;
+    /** Gives the selection a style, or none with null. */
+    setSelectionStyle(styleId: Id | null): void;
+    /** The styles of the plan (see SelectionEditor); addStyle returns the new id, or null where it could not. */
+    addStyle(): Id | null;
+    updateStyle(id: Id, changes: StyleChanges): void;
+    removeStyle(id: Id): void;
 }
 
 interface CadCanvasProps {
@@ -177,6 +187,11 @@ export function CadCanvas({
         updateLayer: (id, changes) => editorRef.current?.updateLayer(id, changes),
         removeLayer: (id) => editorRef.current?.removeLayer(id),
         moveSelectionToLayer: (id) => editorRef.current?.moveSelectionToLayer(id),
+        setSelectionAppearance: (changes) => editorRef.current?.setSelectionAppearance(changes),
+        setSelectionStyle: (styleId) => editorRef.current?.setSelectionStyle(styleId),
+        addStyle: () => editorRef.current?.addStyle() ?? null,
+        updateStyle: (id, changes) => editorRef.current?.updateStyle(id, changes),
+        removeStyle: (id) => editorRef.current?.removeStyle(id),
     }));
 
     useEffect(() => {

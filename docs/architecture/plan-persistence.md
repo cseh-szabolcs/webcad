@@ -19,7 +19,9 @@ Decisions
   the backend only that the references exist (`PlanFactory`). A layer carries what its elements
   are drawn with while they have no style (`color`, `linetype`, `lineweight` in 1/100 mm,
   `transparency`), a `description`,
-  and `visible`/`locked`. `Floor` has a UUID key like the other contents, not an integer id.
+  and `visible`/`locked`. An `Element` may set each of the four itself (nullable columns, set by
+  `Element::setAppearance`; null takes the style's or the layer's value). An `ElementStyle` holds
+  the same four, each nullable, and a `fillColor`. `Floor` has a UUID key like the other contents, not an integer id.
 - **Versioned:** the contents belong to a `PlanVersion`. A plan always has a **draft**, which the
   editor works on, and after the first publish a **head**. Publishing (the action comes later) is
   `$plan->publish($copier->copy($plan->getDraft()), $name)`: the copy becomes the head with the

@@ -115,6 +115,9 @@ final class PlanFactoryTest extends KernelTestCase
         self::assertFalse($doorSwing->isClockwise());
         self::assertEquals(new Vector2(500.0, -200.0), $curtain->getStartControl());
         self::assertEquals(new Vector2(-500.0, -200.0), $curtain->getEndControl());
+        // The curtain overrides colour and lineweight, the table nothing
+        self::assertSame(['#b45309', null, 50, null], [$curtain->getColor(), $curtain->getLinetype(), $curtain->getLineweight(), $curtain->getTransparency()]);
+        self::assertSame([null, null, null, null], [$table->getColor(), $table->getLinetype(), $table->getLineweight(), $table->getTransparency()]);
     }
 
     public function testFurtherVersionIsAddedToThePlan(): void

@@ -81,8 +81,10 @@ export const CHANGE_LISTS = [
   'removedGroupIds',
   'layers',
   'removedLayerIds',
+  'styles',
+  'removedStyleIds',
 ] as const
-/** The most vertices, elements, groups and layers one `app:change` may name; a larger one is ignored. */
+/** The most vertices, elements, groups, layers and styles one `app:change` may name; a larger one is ignored. */
 export const CHANGE_LIMIT = 20000
 /** The largest message taken, in bytes: room for a change at the limit (Socket.IO's default is 1 MB). */
 export const MAX_MESSAGE_BYTES = 16 * 1024 * 1024

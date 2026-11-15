@@ -2,6 +2,7 @@
 
 namespace App\Plan\Dto;
 
+use App\Plan\Enum\Linetype;
 use OpenApi\Attributes as OA;
 use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
@@ -27,8 +28,12 @@ final readonly class PolylineElementDto extends AbstractElementDto
         #[Assert\All([new Assert\Type('numeric')])]
         public array $bulges,
         ?string $name = null,
+        ?string $color = null,
+        ?Linetype $linetype = null,
+        ?int $lineweight = null,
+        ?int $transparency = null,
     ) {
-        parent::__construct($id, $layerId, $groupId, $styleId, $name);
+        parent::__construct($id, $layerId, $groupId, $styleId, $name, $color, $linetype, $lineweight, $transparency);
     }
 
     #[Assert\Callback]

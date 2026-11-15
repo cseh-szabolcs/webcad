@@ -14,7 +14,7 @@ describe('indexDocument', () => {
         expect(index.elements.get(E.table)?.type).toBe('circle');
         expect(index.layers.get(L.walls)?.name).toBe('Walls');
         expect(index.groups.get(G['door-d1'])?.name).toBe('Door D1');
-        expect(index.styles.get(S.hidden)?.dashPattern).toEqual([8, 4]);
+        expect(index.styles.get(S.hidden)?.linetype).toBe('hidden');
     });
 
     it('throws for an unknown vertex', () => {
