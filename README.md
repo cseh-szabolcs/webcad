@@ -68,6 +68,37 @@ the `dev` environment (and in `test`, for their own tests), never in `prod`.
 `app:tenants:run "<command>"` runs any console command once per tenant; it stops at the first
 tenant that fails, `--continue-on-error` goes on with the others and lists every result at the end.
 
+## Building the editor
+
+The CAD editor (`depts/editor/`, Vite + React) runs in dev on its own Vite server
+(http://localhost:8081, compose service `editor`). For the Symfony page it is built on the host:
+
+```sh
+cd depts/editor
+npm install
+npm run build
+```
+
+`npm run build` type-checks (`tsc -b`), builds with Vite into `dist/` and then copies
+`dist/editor/` to `public/editor/` (`build:publish`), where nginx serves it as `/editor/index.js`
+and `/editor/index.css`. `public/editor/` is git-ignored, so build again after every change to the
+editor. The page http://localhost:8080/de/plans/<plan-id>/editor (`App\Plan\Controller\EditorController`,
+also linked from the plan gallery at `/de/plans`) loads it; for the sample plan:
+http://localhost:8080/de/plans/01994f4e-6f3a-7c2d-9b1e-5a3c2d1e0f42/editor.
+
+The editor talks to the backend (API under `/api`, collaboration under `/socket.io`) on one host:
+
+| Setting                                 | Where                          | Used                                                     |
+|-----------------------------------------|--------------------------------|----------------------------------------------------------|
+| `EDITOR_BACKEND_HOST`                   | Symfony `.env`, `.env.<env>`   | at runtime: the page passes it as `data-backend-host`    |
+| `VITE_BACKEND_HOST`                     | `depts/editor/.env` (`.env.local`, `.env.production`) | at build time, when the page names no host |
+
+Empty means the page's own origin (the default in `.env`; dev sets `http://localhost:8080`).
+`EDITOR_BACKEND_HOST` is read on every request, so changing it needs no new build. The web server
+of that host must forward `/socket.io` to the collaboration server, as nginx does in Docker. A host
+on another origin than the page would also need CORS and cookies sent with the requests, which the
+backend does not support yet.
+
 ## API documentation and editor types
 
 The PHP DTOs (`src/Plan/Dto/`) and the `#[OA\…]` attributes on the controllers are the only
